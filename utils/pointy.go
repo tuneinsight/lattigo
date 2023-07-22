@@ -2,15 +2,16 @@ package utils
 
 import (
 	"unsafe"
+
+	cs "golang.org/x/exp/constraints"
 )
 
-// PointyInt creates a new int variable and returns its pointer.
-func PointyInt(x int) *int {
-	return &x
+type Number interface {
+	cs.Complex | cs.Float | cs.Integer
 }
 
-// PointyUint64 creates a new uint64 variable and returns its pointer.
-func PointyUint64(x uint64) *uint64 {
+// Pointy creates a new T variable and returns its pointer.
+func Pointy[T Number](x T) *T {
 	return &x
 }
 

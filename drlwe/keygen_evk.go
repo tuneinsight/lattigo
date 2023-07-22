@@ -62,38 +62,31 @@ func NewEvaluationKeyGenProtocol(params rlwe.Parameters) (evkg EvaluationKeyGenP
 	}
 }
 
-func getEVKParams(params rlwe.GetRLWEParameters, evkParams []rlwe.EvaluationKeyParameters) (evkParamsCpy rlwe.EvaluationKeyParameters) {
-	if len(evkParams) != 0 {
-		evkParamsCpy = evkParams[0]
-	} else {
-		p := params.GetRLWEParameters()
-		evkParamsCpy = rlwe.EvaluationKeyParameters{LevelQ: p.MaxLevelQ(), LevelP: p.MaxLevelP(), BaseTwoDecomposition: 0}
-	}
-	return
-}
-
 // AllocateShare allocates a party's share in the EvaluationKey Generation.
 func (evkg EvaluationKeyGenProtocol) AllocateShare(evkParams ...rlwe.EvaluationKeyParameters) EvaluationKeyGenShare {
-	evkParamsCpy := getEVKParams(evkg.params, evkParams)
-	return EvaluationKeyGenShare{*rlwe.NewGadgetCiphertext(evkg.params, 0, evkParamsCpy.LevelQ, evkParamsCpy.LevelP, evkParamsCpy.BaseTwoDecomposition)}
+	levelQ, levelP, BaseTwoDecomposition := rlwe.ResolveEvaluationKeysParameters(evkg.params, evkParams)
+	return evkg.allocateShare(levelQ, levelP, BaseTwoDecomposition)
+}
+
+func (evkg EvaluationKeyGenProtocol) allocateShare(levelQ, levelP, BaseTwoDecomposition int) EvaluationKeyGenShare {
+	return EvaluationKeyGenShare{*rlwe.NewGadgetCiphertext(evkg.params, 0, levelQ, levelP, BaseTwoDecomposition)}
 }
 
 // SampleCRP samples a common random polynomial to be used in the EvaluationKey Generation from the provided
 // common reference string.
 func (evkg EvaluationKeyGenProtocol) SampleCRP(crs CRS, evkParams ...rlwe.EvaluationKeyParameters) EvaluationKeyGenCRP {
+	levelQ, levelP, BaseTwoDecomposition := rlwe.ResolveEvaluationKeysParameters(evkg.params, evkParams)
+	return evkg.sampleCRP(crs, levelQ, levelP, BaseTwoDecomposition)
+}
+
+func (evkg EvaluationKeyGenProtocol) sampleCRP(crs CRS, levelQ, levelP, BaseTwoDecomposition int) EvaluationKeyGenCRP {
 
 	params := evkg.params
 
-	evkParamsCpy := getEVKParams(params, evkParams)
+	decompRNS := params.DecompRNS(levelQ, levelP)
+	decompPw2 := params.DecompPw2(levelQ, levelP, BaseTwoDecomposition)
 
-	LevelQ := evkParamsCpy.LevelQ
-	LevelP := evkParamsCpy.LevelP
-	BaseTwoDecomposition := evkParamsCpy.BaseTwoDecomposition
-
-	decompRNS := params.DecompRNS(LevelQ, LevelP)
-	decompPw2 := params.DecompPw2(LevelQ, LevelP, BaseTwoDecomposition)
-
-	us := ringqp.NewUniformSampler(crs, params.RingQP().AtLevel(LevelQ, LevelP))
+	us := ringqp.NewUniformSampler(crs, params.RingQP().AtLevel(levelQ, levelP))
 
 	m := make([][]ringqp.Poly, decompRNS)
 	for i := range m {

@@ -283,25 +283,45 @@ type EvaluationKey struct {
 }
 
 type EvaluationKeyParameters struct {
-	LevelQ               int
-	LevelP               int
-	BaseTwoDecomposition int
+	LevelQ               *int
+	LevelP               *int
+	BaseTwoDecomposition *int
 }
 
-func getEVKParams(params GetRLWEParameters, evkParams []EvaluationKeyParameters) (evkParamsCpy []EvaluationKeyParameters) {
+func ResolveEvaluationKeysParameters(params Parameters, evkParams []EvaluationKeyParameters) (levelQ, levelP, BaseTwoDecomposition int) {
 	if len(evkParams) != 0 {
-		evkParamsCpy = evkParams
+		if evkParams[0].LevelQ == nil {
+			levelQ = params.MaxLevelQ()
+		} else {
+			levelQ = *evkParams[0].LevelQ
+		}
+
+		if evkParams[0].LevelP == nil {
+			levelP = params.MaxLevelP()
+		} else {
+			levelP = *evkParams[0].LevelP
+		}
+
+		if evkParams[0].BaseTwoDecomposition != nil {
+			BaseTwoDecomposition = *evkParams[0].BaseTwoDecomposition
+		}
 	} else {
-		p := params.GetRLWEParameters()
-		evkParamsCpy = []EvaluationKeyParameters{{LevelQ: p.MaxLevelQ(), LevelP: p.MaxLevelP(), BaseTwoDecomposition: 0}}
+		levelQ = params.MaxLevelQ()
+		levelP = params.MaxLevelP()
 	}
+
 	return
 }
 
 // NewEvaluationKey returns a new EvaluationKey with pre-allocated zero-value.
 func NewEvaluationKey(params GetRLWEParameters, evkParams ...EvaluationKeyParameters) *EvaluationKey {
-	evkParamsCpy := getEVKParams(params, evkParams)[0]
-	return &EvaluationKey{GadgetCiphertext: *NewGadgetCiphertext(params, 1, evkParamsCpy.LevelQ, evkParamsCpy.LevelP, evkParamsCpy.BaseTwoDecomposition)}
+	p := *params.GetRLWEParameters()
+	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeysParameters(p, evkParams)
+	return newEvaluationKey(p, levelQ, levelP, BaseTwoDecomposition)
+}
+
+func newEvaluationKey(params Parameters, levelQ, levelP, BaseTwoDecomposition int) *EvaluationKey {
+	return &EvaluationKey{GadgetCiphertext: *NewGadgetCiphertext(params, 1, levelQ, levelP, BaseTwoDecomposition)}
 }
 
 // CopyNew creates a deep copy of the target EvaluationKey and returns it.
@@ -324,7 +344,13 @@ type RelinearizationKey struct {
 
 // NewRelinearizationKey allocates a new RelinearizationKey with zero coefficients.
 func NewRelinearizationKey(params GetRLWEParameters, evkParams ...EvaluationKeyParameters) *RelinearizationKey {
-	return &RelinearizationKey{EvaluationKey: *NewEvaluationKey(params, getEVKParams(params, evkParams)[0])}
+	p := *params.GetRLWEParameters()
+	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeysParameters(p, evkParams)
+	return newRelinearizationKey(p, levelQ, levelP, BaseTwoDecomposition)
+}
+
+func newRelinearizationKey(params Parameters, levelQ, levelP, BaseTwoDecomposition int) *RelinearizationKey {
+	return &RelinearizationKey{EvaluationKey: EvaluationKey{GadgetCiphertext: *NewGadgetCiphertext(params, 1, levelQ, levelP, BaseTwoDecomposition)}}
 }
 
 // CopyNew creates a deep copy of the object and returns it.
@@ -356,7 +382,16 @@ type GaloisKey struct {
 
 // NewGaloisKey allocates a new GaloisKey with zero coefficients and GaloisElement set to zero.
 func NewGaloisKey(params GetRLWEParameters, evkParams ...EvaluationKeyParameters) *GaloisKey {
-	return &GaloisKey{EvaluationKey: *NewEvaluationKey(params, getEVKParams(params, evkParams)[0]), NthRoot: params.GetRLWEParameters().RingQ().NthRoot()}
+	p := *params.GetRLWEParameters()
+	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeysParameters(p, evkParams)
+	return newGaloisKey(p, levelQ, levelP, BaseTwoDecomposition)
+}
+
+func newGaloisKey(params Parameters, levelQ, levelP, BaseTwoDecomposition int) *GaloisKey {
+	return &GaloisKey{
+		EvaluationKey: EvaluationKey{GadgetCiphertext: *NewGadgetCiphertext(params, 1, levelQ, levelP, BaseTwoDecomposition)},
+		NthRoot:       params.GetRLWEParameters().RingQ().NthRoot(),
+	}
 }
 
 // Equal returns true if the two objects are equal.

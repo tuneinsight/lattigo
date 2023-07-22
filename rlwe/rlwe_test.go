@@ -12,6 +12,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 	"github.com/tuneinsight/lattigo/v4/utils/structs"
@@ -294,7 +295,7 @@ func testKeyGenerator(tc *TestContext, bpw2 int, t *testing.T) {
 
 		for _, levelP := range levelsP {
 
-			evkParams := EvaluationKeyParameters{LevelQ: levelQ, LevelP: levelP, BaseTwoDecomposition: bpw2}
+			evkParams := EvaluationKeyParameters{LevelQ: utils.Pointy(levelQ), LevelP: utils.Pointy(levelP), BaseTwoDecomposition: utils.Pointy(bpw2)}
 
 			// Checks that EvaluationKeys are en encryption under the output key
 			// of the RNS decomposition of the input key by
@@ -491,7 +492,7 @@ func testGadgetProduct(tc *TestContext, levelQ, bpw2 int, t *testing.T) {
 
 	for _, levelP := range levelsP {
 
-		evkParams := EvaluationKeyParameters{LevelQ: levelQ, LevelP: levelP, BaseTwoDecomposition: bpw2}
+		evkParams := EvaluationKeyParameters{LevelQ: utils.Pointy(levelQ), LevelP: utils.Pointy(levelP), BaseTwoDecomposition: utils.Pointy(bpw2)}
 
 		t.Run(testString(params, levelQ, levelP, bpw2, "Evaluator/GadgetProduct"), func(t *testing.T) {
 
@@ -593,7 +594,7 @@ func testApplyEvaluationKey(tc *TestContext, level, bpw2 int, t *testing.T) {
 
 	var NoiseBound = float64(params.LogN() + bpw2)
 
-	evkParams := EvaluationKeyParameters{LevelQ: level, LevelP: params.MaxLevelP(), BaseTwoDecomposition: bpw2}
+	evkParams := EvaluationKeyParameters{LevelQ: utils.Pointy(level), BaseTwoDecomposition: utils.Pointy(bpw2)}
 
 	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/ApplyEvaluationKey/SameDegree"), func(t *testing.T) {
 
@@ -726,7 +727,7 @@ func testAutomorphism(tc *TestContext, level, bpw2 int, t *testing.T) {
 		NoiseBound += math.Log2(float64(level)+1) + 1
 	}
 
-	evkParams := EvaluationKeyParameters{LevelQ: level, LevelP: params.MaxLevelP(), BaseTwoDecomposition: bpw2}
+	evkParams := EvaluationKeyParameters{LevelQ: utils.Pointy(level), BaseTwoDecomposition: utils.Pointy(bpw2)}
 
 	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/Automorphism"), func(t *testing.T) {
 
@@ -979,7 +980,7 @@ func testWriteAndRead(tc *TestContext, bpw2 int, t *testing.T) {
 
 	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/GadgetCiphertext"), func(t *testing.T) {
 
-		rlk := NewRelinearizationKey(params, EvaluationKeyParameters{LevelQ: levelQ, LevelP: levelP, BaseTwoDecomposition: bpw2})
+		rlk := NewRelinearizationKey(params, EvaluationKeyParameters{BaseTwoDecomposition: utils.Pointy(bpw2)})
 
 		tc.kgen.GenRelinearizationKey(tc.sk, rlk)
 

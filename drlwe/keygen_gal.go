@@ -42,13 +42,15 @@ func NewGaloisKeyGenProtocol(params rlwe.Parameters) (gkg GaloisKeyGenProtocol) 
 
 // AllocateShare allocates a party's share in the GaloisKey Generation.
 func (gkg GaloisKeyGenProtocol) AllocateShare(evkParams ...rlwe.EvaluationKeyParameters) (gkgShare GaloisKeyGenShare) {
-	return GaloisKeyGenShare{EvaluationKeyGenShare: gkg.EvaluationKeyGenProtocol.AllocateShare(getEVKParams(gkg.params, evkParams))}
+	levelQ, levelP, BaseTwoDecomposition := rlwe.ResolveEvaluationKeysParameters(gkg.params, evkParams)
+	return GaloisKeyGenShare{EvaluationKeyGenShare: gkg.EvaluationKeyGenProtocol.allocateShare(levelQ, levelP, BaseTwoDecomposition)}
 }
 
 // SampleCRP samples a common random polynomial to be used in the GaloisKey Generation from the provided
 // common reference string.
 func (gkg GaloisKeyGenProtocol) SampleCRP(crs CRS, evkParams ...rlwe.EvaluationKeyParameters) GaloisKeyGenCRP {
-	return GaloisKeyGenCRP{gkg.EvaluationKeyGenProtocol.SampleCRP(crs, getEVKParams(gkg.params, evkParams))}
+	levelQ, levelP, BaseTwoDecomposition := rlwe.ResolveEvaluationKeysParameters(gkg.params, evkParams)
+	return GaloisKeyGenCRP{gkg.EvaluationKeyGenProtocol.sampleCRP(crs, levelQ, levelP, BaseTwoDecomposition)}
 }
 
 // GenShare generates a party's share in the GaloisKey Generation.

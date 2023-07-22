@@ -59,8 +59,8 @@ var (
 		ParametersLiteral{
 			SlotsToCoeffsFactorizationDepthAndLogPlaintextScales: [][]int{{42}, {42}, {42}},
 			CoeffsToSlotsFactorizationDepthAndLogPlaintextScales: [][]int{{58}, {58}, {58}, {58}},
-			LogMessageRatio: utils.PointyInt(2),
-			ArcSineDegree:   utils.PointyInt(7),
+			LogMessageRatio: utils.Pointy(2),
+			ArcSineDegree:   utils.Pointy(7),
 		},
 	}
 
@@ -82,7 +82,7 @@ var (
 		ParametersLiteral{
 			SlotsToCoeffsFactorizationDepthAndLogPlaintextScales: [][]int{{30}, {30, 30}},
 			CoeffsToSlotsFactorizationDepthAndLogPlaintextScales: [][]int{{53}, {53}, {53}, {53}},
-			EvalModLogPlaintextScale:                             utils.PointyInt(55),
+			EvalModLogPlaintextScale:                             utils.Pointy(55),
 		},
 	}
 
@@ -104,7 +104,7 @@ var (
 		ParametersLiteral{
 			SlotsToCoeffsFactorizationDepthAndLogPlaintextScales: [][]int{{30, 30}},
 			CoeffsToSlotsFactorizationDepthAndLogPlaintextScales: [][]int{{49}, {49}},
-			EvalModLogPlaintextScale:                             utils.PointyInt(50),
+			EvalModLogPlaintextScale:                             utils.Pointy(50),
 		},
 	}
 
@@ -144,8 +144,8 @@ var (
 		ParametersLiteral{
 			SlotsToCoeffsFactorizationDepthAndLogPlaintextScales: [][]int{{42}, {42}, {42}},
 			CoeffsToSlotsFactorizationDepthAndLogPlaintextScales: [][]int{{58}, {58}, {58}, {58}},
-			LogMessageRatio: utils.PointyInt(2),
-			ArcSineDegree:   utils.PointyInt(7),
+			LogMessageRatio: utils.Pointy(2),
+			ArcSineDegree:   utils.Pointy(7),
 		},
 	}
 
@@ -167,7 +167,7 @@ var (
 		ParametersLiteral{
 			SlotsToCoeffsFactorizationDepthAndLogPlaintextScales: [][]int{{30}, {30, 30}},
 			CoeffsToSlotsFactorizationDepthAndLogPlaintextScales: [][]int{{53}, {53}, {53}, {53}},
-			EvalModLogPlaintextScale:                             utils.PointyInt(55),
+			EvalModLogPlaintextScale:                             utils.Pointy(55),
 		},
 	}
 
@@ -189,7 +189,7 @@ var (
 		ParametersLiteral{
 			SlotsToCoeffsFactorizationDepthAndLogPlaintextScales: [][]int{{30, 30}},
 			CoeffsToSlotsFactorizationDepthAndLogPlaintextScales: [][]int{{52}, {52}},
-			EvalModLogPlaintextScale:                             utils.PointyInt(55),
+			EvalModLogPlaintextScale:                             utils.Pointy(55),
 		},
 	}
 )

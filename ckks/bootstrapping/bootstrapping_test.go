@@ -38,11 +38,11 @@ func TestBootstrapParametersMarshalling(t *testing.T) {
 		paramsLit := ParametersLiteral{
 			CoeffsToSlotsFactorizationDepthAndLogPlaintextScales: [][]int{{53}, {53}, {53}, {53}},
 			SlotsToCoeffsFactorizationDepthAndLogPlaintextScales: [][]int{{30}, {30, 30}},
-			EvalModLogPlaintextScale:                             utils.PointyInt(59),
-			EphemeralSecretWeight:                                utils.PointyInt(1),
-			Iterations:                                           utils.PointyInt(2),
-			SineDegree:                                           utils.PointyInt(32),
-			ArcSineDegree:                                        utils.PointyInt(7),
+			EvalModLogPlaintextScale:                             utils.Pointy(59),
+			EphemeralSecretWeight:                                utils.Pointy(1),
+			Iterations:                                           utils.Pointy(2),
+			SineDegree:                                           utils.Pointy(32),
+			ArcSineDegree:                                        utils.Pointy(7),
 		}
 
 		data, err := paramsLit.MarshalBinary()

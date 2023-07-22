@@ -100,7 +100,8 @@ func (kgen KeyGenerator) GenKeyPairNew() (sk *SecretKey, pk *PublicKey) {
 
 // GenRelinearizationKeyNew generates a new EvaluationKey that will be used to relinearize Ciphertexts during multiplication.
 func (kgen KeyGenerator) GenRelinearizationKeyNew(sk *SecretKey, evkParams ...EvaluationKeyParameters) (rlk *RelinearizationKey, err error) {
-	rlk = NewRelinearizationKey(kgen.params, getEVKParams(kgen.params, evkParams)[0])
+	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeysParameters(kgen.params, evkParams)
+	rlk = &RelinearizationKey{EvaluationKey: EvaluationKey{GadgetCiphertext: *NewGadgetCiphertext(kgen.params, 1, levelQ, levelP, BaseTwoDecomposition)}}
 	return rlk, kgen.GenRelinearizationKey(sk, rlk)
 }
 
@@ -113,7 +114,11 @@ func (kgen KeyGenerator) GenRelinearizationKey(sk *SecretKey, rlk *Relinearizati
 
 // GenGaloisKeyNew generates a new GaloisKey, enabling the automorphism X^{i} -> X^{i * galEl}.
 func (kgen KeyGenerator) GenGaloisKeyNew(galEl uint64, sk *SecretKey, evkParams ...EvaluationKeyParameters) (gk *GaloisKey, err error) {
-	gk = &GaloisKey{EvaluationKey: *NewEvaluationKey(kgen.params, getEVKParams(kgen.params, evkParams)[0])}
+	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeysParameters(kgen.params, evkParams)
+	gk = &GaloisKey{
+		EvaluationKey: EvaluationKey{GadgetCiphertext: *NewGadgetCiphertext(kgen.params, 1, levelQ, levelP, BaseTwoDecomposition)},
+		NthRoot:       kgen.params.GetRLWEParameters().RingQ().NthRoot(),
+	}
 	return gk, kgen.GenGaloisKey(galEl, sk, gk)
 }
 
@@ -178,9 +183,15 @@ func (kgen KeyGenerator) GenGaloisKeys(galEls []uint64, sk *SecretKey, gks []*Ga
 // GenGaloisKeysNew generates the GaloisKey objects for all galois elements in galEls, and
 // returns the resulting keys in a newly allocated []*GaloisKey.
 func (kgen KeyGenerator) GenGaloisKeysNew(galEls []uint64, sk *SecretKey, evkParams ...EvaluationKeyParameters) (gks []*GaloisKey, err error) {
+
+	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeysParameters(kgen.params, evkParams)
+
 	gks = make([]*GaloisKey, len(galEls))
 	for i, galEl := range galEls {
-		if gks[i], err = kgen.GenGaloisKeyNew(galEl, sk, getEVKParams(kgen.params, evkParams)[0]); err != nil {
+
+		gks[i] = newGaloisKey(kgen.params, levelQ, levelP, BaseTwoDecomposition)
+
+		if err = kgen.GenGaloisKey(galEl, sk, gks[i]); err != nil {
 			return
 		}
 	}
@@ -199,23 +210,15 @@ func (kgen KeyGenerator) GenEvaluationKeysForRingSwapNew(skStd, skConjugateInvar
 		kgen.extendQ2P2(kgen.params.MaxLevelP(), skCIMappedToStandard.Value.Q, kgen.buffQ[1], skCIMappedToStandard.Value.P)
 	}
 
-	evkp := getEVKParams(kgen.params, evkParams)
+	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeysParameters(kgen.params, evkParams)
 
-	var stdTociParams, ciToStdParams EvaluationKeyParameters
-
-	if len(evkp) == 2 {
-		stdTociParams = evkp[0]
-		ciToStdParams = evkp[1]
-	} else {
-		stdTociParams = evkp[0]
-		ciToStdParams = evkp[0]
-	}
-
-	if stdToci, err = kgen.GenEvaluationKeyNew(skStd, skCIMappedToStandard, stdTociParams); err != nil {
+	stdToci = newEvaluationKey(kgen.params, levelQ, levelP, BaseTwoDecomposition)
+	if err = kgen.GenEvaluationKey(skStd, skCIMappedToStandard, stdToci); err != nil {
 		return
 	}
 
-	if ciToStd, err = kgen.GenEvaluationKeyNew(skCIMappedToStandard, skStd, ciToStdParams); err != nil {
+	ciToStd = newEvaluationKey(kgen.params, levelQ, levelP, BaseTwoDecomposition)
+	if err = kgen.GenEvaluationKey(skCIMappedToStandard, skStd, ciToStd); err != nil {
 		return
 	}
 
@@ -232,7 +235,8 @@ func (kgen KeyGenerator) GenEvaluationKeysForRingSwapNew(skStd, skConjugateInvar
 // When re-encrypting a Ciphertext from X^{N} to Y^{N/n}, the output of the re-encryption is in still X^{N} and
 // must be mapped Y^{N/n} using SwitchCiphertextRingDegreeNTT(ctLargeDim, ringQLargeDim, ctSmallDim).
 func (kgen KeyGenerator) GenEvaluationKeyNew(skInput, skOutput *SecretKey, evkParams ...EvaluationKeyParameters) (evk *EvaluationKey, err error) {
-	evk = NewEvaluationKey(kgen.params, getEVKParams(kgen.params, evkParams)[0])
+	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeysParameters(kgen.params, evkParams)
+	evk = newEvaluationKey(kgen.params, levelQ, levelP, BaseTwoDecomposition)
 	return evk, kgen.GenEvaluationKey(skInput, skOutput, evk)
 }
 

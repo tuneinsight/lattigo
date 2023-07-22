@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
@@ -172,7 +173,7 @@ func testRelinearizationKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int
 
 	t.Run(testString(params, "RelinearizationKeyGen/Protocol", levelQ, levelP, bpw2), func(t *testing.T) {
 
-		evkParams := rlwe.EvaluationKeyParameters{LevelQ: levelQ, LevelP: levelP, BaseTwoDecomposition: bpw2}
+		evkParams := rlwe.EvaluationKeyParameters{LevelQ: utils.Pointy(levelQ), LevelP: utils.Pointy(levelP), BaseTwoDecomposition: utils.Pointy(bpw2)}
 
 		rkg := make([]RelinearizationKeyGenProtocol, nbParties)
 
@@ -229,7 +230,7 @@ func testEvaluationKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *
 
 	t.Run(testString(params, "EvaluationKeyGen", levelQ, levelP, bpw2), func(t *testing.T) {
 
-		evkParams := rlwe.EvaluationKeyParameters{LevelQ: levelQ, LevelP: levelP, BaseTwoDecomposition: bpw2}
+		evkParams := rlwe.EvaluationKeyParameters{LevelQ: utils.Pointy(levelQ), LevelP: utils.Pointy(levelP), BaseTwoDecomposition: utils.Pointy(bpw2)}
 
 		evkg := make([]EvaluationKeyGenProtocol, nbParties)
 		for i := range evkg {
@@ -284,7 +285,7 @@ func testGaloisKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *test
 
 	t.Run(testString(params, "GaloisKeyGenProtocol", levelQ, levelP, bpw2), func(t *testing.T) {
 
-		evkParams := rlwe.EvaluationKeyParameters{LevelQ: levelQ, LevelP: levelP, BaseTwoDecomposition: bpw2}
+		evkParams := rlwe.EvaluationKeyParameters{LevelQ: utils.Pointy(levelQ), LevelP: utils.Pointy(levelP), BaseTwoDecomposition: utils.Pointy(bpw2)}
 
 		gkg := make([]GaloisKeyGenProtocol, nbParties)
 		for i := range gkg {

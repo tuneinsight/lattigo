@@ -7,6 +7,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
@@ -99,7 +100,7 @@ func benchPublicKeyGen(params rlwe.Parameters, levelQ, levelP, bpw2 int, b *test
 
 func benchRelinearizationKeyGen(params rlwe.Parameters, levelQ, levelP, bpw2 int, b *testing.B) {
 
-	evkParams := rlwe.EvaluationKeyParameters{LevelQ: levelQ, LevelP: levelP, BaseTwoDecomposition: bpw2}
+	evkParams := rlwe.EvaluationKeyParameters{LevelQ: utils.Pointy(levelQ), LevelP: utils.Pointy(levelP), BaseTwoDecomposition: utils.Pointy(bpw2)}
 
 	rkg := NewRelinearizationKeyGenProtocol(params)
 	sk := rlwe.NewKeyGenerator(params).GenSecretKeyNew()
@@ -136,7 +137,7 @@ func benchRelinearizationKeyGen(params rlwe.Parameters, levelQ, levelP, bpw2 int
 
 func benchRotKeyGen(params rlwe.Parameters, levelQ, levelP, bpw2 int, b *testing.B) {
 
-	evkParams := rlwe.EvaluationKeyParameters{LevelQ: levelQ, LevelP: levelP, BaseTwoDecomposition: bpw2}
+	evkParams := rlwe.EvaluationKeyParameters{LevelQ: utils.Pointy(levelQ), LevelP: utils.Pointy(levelP), BaseTwoDecomposition: utils.Pointy(bpw2)}
 
 	rtg := NewGaloisKeyGenProtocol(params)
 	sk := rlwe.NewKeyGenerator(params).GenSecretKeyNew()

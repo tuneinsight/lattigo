@@ -90,16 +90,12 @@ func NewRelinearizationKeyGenProtocol(params rlwe.Parameters) RelinearizationKey
 func (ekg RelinearizationKeyGenProtocol) SampleCRP(crs CRS, evkParams ...rlwe.EvaluationKeyParameters) RelinearizationKeyGenCRP {
 	params := ekg.params
 
-	evkParamsCpy := getEVKParams(params, evkParams)
+	levelQ, levelP, BaseTwoDecomposition := rlwe.ResolveEvaluationKeysParameters(ekg.params, evkParams)
 
-	LevelQ := evkParamsCpy.LevelQ
-	LevelP := evkParamsCpy.LevelP
-	BaseTwoDecomposition := evkParamsCpy.BaseTwoDecomposition
+	decompRNS := params.DecompRNS(levelQ, levelP)
+	decompPw2 := params.DecompPw2(levelQ, levelP, BaseTwoDecomposition)
 
-	decompRNS := params.DecompRNS(LevelQ, LevelP)
-	decompPw2 := params.DecompPw2(LevelQ, LevelP, BaseTwoDecomposition)
-
-	us := ringqp.NewUniformSampler(crs, params.RingQP().AtLevel(LevelQ, LevelP))
+	us := ringqp.NewUniformSampler(crs, params.RingQP().AtLevel(levelQ, levelP))
 
 	m := make([][]ringqp.Poly, decompRNS)
 	for i := range m {
@@ -321,10 +317,10 @@ func (ekg RelinearizationKeyGenProtocol) AllocateShare(evkParams ...rlwe.Evaluat
 	params := ekg.params
 	ephSk = rlwe.NewSecretKey(params)
 
-	evkParamsCpy := getEVKParams(ekg.params, evkParams)
+	levelQ, levelP, BaseTwoDecomposition := rlwe.ResolveEvaluationKeysParameters(ekg.params, evkParams)
 
-	r1 = RelinearizationKeyGenShare{GadgetCiphertext: *rlwe.NewGadgetCiphertext(params, 1, evkParamsCpy.LevelQ, evkParamsCpy.LevelP, evkParamsCpy.BaseTwoDecomposition)}
-	r2 = RelinearizationKeyGenShare{GadgetCiphertext: *rlwe.NewGadgetCiphertext(params, 1, evkParamsCpy.LevelQ, evkParamsCpy.LevelP, evkParamsCpy.BaseTwoDecomposition)}
+	r1 = RelinearizationKeyGenShare{GadgetCiphertext: *rlwe.NewGadgetCiphertext(params, 1, levelQ, levelP, BaseTwoDecomposition)}
+	r2 = RelinearizationKeyGenShare{GadgetCiphertext: *rlwe.NewGadgetCiphertext(params, 1, levelQ, levelP, BaseTwoDecomposition)}
 
 	return
 }

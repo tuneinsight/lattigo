@@ -74,7 +74,7 @@ func benchRefresh(tc *testContext, b *testing.B) {
 	b.Run(GetTestName("Refresh/Round1/Gen", tc.params, tc.NParties), func(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
-			p.GenShare(p.s, ciphertext, ciphertext.PlaintextScale, crp, &p.share)
+			p.GenShare(p.s, ciphertext, ciphertext.Scale, crp, &p.share)
 		}
 	})
 

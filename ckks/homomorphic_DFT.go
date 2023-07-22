@@ -148,8 +148,8 @@ func NewHomomorphicDFTMatrixFromLiteral(d HomomorphicDFTMatrixLiteral, encoder *
 			ltparams := hebase.MemLinearTransformationParameters[*bignum.Complex]{
 				Diagonals:                pVecDFT[idx],
 				Level:                    level,
-				PlaintextScale:           scale,
-				PlaintextLogDimensions:   ring.Dimensions{Rows: 0, Cols: logdSlots},
+				Scale:                    scale,
+				LogDimensions:            ring.Dimensions{Rows: 0, Cols: logdSlots},
 				LogBabyStepGianStepRatio: d.LogBSGSRatio,
 			}
 
@@ -230,7 +230,7 @@ func (eval Evaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices Homomorph
 
 		// If repacking, then ct0 and ct1 right n/2 slots are zero.
 		if ctsMatrices.LogSlots < eval.Parameters().PlaintextLogSlots() {
-			if err = eval.Rotate(tmp, ctIn.PlaintextDimensions().Cols, tmp); err != nil {
+			if err = eval.Rotate(tmp, 1<<ctIn.LogDimensions.Cols, tmp); err != nil {
 				return fmt.Errorf("cannot CoeffsToSlots: %w", err)
 			}
 
@@ -295,10 +295,10 @@ func (eval Evaluator) SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext, stcMatrices
 
 func (eval Evaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []hebase.LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
 
-	inputLogSlots := ctIn.PlaintextLogDimensions
+	inputLogSlots := ctIn.LogDimensions
 
 	// Sequentially multiplies w with the provided dft matrices.
-	scale := ctIn.PlaintextScale
+	scale := ctIn.Scale
 	var in, out *rlwe.Ciphertext
 	for i, plainVector := range plainVectors {
 		in, out = opOut, opOut
@@ -318,7 +318,7 @@ func (eval Evaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []hebase.LinearTra
 	// Encoding matrices are a special case of `fractal` linear transform
 	// that doesn't change the underlying plaintext polynomial Y = X^{N/n}
 	// of the input ciphertext.
-	opOut.PlaintextLogDimensions = inputLogSlots
+	opOut.LogDimensions = inputLogSlots
 
 	return
 }

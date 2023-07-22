@@ -109,7 +109,7 @@ func (e2s EncToShareProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, ct *rl
 
 	boundHalf := new(big.Int).Rsh(bound, 1)
 
-	dslots := 1 << ct.PlaintextLogSlots()
+	dslots := ct.Slots()
 	if ringQ.Type() == ring.Standard {
 		dslots *= 2
 	}
@@ -159,7 +159,7 @@ func (e2s EncToShareProtocol) GetShare(secretShare *drlwe.AdditiveShareBigint, a
 	// Switches the LSSS RNS NTT ciphertext outside of the NTT domain
 	ringQ.INTT(e2s.buff, e2s.buff)
 
-	dslots := 1 << ct.PlaintextLogSlots()
+	dslots := ct.Slots()
 	if ringQ.Type() == ring.Standard {
 		dslots *= 2
 	}
@@ -243,10 +243,11 @@ func (s2e ShareToEncProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.KeySwitchCR
 	// Generates an encryption share
 	ct := &rlwe.Ciphertext{}
 	ct.Value = []ring.Poly{{}, crs.Value}
-	ct.MetaData = &rlwe.MetaData{IsNTT: true}
+	ct.MetaData = &rlwe.MetaData{}
+	ct.IsNTT = true
 	s2e.KeySwitchProtocol.GenShare(s2e.zero, sk, ct, c0ShareOut)
 
-	dslots := 1 << metadata.PlaintextLogSlots()
+	dslots := metadata.Slots()
 	if ringQ.Type() == ring.Standard {
 		dslots *= 2
 	}

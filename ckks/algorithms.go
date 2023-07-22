@@ -83,7 +83,7 @@ func (eval *Evaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, minValue, log
 			return nil, err
 		}
 
-		if err = eval.SetScale(a, tmp.PlaintextScale); err != nil {
+		if err = eval.SetScale(a, tmp.Scale); err != nil {
 			return nil, err
 		}
 

@@ -569,7 +569,8 @@ func testRefreshShare(tc *testContext, levelQ, levelP, bpw2 int, t *testing.T) {
 		ringQ := params.RingQ().AtLevel(levelQ)
 		ciphertext := &rlwe.Ciphertext{}
 		ciphertext.Value = []ring.Poly{{}, ringQ.NewPoly()}
-		ciphertext.MetaData = &rlwe.MetaData{IsNTT: true}
+		ciphertext.MetaData = &rlwe.MetaData{}
+		ciphertext.MetaData.IsNTT = true
 		tc.uniformSampler.AtLevel(levelQ).Read(ciphertext.Value[1])
 		cksp, err := NewKeySwitchProtocol(tc.params, tc.params.Xe())
 		require.NoError(t, err)

@@ -36,7 +36,9 @@ func NewOperandQ(params ParametersInterface, degree, levelQ int) *Operand[ring.P
 	return &Operand[ring.Poly]{
 		Value: Value,
 		MetaData: &MetaData{
-			IsNTT: params.NTTFlag(),
+			CiphertextMetaData: CiphertextMetaData{
+				IsNTT: params.NTTFlag(),
+			},
 		},
 	}
 }
@@ -52,7 +54,9 @@ func NewOperandQP(params ParametersInterface, degree, levelQ, levelP int) *Opera
 	return &Operand[ringqp.Poly]{
 		Value: Value,
 		MetaData: &MetaData{
-			IsNTT: params.NTTFlag(),
+			CiphertextMetaData: CiphertextMetaData{
+				IsNTT: params.NTTFlag(),
+			},
 		},
 	}
 }
@@ -307,6 +311,7 @@ func (op Operand[T]) WriteTo(w io.Writer) (n int64, err error) {
 			}
 
 			n += inc
+
 		} else {
 			if inc, err = buffer.WriteUint8(w, 0); err != nil {
 				return n, err

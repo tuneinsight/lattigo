@@ -930,7 +930,9 @@ func testWriteAndRead(tc *TestContext, bpw2 int, t *testing.T) {
 				sampler.ReadNew(),
 			},
 			MetaData: &MetaData{
-				IsNTT: params.NTTFlag(),
+				CiphertextMetaData: CiphertextMetaData{
+					IsNTT: params.NTTFlag(),
+				},
 			},
 		}
 
@@ -948,7 +950,9 @@ func testWriteAndRead(tc *TestContext, bpw2 int, t *testing.T) {
 				sampler.ReadNew(),
 			},
 			MetaData: &MetaData{
-				IsNTT: params.NTTFlag(),
+				CiphertextMetaData: CiphertextMetaData{
+					IsNTT: params.NTTFlag(),
+				},
 			},
 		}
 
@@ -1063,16 +1067,13 @@ func testMarshaller(tc *TestContext, t *testing.T) {
 	*/
 
 	t.Run("Marshaller/MetaData", func(t *testing.T) {
-		m := MetaData{PlaintextScale: NewScaleModT(1, 65537), IsNTT: true, IsMontgomery: true}
+		m := MetaData{}
+		m.Scale = NewScaleModT(1, 65537)
+		m.IsNTT = true
+		m.IsMontgomery = true
+		m.LogDimensions = ring.Dimensions{Rows: 2, Cols: 8}
+		m.IsBatched = true
 
-		data, err := m.MarshalBinary()
-		require.Nil(t, err)
-		require.NotNil(t, data)
-
-		mHave := &MetaData{}
-
-		require.Nil(t, mHave.UnmarshalBinary(data))
-
-		require.True(t, m.Equal(mHave))
+		buffer.RequireSerializerCorrect(t, &m)
 	})
 }

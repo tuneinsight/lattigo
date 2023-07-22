@@ -147,7 +147,7 @@ func (eval Evaluator) Expand(ctIn *rlwe.Ciphertext, logN, logGap int) (opOut []*
 
 	opOut = make([]*rlwe.Ciphertext, 1<<(logN-logGap))
 	opOut[0] = ctIn.CopyNew()
-	opOut[0].PlaintextLogDimensions = ring.Dimensions{Rows: 0, Cols: 0}
+	opOut[0].LogDimensions = ring.Dimensions{Rows: 0, Cols: 0}
 
 	if ct := opOut[0]; !ctIn.IsNTT {
 		ringQ.NTT(ct.Value[0], ct.Value[0])
@@ -326,7 +326,8 @@ func (eval Evaluator) Pack(cts map[int]*rlwe.Ciphertext, inputLogGap int, zeroGa
 
 	tmpa := &rlwe.Ciphertext{}
 	tmpa.Value = []ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()}
-	tmpa.MetaData = &rlwe.MetaData{IsNTT: true}
+	tmpa.MetaData = &rlwe.MetaData{}
+	tmpa.MetaData.IsNTT = true
 
 	for i := logStart; i < logEnd; i++ {
 

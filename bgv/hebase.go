@@ -35,8 +35,8 @@ func NewPolynomialVector(polys []hebase.Polynomial, mapping map[int][]int) (heba
 type LinearTransformationParametersLiteral[T int64 | uint64] struct {
 	Diagonals                map[int][]T
 	Level                    int
-	PlaintextScale           rlwe.Scale
-	PlaintextLogDimensions   ring.Dimensions
+	Scale                    rlwe.Scale
+	LogDimensions            ring.Dimensions
 	LogBabyStepGianStepRatio int
 }
 
@@ -45,8 +45,8 @@ func NewLinearTransformationParmeters[T int64 | uint64](params LinearTransformat
 	return hebase.MemLinearTransformationParameters[T]{
 		Diagonals:                params.Diagonals,
 		Level:                    params.Level,
-		PlaintextScale:           params.PlaintextScale,
-		PlaintextLogDimensions:   params.PlaintextLogDimensions,
+		Scale:                    params.Scale,
+		LogDimensions:            params.LogDimensions,
 		LogBabyStepGianStepRatio: params.LogBabyStepGianStepRatio,
 	}
 }

@@ -169,7 +169,8 @@ func (s2e ShareToEncProtocol) GenShare(sk *rlwe.SecretKey, crp drlwe.KeySwitchCR
 
 	ct := &rlwe.Ciphertext{}
 	ct.Value = []ring.Poly{{}, crp.Value}
-	ct.MetaData = &rlwe.MetaData{IsNTT: true}
+	ct.MetaData = &rlwe.MetaData{}
+	ct.MetaData.IsNTT = true
 	s2e.KeySwitchProtocol.GenShare(s2e.zero, sk, ct, c0ShareOut)
 	s2e.encoder.RingT2Q(crp.Value.Level(), true, secretShare.Value, s2e.tmpPlaintextRingQ)
 	ringQ := s2e.params.RingQ().AtLevel(crp.Value.Level())

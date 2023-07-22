@@ -154,12 +154,12 @@ func (eval Evaluator) CheckAndGetRelinearizationKey() (evk *RelinearizationKey, 
 // 2. MetaData are not nil
 // 3. op0.Degree() + op1.Degree() != 0 (i.e at least one operand is a ciphertext)
 // 4. op0.IsNTT == op1.IsNTT == DefaultNTTFlag
-// 5. op0.EncodingDomain == op1.EncodingDomain
+// 5. op0.IsBatched == op1.IsBatched
 //
 // The opOut metadata are initilized as:
 // IsNTT <- DefaultNTTFlag
-// EncodingDomain <- op0.EncodingDomain
-// PlaintextLogDimensions <- max(op0.PlaintextLogDimensions, op1.PlaintextLogDimensions)
+// IsBatched <- op0.IsBatched
+// LogDimensions <- max(op0.LogDimensions, op1.LogDimensions)
 //
 // The method returns max(op0.Degree(), op1.Degree(), opOut.Degree()) and min(op0.Level(), op1.Level(), opOut.Level())
 func (eval Evaluator) InitOutputBinaryOp(op0, op1 *Operand[ring.Poly], opInTotalMaxDegree int, opOut *Operand[ring.Poly]) (degree, level int, err error) {
@@ -193,14 +193,14 @@ func (eval Evaluator) InitOutputBinaryOp(op0, op1 *Operand[ring.Poly], opInTotal
 		opOut.El().IsNTT = op0.El().IsNTT
 	}
 
-	if op0.El().EncodingDomain != op1.El().EncodingDomain {
-		return 0, 0, fmt.Errorf("op1.El().EncodingDomain != opOut.El().EncodingDomain")
+	if op0.El().IsBatched != op1.El().IsBatched {
+		return 0, 0, fmt.Errorf("op1.El().IsBatched != opOut.El().IsBatched")
 	} else {
-		opOut.El().EncodingDomain = op0.El().EncodingDomain
+		opOut.El().IsBatched = op0.El().IsBatched
 	}
 
-	opOut.El().PlaintextLogDimensions.Rows = utils.Max(op0.El().PlaintextLogDimensions.Rows, op1.El().PlaintextLogDimensions.Rows)
-	opOut.El().PlaintextLogDimensions.Cols = utils.Max(op0.El().PlaintextLogDimensions.Cols, op1.El().PlaintextLogDimensions.Cols)
+	opOut.El().LogDimensions.Rows = utils.Max(op0.El().LogDimensions.Rows, op1.El().LogDimensions.Rows)
+	opOut.El().LogDimensions.Cols = utils.Max(op0.El().LogDimensions.Cols, op1.El().LogDimensions.Cols)
 
 	return
 }
@@ -215,8 +215,8 @@ func (eval Evaluator) InitOutputBinaryOp(op0, op1 *Operand[ring.Poly], opInTotal
 // The method will also update the metadata of opOut:
 //
 // IsNTT <- NTTFlag
-// EncodingDomain <- op0.EncodingDomain
-// PlaintextLogDimensions <- op0.PlaintextLogDimensions
+// IsBatched <- op0.IsBatched
+// LogDimensions <- op0.LogDimensions
 //
 // The method returns max(op0.Degree(), opOut.Degree()) and min(op0.Level(), opOut.Level()).
 func (eval Evaluator) InitOutputUnaryOp(op0, opOut *Operand[ring.Poly]) (degree, level int, err error) {
@@ -235,8 +235,8 @@ func (eval Evaluator) InitOutputUnaryOp(op0, opOut *Operand[ring.Poly]) (degree,
 		opOut.El().IsNTT = op0.El().IsNTT
 	}
 
-	opOut.El().EncodingDomain = op0.El().EncodingDomain
-	opOut.El().PlaintextLogDimensions = op0.El().PlaintextLogDimensions
+	opOut.El().IsBatched = op0.El().IsBatched
+	opOut.El().LogDimensions = op0.El().LogDimensions
 
 	return utils.Max(op0.Degree(), opOut.Degree()), utils.Min(op0.Level(), opOut.Level()), nil
 }

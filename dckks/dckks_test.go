@@ -203,7 +203,7 @@ func testEncToShareProtocol(tc *testContext, t *testing.T) {
 			P[i].sk = tc.sk0Shards[i]
 			P[i].publicShareE2S = P[i].e2s.AllocateShare(minLevel)
 			P[i].publicShareS2E = P[i].s2e.AllocateShare(params.MaxLevel())
-			P[i].secretShare = NewAdditiveShare(params, ciphertext.PlaintextLogSlots())
+			P[i].secretShare = NewAdditiveShare(params, ciphertext.LogSlots())
 		}
 
 		for i, p := range P {
@@ -220,7 +220,7 @@ func testEncToShareProtocol(tc *testContext, t *testing.T) {
 		P[0].e2s.GetShare(&P[0].secretShare, P[0].publicShareE2S, ciphertext, &P[0].secretShare)
 
 		// sum(-M_i) + x + sum(M_i) = x
-		rec := NewAdditiveShare(params, ciphertext.PlaintextLogSlots())
+		rec := NewAdditiveShare(params, ciphertext.LogSlots())
 		for _, p := range P {
 			a := rec.Value
 			b := p.secretShare.Value
@@ -232,7 +232,7 @@ func testEncToShareProtocol(tc *testContext, t *testing.T) {
 
 		pt := ckks.NewPlaintext(params, ciphertext.Level())
 		pt.IsNTT = false
-		pt.PlaintextScale = ciphertext.PlaintextScale
+		pt.Scale = ciphertext.Scale
 		tc.ringQ.AtLevel(pt.Level()).SetCoefficientsBigint(rec.Value, pt.Value)
 
 		verifyTestVectors(tc, nil, coeffs, pt, t)
@@ -247,7 +247,7 @@ func testEncToShareProtocol(tc *testContext, t *testing.T) {
 		}
 
 		ctRec := ckks.NewCiphertext(params, 1, params.MaxLevel())
-		ctRec.PlaintextScale = params.PlaintextScale()
+		ctRec.Scale = params.PlaintextScale()
 		P[0].s2e.GetEncryption(P[0].publicShareS2E, crp, ctRec)
 
 		verifyTestVectors(tc, tc.decryptorSk0, coeffs, ctRec, t)
@@ -537,9 +537,9 @@ func newTestVectorsAtScale(tc *testContext, encryptor *rlwe.Encryptor, a, b comp
 	prec := tc.encoder.Prec()
 
 	pt = ckks.NewPlaintext(tc.params, tc.params.MaxLevel())
-	pt.PlaintextScale = scale
+	pt.Scale = scale
 
-	values = make([]*bignum.Complex, pt.PlaintextSlots())
+	values = make([]*bignum.Complex, pt.Slots())
 
 	switch tc.params.RingType() {
 	case ring.Standard:

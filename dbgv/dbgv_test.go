@@ -227,7 +227,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 		ptRt.Copy(rec.Value)
 		values := make([]uint64, len(coeffs))
 
-		tc.encoder.DecodeRingT(ptRt, ciphertext.PlaintextScale, values)
+		tc.encoder.DecodeRingT(ptRt, ciphertext.Scale, values)
 
 		assert.True(t, utils.EqualSlice(coeffs, values))
 	})
@@ -293,7 +293,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 		ciphertext.Resize(ciphertext.Degree(), minLevel)
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, ciphertext, ciphertext.PlaintextScale, crp, &p.share)
+			p.GenShare(p.s, ciphertext, ciphertext.Scale, crp, &p.share)
 			if i > 0 {
 				P0.AggregateShares(p.share, P0.share, &P0.share)
 			}
@@ -376,7 +376,7 @@ func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, p.s, ciphertext, ciphertext.PlaintextScale, crp, maskedTransform, &p.share)
+			p.GenShare(p.s, p.s, ciphertext, ciphertext.Scale, crp, maskedTransform, &p.share)
 			if i > 0 {
 				P0.AggregateShares(P0.share, p.share, &P0.share)
 			}
@@ -478,7 +478,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.sIn, p.sOut, ciphertext, ciphertext.PlaintextScale, crp, transform, &p.share)
+			p.GenShare(p.sIn, p.sOut, ciphertext, ciphertext.Scale, crp, transform, &p.share)
 			if i > 0 {
 				P0.AggregateShares(P0.share, p.share, &P0.share)
 			}
@@ -510,7 +510,7 @@ func newTestVectors(tc *testContext, encryptor *rlwe.Encryptor, t *testing.T) (c
 	}
 
 	plaintext = bgv.NewPlaintext(tc.params, tc.params.MaxLevel())
-	plaintext.PlaintextScale = tc.params.NewScale(2)
+	plaintext.Scale = tc.params.NewScale(2)
 	require.NoError(t, tc.encoder.Encode(coeffsPol.Coeffs[0], plaintext))
 	var err error
 	ciphertext, err = encryptor.EncryptNew(plaintext)

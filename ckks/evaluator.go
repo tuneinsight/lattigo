@@ -82,7 +82,7 @@ func (eval Evaluator) Add(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 		opOut.Resize(op0.Degree(), level)
 
 		// Convertes the scalar to a complex RNS scalar
-		RNSReal, RNSImag := bigComplexToRNSScalar(eval.parameters.RingQ().AtLevel(level), &op0.PlaintextScale.Value, bignum.ToComplex(op1, eval.parameters.PlaintextPrecision()))
+		RNSReal, RNSImag := bigComplexToRNSScalar(eval.parameters.RingQ().AtLevel(level), &op0.Scale.Value, bignum.ToComplex(op1, eval.parameters.PlaintextPrecision()))
 
 		// Generic inplace evaluation
 		eval.evaluateWithScalar(level, op0.Value[:1], RNSReal, RNSImag, opOut.Value[:1], eval.parameters.RingQ().AtLevel(level).AddDoubleRNSScalar)
@@ -175,7 +175,7 @@ func (eval Evaluator) Sub(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 		opOut.Resize(op0.Degree(), level)
 
 		// Convertes the scalar to a complex RNS scalar
-		RNSReal, RNSImag := bigComplexToRNSScalar(eval.parameters.RingQ().AtLevel(level), &op0.PlaintextScale.Value, bignum.ToComplex(op1, eval.parameters.PlaintextPrecision()))
+		RNSReal, RNSImag := bigComplexToRNSScalar(eval.parameters.RingQ().AtLevel(level), &op0.Scale.Value, bignum.ToComplex(op1, eval.parameters.PlaintextPrecision()))
 
 		// Generic inplace evaluation
 		eval.evaluateWithScalar(level, op0.Value[:1], RNSReal, RNSImag, opOut.Value[:1], eval.parameters.RingQ().AtLevel(level).SubDoubleRNSScalar)
@@ -237,10 +237,10 @@ func (eval Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 *rlwe.O
 	maxDegree := utils.Max(c0.Degree(), c1.Degree())
 	minDegree := utils.Min(c0.Degree(), c1.Degree())
 
-	c0Scale := c0.PlaintextScale
-	c1Scale := c1.PlaintextScale
+	c0Scale := c0.Scale
+	c1Scale := c1.Scale
 
-	cmp := c0.PlaintextScale.Cmp(c1.PlaintextScale)
+	cmp := c0.Scale.Cmp(c1.Scale)
 
 	var err error
 
@@ -280,7 +280,7 @@ func (eval Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 *rlwe.O
 					return
 				}
 
-				opOut.PlaintextScale = c1.PlaintextScale
+				opOut.Scale = c1.Scale
 
 				tmp1 = &rlwe.Ciphertext{Operand: *c1}
 			}
@@ -304,7 +304,7 @@ func (eval Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 *rlwe.O
 					return
 				}
 
-				opOut.PlaintextScale = c0.PlaintextScale
+				opOut.Scale = c0.Scale
 
 				tmp0 = c0
 			}
@@ -389,7 +389,7 @@ func (eval Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 *rlwe.O
 		evaluate(tmp0.Value[i], tmp1.Value[i], opOut.El().Value[i])
 	}
 
-	opOut.PlaintextScale = c0.PlaintextScale.Max(c1.PlaintextScale)
+	opOut.Scale = c0.Scale.Max(c1.Scale)
 
 	// If the inputs degrees differ, it copies the remaining degree on the receiver.
 	// Also checks that the receiver is not one of the inputs to avoid unnecessary work.
@@ -434,21 +434,21 @@ func (eval Evaluator) ScaleUp(op0 *rlwe.Ciphertext, scale rlwe.Scale, opOut *rlw
 		return fmt.Errorf("cannot ScaleUp: %w", err)
 	}
 
-	opOut.PlaintextScale = op0.PlaintextScale.Mul(scale)
+	opOut.Scale = op0.Scale.Mul(scale)
 
 	return
 }
 
 // SetScale sets the scale of the ciphertext to the input scale (consumes a level).
 func (eval Evaluator) SetScale(ct *rlwe.Ciphertext, scale rlwe.Scale) (err error) {
-	ratioFlo := scale.Div(ct.PlaintextScale).Value
+	ratioFlo := scale.Div(ct.Scale).Value
 	if err = eval.Mul(ct, &ratioFlo, ct); err != nil {
 		return fmt.Errorf("cannot SetScale: %w", err)
 	}
 	if err = eval.Rescale(ct, scale, ct); err != nil {
 		return fmt.Errorf("cannot SetScale: %w", err)
 	}
-	ct.PlaintextScale = scale
+	ct.Scale = scale
 	return
 }
 
@@ -471,7 +471,7 @@ func (eval Evaluator) DropLevel(op0 *rlwe.Ciphertext, levels int) {
 // in a newly created element. Since all the moduli in the moduli chain are generated to be close to the
 // original scale, this procedure is equivalent to dividing the input element by the scale and adding
 // some error.
-// Returns an error if "threshold <= 0", ct.PlaintextScale = 0, ct.Level() = 0, ct.IsNTT() != true
+// Returns an error if "threshold <= 0", ct.Scale = 0, ct.Level() = 0, ct.IsNTT() != true
 func (eval Evaluator) RescaleNew(op0 *rlwe.Ciphertext, minScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 	opOut = NewCiphertext(eval.parameters, op0.Degree(), op0.Level())
 	return opOut, eval.Rescale(op0, minScale, opOut)
@@ -482,7 +482,7 @@ func (eval Evaluator) RescaleNew(op0 *rlwe.Ciphertext, minScale rlwe.Scale) (opO
 // in opOut. Since all the moduli in the moduli chain are generated to be close to the
 // original scale, this procedure is equivalent to dividing the input element by the scale and adding
 // some error.
-// Returns an error if "minScale <= 0", ct.PlaintextScale = 0, ct.Level() = 0, ct.IsNTT() != true or if ct.Leve() != opOut.Level()
+// Returns an error if "minScale <= 0", ct.Scale = 0, ct.Level() = 0, ct.IsNTT() != true or if ct.Leve() != opOut.Level()
 func (eval Evaluator) Rescale(op0 *rlwe.Ciphertext, minScale rlwe.Scale, opOut *rlwe.Ciphertext) (err error) {
 
 	if op0.MetaData == nil || opOut.MetaData == nil {
@@ -495,7 +495,7 @@ func (eval Evaluator) Rescale(op0 *rlwe.Ciphertext, minScale rlwe.Scale, opOut *
 
 	minScale = minScale.Div(rlwe.NewScale(2))
 
-	if op0.PlaintextScale.Cmp(rlwe.NewScale(0)) != 1 {
+	if op0.Scale.Cmp(rlwe.NewScale(0)) != 1 {
 		return fmt.Errorf("cannot Rescale: ciphertext scale is <0")
 	}
 
@@ -518,13 +518,13 @@ func (eval Evaluator) Rescale(op0 *rlwe.Ciphertext, minScale rlwe.Scale, opOut *
 	var nbRescales int
 	for newLevel >= 0 {
 
-		scale := opOut.PlaintextScale.Div(rlwe.NewScale(ringQ.SubRings[newLevel].Modulus))
+		scale := opOut.Scale.Div(rlwe.NewScale(ringQ.SubRings[newLevel].Modulus))
 
 		if scale.Cmp(minScale) == -1 {
 			break
 		}
 
-		opOut.PlaintextScale = scale
+		opOut.Scale = scale
 
 		nbRescales++
 		newLevel--
@@ -618,7 +618,7 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 		eval.evaluateWithScalar(level, op0.Value, RNSReal, RNSImag, opOut.Value, ringQ.MulDoubleRNSScalar)
 
 		// Copies the metadata on the output
-		opOut.PlaintextScale = op0.PlaintextScale.Mul(scale) // updates the scaling factor
+		opOut.Scale = op0.Scale.Mul(scale) // updates the scaling factor
 
 		return nil
 
@@ -641,12 +641,12 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 		}
 
 		*pt.MetaData = *op0.MetaData
-		pt.PlaintextScale = rlwe.NewScale(ringQ.SubRings[level].Modulus)
+		pt.Scale = rlwe.NewScale(ringQ.SubRings[level].Modulus)
 
 		// If DefaultScalingFactor > 2^60, then multiple moduli are used per single rescale
 		// thus continues multiplying the scale with the appropriate number of moduli
 		for i := 1; i < eval.parameters.PlaintextScaleToModuliRatio(); i++ {
-			pt.PlaintextScale = pt.PlaintextScale.Mul(rlwe.NewScale(ringQ.SubRings[level-i].Modulus))
+			pt.Scale = pt.Scale.Mul(rlwe.NewScale(ringQ.SubRings[level-i].Modulus))
 		}
 
 		// Encodes the vector on the plaintext
@@ -724,7 +724,7 @@ func (eval Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 *rlwe.Operand[ring.Poly
 
 	level := opOut.Level()
 
-	opOut.PlaintextScale = op0.PlaintextScale.Mul(op1.PlaintextScale)
+	opOut.Scale = op0.Scale.Mul(op1.Scale)
 
 	var c00, c01, c0, c1, c2 ring.Poly
 
@@ -781,7 +781,8 @@ func (eval Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 *rlwe.Operand[ring.Poly
 
 			tmpCt := &rlwe.Ciphertext{}
 			tmpCt.Value = []ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}
-			tmpCt.MetaData = &rlwe.MetaData{IsNTT: true}
+			tmpCt.MetaData = &rlwe.MetaData{}
+			tmpCt.IsNTT = true
 
 			eval.GadgetProduct(level, c2, &rlk.GadgetCiphertext, tmpCt)
 			ringQ.Add(c0, tmpCt.Value[0], opOut.Value[0])
@@ -828,25 +829,25 @@ func (eval Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 *rlwe.Operand[ring.Poly
 // If op1.(type) is complex128, float64, int, int64, uint64. *big.Float, *big.Int or *ring.Complex:
 //
 // This function will not modify op0 but will multiply opOut by Q[min(op0.Level(), opOut.Level())] if:
-//   - op0.PlaintextScale == opOut.PlaintextScale
+//   - op0.Scale == opOut.Scale
 //   - constant is not a Gaussian integer.
 //
-// If op0.PlaintextScale == opOut.PlaintextScale, and constant is not a Gaussian integer, then the constant will be scaled by
-// Q[min(op0.Level(), opOut.Level())] else if opOut.PlaintextScale > op0.PlaintextScale, the constant will be scaled by opOut.PlaintextScale/op0.PlaintextScale.
+// If op0.Scale == opOut.Scale, and constant is not a Gaussian integer, then the constant will be scaled by
+// Q[min(op0.Level(), opOut.Level())] else if opOut.Scale > op0.Scale, the constant will be scaled by opOut.Scale/op0.Scale.
 //
-// To correctly use this function, make sure that either op0.PlaintextScale == opOut.PlaintextScale or
-// opOut.PlaintextScale = op0.PlaintextScale * Q[min(op0.Level(), opOut.Level())].
+// To correctly use this function, make sure that either op0.Scale == opOut.Scale or
+// opOut.Scale = op0.Scale * Q[min(op0.Level(), opOut.Level())].
 //
 // If op1.(type) is []complex128, []float64, []*big.Float or []*bignum.Complex:
-//   - If opOut.PlaintextScale == op0.PlaintextScale, op1 will be encoded and scaled by Q[min(op0.Level(), opOut.Level())]
-//   - If opOut.PlaintextScale > op0.PlaintextScale, op1 will be encoded ans scaled by opOut.PlaintextScale/op1.PlaintextScale.
+//   - If opOut.Scale == op0.Scale, op1 will be encoded and scaled by Q[min(op0.Level(), opOut.Level())]
+//   - If opOut.Scale > op0.Scale, op1 will be encoded ans scaled by opOut.Scale/op1.Scale.
 //
 // Then the method will recurse with op1 given as rlwe.OperandInterface[ring.Poly].
 //
 // If op1.(type) is rlwe.OperandInterface[ring.Poly], the multiplication is carried outwithout relinearization and:
 //
-// This function will return an error if op0.PlaintextScale > opOut.PlaintextScale and user must ensure that opOut.PlaintextScale <= op0.PlaintextScale * op1.PlaintextScale.
-// If opOut.PlaintextScale < op0.PlaintextScale * op1.PlaintextScale, then scales up opOut before adding the result.
+// This function will return an error if op0.Scale > opOut.Scale and user must ensure that opOut.Scale <= op0.Scale * op1.Scale.
+// If opOut.Scale < op0.Scale * op1.Scale, then scales up opOut before adding the result.
 // Additionally, the procedure will return an error if:
 //   - either op0 or op1 are have a degree higher than 1.
 //   - opOut.Degree != op0.Degree + op1.Degree.
@@ -890,7 +891,7 @@ func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, opOut *r
 
 		// If op0 and opOut scales are identical, but the op1 is not a Gaussian integer then multiplies opOut by scaleRLWE.
 		// This ensures noiseless addition with opOut = scaleRLWE * opOut + op0 * round(scalar * scaleRLWE).
-		if cmp := op0.PlaintextScale.Cmp(opOut.PlaintextScale); cmp == 0 {
+		if cmp := op0.Scale.Cmp(opOut.Scale); cmp == 0 {
 
 			if cmplxBig.IsInt() {
 				scaleRLWE = rlwe.NewScale(1)
@@ -906,13 +907,13 @@ func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, opOut *r
 				if err = eval.Mul(opOut, scaleInt, opOut); err != nil {
 					return fmt.Errorf("cannot MulThenAdd: %w", err)
 				}
-				opOut.PlaintextScale = opOut.PlaintextScale.Mul(scaleRLWE)
+				opOut.Scale = opOut.Scale.Mul(scaleRLWE)
 			}
 
-		} else if cmp == -1 { // opOut.PlaintextScale > op0.PlaintextScale then the scaling factor for op1 becomes the quotient between the two scales
-			scaleRLWE = opOut.PlaintextScale.Div(op0.PlaintextScale)
+		} else if cmp == -1 { // opOut.Scale > op0.Scale then the scaling factor for op1 becomes the quotient between the two scales
+			scaleRLWE = opOut.Scale.Div(op0.Scale)
 		} else {
-			return fmt.Errorf("cannot MulThenAdd: op0.PlaintextScale > opOut.PlaintextScale is not supported")
+			return fmt.Errorf("cannot MulThenAdd: op0.Scale > opOut.Scale is not supported")
 		}
 
 		RNSReal, RNSImag := bigComplexToRNSScalar(ringQ, &scaleRLWE.Value, cmplxBig)
@@ -933,7 +934,7 @@ func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, opOut *r
 		ringQ := eval.parameters.RingQ().AtLevel(level)
 
 		var scaleRLWE rlwe.Scale
-		if cmp := op0.PlaintextScale.Cmp(opOut.PlaintextScale); cmp == 0 { // If op0 and opOut scales are identical then multiplies opOut by scaleRLWE.
+		if cmp := op0.Scale.Cmp(opOut.Scale); cmp == 0 { // If op0 and opOut scales are identical then multiplies opOut by scaleRLWE.
 
 			scaleRLWE = rlwe.NewScale(ringQ.SubRings[level].Modulus)
 
@@ -946,12 +947,12 @@ func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, opOut *r
 			if err = eval.Mul(opOut, scaleInt, opOut); err != nil {
 				return fmt.Errorf("cannot MulThenAdd: %w", err)
 			}
-			opOut.PlaintextScale = opOut.PlaintextScale.Mul(scaleRLWE)
+			opOut.Scale = opOut.Scale.Mul(scaleRLWE)
 
-		} else if cmp == -1 { // opOut.PlaintextScale > op0.PlaintextScale then the scaling factor for op1 becomes the quotient between the two scales
-			scaleRLWE = opOut.PlaintextScale.Div(op0.PlaintextScale)
+		} else if cmp == -1 { // opOut.Scale > op0.Scale then the scaling factor for op1 becomes the quotient between the two scales
+			scaleRLWE = opOut.Scale.Div(op0.Scale)
 		} else {
-			return fmt.Errorf("cannot MulThenAdd: op0.PlaintextScale > opOut.PlaintextScale is not supported")
+			return fmt.Errorf("cannot MulThenAdd: op0.Scale > opOut.Scale is not supported")
 		}
 
 		// Instantiates new plaintext from buffer
@@ -960,7 +961,7 @@ func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, opOut *r
 			panic(err)
 		}
 		pt.MetaData = op0.MetaData.CopyNew()
-		pt.PlaintextScale = scaleRLWE
+		pt.Scale = scaleRLWE
 
 		// Encodes the vector on the plaintext
 		if err := eval.Encoder.Encode(op1, pt); err != nil {
@@ -987,9 +988,9 @@ func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, opOut *r
 //
 // Passing an invalid type will return an error.
 //
-// User must ensure that opOut.PlaintextScale <= op0.PlaintextScale * op1.PlaintextScale.
+// User must ensure that opOut.Scale <= op0.Scale * op1.Scale.
 //
-// If opOut.PlaintextScale < op0.PlaintextScale * op1.PlaintextScale, then scales up opOut before adding the result.
+// If opOut.Scale < op0.Scale * op1.Scale, then scales up opOut before adding the result.
 //
 // The procedure will return an error if either op0.Degree or op1.Degree > 1.
 // The procedure will return an error if opOut.Degree != op0.Degree + op1.Degree.
@@ -1029,16 +1030,16 @@ func (eval Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.Operand[ri
 
 	level := opOut.Level()
 
-	resScale := op0.PlaintextScale.Mul(op1.PlaintextScale)
+	resScale := op0.Scale.Mul(op1.Scale)
 
-	if opOut.PlaintextScale.Cmp(resScale) == -1 {
-		ratio := resScale.Div(opOut.PlaintextScale)
+	if opOut.Scale.Cmp(resScale) == -1 {
+		ratio := resScale.Div(opOut.Scale)
 		// Only scales up if int(ratio) >= 2
 		if ratio.Float64() >= 2.0 {
 			if err = eval.Mul(opOut, &ratio.Value, opOut); err != nil {
 				return fmt.Errorf("cannot MulRelinThenAdd: %w", err)
 			}
-			opOut.PlaintextScale = resScale
+			opOut.Scale = resScale
 		}
 	}
 
@@ -1084,7 +1085,8 @@ func (eval Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.Operand[ri
 
 			tmpCt := &rlwe.Ciphertext{}
 			tmpCt.Value = []ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}
-			tmpCt.MetaData = &rlwe.MetaData{IsNTT: true}
+			tmpCt.MetaData = &rlwe.MetaData{}
+			tmpCt.IsNTT = true
 
 			eval.GadgetProduct(level, c2, &rlk.GadgetCiphertext, tmpCt)
 			ringQ.Add(c0, tmpCt.Value[0], c0)

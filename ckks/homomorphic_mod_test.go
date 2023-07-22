@@ -102,11 +102,11 @@ func testEvalMod(params Parameters, t *testing.T) {
 
 		// Scale the message to Delta = Q/MessageRatio
 		scale := rlwe.NewScale(math.Exp2(math.Round(math.Log2(float64(params.Q()[0]) / EvalModPoly.MessageRatio()))))
-		scale = scale.Div(ciphertext.PlaintextScale)
+		scale = scale.Div(ciphertext.Scale)
 		eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round(scale.Float64())), ciphertext)
 
 		// Scale the message up to Sine/MessageRatio
-		scale = EvalModPoly.ScalingFactor().Div(ciphertext.PlaintextScale)
+		scale = EvalModPoly.ScalingFactor().Div(ciphertext.Scale)
 		scale = scale.Div(rlwe.NewScale(EvalModPoly.MessageRatio()))
 		eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round(scale.Float64())), ciphertext)
 
@@ -157,11 +157,11 @@ func testEvalMod(params Parameters, t *testing.T) {
 
 		// Scale the message to Delta = Q/MessageRatio
 		scale := rlwe.NewScale(math.Exp2(math.Round(math.Log2(float64(params.Q()[0]) / EvalModPoly.MessageRatio()))))
-		scale = scale.Div(ciphertext.PlaintextScale)
+		scale = scale.Div(ciphertext.Scale)
 		eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round(scale.Float64())), ciphertext)
 
 		// Scale the message up to Sine/MessageRatio
-		scale = EvalModPoly.ScalingFactor().Div(ciphertext.PlaintextScale)
+		scale = EvalModPoly.ScalingFactor().Div(ciphertext.Scale)
 		scale = scale.Div(rlwe.NewScale(EvalModPoly.MessageRatio()))
 		eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round(scale.Float64())), ciphertext)
 
@@ -213,11 +213,11 @@ func testEvalMod(params Parameters, t *testing.T) {
 
 		// Scale the message to Delta = Q/MessageRatio
 		scale := rlwe.NewScale(math.Exp2(math.Round(math.Log2(float64(params.Q()[0]) / EvalModPoly.MessageRatio()))))
-		scale = scale.Div(ciphertext.PlaintextScale)
+		scale = scale.Div(ciphertext.Scale)
 		eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round(scale.Float64())), ciphertext)
 
 		// Scale the message up to Sine/MessageRatio
-		scale = EvalModPoly.ScalingFactor().Div(ciphertext.PlaintextScale)
+		scale = EvalModPoly.ScalingFactor().Div(ciphertext.Scale)
 		scale = scale.Div(rlwe.NewScale(EvalModPoly.MessageRatio()))
 		eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round(scale.Float64())), ciphertext)
 

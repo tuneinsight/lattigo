@@ -27,7 +27,8 @@ func (eval Evaluator) InnerSum(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *r
 		panic(err)
 	}
 
-	ctInNTT.MetaData = &rlwe.MetaData{IsNTT: true}
+	ctInNTT.MetaData = &rlwe.MetaData{}
+	ctInNTT.IsNTT = true
 
 	if !ctIn.IsNTT {
 		ringQ.NTT(ctIn.Value[0], ctInNTT.Value[0])

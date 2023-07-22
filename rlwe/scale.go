@@ -30,7 +30,8 @@ type Scale struct {
 // Accepted types for s are int, int64, uint64, float64, *big.Int, *big.Float and *Scale.
 // If the input type is not an accepted type, returns an error.
 func NewScale(s interface{}) Scale {
-	return Scale{Value: *scaleToBigFloat(s)}
+	v := scaleToBigFloat(s)
+	return Scale{Value: *v}
 }
 
 // NewScaleModT instantiates a new integer mod T Scale.
@@ -155,6 +156,12 @@ func (s Scale) Min(s1 Scale) (max Scale) {
 	return s
 }
 
+// BinarySize returns the serialized size of the object in bytes.
+// Each value is encoded with .Text('x', ceil(ScalePrecision / log2(10))).
+func (s Scale) BinarySize() int {
+	return 21 + (ScalePrecisionLog10+8)<<1 // 21 for JSON formatting and 2*(8 + ScalePrecisionLog10)
+}
+
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
 func (s Scale) MarshalBinary() (p []byte, err error) {
 	return s.MarshalJSON()
@@ -207,7 +214,10 @@ func (s *Scale) UnmarshalJSON(p []byte) (err error) {
 		return
 	}
 
-	s.Value.SetString(aux.Value)
+	s.Value.SetPrec(ScalePrecision)
+
+	f, _ := new(big.Float).SetString(aux.Value)
+	s.Value.Set(f)
 
 	mod, bool := new(big.Float).SetString(aux.Mod)
 
@@ -225,12 +235,6 @@ func (s *Scale) UnmarshalJSON(p []byte) (err error) {
 	}
 
 	return
-}
-
-// BinarySize returns the serialized size of the object in bytes.
-// Each value is encoded with .Text('x', ceil(ScalePrecision / log2(10))).
-func (s Scale) BinarySize() int {
-	return 21 + (ScalePrecisionLog10+8)<<1 // 21 for JSON formatting and 2*(8 + ScalePrecisionLog10)
 }
 
 func scaleToBigFloat(scale interface{}) (s *big.Float) {

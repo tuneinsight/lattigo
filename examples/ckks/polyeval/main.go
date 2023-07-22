@@ -140,7 +140,7 @@ func chebyshevinterpolation() {
 	}
 
 	// We evaluate the interpolated Chebyshev interpolant on the ciphertext
-	if ciphertext, err = evaluator.Polynomial(ciphertext, polyVec, ciphertext.PlaintextScale); err != nil {
+	if ciphertext, err = evaluator.Polynomial(ciphertext, polyVec, ciphertext.Scale); err != nil {
 		panic(err)
 	}
 
@@ -171,7 +171,7 @@ func round(x float64) float64 {
 
 func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []float64, decryptor *rlwe.Decryptor, encoder *ckks.Encoder) (valuesTest []float64) {
 
-	valuesTest = make([]float64, 1<<ciphertext.PlaintextLogDimensions.Cols)
+	valuesTest = make([]float64, 1<<ciphertext.LogDimensions.Cols)
 
 	if err := encoder.Decode(decryptor.DecryptNew(ciphertext), valuesTest); err != nil {
 		panic(err)
@@ -179,7 +179,7 @@ func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant 
 
 	fmt.Println()
 	fmt.Printf("Level: %d (logQ = %d)\n", ciphertext.Level(), params.LogQLvl(ciphertext.Level()))
-	fmt.Printf("Scale: 2^%f\n", math.Log2(ciphertext.PlaintextScale.Float64()))
+	fmt.Printf("Scale: 2^%f\n", math.Log2(ciphertext.Scale.Float64()))
 	fmt.Printf("ValuesTest: %6.10f %6.10f %6.10f %6.10f...\n", valuesTest[0], valuesTest[1], valuesTest[2], valuesTest[3])
 	fmt.Printf("ValuesWant: %6.10f %6.10f %6.10f %6.10f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
 	fmt.Println()

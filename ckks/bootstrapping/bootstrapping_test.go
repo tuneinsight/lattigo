@@ -156,7 +156,7 @@ func testbootstrap(params ckks.Parameters, btpParams Parameters, t *testing.T) {
 		}
 
 		plaintext := ckks.NewPlaintext(params, 0)
-		plaintext.PlaintextLogDimensions = btpParams.PlaintextLogDimensions()
+		plaintext.LogDimensions = btpParams.PlaintextLogDimensions()
 		encoder.Encode(values, plaintext)
 
 		n := 1

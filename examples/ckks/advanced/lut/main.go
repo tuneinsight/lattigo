@@ -194,7 +194,7 @@ func main() {
 	}
 
 	pt := ckks.NewPlaintext(paramsN12, paramsN12.MaxLevel())
-	pt.PlaintextLogDimensions.Cols = LogSlots
+	pt.LogDimensions.Cols = LogSlots
 	if err := encoderN12.Encode(values, pt); err != nil {
 		panic(err)
 	}
@@ -211,10 +211,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	ctN12.EncodingDomain = rlwe.CoeffsDomain
+	ctN12.IsBatched = false
 
 	// Key-Switch from LogN = 12 to LogN = 11
-	ctN11 := rlwe.NewCiphertext(paramsN11.Parameters, 1, paramsN11.MaxLevel())
+	ctN11 := ckks.NewCiphertext(paramsN11.Parameters, 1, paramsN11.MaxLevel())
 	// key-switch to LWE degree
 	if err := evalCKKS.ApplyEvaluationKey(ctN12, evkN12ToN11, ctN11); err != nil {
 		panic(err)
@@ -229,7 +229,7 @@ func main() {
 		panic(err)
 	}
 	fmt.Printf("Done (%s)\n", time.Since(now))
-	ctN12.EncodingDomain = rlwe.SlotsDomain
+	ctN12.IsBatched = false
 
 	fmt.Printf("Homomorphic Encoding... ")
 	now = time.Now()
@@ -241,8 +241,8 @@ func main() {
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	res := make([]float64, slots)
-	ctN12.EncodingDomain = rlwe.SlotsDomain
-	ctN12.PlaintextLogDimensions.Cols = LogSlots
+	ctN12.IsBatched = true
+	ctN12.LogDimensions.Cols = LogSlots
 	if err := encoderN12.Decode(decryptorN12.DecryptNew(ctN12), res); err != nil {
 		panic(err)
 	}

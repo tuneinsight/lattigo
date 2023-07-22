@@ -158,7 +158,7 @@ func (p Parameters) PlaintextSlots() int {
 }
 
 // PlaintextLogSlots returns the total number of entries (`slots`) that a plaintext can store.
-// This value is obtained by summing all log dimensions from PlaintextLogDimensions.
+// This value is obtained by summing all log dimensions from LogDimensions.
 func (p Parameters) PlaintextLogSlots() int {
 	dims := p.PlaintextLogDimensions()
 	return dims.Rows + dims.Cols

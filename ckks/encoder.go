@@ -134,17 +134,13 @@ func (ecd Encoder) Parameters() rlwe.ParametersInterface {
 // Encoding is done at the level and scale of the plaintext.
 // Encoding domain is done according to the metadata of the plaintext.
 // User must ensure that 1 <= len(values) <= 2^pt.PlaintextLogDimensions < 2^logN.
-// Accepted values.(type) for `rlwe.EncodingDomain = rlwe.FrequencyDomain` is []complex128 of []float64.
-// Accepted values.(type) for `rlwe.EncodingDomain = rlwe.CoefficientDomain` is []float64.
 // The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
 func (ecd Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 
-	switch pt.EncodingDomain {
-	case rlwe.SlotsDomain:
-
+	if pt.IsBatched {
 		return ecd.Embed(values, pt.MetaData, pt.Value)
 
-	case rlwe.CoeffsDomain:
+	} else {
 
 		switch values := values.(type) {
 		case []float64:
@@ -153,7 +149,7 @@ func (ecd Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 				return fmt.Errorf("cannot Encode: maximum number of values is %d but len(values) is %d", ecd.parameters.N(), len(values))
 			}
 
-			Float64ToFixedPointCRT(ecd.parameters.RingQ().AtLevel(pt.Level()), values, pt.PlaintextScale.Float64(), pt.Value.Coeffs)
+			Float64ToFixedPointCRT(ecd.parameters.RingQ().AtLevel(pt.Level()), values, pt.Scale.Float64(), pt.Value.Coeffs)
 
 		case []*big.Float:
 
@@ -161,16 +157,13 @@ func (ecd Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 				return fmt.Errorf("cannot Encode: maximum number of values is %d but len(values) is %d", ecd.parameters.N(), len(values))
 			}
 
-			BigFloatToFixedPointCRT(ecd.parameters.RingQ().AtLevel(pt.Level()), values, &pt.PlaintextScale.Value, pt.Value.Coeffs)
+			BigFloatToFixedPointCRT(ecd.parameters.RingQ().AtLevel(pt.Level()), values, &pt.Scale.Value, pt.Value.Coeffs)
 
 		default:
-			return fmt.Errorf("cannot Encode: supported values.(type) for %T encoding domain is []float64 or []*big.Float, but %T was given", rlwe.CoeffsDomain, values)
+			return fmt.Errorf("cannot Encode: supported values.(type) for IsBatched=False is []float64 or []*big.Float, but %T was given", values)
 		}
 
 		ecd.parameters.RingQ().AtLevel(pt.Level()).NTT(pt.Value, pt.Value)
-
-	default:
-		return fmt.Errorf("cannot Encode: invalid rlwe.EncodingType, accepted types are rlwe.FrequencyDomain and rlwe.TimeDomain but is %T", pt.EncodingDomain)
 	}
 
 	return
@@ -213,11 +206,11 @@ func (ecd Encoder) Embed(values interface{}, metadata *rlwe.MetaData, polyOut in
 
 func (ecd Encoder) embedDouble(values interface{}, metadata *rlwe.MetaData, polyOut interface{}) (err error) {
 
-	if maxLogCols := ecd.parameters.PlaintextLogDimensions().Cols; metadata.PlaintextLogDimensions.Cols < 0 || metadata.PlaintextLogDimensions.Cols > maxLogCols {
-		return fmt.Errorf("cannot Embed: logSlots (%d) must be greater or equal to %d and smaller than %d", metadata.PlaintextLogDimensions.Cols, 0, maxLogCols)
+	if maxLogCols := ecd.parameters.PlaintextLogDimensions().Cols; metadata.LogDimensions.Cols < 0 || metadata.LogDimensions.Cols > maxLogCols {
+		return fmt.Errorf("cannot Embed: logSlots (%d) must be greater or equal to %d and smaller than %d", metadata.LogDimensions.Cols, 0, maxLogCols)
 	}
 
-	slots := 1 << metadata.PlaintextLogDimensions.Cols
+	slots := 1 << metadata.LogDimensions.Cols
 	var lenValues int
 
 	buffCmplx := ecd.buffCmplx.([]complex128)
@@ -305,22 +298,22 @@ func (ecd Encoder) embedDouble(values interface{}, metadata *rlwe.MetaData, poly
 	}
 
 	// IFFT
-	if err = ecd.IFFT(buffCmplx[:slots], metadata.PlaintextLogDimensions.Cols); err != nil {
+	if err = ecd.IFFT(buffCmplx[:slots], metadata.LogDimensions.Cols); err != nil {
 		return
 	}
 
 	// Maps Y = X^{N/n} -> X and quantizes.
 	switch p := polyOut.(type) {
 	case ringqp.Poly:
-		Complex128ToFixedPointCRT(ecd.parameters.RingQ().AtLevel(p.Q.Level()), buffCmplx[:slots], metadata.PlaintextScale.Float64(), p.Q.Coeffs)
+		Complex128ToFixedPointCRT(ecd.parameters.RingQ().AtLevel(p.Q.Level()), buffCmplx[:slots], metadata.Scale.Float64(), p.Q.Coeffs)
 		rlwe.NTTSparseAndMontgomery(ecd.parameters.RingQ().AtLevel(p.Q.Level()), metadata, p.Q)
 
 		if p.P.Level() > -1 {
-			Complex128ToFixedPointCRT(ecd.parameters.RingP().AtLevel(p.P.Level()), buffCmplx[:slots], metadata.PlaintextScale.Float64(), p.P.Coeffs)
+			Complex128ToFixedPointCRT(ecd.parameters.RingP().AtLevel(p.P.Level()), buffCmplx[:slots], metadata.Scale.Float64(), p.P.Coeffs)
 			rlwe.NTTSparseAndMontgomery(ecd.parameters.RingP().AtLevel(p.P.Level()), metadata, p.P)
 		}
 	case ring.Poly:
-		Complex128ToFixedPointCRT(ecd.parameters.RingQ().AtLevel(p.Level()), buffCmplx[:slots], metadata.PlaintextScale.Float64(), p.Coeffs)
+		Complex128ToFixedPointCRT(ecd.parameters.RingQ().AtLevel(p.Level()), buffCmplx[:slots], metadata.Scale.Float64(), p.Coeffs)
 		rlwe.NTTSparseAndMontgomery(ecd.parameters.RingQ().AtLevel(p.Level()), metadata, p)
 	default:
 		return fmt.Errorf("cannot Embed: invalid polyOut.(Type) must be ringqp.Poly or ring.Poly")
@@ -331,11 +324,11 @@ func (ecd Encoder) embedDouble(values interface{}, metadata *rlwe.MetaData, poly
 
 func (ecd Encoder) embedArbitrary(values interface{}, metadata *rlwe.MetaData, polyOut interface{}) (err error) {
 
-	if maxLogCols := ecd.parameters.PlaintextLogDimensions().Cols; metadata.PlaintextLogDimensions.Cols < 0 || metadata.PlaintextLogDimensions.Cols > maxLogCols {
-		return fmt.Errorf("cannot Embed: logSlots (%d) must be greater or equal to %d and smaller than %d", metadata.PlaintextLogDimensions.Cols, 0, maxLogCols)
+	if maxLogCols := ecd.parameters.PlaintextLogDimensions().Cols; metadata.LogDimensions.Cols < 0 || metadata.LogDimensions.Cols > maxLogCols {
+		return fmt.Errorf("cannot Embed: logSlots (%d) must be greater or equal to %d and smaller than %d", metadata.LogDimensions.Cols, 0, maxLogCols)
 	}
 
-	slots := 1 << metadata.PlaintextLogDimensions.Cols
+	slots := 1 << metadata.LogDimensions.Cols
 	var lenValues int
 
 	buffCmplx := ecd.buffCmplx.([]*bignum.Complex)
@@ -431,7 +424,7 @@ func (ecd Encoder) embedArbitrary(values interface{}, metadata *rlwe.MetaData, p
 		buffCmplx[i][1].SetFloat64(0)
 	}
 
-	if err = ecd.IFFT(buffCmplx[:slots], metadata.PlaintextLogDimensions.Cols); err != nil {
+	if err = ecd.IFFT(buffCmplx[:slots], metadata.LogDimensions.Cols); err != nil {
 		return
 	}
 
@@ -440,16 +433,16 @@ func (ecd Encoder) embedArbitrary(values interface{}, metadata *rlwe.MetaData, p
 
 	case ring.Poly:
 
-		ComplexArbitraryToFixedPointCRT(ecd.parameters.RingQ().AtLevel(p.Level()), buffCmplx[:slots], &metadata.PlaintextScale.Value, p.Coeffs)
+		ComplexArbitraryToFixedPointCRT(ecd.parameters.RingQ().AtLevel(p.Level()), buffCmplx[:slots], &metadata.Scale.Value, p.Coeffs)
 		rlwe.NTTSparseAndMontgomery(ecd.parameters.RingQ().AtLevel(p.Level()), metadata, p)
 
 	case ringqp.Poly:
 
-		ComplexArbitraryToFixedPointCRT(ecd.parameters.RingQ().AtLevel(p.Q.Level()), buffCmplx[:slots], &metadata.PlaintextScale.Value, p.Q.Coeffs)
+		ComplexArbitraryToFixedPointCRT(ecd.parameters.RingQ().AtLevel(p.Q.Level()), buffCmplx[:slots], &metadata.Scale.Value, p.Q.Coeffs)
 		rlwe.NTTSparseAndMontgomery(ecd.parameters.RingQ().AtLevel(p.Q.Level()), metadata, p.Q)
 
 		if p.P.Level() > -1 {
-			ComplexArbitraryToFixedPointCRT(ecd.parameters.RingP().AtLevel(p.P.Level()), buffCmplx[:slots], &metadata.PlaintextScale.Value, p.P.Coeffs)
+			ComplexArbitraryToFixedPointCRT(ecd.parameters.RingP().AtLevel(p.P.Level()), buffCmplx[:slots], &metadata.Scale.Value, p.P.Coeffs)
 			rlwe.NTTSparseAndMontgomery(ecd.parameters.RingP().AtLevel(p.P.Level()), metadata, p.P)
 		}
 
@@ -478,7 +471,7 @@ func (ecd Encoder) plaintextToFloat(level int, scale rlwe.Scale, logSlots int, p
 
 func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noiseFlooding ring.DistributionParameters) (err error) {
 
-	logSlots := pt.PlaintextLogDimensions.Cols
+	logSlots := pt.LogDimensions.Cols
 	slots := 1 << logSlots
 
 	if maxLogCols := ecd.parameters.PlaintextLogDimensions().Cols; logSlots > maxLogCols || logSlots < 0 {
@@ -507,14 +500,13 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noiseFlo
 		return fmt.Errorf("cannot decode: values.(type) accepted are []complex128, []float64, []*bignum.Complex, []*big.Float but is %T", values)
 	}
 
-	switch pt.EncodingDomain {
-	case rlwe.SlotsDomain:
+	if pt.IsBatched {
 
 		if ecd.prec <= 53 {
 
 			buffCmplx := ecd.buffCmplx.([]complex128)
 
-			if err = ecd.plaintextToComplex(pt.Level(), pt.PlaintextScale, logSlots, ecd.buff, buffCmplx); err != nil {
+			if err = ecd.plaintextToComplex(pt.Level(), pt.Scale, logSlots, ecd.buff, buffCmplx); err != nil {
 				return
 			}
 
@@ -574,7 +566,7 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noiseFlo
 
 			buffCmplx := ecd.buffCmplx.([]*bignum.Complex)
 
-			if err = ecd.plaintextToComplex(pt.Level(), pt.PlaintextScale, logSlots, ecd.buff, buffCmplx[:slots]); err != nil {
+			if err = ecd.plaintextToComplex(pt.Level(), pt.Scale, logSlots, ecd.buff, buffCmplx[:slots]); err != nil {
 				return
 			}
 
@@ -638,10 +630,8 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noiseFlo
 			}
 		}
 
-	case rlwe.CoeffsDomain:
-		return ecd.plaintextToFloat(pt.Level(), pt.PlaintextScale, logSlots, ecd.buff, values)
-	default:
-		return fmt.Errorf("cannot decode: invalid rlwe.EncodingType, accepted types are rlwe.FrequencyDomain and rlwe.TimeDomain but is %T", pt.EncodingDomain)
+	} else {
+		return ecd.plaintextToFloat(pt.Level(), pt.Scale, logSlots, ecd.buff, values)
 	}
 
 	return

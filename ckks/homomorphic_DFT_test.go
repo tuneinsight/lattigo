@@ -190,13 +190,13 @@ func testHomomorphicEncoding(params Parameters, LogSlots int, t *testing.T) {
 
 		// Encodes coefficient-wise and encrypts the test vector
 		pt := NewPlaintext(params, params.MaxLevel())
-		pt.PlaintextLogDimensions = ring.Dimensions{Rows: 0, Cols: LogSlots}
+		pt.LogDimensions = ring.Dimensions{Rows: 0, Cols: LogSlots}
+		pt.IsBatched = false
 
-		pt.EncodingDomain = rlwe.CoeffsDomain
 		if err = encoder.Encode(valuesFloat, pt); err != nil {
 			t.Fatal(err)
 		}
-		pt.EncodingDomain = rlwe.SlotsDomain
+		pt.IsBatched = true
 
 		ct, err := encryptor.EncryptNew(pt)
 		require.NoError(t, err)
@@ -208,7 +208,7 @@ func testHomomorphicEncoding(params Parameters, LogSlots int, t *testing.T) {
 		// Checks against the original coefficients
 		if sparse {
 
-			ct0.EncodingDomain = rlwe.CoeffsDomain
+			ct0.IsBatched = false
 
 			have := make([]*big.Float, params.N())
 
@@ -244,8 +244,8 @@ func testHomomorphicEncoding(params Parameters, LogSlots int, t *testing.T) {
 
 		} else {
 
-			ct0.EncodingDomain = rlwe.CoeffsDomain
-			ct1.EncodingDomain = rlwe.CoeffsDomain
+			ct0.IsBatched = false
+			ct1.IsBatched = false
 
 			haveReal := make([]*big.Float, params.N())
 			if err = encoder.Decode(decryptor.DecryptNew(ct0), haveReal); err != nil {
@@ -388,7 +388,7 @@ func testHomomorphicDecoding(params Parameters, LogSlots int, t *testing.T) {
 
 		// Encodes and encrypts the test vectors
 		plaintext := NewPlaintext(params, params.MaxLevel())
-		plaintext.PlaintextLogDimensions = ring.Dimensions{Rows: 0, Cols: LogSlots}
+		plaintext.LogDimensions = ring.Dimensions{Rows: 0, Cols: LogSlots}
 		if err = encoder.Encode(valuesReal, plaintext); err != nil {
 			t.Fatal(err)
 		}
@@ -411,7 +411,7 @@ func testHomomorphicDecoding(params Parameters, LogSlots int, t *testing.T) {
 
 		// Decrypt and decode in the coefficient domain
 		coeffsFloat := make([]*big.Float, params.N())
-		res.EncodingDomain = rlwe.CoeffsDomain
+		res.IsBatched = false
 
 		if err = encoder.Decode(decryptor.DecryptNew(res), coeffsFloat); err != nil {
 			t.Fatal(err)

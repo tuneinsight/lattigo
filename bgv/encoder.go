@@ -117,10 +117,9 @@ func (ecd Encoder) Parameters() rlwe.ParametersInterface {
 //   - pt: an *rlwe.Plaintext
 func (ecd Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 
-	switch pt.EncodingDomain {
-	case rlwe.SlotsDomain:
+	if pt.IsBatched {
 		return ecd.Embed(values, true, pt.MetaData, pt.Value)
-	case rlwe.CoeffsDomain:
+	} else {
 
 		ringT := ecd.parameters.RingT()
 		N := ringT.N()
@@ -159,7 +158,7 @@ func (ecd Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 			ptT[i] = 0
 		}
 
-		ringT.MulScalar(ecd.bufT, pt.PlaintextScale.Uint64(), ecd.bufT)
+		ringT.MulScalar(ecd.bufT, pt.Scale.Uint64(), ecd.bufT)
 		ecd.RingT2Q(pt.Level(), true, ecd.bufT, pt.Value)
 
 		if pt.IsNTT {
@@ -167,8 +166,6 @@ func (ecd Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 		}
 
 		return
-	default:
-		return fmt.Errorf("cannot Encode: invalid rlwe.EncodingType, accepted types are rlwe.FrequencyDomain and rlwe.TimeDomain but is %T", pt.EncodingDomain)
 	}
 }
 
@@ -241,13 +238,13 @@ func (ecd Encoder) EncodeRingT(values interface{}, plaintextScale rlwe.Scale, pT
 // inputs:
 //   - values: a slice of []uint64 or []int64 of size at most the cyclotomic order of T (smallest value for N satisfying T = 1 mod 2N)
 //   - scaleUp: a boolean indicating if the values need to be multiplied by T^{-1} mod Q after being encoded on the polynomial
-//   - metadata: a metadata struct containing the fields PlaintextScale, IsNTT and IsMontgomery
+//   - metadata: a metadata struct containing the fields Scale, IsNTT and IsMontgomery
 //   - polyOut: a ringqp.Poly or *ring.Poly
 func (ecd Encoder) Embed(values interface{}, scaleUp bool, metadata *rlwe.MetaData, polyOut interface{}) (err error) {
 
 	pT := ecd.bufT
 
-	if err = ecd.EncodeRingT(values, metadata.PlaintextScale, pT); err != nil {
+	if err = ecd.EncodeRingT(values, metadata.Scale, pT); err != nil {
 		return
 	}
 
@@ -451,12 +448,11 @@ func (ecd Encoder) Decode(pt *rlwe.Plaintext, values interface{}) (err error) {
 
 	ecd.RingQ2T(pt.Level(), true, ecd.bufQ, bufT)
 
-	switch pt.EncodingDomain {
-	case rlwe.SlotsDomain:
-		return ecd.DecodeRingT(ecd.bufT, pt.PlaintextScale, values)
-	case rlwe.CoeffsDomain:
+	if pt.IsBatched {
+		return ecd.DecodeRingT(ecd.bufT, pt.Scale, values)
+	} else {
 		ringT := ecd.parameters.RingT()
-		ringT.MulScalar(bufT, ring.ModExp(pt.PlaintextScale.Uint64(), ringT.SubRings[0].Modulus-2, ringT.SubRings[0].Modulus), bufT)
+		ringT.MulScalar(bufT, ring.ModExp(pt.Scale.Uint64(), ringT.SubRings[0].Modulus-2, ringT.SubRings[0].Modulus), bufT)
 
 		switch values := values.(type) {
 		case []uint64:
@@ -483,11 +479,7 @@ func (ecd Encoder) Decode(pt *rlwe.Plaintext, values interface{}) (err error) {
 		}
 
 		return
-
-	default:
-		return fmt.Errorf("cannot Encode: invalid rlwe.EncodingType, accepted types are rlwe.FrequencyDomain and rlwe.TimeDomain but is %T", pt.EncodingDomain)
 	}
-
 }
 
 // ShallowCopy creates a shallow copy of Encoder in which all the read-only data-structures are

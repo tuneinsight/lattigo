@@ -16,8 +16,9 @@ type Plaintext struct {
 // NewPlaintext creates a new Plaintext at level `level` from the parameters.
 func NewPlaintext(params ParametersInterface, level int) (pt *Plaintext) {
 	op := *NewOperandQ(params, 0, level)
-	op.PlaintextScale = params.PlaintextScale()
-	op.PlaintextLogDimensions = params.PlaintextLogDimensions()
+	op.IsBatched = true
+	op.Scale = params.PlaintextScale()
+	op.LogDimensions = params.PlaintextLogDimensions()
 	return &Plaintext{Operand: op, Value: op.Value[0]}
 }
 

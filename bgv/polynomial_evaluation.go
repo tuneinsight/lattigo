@@ -72,7 +72,7 @@ func (eval Evaluator) Polynomial(input interface{}, p interface{}, InvariantTens
 		}
 	}
 
-	PS := polyVec.GetPatersonStockmeyerPolynomial(eval.Parameters(), powerbasis.Value[1].Level(), powerbasis.Value[1].PlaintextScale, targetScale, &dummyEvaluator{eval.Parameters().(Parameters), InvariantTensoring})
+	PS := polyVec.GetPatersonStockmeyerPolynomial(eval.Parameters(), powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, &dummyEvaluator{eval.Parameters().(Parameters), InvariantTensoring})
 
 	if opOut, err = hebase.EvaluatePatersonStockmeyerPolynomialVector(PS, powerbasis, polyEval); err != nil {
 		return nil, err
@@ -250,8 +250,8 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 		if minimumDegreeNonZeroCoefficient == 0 {
 
 			// Allocates the output ciphertext
-			res = rlwe.NewCiphertext(params, 1, targetLevel)
-			res.PlaintextScale = targetScale
+			res = NewCiphertext(params, 1, targetLevel)
+			res.Scale = targetScale
 
 			// Looks for non-zero coefficients among the degree 0 coefficients of the polynomials
 			for i, p := range pol.Value {
@@ -269,8 +269,9 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 				if err != nil {
 					panic(err)
 				}
-				pt.PlaintextScale = res.PlaintextScale
+				pt.Scale = res.Scale
 				pt.IsNTT = NTTFlag
+				pt.IsBatched = true
 				if err = polyEval.Encode(values, pt); err != nil {
 					return nil, err
 				}
@@ -280,8 +281,8 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 		}
 
 		// Allocates the output ciphertext
-		res = rlwe.NewCiphertext(params, maximumCiphertextDegree, targetLevel)
-		res.PlaintextScale = targetScale
+		res = NewCiphertext(params, maximumCiphertextDegree, targetLevel)
+		res.Scale = targetScale
 
 		// Allocates a temporary plaintext to encode the values
 		buffq := polyEval.Evaluator.BuffQ()
@@ -289,7 +290,8 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 		if err != nil {
 			panic(err)
 		}
-		pt.PlaintextScale = targetScale
+		pt.IsBatched = true
+		pt.Scale = targetScale
 		pt.IsNTT = NTTFlag
 
 		// Looks for a non-zero coefficient among the degree zero coefficient of the polynomials
@@ -363,8 +365,8 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 
 		if minimumDegreeNonZeroCoefficient == 0 {
 
-			res = rlwe.NewCiphertext(params, 1, targetLevel)
-			res.PlaintextScale = targetScale
+			res = NewCiphertext(params, 1, targetLevel)
+			res.Scale = targetScale
 
 			if c != 0 {
 				if err := polyEval.Add(res, c, res); err != nil {
@@ -375,8 +377,8 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 			return
 		}
 
-		res = rlwe.NewCiphertext(params, maximumCiphertextDegree, targetLevel)
-		res.PlaintextScale = targetScale
+		res = NewCiphertext(params, maximumCiphertextDegree, targetLevel)
+		res.Scale = targetScale
 
 		if c != 0 {
 			if err := polyEval.Add(res, c, res); err != nil {

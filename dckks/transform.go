@@ -157,7 +157,7 @@ func (rfp MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBoun
 		return fmt.Errorf("cannot GenShare: crs level must be equal to ShareToEncShare")
 	}
 
-	slots := 1 << ct.PlaintextLogSlots()
+	slots := ct.Slots()
 
 	dslots := slots
 	if ringQ.Type() == ring.Standard {
@@ -201,7 +201,7 @@ func (rfp MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBoun
 
 		// Decodes if asked to
 		if transform.Decode {
-			if err := rfp.encoder.FFT(bigComplex[:slots], ct.PlaintextLogSlots()); err != nil {
+			if err := rfp.encoder.FFT(bigComplex[:slots], ct.LogSlots()); err != nil {
 				return err
 			}
 		}
@@ -211,7 +211,7 @@ func (rfp MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBoun
 
 		// Recodes if asked to
 		if transform.Encode {
-			if err := rfp.encoder.IFFT(bigComplex[:slots], ct.PlaintextLogSlots()); err != nil {
+			if err := rfp.encoder.IFFT(bigComplex[:slots], ct.LogSlots()); err != nil {
 				return err
 			}
 		}
@@ -229,7 +229,7 @@ func (rfp MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBoun
 	}
 
 	// Applies LT(M_i) * diffscale
-	inputScaleInt, _ := new(big.Float).SetPrec(256).Set(&ct.PlaintextScale.Value).Int(nil)
+	inputScaleInt, _ := new(big.Float).SetPrec(256).Set(&ct.Scale.Value).Int(nil)
 
 	// Scales the mask by the ratio between the two scales
 	for i := 0; i < dslots; i++ {
@@ -274,7 +274,7 @@ func (rfp MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *Mas
 
 	ringQ := rfp.s2e.params.RingQ().AtLevel(maxLevel)
 
-	slots := 1 << ct.PlaintextLogSlots()
+	slots := ct.Slots()
 
 	dslots := slots
 	if ringQ.Type() == ring.Standard {
@@ -316,7 +316,7 @@ func (rfp MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *Mas
 
 		// Decodes if asked to
 		if transform.Decode {
-			if err := rfp.encoder.FFT(bigComplex[:slots], ct.PlaintextLogSlots()); err != nil {
+			if err := rfp.encoder.FFT(bigComplex[:slots], ct.LogSlots()); err != nil {
 				return err
 			}
 		}
@@ -326,7 +326,7 @@ func (rfp MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *Mas
 
 		// Recodes if asked to
 		if transform.Encode {
-			if err := rfp.encoder.IFFT(bigComplex[:slots], ct.PlaintextLogSlots()); err != nil {
+			if err := rfp.encoder.IFFT(bigComplex[:slots], ct.LogSlots()); err != nil {
 				return err
 			}
 		}
@@ -343,7 +343,7 @@ func (rfp MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *Mas
 		}
 	}
 
-	scale := ct.PlaintextScale.Value
+	scale := ct.Scale.Value
 
 	// Returns LT(-sum(M_i) + x) * diffscale
 	inputScaleInt, _ := new(big.Float).Set(&scale).Int(nil)
@@ -377,7 +377,7 @@ func (rfp MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *Mas
 	}
 
 	*ciphertextOut.MetaData = *ct.MetaData
-	ciphertextOut.PlaintextScale = rfp.s2e.params.PlaintextScale()
+	ciphertextOut.Scale = rfp.s2e.params.PlaintextScale()
 
 	return
 }

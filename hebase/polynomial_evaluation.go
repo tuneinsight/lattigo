@@ -125,8 +125,8 @@ func evalMonomial(a, b, xpow *rlwe.Ciphertext, eval PolynomialEvaluatorInterface
 		return fmt.Errorf("evalMonomial: %w", err)
 	}
 
-	if !a.PlaintextScale.InDelta(b.PlaintextScale, float64(rlwe.ScalePrecision-12)) {
-		return fmt.Errorf("evalMonomial: scale discrepency: (rescale(b) * X^{n}).Scale = %v != a.Scale = %v", &a.PlaintextScale.Value, &b.PlaintextScale.Value)
+	if !a.Scale.InDelta(b.Scale, float64(rlwe.ScalePrecision-12)) {
+		return fmt.Errorf("evalMonomial: scale discrepency: (rescale(b) * X^{n}).Scale = %v != a.Scale = %v", &a.Scale.Value, &b.Scale.Value)
 	}
 
 	if err = eval.Add(b, a, b); err != nil {

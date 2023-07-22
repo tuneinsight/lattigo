@@ -80,7 +80,7 @@ func (eval Evaluator) Polynomial(input interface{}, p interface{}, targetScale r
 		}
 	}
 
-	PS := polyVec.GetPatersonStockmeyerPolynomial(params.Parameters, powerbasis.Value[1].Level(), powerbasis.Value[1].PlaintextScale, targetScale, &dummyEvaluator{params, nbModuliPerRescale})
+	PS := polyVec.GetPatersonStockmeyerPolynomial(params.Parameters, powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, &dummyEvaluator{params, nbModuliPerRescale})
 
 	if opOut, err = hebase.EvaluatePatersonStockmeyerPolynomialVector(PS, powerbasis, polyEval); err != nil {
 		return nil, err
@@ -166,8 +166,8 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 	X := pb.Value
 
 	// Retrieve the number of slots
-	logSlots := X[1].PlaintextLogDimensions
-	slots := 1 << X[1].PlaintextLogDimensions.Cols
+	logSlots := X[1].LogDimensions
+	slots := 1 << logSlots.Cols
 
 	params := polyEval.Evaluator.parameters
 	slotsIndex := pol.SlotsIndex
@@ -203,8 +203,8 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 
 			// Allocates the output ciphertext
 			res = NewCiphertext(params, 1, targetLevel)
-			res.PlaintextScale = targetScale
-			res.PlaintextLogDimensions = logSlots
+			res.Scale = targetScale
+			res.LogDimensions = logSlots
 
 			// Looks for non-zero coefficients among the degree 0 coefficients of the polynomials
 			if even {
@@ -233,8 +233,8 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 
 		// Allocates the output ciphertext
 		res = NewCiphertext(params, maximumCiphertextDegree, targetLevel)
-		res.PlaintextScale = targetScale
-		res.PlaintextLogDimensions = logSlots
+		res.Scale = targetScale
+		res.LogDimensions = logSlots
 
 		// Looks for a non-zero coefficient among the degree zero coefficient of the polynomials
 		if even {
@@ -314,8 +314,8 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 		if minimumDegreeNonZeroCoefficient == 0 {
 
 			res = NewCiphertext(params, 1, targetLevel)
-			res.PlaintextScale = targetScale
-			res.PlaintextLogDimensions = logSlots
+			res.Scale = targetScale
+			res.LogDimensions = logSlots
 
 			if !isZero(c) {
 				if err = polyEval.Add(res, c, res); err != nil {
@@ -327,8 +327,8 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 		}
 
 		res = NewCiphertext(params, maximumCiphertextDegree, targetLevel)
-		res.PlaintextScale = targetScale
-		res.PlaintextLogDimensions = logSlots
+		res.Scale = targetScale
+		res.LogDimensions = logSlots
 
 		if c != nil {
 			if err = polyEval.Add(res, c, res); err != nil {

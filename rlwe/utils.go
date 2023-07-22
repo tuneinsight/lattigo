@@ -185,7 +185,7 @@ func NormStats(vec []*big.Int) (float64, float64, float64) {
 // This method is used to accelerate the NTT of polynomials that encode sparse polynomials.
 func NTTSparseAndMontgomery(r *ring.Ring, metadata *MetaData, pol ring.Poly) {
 
-	if 1<<metadata.PlaintextLogDimensions.Cols == r.NthRoot()>>2 {
+	if 1<<metadata.LogDimensions.Cols == r.NthRoot()>>2 {
 
 		if metadata.IsNTT {
 			r.NTT(pol, pol)
@@ -201,10 +201,10 @@ func NTTSparseAndMontgomery(r *ring.Ring, metadata *MetaData, pol ring.Poly) {
 		var NTT func(p1, p2 []uint64, N int, Q, QInv uint64, BRedConstant, nttPsi []uint64)
 		switch r.Type() {
 		case ring.Standard:
-			n = 2 << metadata.PlaintextLogDimensions.Cols
+			n = 2 << metadata.LogDimensions.Cols
 			NTT = ring.NTTStandard
 		case ring.ConjugateInvariant:
-			n = 1 << metadata.PlaintextLogDimensions.Cols
+			n = 1 << metadata.LogDimensions.Cols
 			NTT = ring.NTTConjugateInvariant
 		}
 

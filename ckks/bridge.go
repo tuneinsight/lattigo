@@ -80,7 +80,7 @@ func (switcher DomainSwitcher) ComplexToReal(eval *Evaluator, ctIn, opOut *rlwe.
 	switcher.conjugateRingQ.AtLevel(level).FoldStandardToConjugateInvariant(evalRLWE.BuffQP[1].Q, switcher.automorphismIndex, opOut.Value[0])
 	switcher.conjugateRingQ.AtLevel(level).FoldStandardToConjugateInvariant(evalRLWE.BuffQP[2].Q, switcher.automorphismIndex, opOut.Value[1])
 	*opOut.MetaData = *ctIn.MetaData
-	opOut.PlaintextScale = ctIn.PlaintextScale.Mul(rlwe.NewScale(2))
+	opOut.Scale = ctIn.Scale.Mul(rlwe.NewScale(2))
 	return
 }
 

@@ -24,7 +24,7 @@ var flagParamString = flag.String("params", "", "specify the test cryptographic 
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 
 func GetTestName(params Parameters, opname string) string {
-	return fmt.Sprintf("%s/RingType=%s/logN=%d/logQP=%d/Qi=%d/Pi=%d/LogPlaintextScale=%d",
+	return fmt.Sprintf("%s/RingType=%s/logN=%d/logQP=%d/Qi=%d/Pi=%d/LogScale=%d",
 		opname,
 		params.RingType(),
 		params.LogN(),
@@ -159,7 +159,7 @@ func newTestVectors(tc *testContext, encryptor *rlwe.Encryptor, a, b complex128,
 
 	pt = NewPlaintext(tc.params, tc.params.MaxLevel())
 
-	values = make([]*bignum.Complex, pt.PlaintextSlots())
+	values = make([]*bignum.Complex, pt.Slots())
 
 	switch tc.params.RingType() {
 	case ring.Standard:
@@ -310,14 +310,14 @@ func testParameters(tc *testContext, t *testing.T) {
 
 func testEncoder(tc *testContext, t *testing.T) {
 
-	t.Run(GetTestName(tc.params, "Encoder/FrequencyDomain"), func(t *testing.T) {
+	t.Run(GetTestName(tc.params, "Encoder/IsBatched=true"), func(t *testing.T) {
 
 		values, plaintext, _ := newTestVectors(tc, nil, -1-1i, 1+1i, t)
 
 		verifyTestVectors(tc.params, tc.encoder, nil, values, plaintext, nil, t)
 	})
 
-	t.Run(GetTestName(tc.params, "Encoder/CoefficientDomain"), func(t *testing.T) {
+	t.Run(GetTestName(tc.params, "Encoder/IsBatched=false"), func(t *testing.T) {
 
 		slots := tc.params.N()
 
@@ -330,7 +330,7 @@ func testEncoder(tc *testContext, t *testing.T) {
 		valuesWant[0] = 0.607538
 
 		pt := NewPlaintext(tc.params, tc.params.MaxLevel())
-		pt.EncodingDomain = rlwe.CoeffsDomain
+		pt.IsBatched = false
 
 		tc.encoder.Encode(valuesWant, pt)
 
@@ -526,7 +526,7 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 
 		require.NoError(t, tc.evaluator.Mul(ciphertext, constant, ciphertext))
 
-		ciphertext.PlaintextScale = ciphertext.PlaintextScale.Mul(rlwe.NewScale(constant))
+		ciphertext.Scale = ciphertext.Scale.Mul(rlwe.NewScale(constant))
 
 		if err := tc.evaluator.Rescale(ciphertext, tc.params.PlaintextScale(), ciphertext); err != nil {
 			t.Fatal(err)
@@ -551,7 +551,7 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 		for i := 0; i < nbRescales; i++ {
 			constant := tc.ringQ.SubRings[ciphertext.Level()-i].Modulus
 			require.NoError(t, tc.evaluator.Mul(ciphertext, constant, ciphertext))
-			ciphertext.PlaintextScale = ciphertext.PlaintextScale.Mul(rlwe.NewScale(constant))
+			ciphertext.Scale = ciphertext.Scale.Mul(rlwe.NewScale(constant))
 		}
 
 		if err := tc.evaluator.Rescale(ciphertext, tc.params.PlaintextScale(), ciphertext); err != nil {
@@ -775,7 +775,7 @@ func testEvaluatorMulThenAdd(tc *testContext, t *testing.T) {
 
 		ciphertext3 := NewCiphertext(tc.params, 2, ciphertext1.Level())
 
-		ciphertext3.PlaintextScale = ciphertext1.PlaintextScale.Mul(ciphertext2.PlaintextScale)
+		ciphertext3.Scale = ciphertext1.Scale.Mul(ciphertext2.Scale)
 
 		require.NoError(t, tc.evaluator.MulThenAdd(ciphertext1, ciphertext2, ciphertext3))
 
@@ -862,7 +862,7 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 			values[i] = poly.Evaluate(values[i])
 		}
 
-		if ciphertext, err = tc.evaluator.Polynomial(ciphertext, poly, ciphertext.PlaintextScale); err != nil {
+		if ciphertext, err = tc.evaluator.Polynomial(ciphertext, poly, ciphertext.Scale); err != nil {
 			t.Fatal(err)
 		}
 
@@ -892,7 +892,7 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 
 		poly := bignum.NewPolynomial(bignum.Monomial, coeffs, nil)
 
-		slots := ciphertext.PlaintextSlots()
+		slots := ciphertext.Slots()
 
 		slotIndex := make(map[int][]int)
 		idx := make([]int, slots>>1)
@@ -910,7 +910,7 @@ func testEvaluatePoly(tc *testContext, t *testing.T) {
 		polyVector, err := NewPolynomialVector([]hebase.Polynomial{NewPolynomial(poly)}, slotIndex)
 		require.NoError(t, err)
 
-		if ciphertext, err = tc.evaluator.Polynomial(ciphertext, polyVector, ciphertext.PlaintextScale); err != nil {
+		if ciphertext, err = tc.evaluator.Polynomial(ciphertext, polyVector, ciphertext.Scale); err != nil {
 			t.Fatal(err)
 		}
 
@@ -951,7 +951,7 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if ciphertext, err = eval.Polynomial(ciphertext, poly, ciphertext.PlaintextScale); err != nil {
+		if ciphertext, err = eval.Polynomial(ciphertext, poly, ciphertext.Scale); err != nil {
 			t.Fatal(err)
 		}
 
@@ -1010,13 +1010,13 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if ciphertext, err = eval.Polynomial(ciphertext, poly, ciphertext.PlaintextScale); err != nil {
+		if ciphertext, err = eval.Polynomial(ciphertext, poly, ciphertext.Scale); err != nil {
 			t.Fatal(err)
 		}
 
 		plaintext := tc.decryptor.DecryptNew(ciphertext)
 
-		valuesHave := make([]*big.Float, plaintext.PlaintextSlots())
+		valuesHave := make([]*big.Float, plaintext.Slots())
 
 		require.NoError(t, tc.encoder.Decode(plaintext, valuesHave))
 
@@ -1027,7 +1027,7 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 		}
 
 		// This should make it lose at most ~0.5 bit or precision.
-		sigma := StandardDeviation(valuesHave, rlwe.NewScale(plaintext.PlaintextScale.Float64()/math.Sqrt(float64(len(values)))))
+		sigma := StandardDeviation(valuesHave, rlwe.NewScale(plaintext.Scale.Float64()/math.Sqrt(float64(len(values)))))
 
 		tc.encoder.DecodePublic(plaintext, valuesHave, ring.DiscreteGaussian{Sigma: sigma, Bound: 2.5066282746310002 * sigma})
 
@@ -1099,7 +1099,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
 
-		slots := ciphertext.PlaintextSlots()
+		slots := ciphertext.Slots()
 
 		logBatch := 9
 		batch := 1 << logBatch
@@ -1143,7 +1143,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
 
-		slots := ciphertext.PlaintextSlots()
+		slots := ciphertext.Slots()
 
 		nonZeroDiags := []int{-15, -4, -1, 0, 1, 2, 3, 4, 15}
 
@@ -1162,8 +1162,8 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		ltparams := NewLinearTransformationParameters(LinearTransformationParametersLiteral[*bignum.Complex]{
 			Diagonals:                diagonals,
 			Level:                    ciphertext.Level(),
-			PlaintextScale:           rlwe.NewScale(params.Q()[ciphertext.Level()]),
-			PlaintextLogDimensions:   ciphertext.PlaintextLogDimensions,
+			Scale:                    rlwe.NewScale(params.Q()[ciphertext.Level()]),
+			LogDimensions:            ciphertext.LogDimensions,
 			LogBabyStepGianStepRatio: 1,
 		})
 
@@ -1208,7 +1208,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
 
-		slots := ciphertext.PlaintextSlots()
+		slots := ciphertext.Slots()
 
 		nonZeroDiags := []int{-15, -4, -1, 0, 1, 2, 3, 4, 15}
 
@@ -1227,8 +1227,8 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		ltparams := NewLinearTransformationParameters(LinearTransformationParametersLiteral[*bignum.Complex]{
 			Diagonals:                diagonals,
 			Level:                    ciphertext.Level(),
-			PlaintextScale:           rlwe.NewScale(params.Q()[ciphertext.Level()]),
-			PlaintextLogDimensions:   ciphertext.PlaintextLogDimensions,
+			Scale:                    rlwe.NewScale(params.Q()[ciphertext.Level()]),
+			LogDimensions:            ciphertext.LogDimensions,
 			LogBabyStepGianStepRatio: -1,
 		})
 

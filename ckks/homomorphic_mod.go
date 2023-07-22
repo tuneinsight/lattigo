@@ -272,10 +272,10 @@ func (eval Evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) (
 	}
 
 	// Stores default scales
-	prevScaleCt := ct.PlaintextScale
+	prevScaleCt := ct.Scale
 
 	// Normalize the modular reduction to mod by 1 (division by Q)
-	ct.PlaintextScale = evalModPoly.ScalingFactor()
+	ct.Scale = evalModPoly.ScalingFactor()
 
 	// Compute the scales that the ciphertext should have before the double angle
 	// formula such that after it it has the scale it had before the polynomial
@@ -283,7 +283,7 @@ func (eval Evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) (
 
 	Qi := eval.Parameters().Q()
 
-	targetScale := ct.PlaintextScale
+	targetScale := ct.Scale
 	for i := 0; i < evalModPoly.doubleAngle; i++ {
 		targetScale = targetScale.Mul(rlwe.NewScale(Qi[evalModPoly.levelStart-evalModPoly.sinePoly.Depth()-evalModPoly.doubleAngle+i+1]))
 		targetScale.Value.Sqrt(&targetScale.Value)
@@ -329,12 +329,12 @@ func (eval Evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) (
 
 	// ArcSine
 	if evalModPoly.arcSinePoly != nil {
-		if ct, err = eval.Polynomial(ct, *evalModPoly.arcSinePoly, ct.PlaintextScale); err != nil {
+		if ct, err = eval.Polynomial(ct, *evalModPoly.arcSinePoly, ct.Scale); err != nil {
 			return nil, fmt.Errorf("cannot EvalModNew: %w", err)
 		}
 	}
 
 	// Multiplies back by q
-	ct.PlaintextScale = prevScaleCt
+	ct.Scale = prevScaleCt
 	return ct, nil
 }

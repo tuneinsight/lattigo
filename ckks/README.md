@@ -86,7 +86,7 @@ There are 3 application-dependent parameters:
   each of the moduli also has an effect on the error introduced during the rescaling, since they
   cannot be powers of 2, so they should be chosen as NTT primes as close as possible to a power of 2
   instead.
-- **LogPlaintextScale**: it determines the scale of the plaintext, affecting both the precision and the
+- **LogDefaultScale**: it determines the scale of the plaintext, affecting both the precision and the
   maximum allowed depth for a given security parameter.
 
 Configuring parameters for CKKS is very application dependent, requiring a prior analysis of the
@@ -117,7 +117,7 @@ The following parameters will work for the posed example:
 
 - **LogN** = 13
 - **Modulichain** = [45, 40, 40, 40, 40], for a logQ <= 205
-- **LogPlaintextScale** = 40
+- **LogDefaultScale** = 40
 
 But it is also possible to use less levels to have ciphertexts of smaller size and, therefore, a
 faster evaluation, at the expense of less precision. This can be achieved by using a scale of 30
@@ -129,7 +129,7 @@ The following parameters are enough to evaluate this modified function:
 
 - **LogN** = 13
 - **Modulichain** = [35, 60, 60], for a logQ <= 155
-- **LogPlaintextScale** = 30
+- **LogDefaultScale** = 30
 
 To summarize, several parameter sets can be used to evaluate a given function, achieving different
 trade-offs for space and time versus precision.

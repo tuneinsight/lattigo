@@ -71,8 +71,8 @@ func (p Polynomial) GetPatersonStockmeyerPolynomial(params rlwe.GetRLWEParameter
 
 	pb := DummyPowerBasis{}
 	pb[1] = &DummyOperand{
-		Level:          inputLevel,
-		PlaintextScale: inputScale,
+		Level: inputLevel,
+		Scale: inputScale,
 	}
 
 	pb.GenPower(params, 1<<logDegree, eval)
@@ -105,7 +105,7 @@ func recursePS(params rlwe.GetRLWEParameters, logSplit, targetLevel int, p Polyn
 
 		p.Level, p.Scale = eval.UpdateLevelAndScaleBabyStep(p.Lead, targetLevel, outputScale)
 
-		return []Polynomial{p}, &DummyOperand{Level: p.Level, PlaintextScale: p.Scale}
+		return []Polynomial{p}, &DummyOperand{Level: p.Level, Scale: p.Scale}
 	}
 
 	var nextPower = 1 << logSplit
@@ -117,17 +117,17 @@ func recursePS(params rlwe.GetRLWEParameters, logSplit, targetLevel int, p Polyn
 
 	coeffsq, coeffsr := p.Factorize(nextPower)
 
-	tLevelNew, tScaleNew := eval.UpdateLevelAndScaleGiantStep(p.Lead, targetLevel, outputScale, XPow.PlaintextScale)
+	tLevelNew, tScaleNew := eval.UpdateLevelAndScaleGiantStep(p.Lead, targetLevel, outputScale, XPow.Scale)
 
 	bsgsQ, res := recursePS(params, logSplit, tLevelNew, coeffsq, pb, tScaleNew, eval)
 
 	eval.Rescale(res)
 	res = eval.MulNew(res, XPow)
 
-	bsgsR, tmp := recursePS(params, logSplit, targetLevel, coeffsr, pb, res.PlaintextScale, eval)
+	bsgsR, tmp := recursePS(params, logSplit, targetLevel, coeffsr, pb, res.Scale, eval)
 
-	if !tmp.PlaintextScale.InDelta(res.PlaintextScale, float64(rlwe.ScalePrecision-12)) {
-		panic(fmt.Errorf("recursePS: res.PlaintextScale != tmp.PlaintextScale: %v != %v", &res.PlaintextScale.Value, &tmp.PlaintextScale.Value))
+	if !tmp.Scale.InDelta(res.Scale, float64(rlwe.ScalePrecision-12)) {
+		panic(fmt.Errorf("recursePS: res.Scale != tmp.Scale: %v != %v", &res.Scale.Value, &tmp.Scale.Value))
 	}
 
 	return append(bsgsQ, bsgsR...), res

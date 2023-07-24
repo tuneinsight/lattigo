@@ -170,7 +170,7 @@ func obliviousRiding() {
 		}
 	}
 
-	result := make([]uint64, params.PlaintextSlots())
+	result := make([]uint64, params.MaxSlots())
 
 	ct, err := evaluator.MulNew(RiderCiphertext, RiderCiphertext)
 	if err != nil {

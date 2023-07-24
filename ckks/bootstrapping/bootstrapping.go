@@ -86,7 +86,7 @@ func (btp *Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (opOut *rlwe.Ciphertex
 			return nil, fmt.Errorf("cannot Bootstrap: %w", err)
 		}
 
-		if err = btp.Rescale(tmp, btp.params.PlaintextScale(), tmp); err != nil {
+		if err = btp.Rescale(tmp, btp.params.DefaultScale(), tmp); err != nil {
 			return nil, fmt.Errorf("cannot Bootstrap: %w", err)
 		}
 
@@ -131,13 +131,13 @@ func (btp *Bootstrapper) bootstrap(ctIn *rlwe.Ciphertext) (opOut *rlwe.Ciphertex
 	if ctReal, err = btp.EvalModNew(ctReal, btp.evalModPoly); err != nil {
 		return nil, err
 	}
-	ctReal.Scale = btp.params.PlaintextScale()
+	ctReal.Scale = btp.params.DefaultScale()
 
 	if ctImag != nil {
 		if ctImag, err = btp.EvalModNew(ctImag, btp.evalModPoly); err != nil {
 			return nil, err
 		}
-		ctImag.Scale = btp.params.PlaintextScale()
+		ctImag.Scale = btp.params.DefaultScale()
 	}
 
 	// Step 4 : SlotsToCoeffs (Homomorphic decoding)

@@ -19,10 +19,10 @@ func example() {
 	// Schemes parameters are created from scratch
 	params, err := ckks.NewParametersFromLiteral(
 		ckks.ParametersLiteral{
-			LogN:              14,
-			LogQ:              []int{55, 40, 40, 40, 40, 40, 40, 40},
-			LogP:              []int{45, 45},
-			LogPlaintextScale: 40,
+			LogN:            14,
+			LogQ:            []int{55, 40, 40, 40, 40, 40, 40, 40},
+			LogP:            []int{45, 45},
+			LogDefaultScale: 40,
 		})
 	if err != nil {
 		panic(err)
@@ -62,11 +62,11 @@ func example() {
 
 	fmt.Printf("Done in %s \n", time.Since(start))
 
-	logSlots := params.PlaintextLogSlots()
+	logSlots := params.LogMaxSlots()
 	slots := 1 << logSlots
 
 	fmt.Println()
-	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, logQP = %f, levels = %d, scale= %f, noise = %T %v \n", params.LogN(), logSlots, params.LogQP(), params.MaxLevel()+1, params.PlaintextScale().Float64(), params.Xe(), params.Xe())
+	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, logQP = %f, levels = %d, scale= %f, noise = %T %v \n", params.LogN(), logSlots, params.LogQP(), params.MaxLevel()+1, params.DefaultScale().Float64(), params.Xe(), params.Xe())
 
 	fmt.Println()
 	fmt.Println("=========================================")

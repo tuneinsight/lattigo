@@ -119,10 +119,10 @@ func main() {
 	var params ckks.Parameters
 	if params, err = ckks.NewParametersFromLiteral(
 		ckks.ParametersLiteral{
-			LogN:              14,                                    // A ring degree of 2^{14}
-			LogQ:              []int{55, 45, 45, 45, 45, 45, 45, 45}, // An initial prime of 55 bits and 7 primes of 45 bits
-			LogP:              []int{61},                             // The log2 size of the key-switching prime
-			LogPlaintextScale: 45,                                    // The default log2 of the scaling factor
+			LogN:            14,                                    // A ring degree of 2^{14}
+			LogQ:            []int{55, 45, 45, 45, 45, 45, 45, 45}, // An initial prime of 55 bits and 7 primes of 45 bits
+			LogP:            []int{61},                             // The log2 size of the key-switching prime
+			LogDefaultScale: 45,                                    // The default log2 of the scaling factor
 		}); err != nil {
 		panic(err)
 	}
@@ -133,10 +133,10 @@ func main() {
 	// Because the maximum size for the primes of the modulus Q is 60, if we want to store larger values
 	// with precision, we will need to reserve the first two primes.
 
-	// We get the default precision of the parameters in bits, which is min(53, log2(PlaintextScale)).
+	// We get the encoding precision of the parameters in bits, which is min(53, log2(DefaultScale)).
 	// It is always at least 53 (double float precision).
 	// This precision is notably the precision used by the encoder to encode/decode values.
-	prec := params.PlaintextPrecision() // we will need this value later
+	prec := params.EncodingPrecision() // we will need this value later
 
 	// Note that the following fields in the `ckks.ParametersLiteral`are optional, but can be manually specified by advanced users:
 	//   - `Xs`: the secret distribution (default uniform ternary)
@@ -179,7 +179,7 @@ func main() {
 	//
 	// We use the default number of slots, which is N/2.
 	// It is possible to use less slots, however it most situations, there is no reason to do so.
-	LogSlots := params.PlaintextLogSlots()
+	LogSlots := params.LogMaxSlots()
 	Slots := 1 << LogSlots
 
 	// We generate a vector of `[]complex128` with both the real and imaginary part uniformly distributed in [-1, 1]
@@ -193,7 +193,7 @@ func main() {
 	// We allocate a new plaintext, at the maximum level.
 	// We can allocate plaintexts at lower levels to optimize memory consumption for operations that we know will happen at a lower level.
 	// Plaintexts (and ciphertexts) are by default created with the following metadata:
-	//   - `Scale`: `params.PlaintextScale()` (which is 2^{45} in this example)
+	//   - `Scale`: `params.DefaultScale()` (which is 2^{45} in this example)
 	//   - `EncodingDomain`: `rlwe.SlotsDomain` (this is the default value)
 	//   - `LogSlots`: `params.MaxLogSlots` (which is LogN-1=13 in this example)
 	// We can check that the plaintext was created at the maximum level with pt1.Level().
@@ -413,11 +413,11 @@ func main() {
 	// The middle argument `Scale` tells the evaluator the minimum scale that the receiver operand must have.
 	// In other words, the evaluator will rescale the input operand until it reaches the given threshold or can't rescale further because the resulting
 	// scale would be smaller.
-	if err = eval.Rescale(res, params.PlaintextScale(), res); err != nil {
+	if err = eval.Rescale(res, params.DefaultScale(), res); err != nil {
 		panic(err)
 	}
 
-	Scale := params.PlaintextScale().Value
+	Scale := params.DefaultScale().Value
 
 	// And we check that we are back on our feet with a scale of 2^{45} but with one less level
 	fmt.Printf("Scale after rescaling: %f == %f: %t and %d == %d+1: %t\n", ctScale, &Scale, ctScale.Cmp(&Scale) == 0, ct1.Level(), res.Level(), ct1.Level() == res.Level()+1)
@@ -572,16 +572,16 @@ func main() {
 		panic(err)
 	}
 
-	if err = eval.Rescale(res, params.PlaintextScale(), res); err != nil {
+	if err = eval.Rescale(res, params.DefaultScale(), res); err != nil {
 		panic(err)
 	}
 
 	// And we evaluate this polynomial on the ciphertext
-	// The last argument, `params.PlaintextScale()` is the scale that we want the ciphertext
+	// The last argument, `params.DefaultScale()` is the scale that we want the ciphertext
 	// to have after the evaluation, which is usually the default scale, 2^{45} in this example.
 	// Other values can be specified, but they should be close to the default scale, else the
 	// depth consumption will not be optimal.
-	if res, err = eval.Polynomial(res, poly, params.PlaintextScale()); err != nil {
+	if res, err = eval.Polynomial(res, poly, params.DefaultScale()); err != nil {
 		panic(err)
 	}
 
@@ -730,7 +730,7 @@ func main() {
 	}
 
 	// Result is not returned rescaled
-	if err = eval.Rescale(res, params.PlaintextScale(), res); err != nil {
+	if err = eval.Rescale(res, params.DefaultScale(), res); err != nil {
 		panic(err)
 	}
 

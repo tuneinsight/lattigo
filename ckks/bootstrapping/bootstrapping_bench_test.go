@@ -29,7 +29,7 @@ func BenchmarkBootstrap(b *testing.B) {
 	btp, err := NewBootstrapper(params, btpParams, evk)
 	require.NoError(b, err)
 
-	b.Run(ParamsToString(params, btpParams.PlaintextLogDimensions().Cols, "Bootstrap/"), func(b *testing.B) {
+	b.Run(ParamsToString(params, btpParams.LogMaxDimensions().Cols, "Bootstrap/"), func(b *testing.B) {
 
 		var err error
 
@@ -66,12 +66,12 @@ func BenchmarkBootstrap(b *testing.B) {
 			t = time.Now()
 			ct0, err = btp.EvalModNew(ct0, btp.evalModPoly)
 			require.NoError(b, err)
-			ct0.Scale = btp.params.PlaintextScale()
+			ct0.Scale = btp.params.DefaultScale()
 
 			if ct1 != nil {
 				ct1, err = btp.EvalModNew(ct1, btp.evalModPoly)
 				require.NoError(b, err)
-				ct1.Scale = btp.params.PlaintextScale()
+				ct1.Scale = btp.params.DefaultScale()
 			}
 			b.Log("After Sine   :", time.Since(t), ct0.Level(), ct0.Scale.Float64())
 

@@ -52,37 +52,37 @@ type GetRLWEParameters interface {
 // If left unset, standard default values for these field are substituted at
 // parameter creation (see NewParametersFromLiteral).
 type ParametersLiteral struct {
-	LogN           int
-	Q              []uint64                    `json:",omitempty"`
-	P              []uint64                    `json:",omitempty"`
-	LogQ           []int                       `json:",omitempty"`
-	LogP           []int                       `json:",omitempty"`
-	Xe             ring.DistributionParameters `json:",omitempty"`
-	Xs             ring.DistributionParameters `json:",omitempty"`
-	RingType       ring.Type                   `json:",omitempty"`
-	PlaintextScale Scale                       `json:",omitempty"`
-	NTTFlag        bool                        `json:",omitempty"`
+	LogN         int
+	Q            []uint64                    `json:",omitempty"`
+	P            []uint64                    `json:",omitempty"`
+	LogQ         []int                       `json:",omitempty"`
+	LogP         []int                       `json:",omitempty"`
+	Xe           ring.DistributionParameters `json:",omitempty"`
+	Xs           ring.DistributionParameters `json:",omitempty"`
+	RingType     ring.Type                   `json:",omitempty"`
+	DefaultScale Scale                       `json:",omitempty"`
+	NTTFlag      bool                        `json:",omitempty"`
 }
 
 // Parameters represents a set of generic RLWE parameters. Its fields are private and
 // immutable. See ParametersLiteral for user-specified parameters.
 type Parameters struct {
-	logN           int
-	qi             []uint64
-	pi             []uint64
-	xe             distribution
-	xs             distribution
-	ringQ          *ring.Ring
-	ringP          *ring.Ring
-	ringType       ring.Type
-	plaintextScale Scale
-	nttFlag        bool
+	logN         int
+	qi           []uint64
+	pi           []uint64
+	xe           distribution
+	xs           distribution
+	ringQ        *ring.Ring
+	ringP        *ring.Ring
+	ringType     ring.Type
+	defaultScale Scale
+	nttFlag      bool
 }
 
 // NewParameters returns a new set of generic RLWE parameters from the given ring degree logn, moduli q and p, and
 // error distribution Xs (secret) and Xe (error). It returns the empty parameters Parameters{} and a non-nil error if the
 // specified parameters are invalid.
-func NewParameters(logn int, q, p []uint64, xs, xe DistributionLiteral, ringType ring.Type, plaintextScale Scale, NTTFlag bool) (params Parameters, err error) {
+func NewParameters(logn int, q, p []uint64, xs, xe DistributionLiteral, ringType ring.Type, defaultScale Scale, NTTFlag bool) (params Parameters, err error) {
 
 	var lenP int
 	if p != nil {
@@ -94,12 +94,12 @@ func NewParameters(logn int, q, p []uint64, xs, xe DistributionLiteral, ringType
 	}
 
 	params = Parameters{
-		logN:           logn,
-		qi:             make([]uint64, len(q)),
-		pi:             make([]uint64, lenP),
-		ringType:       ringType,
-		plaintextScale: plaintextScale,
-		nttFlag:        NTTFlag,
+		logN:         logn,
+		qi:           make([]uint64, len(q)),
+		pi:           make([]uint64, lenP),
+		ringType:     ringType,
+		defaultScale: defaultScale,
+		nttFlag:      NTTFlag,
 	}
 
 	// pre-check that moduli chain is of valid size and that all factors are prime.
@@ -180,14 +180,14 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (params Parameters, er
 		paramDef.Xe = DefaultXe
 	}
 
-	if paramDef.PlaintextScale.Cmp(Scale{}) == 0 {
+	if paramDef.DefaultScale.Cmp(Scale{}) == 0 {
 		s := NewScale(1)
-		paramDef.PlaintextScale = s
+		paramDef.DefaultScale = s
 	}
 
 	switch {
 	case paramDef.Q != nil && paramDef.LogQ == nil:
-		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Xs, paramDef.Xe, paramDef.RingType, paramDef.PlaintextScale, paramDef.NTTFlag)
+		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Xs, paramDef.Xe, paramDef.RingType, paramDef.DefaultScale, paramDef.NTTFlag)
 	case paramDef.LogQ != nil && paramDef.Q == nil:
 		var q, p []uint64
 		switch paramDef.RingType {
@@ -201,7 +201,7 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (params Parameters, er
 		if err != nil {
 			return Parameters{}, err
 		}
-		return NewParameters(paramDef.LogN, q, p, paramDef.Xs, paramDef.Xe, paramDef.RingType, paramDef.PlaintextScale, paramDef.NTTFlag)
+		return NewParameters(paramDef.LogN, q, p, paramDef.Xs, paramDef.Xe, paramDef.RingType, paramDef.DefaultScale, paramDef.NTTFlag)
 	default:
 		return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: invalid parameter literal")
 	}
@@ -237,14 +237,14 @@ func (p Parameters) ParametersLiteral() ParametersLiteral {
 	copy(P, p.pi)
 
 	return ParametersLiteral{
-		LogN:           p.logN,
-		Q:              Q,
-		P:              P,
-		Xe:             p.xe.params,
-		Xs:             p.xs.params,
-		RingType:       p.ringType,
-		PlaintextScale: p.plaintextScale,
-		NTTFlag:        p.nttFlag,
+		LogN:         p.logN,
+		Q:            Q,
+		P:            P,
+		Xe:           p.xe.params,
+		Xs:           p.xs.params,
+		RingType:     p.ringType,
+		DefaultScale: p.defaultScale,
+		NTTFlag:      p.nttFlag,
 	}
 }
 
@@ -256,7 +256,7 @@ func (p Parameters) GetRLWEParameters() *Parameters {
 // NewScale creates a new scale using the stored default scale as template.
 func (p Parameters) NewScale(scale interface{}) Scale {
 	newScale := NewScale(scale)
-	newScale.Mod = p.plaintextScale.Mod
+	newScale.Mod = p.defaultScale.Mod
 	return newScale
 }
 
@@ -270,48 +270,18 @@ func (p Parameters) LogN() int {
 	return p.logN
 }
 
-// PlaintextScale returns the default scaling factor of the plaintext, if any.
-func (p Parameters) PlaintextScale() Scale {
-	return p.plaintextScale
+// DefaultScale returns the default scaling factor of the plaintext, if any.
+func (p Parameters) DefaultScale() Scale {
+	return p.defaultScale
 }
 
 // PlaintextModulus returns the plaintext modulus, if any. Else returns 0.
 func (p Parameters) PlaintextModulus() uint64 {
-	if p.plaintextScale.Mod != nil {
-		return p.plaintextScale.Mod.Uint64()
+	if p.defaultScale.Mod != nil {
+		return p.defaultScale.Mod.Uint64()
 	}
 
 	return 0
-}
-
-// PlaintextPrecision returns the default precision in bits of the plaintext values which
-// is max(53, log2(PlaintextScale)).
-func (p Parameters) PlaintextPrecision() (prec uint) {
-	if log2scale := math.Log2(p.PlaintextScale().Float64()); log2scale <= 53 {
-		prec = 53
-	} else {
-		prec = uint(log2scale)
-	}
-
-	return
-}
-
-// PlaintextScaleToModuliRatio returns the default ratio between the scaling factor and moduli.
-// This default ratio is computed as ceil(PlaintextScale/2^{60}).
-// Returns 0 if the scaling factor is 0 (e.g. scale invariant scheme such as BFV).
-func (p Parameters) PlaintextScaleToModuliRatio() int {
-
-	if p.PlaintextScale().Mod != nil {
-		return 1
-	}
-
-	scale := p.PlaintextScale().Float64()
-	nbModuli := 0
-	for scale > 1 {
-		scale /= 0xfffffffffffffff
-		nbModuli++
-	}
-	return nbModuli
 }
 
 // RingQ returns a pointer to ringQ
@@ -327,16 +297,6 @@ func (p Parameters) RingP() *ring.Ring {
 // RingQP returns a pointer to ringQP
 func (p Parameters) RingQP() *ringqp.Ring {
 	return &ringqp.Ring{RingQ: p.ringQ, RingP: p.ringP}
-}
-
-// MaxDepth returns MaxLevel / PlaintextScaleToModuliRatio which is the maximum number of multiplicaitons
-// followed by a rescaling that can be carried out with on a ciphertext with the plaintextScale.
-// Returns 0 if the scaling factor is zero (e.g. scale invariant scheme such as BFV).
-func (p Parameters) MaxDepth() int {
-	if ratio := p.PlaintextScaleToModuliRatio(); ratio > 0 {
-		return p.MaxLevel() / ratio
-	}
-	return 0
 }
 
 // NTTFlag returns a boolean indicating if elements are stored by default in the NTT domain.
@@ -706,7 +666,7 @@ func (p Parameters) Equal(other GetRLWEParameters) (res bool) {
 		res = res && cmp.Equal(p.qi, other.qi)
 		res = res && cmp.Equal(p.pi, other.pi)
 		res = res && (p.ringType == other.ringType)
-		res = res && (p.plaintextScale.Equal(other.plaintextScale))
+		res = res && (p.defaultScale.Equal(other.defaultScale))
 		res = res && (p.nttFlag == other.nttFlag)
 		return
 	}
@@ -880,16 +840,16 @@ func (p *Parameters) initRings() (err error) {
 
 func (p *ParametersLiteral) UnmarshalJSON(b []byte) (err error) {
 	var pl struct {
-		LogN           int
-		Q              []uint64
-		P              []uint64
-		LogQ           []int
-		LogP           []int
-		Xe             map[string]interface{}
-		Xs             map[string]interface{}
-		RingType       ring.Type
-		PlaintextScale Scale
-		NTTFlag        bool
+		LogN         int
+		Q            []uint64
+		P            []uint64
+		LogQ         []int
+		LogP         []int
+		Xe           map[string]interface{}
+		Xs           map[string]interface{}
+		RingType     ring.Type
+		DefaultScale Scale
+		NTTFlag      bool
 	}
 
 	err = json.Unmarshal(b, &pl)
@@ -912,7 +872,7 @@ func (p *ParametersLiteral) UnmarshalJSON(b []byte) (err error) {
 		}
 	}
 	p.RingType = pl.RingType
-	p.PlaintextScale = pl.PlaintextScale
+	p.DefaultScale = pl.DefaultScale
 	p.NTTFlag = pl.NTTFlag
 
 	return err

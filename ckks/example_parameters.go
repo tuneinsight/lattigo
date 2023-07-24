@@ -18,6 +18,6 @@ var (
 			0x80000000130001, // 55
 			0x7fffffffe90001, // 55
 		},
-		LogPlaintextScale: 45,
+		LogDefaultScale: 45,
 	}
 )

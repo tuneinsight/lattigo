@@ -150,7 +150,7 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 	})
 
 	b.Run(GetTestName("Evaluator/Mul/Ct/Vector", params, level), func(b *testing.B) {
-		coeffs := plaintext1.Value.Coeffs[0][:params.PlaintextSlots()]
+		coeffs := plaintext1.Value.Coeffs[0][:params.MaxSlots()]
 		for i := 0; i < b.N; i++ {
 			eval.Mul(ciphertext0, coeffs, ciphertext0)
 		}
@@ -188,7 +188,7 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 	})
 
 	b.Run(GetTestName("Evaluator/MulThenAdd/Ct/Vector", params, level), func(b *testing.B) {
-		coeffs := plaintext1.Value.Coeffs[0][:params.PlaintextSlots()]
+		coeffs := plaintext1.Value.Coeffs[0][:params.MaxSlots()]
 		for i := 0; i < b.N; i++ {
 			eval.MulThenAdd(ciphertext0, coeffs, ciphertext1)
 		}

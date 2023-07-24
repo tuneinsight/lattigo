@@ -48,7 +48,7 @@ func (d *SecretKeyBootstrapper) Bootstrap(ct *rlwe.Ciphertext) (*rlwe.Ciphertext
 	}
 	pt := NewPlaintext(d.Parameters, d.MaxLevel())
 	pt.MetaData = ct.MetaData
-	pt.Scale = d.Parameters.PlaintextScale()
+	pt.Scale = d.Parameters.DefaultScale()
 	if err := d.Encode(values, pt); err != nil {
 		return nil, err
 	}

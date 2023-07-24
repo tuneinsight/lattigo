@@ -203,7 +203,7 @@ func main() {
 		decryptor.Decrypt(encOut, ptres)
 	})
 
-	res := make([]uint64, params.PlaintextSlots())
+	res := make([]uint64, params.MaxSlots())
 	if err := encoder.Decode(ptres, res); err != nil {
 		panic(err)
 	}

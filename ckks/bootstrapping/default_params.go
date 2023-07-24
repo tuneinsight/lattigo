@@ -32,11 +32,11 @@ var (
 	// Failure : 2^{-138.7} for 2^{15} slots.
 	N16QP1546H192H32 = defaultParametersLiteral{
 		ckks.ParametersLiteral{
-			LogN:              16,
-			LogQ:              []int{60, 40, 40, 40, 40, 40, 40, 40, 40, 40},
-			LogP:              []int{61, 61, 61, 61, 61},
-			Xs:                ring.Ternary{H: 192},
-			LogPlaintextScale: 40,
+			LogN:            16,
+			LogQ:            []int{60, 40, 40, 40, 40, 40, 40, 40, 40, 40},
+			LogP:            []int{61, 61, 61, 61, 61},
+			Xs:              ring.Ternary{H: 192},
+			LogDefaultScale: 40,
 		},
 		ParametersLiteral{},
 	}
@@ -50,15 +50,15 @@ var (
 	// Failure : 2^{-138.7} for 2^{15} slots.
 	N16QP1547H192H32 = defaultParametersLiteral{
 		ckks.ParametersLiteral{
-			LogN:              16,
-			LogQ:              []int{60, 45, 45, 45, 45, 45},
-			LogP:              []int{61, 61, 61, 61},
-			Xs:                ring.Ternary{H: 192},
-			LogPlaintextScale: 45,
+			LogN:            16,
+			LogQ:            []int{60, 45, 45, 45, 45, 45},
+			LogP:            []int{61, 61, 61, 61},
+			Xs:              ring.Ternary{H: 192},
+			LogDefaultScale: 45,
 		},
 		ParametersLiteral{
-			SlotsToCoeffsFactorizationDepthAndLogPlaintextScales: [][]int{{42}, {42}, {42}},
-			CoeffsToSlotsFactorizationDepthAndLogPlaintextScales: [][]int{{58}, {58}, {58}, {58}},
+			SlotsToCoeffsFactorizationDepthAndLogDefaultScales: [][]int{{42}, {42}, {42}},
+			CoeffsToSlotsFactorizationDepthAndLogDefaultScales: [][]int{{58}, {58}, {58}, {58}},
 			LogMessageRatio: utils.Pointy(2),
 			ArcSineDegree:   utils.Pointy(7),
 		},
@@ -73,16 +73,16 @@ var (
 	// Failure : 2^{-138.7} for 2^{15} slots.
 	N16QP1553H192H32 = defaultParametersLiteral{
 		ckks.ParametersLiteral{
-			LogN:              16,
-			LogQ:              []int{55, 60, 60, 60, 60, 60, 60, 60},
-			LogP:              []int{61, 61, 61, 61, 61},
-			Xs:                ring.Ternary{H: 192},
-			LogPlaintextScale: 30,
+			LogN:            16,
+			LogQ:            []int{55, 60, 60, 60, 60, 60, 60, 60},
+			LogP:            []int{61, 61, 61, 61, 61},
+			Xs:              ring.Ternary{H: 192},
+			LogDefaultScale: 30,
 		},
 		ParametersLiteral{
-			SlotsToCoeffsFactorizationDepthAndLogPlaintextScales: [][]int{{30}, {30, 30}},
-			CoeffsToSlotsFactorizationDepthAndLogPlaintextScales: [][]int{{53}, {53}, {53}, {53}},
-			EvalModLogPlaintextScale:                             utils.Pointy(55),
+			SlotsToCoeffsFactorizationDepthAndLogDefaultScales: [][]int{{30}, {30, 30}},
+			CoeffsToSlotsFactorizationDepthAndLogDefaultScales: [][]int{{53}, {53}, {53}, {53}},
+			EvalModLogDefaultScale:                             utils.Pointy(55),
 		},
 	}
 
@@ -95,16 +95,16 @@ var (
 	// Failure : 2^{-139.7} for 2^{14} slots.
 	N15QP768H192H32 = defaultParametersLiteral{
 		ckks.ParametersLiteral{
-			LogN:              15,
-			LogQ:              []int{33, 50, 25},
-			LogP:              []int{51, 51},
-			Xs:                ring.Ternary{H: 192},
-			LogPlaintextScale: 25,
+			LogN:            15,
+			LogQ:            []int{33, 50, 25},
+			LogP:            []int{51, 51},
+			Xs:              ring.Ternary{H: 192},
+			LogDefaultScale: 25,
 		},
 		ParametersLiteral{
-			SlotsToCoeffsFactorizationDepthAndLogPlaintextScales: [][]int{{30, 30}},
-			CoeffsToSlotsFactorizationDepthAndLogPlaintextScales: [][]int{{49}, {49}},
-			EvalModLogPlaintextScale:                             utils.Pointy(50),
+			SlotsToCoeffsFactorizationDepthAndLogDefaultScales: [][]int{{30, 30}},
+			CoeffsToSlotsFactorizationDepthAndLogDefaultScales: [][]int{{49}, {49}},
+			EvalModLogDefaultScale:                             utils.Pointy(50),
 		},
 	}
 
@@ -117,11 +117,11 @@ var (
 	// Failure : 2^{-138.7} for 2^{15} slots.
 	N16QP1767H32768H32 = defaultParametersLiteral{
 		ckks.ParametersLiteral{
-			LogN:              16,
-			LogQ:              []int{60, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40},
-			LogP:              []int{61, 61, 61, 61, 61, 61},
-			Xs:                ring.Ternary{H: 32768},
-			LogPlaintextScale: 40,
+			LogN:            16,
+			LogQ:            []int{60, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40},
+			LogP:            []int{61, 61, 61, 61, 61, 61},
+			Xs:              ring.Ternary{H: 32768},
+			LogDefaultScale: 40,
 		},
 		ParametersLiteral{},
 	}
@@ -135,15 +135,15 @@ var (
 	// Failure : 2^{-138.7} for 2^{15} slots.
 	N16QP1788H32768H32 = defaultParametersLiteral{
 		ckks.ParametersLiteral{
-			LogN:              16,
-			LogQ:              []int{60, 45, 45, 45, 45, 45, 45, 45, 45, 45},
-			LogP:              []int{61, 61, 61, 61, 61},
-			Xs:                ring.Ternary{H: 32768},
-			LogPlaintextScale: 45,
+			LogN:            16,
+			LogQ:            []int{60, 45, 45, 45, 45, 45, 45, 45, 45, 45},
+			LogP:            []int{61, 61, 61, 61, 61},
+			Xs:              ring.Ternary{H: 32768},
+			LogDefaultScale: 45,
 		},
 		ParametersLiteral{
-			SlotsToCoeffsFactorizationDepthAndLogPlaintextScales: [][]int{{42}, {42}, {42}},
-			CoeffsToSlotsFactorizationDepthAndLogPlaintextScales: [][]int{{58}, {58}, {58}, {58}},
+			SlotsToCoeffsFactorizationDepthAndLogDefaultScales: [][]int{{42}, {42}, {42}},
+			CoeffsToSlotsFactorizationDepthAndLogDefaultScales: [][]int{{58}, {58}, {58}, {58}},
 			LogMessageRatio: utils.Pointy(2),
 			ArcSineDegree:   utils.Pointy(7),
 		},
@@ -158,16 +158,16 @@ var (
 	// Failure : 2^{-138.7} for 2^{15} slots.
 	N16QP1793H32768H32 = defaultParametersLiteral{
 		ckks.ParametersLiteral{
-			LogN:              16,
-			LogQ:              []int{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 30},
-			LogP:              []int{61, 61, 61, 61, 61},
-			Xs:                ring.Ternary{H: 32768},
-			LogPlaintextScale: 30,
+			LogN:            16,
+			LogQ:            []int{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 30},
+			LogP:            []int{61, 61, 61, 61, 61},
+			Xs:              ring.Ternary{H: 32768},
+			LogDefaultScale: 30,
 		},
 		ParametersLiteral{
-			SlotsToCoeffsFactorizationDepthAndLogPlaintextScales: [][]int{{30}, {30, 30}},
-			CoeffsToSlotsFactorizationDepthAndLogPlaintextScales: [][]int{{53}, {53}, {53}, {53}},
-			EvalModLogPlaintextScale:                             utils.Pointy(55),
+			SlotsToCoeffsFactorizationDepthAndLogDefaultScales: [][]int{{30}, {30, 30}},
+			CoeffsToSlotsFactorizationDepthAndLogDefaultScales: [][]int{{53}, {53}, {53}, {53}},
+			EvalModLogDefaultScale:                             utils.Pointy(55),
 		},
 	}
 
@@ -180,16 +180,16 @@ var (
 	// Failure : 2^{-139.7} for 2^{14} slots.
 	N15QP880H16384H32 = defaultParametersLiteral{
 		ckks.ParametersLiteral{
-			LogN:              15,
-			LogQ:              []int{40, 31, 31, 31, 31},
-			LogP:              []int{56, 56},
-			Xs:                ring.Ternary{H: 16384},
-			LogPlaintextScale: 31,
+			LogN:            15,
+			LogQ:            []int{40, 31, 31, 31, 31},
+			LogP:            []int{56, 56},
+			Xs:              ring.Ternary{H: 16384},
+			LogDefaultScale: 31,
 		},
 		ParametersLiteral{
-			SlotsToCoeffsFactorizationDepthAndLogPlaintextScales: [][]int{{30, 30}},
-			CoeffsToSlotsFactorizationDepthAndLogPlaintextScales: [][]int{{52}, {52}},
-			EvalModLogPlaintextScale:                             utils.Pointy(55),
+			SlotsToCoeffsFactorizationDepthAndLogDefaultScales: [][]int{{30, 30}},
+			CoeffsToSlotsFactorizationDepthAndLogDefaultScales: [][]int{{52}, {52}},
+			EvalModLogDefaultScale:                             utils.Pointy(55),
 		},
 	}
 )

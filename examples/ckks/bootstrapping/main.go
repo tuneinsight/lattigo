@@ -27,11 +27,11 @@ func main() {
 	// enable it to create the appropriate ckks.ParametersLiteral that enable the evaluation of the
 	// bootstrapping circuit on top of the residual moduli that we defined.
 	ckksParamsResidualLit := ckks.ParametersLiteral{
-		LogN:              16,                                                // Log2 of the ringdegree
-		LogQ:              []int{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40}, // Log2 of the ciphertext prime moduli
-		LogP:              []int{61, 61, 61, 61},                             // Log2 of the key-switch auxiliary prime moduli
-		LogPlaintextScale: 40,                                                // Log2 of the scale
-		Xs:                ring.Ternary{H: 192},                              // Hamming weight of the secret
+		LogN:            16,                                                // Log2 of the ringdegree
+		LogQ:            []int{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40}, // Log2 of the ciphertext prime moduli
+		LogP:            []int{61, 61, 61, 61},                             // Log2 of the key-switch auxiliary prime moduli
+		LogDefaultScale: 40,                                                // Log2 of the scale
+		Xs:              ring.Ternary{H: 192},                              // Hamming weight of the secret
 	}
 
 	LogSlots := ckksParamsResidualLit.LogN - 2
@@ -88,7 +88,7 @@ func main() {
 	// Here we print some information about the generated ckks.Parameters
 	// We can notably check that the LogQP of the generated ckks.Parameters is equal to 699 + 822 = 1521.
 	// Not that this value can be overestimated by one bit.
-	fmt.Printf("CKKS parameters: logN=%d, logSlots=%d, H(%d; %d), sigma=%f, logQP=%f, levels=%d, scale=2^%f\n", params.LogN(), LogSlots, params.XsHammingWeight(), btpParams.EphemeralSecretWeight, params.Xe(), params.LogQP(), params.QCount(), math.Log2(params.PlaintextScale().Float64()))
+	fmt.Printf("CKKS parameters: logN=%d, logSlots=%d, H(%d; %d), sigma=%f, logQP=%f, levels=%d, scale=2^%f\n", params.LogN(), LogSlots, params.XsHammingWeight(), btpParams.EphemeralSecretWeight, params.Xe(), params.LogQP(), params.QCount(), math.Log2(params.DefaultScale().Float64()))
 
 	// Scheme context and keys
 	kgen := ckks.NewKeyGenerator(params)
@@ -144,8 +144,8 @@ func main() {
 	// Bootstrap the ciphertext (homomorphic re-encryption)
 	// It takes a ciphertext at level 0 (if not at level 0, then it will reduce it to level 0)
 	// and returns a ciphertext with the max level of `ckksParamsResidualLit`.
-	// CAUTION: the scale of the ciphertext MUST be equal (or very close) to params.PlaintextScale()
-	// To equalize the scale, the function evaluator.SetScale(ciphertext, parameters.PlaintextScale()) can be used at the expense of one level.
+	// CAUTION: the scale of the ciphertext MUST be equal (or very close) to params.DefaultScale()
+	// To equalize the scale, the function evaluator.SetScale(ciphertext, parameters.DefaultScale()) can be used at the expense of one level.
 	// If the ciphertext is is at level one or greater when given to the bootstrapper, this equalization is automatically done.
 	fmt.Println(ciphertext1.LogSlots())
 	fmt.Println()

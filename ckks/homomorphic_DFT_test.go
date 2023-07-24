@@ -22,11 +22,11 @@ func TestHomomorphicDFT(t *testing.T) {
 	}
 
 	ParametersLiteral := ParametersLiteral{
-		LogN:              10,
-		LogQ:              []int{60, 45, 45, 45, 45, 45, 45, 45},
-		LogP:              []int{61, 61},
-		Xs:                ring.Ternary{H: 192},
-		LogPlaintextScale: 90,
+		LogN:            10,
+		LogQ:            []int{60, 45, 45, 45, 45, 45, 45, 45},
+		LogP:            []int{61, 61},
+		Xs:              ring.Ternary{H: 192},
+		LogDefaultScale: 90,
 	}
 
 	testHomomorphicDFTMatrixLiteralMarshalling(t)
@@ -36,7 +36,7 @@ func TestHomomorphicDFT(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for _, logSlots := range []int{params.PlaintextLogDimensions().Cols - 1, params.PlaintextLogDimensions().Cols} {
+	for _, logSlots := range []int{params.LogMaxDimensions().Cols - 1, params.LogMaxDimensions().Cols} {
 		for _, testSet := range []func(params Parameters, logSlots int, t *testing.T){
 			testHomomorphicEncoding,
 			testHomomorphicDecoding,
@@ -74,7 +74,7 @@ func testHomomorphicEncoding(params Parameters, LogSlots int, t *testing.T) {
 
 	slots := 1 << LogSlots
 
-	var sparse bool = LogSlots < params.PlaintextLogDimensions().Cols
+	var sparse bool = LogSlots < params.LogMaxDimensions().Cols
 
 	packing := "FullPacking"
 	if sparse {
@@ -84,10 +84,10 @@ func testHomomorphicEncoding(params Parameters, LogSlots int, t *testing.T) {
 	var params2N Parameters
 	var err error
 	if params2N, err = NewParametersFromLiteral(ParametersLiteral{
-		LogN:              params.LogN() + 1,
-		LogQ:              []int{60},
-		LogP:              []int{61},
-		LogPlaintextScale: params.LogPlaintextScale(),
+		LogN:            params.LogN() + 1,
+		LogQ:            []int{60},
+		LogP:            []int{61},
+		LogDefaultScale: params.LogDefaultScale(),
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -153,7 +153,7 @@ func testHomomorphicEncoding(params Parameters, LogSlots int, t *testing.T) {
 		// Creates an evaluator with the rotation keys
 		eval := NewEvaluator(params, evk)
 
-		prec := params.PlaintextPrecision()
+		prec := params.EncodingPrecision()
 
 		// Generates the vector of random complex values
 		values := make([]*bignum.Complex, slots)
@@ -293,7 +293,7 @@ func testHomomorphicDecoding(params Parameters, LogSlots int, t *testing.T) {
 
 	slots := 1 << LogSlots
 
-	var sparse bool = LogSlots < params.PlaintextLogDimensions().Cols
+	var sparse bool = LogSlots < params.LogMaxDimensions().Cols
 
 	packing := "FullPacking"
 	if sparse {
@@ -361,7 +361,7 @@ func testHomomorphicDecoding(params Parameters, LogSlots int, t *testing.T) {
 		// Creates an evaluator with the rotation keys
 		eval := NewEvaluator(params, evk)
 
-		prec := params.PlaintextPrecision()
+		prec := params.EncodingPrecision()
 
 		// Generates the n first slots of the test vector (real part to encode)
 		valuesReal := make([]*bignum.Complex, slots)

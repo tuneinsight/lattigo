@@ -116,15 +116,15 @@ func NewHomomorphicDFTMatrixFromLiteral(d HomomorphicDFTMatrixLiteral, encoder *
 
 	logSlots := d.LogSlots
 	logdSlots := logSlots
-	if maxLogSlots := params.PlaintextLogDimensions().Cols; logdSlots < maxLogSlots && d.RepackImag2Real {
+	if maxLogSlots := params.LogMaxDimensions().Cols; logdSlots < maxLogSlots && d.RepackImag2Real {
 		logdSlots++
 	}
 
 	// CoeffsToSlots vectors
 	matrices := []hebase.LinearTransformation{}
-	pVecDFT := d.GenMatrices(params.LogN(), params.PlaintextPrecision())
+	pVecDFT := d.GenMatrices(params.LogN(), params.EncodingPrecision())
 
-	nbModuliPerRescale := params.PlaintextScaleToModuliRatio()
+	nbModuliPerRescale := params.LevelsConsummedPerRescaling()
 
 	level := d.LevelStart
 	var idx int
@@ -176,7 +176,7 @@ func NewHomomorphicDFTMatrixFromLiteral(d HomomorphicDFTMatrixLiteral, encoder *
 func (eval Evaluator) CoeffsToSlotsNew(ctIn *rlwe.Ciphertext, ctsMatrices HomomorphicDFTMatrix) (ctReal, ctImag *rlwe.Ciphertext, err error) {
 	ctReal = NewCiphertext(eval.Encoder.parameters, 1, ctsMatrices.LevelStart)
 
-	if ctsMatrices.LogSlots == eval.Encoder.parameters.PlaintextLogSlots() {
+	if ctsMatrices.LogSlots == eval.Encoder.parameters.LogMaxSlots() {
 		ctImag = NewCiphertext(eval.Encoder.parameters, 1, ctsMatrices.LevelStart)
 	}
 
@@ -229,7 +229,7 @@ func (eval Evaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices Homomorph
 		}
 
 		// If repacking, then ct0 and ct1 right n/2 slots are zero.
-		if ctsMatrices.LogSlots < eval.GetParameters().PlaintextLogSlots() {
+		if ctsMatrices.LogSlots < eval.GetParameters().LogMaxSlots() {
 			if err = eval.Rotate(tmp, 1<<ctIn.LogDimensions.Cols, tmp); err != nil {
 				return fmt.Errorf("cannot CoeffsToSlots: %w", err)
 			}

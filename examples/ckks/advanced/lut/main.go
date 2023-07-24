@@ -60,10 +60,10 @@ func main() {
 	// LogN = 12 & LogQP = ~103 -> >128-bit secure.
 	var paramsN12 ckks.Parameters
 	if paramsN12, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-		LogN:              LogN,
-		Q:                 Q,
-		P:                 P,
-		LogPlaintextScale: 32,
+		LogN:            LogN,
+		Q:               Q,
+		P:               P,
+		LogDefaultScale: 32,
 	}); err != nil {
 		panic(err)
 	}
@@ -89,7 +89,7 @@ func main() {
 	// LUT inputs and change of scale to ensure that upperbound on the homomorphic
 	// decryption of LWE during the LUT evaluation X^{dec(lwe)} is smaller than N
 	// to avoid negacyclic wrapping of X^{dec(lwe)}.
-	diffScale := float64(paramsN11.Q()[0]) / (4.0 * paramsN12.PlaintextScale().Float64())
+	diffScale := float64(paramsN11.Q()[0]) / (4.0 * paramsN12.DefaultScale().Float64())
 	normalization := 2.0 / (b - a) // all inputs are normalized before the LUT evaluation.
 
 	// SlotsToCoeffsParameters homomorphic encoding parameters
@@ -112,7 +112,7 @@ func main() {
 	fmt.Printf("Generating LUT... ")
 	now := time.Now()
 	// Generate LUT, provide function, outputscale, ring and interval.
-	LUTPoly := lut.InitLUT(sign, paramsN12.PlaintextScale(), paramsN12.RingQ(), a, b)
+	LUTPoly := lut.InitLUT(sign, paramsN12.DefaultScale(), paramsN12.RingQ(), a, b)
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	// Index of the LUT poly and repacking after evaluating the LUT.
@@ -230,8 +230,8 @@ func main() {
 	}
 	fmt.Printf("Done (%s)\n", time.Since(now))
 	ctN12.IsBatched = false
-	ctN12.LogDimensions = paramsN12.PlaintextLogDimensions()
-	ctN12.Scale = paramsN12.PlaintextScale()
+	ctN12.LogDimensions = paramsN12.LogMaxDimensions()
+	ctN12.Scale = paramsN12.DefaultScale()
 
 	fmt.Println(ctN12.MetaData)
 

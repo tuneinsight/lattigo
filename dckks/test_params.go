@@ -20,7 +20,7 @@ var (
 			0x80000000130001,
 			0x7fffffffe90001,
 		},
-		LogPlaintextScale: 45,
+		LogDefaultScale: 45,
 	}
 
 	testPrec90 = ckks.ParametersLiteral{
@@ -43,7 +43,7 @@ var (
 			0xffffffffffc0001,
 			0x10000000006e0001,
 		},
-		LogPlaintextScale: 90,
+		LogDefaultScale: 90,
 	}
 
 	testParamsLiteral = []ckks.ParametersLiteral{testPrec45, testPrec90}

@@ -12,12 +12,26 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
+// PrecisionMode is a variable that defines how many primes (one
+// per machine word) are required to store initial message values.
+// This also sets how many primes are consumed per rescaling.
+//
+// There are currently two modes supported:
+// - PREC64 (one 64 bit word)
+// - PREC128 (two 64 bit words)
+//
+// PREC64 is the default mode and supports reference plaintext scaling
+// factors of up to 2^{64}, while PREC128 scaling factors of up to 2^{128}.
+//
+// The PrecisionMode is chosen automatically based on the provided initial
+// `LogDefaultScale` value provided by the user.
+type PrecisionMode int
+
 const (
 	NTTFlag = true
+	PREC64  = PrecisionMode(0)
+	PREC128 = PrecisionMode(1)
 )
-
-// Name of the different default parameter sets
-var ()
 
 // ParametersLiteral is a literal representation of CKKS parameters.  It has public
 // fields and is used to express unchecked user-defined parameters literally into
@@ -32,30 +46,30 @@ var ()
 // type (RingType) and the number of slots (in log_2, LogSlots). If left unset, standard default values for
 // these field are substituted at parameter creation (see NewParametersFromLiteral).
 type ParametersLiteral struct {
-	LogN              int
-	Q                 []uint64
-	P                 []uint64
-	LogQ              []int `json:",omitempty"`
-	LogP              []int `json:",omitempty"`
-	Xe                ring.DistributionParameters
-	Xs                ring.DistributionParameters
-	RingType          ring.Type
-	LogPlaintextScale int
+	LogN            int
+	Q               []uint64
+	P               []uint64
+	LogQ            []int `json:",omitempty"`
+	LogP            []int `json:",omitempty"`
+	Xe              ring.DistributionParameters
+	Xs              ring.DistributionParameters
+	RingType        ring.Type
+	LogDefaultScale int
 }
 
 // GetRLWEParametersLiteral returns the rlwe.ParametersLiteral from the target ckks.ParameterLiteral.
 func (p ParametersLiteral) GetRLWEParametersLiteral() rlwe.ParametersLiteral {
 	return rlwe.ParametersLiteral{
-		LogN:           p.LogN,
-		Q:              p.Q,
-		P:              p.P,
-		LogQ:           p.LogQ,
-		LogP:           p.LogP,
-		Xe:             p.Xe,
-		Xs:             p.Xs,
-		RingType:       p.RingType,
-		NTTFlag:        NTTFlag,
-		PlaintextScale: rlwe.NewScale(math.Exp2(float64(p.LogPlaintextScale))),
+		LogN:         p.LogN,
+		Q:            p.Q,
+		P:            p.P,
+		LogQ:         p.LogQ,
+		LogP:         p.LogP,
+		Xe:           p.Xe,
+		Xs:           p.Xs,
+		RingType:     p.RingType,
+		NTTFlag:      NTTFlag,
+		DefaultScale: rlwe.NewScale(math.Exp2(float64(p.LogDefaultScale))),
 	}
 }
 
@@ -63,21 +77,7 @@ func (p ParametersLiteral) GetRLWEParametersLiteral() rlwe.ParametersLiteral {
 // immutable. See ParametersLiteral for user-specified parameters.
 type Parameters struct {
 	rlwe.Parameters
-}
-
-// NewParameters instantiate a set of CKKS parameters from the generic RLWE parameters and the CKKS-specific ones.
-// It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
-func NewParameters(rlweParams rlwe.Parameters) (p Parameters, err error) {
-
-	if !rlweParams.NTTFlag() {
-		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid for CKKS scheme (NTTFlag must be true)")
-	}
-
-	if rlweParams.Equal(rlwe.Parameters{}) {
-		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid")
-	}
-
-	return Parameters{rlweParams}, nil
+	precisionMode PrecisionMode
 }
 
 // NewParametersFromLiteral instantiate a set of CKKS parameters from a ParametersLiteral specification.
@@ -90,10 +90,19 @@ func NewParameters(rlweParams rlwe.Parameters) (p Parameters, err error) {
 func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 	rlweParams, err := rlwe.NewParametersFromLiteral(pl.GetRLWEParametersLiteral())
 	if err != nil {
-		return Parameters{}, err
+		return Parameters{}, fmt.Errorf("cannot NewParametersFromLiteral: %w", err)
 	}
 
-	return NewParameters(rlweParams)
+	var precisionMode PrecisionMode
+	if pl.LogDefaultScale <= 64 {
+		precisionMode = PREC64
+	} else if pl.LogDefaultScale <= 128 {
+		precisionMode = PREC128
+	} else {
+		return Parameters{}, fmt.Errorf("cannot NewParametersFromLiteral: LogDefaultScale=%d > 128 or < 0", pl.LogDefaultScale)
+	}
+
+	return Parameters{rlweParams, precisionMode}, nil
 }
 
 // StandardParameters returns the CKKS parameters corresponding to the receiver
@@ -105,19 +114,20 @@ func (p Parameters) StandardParameters() (pckks Parameters, err error) {
 	}
 	pckks = p
 	pckks.Parameters, err = pckks.Parameters.StandardParameters()
+	pckks.precisionMode = p.precisionMode
 	return
 }
 
 // ParametersLiteral returns the ParametersLiteral of the target Parameters.
 func (p Parameters) ParametersLiteral() (pLit ParametersLiteral) {
 	return ParametersLiteral{
-		LogN:              p.LogN(),
-		Q:                 p.Q(),
-		P:                 p.P(),
-		Xe:                p.Xe(),
-		Xs:                p.Xs(),
-		RingType:          p.RingType(),
-		LogPlaintextScale: p.LogPlaintextScale(),
+		LogN:            p.LogN(),
+		Q:               p.Q(),
+		P:               p.P(),
+		Xe:              p.Xe(),
+		Xs:              p.Xs(),
+		RingType:        p.RingType(),
+		LogDefaultScale: p.LogDefaultScale(),
 	}
 }
 
@@ -131,47 +141,83 @@ func (p Parameters) MaxLevel() int {
 	return p.QCount() - 1
 }
 
-// PlaintextDimensions returns the maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
-func (p Parameters) PlaintextDimensions() ring.Dimensions {
+// MaxDimensions returns the maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
+func (p Parameters) MaxDimensions() ring.Dimensions {
 	switch p.RingType() {
 	case ring.Standard:
 		return ring.Dimensions{Rows: 1, Cols: p.N() >> 1}
 	case ring.ConjugateInvariant:
 		return ring.Dimensions{Rows: 1, Cols: p.N()}
 	default:
-		panic("cannot PlaintextDimensions: invalid ring type")
+		panic("cannot MaxDimensions: invalid ring type")
 	}
 }
 
-// PlaintextLogDimensions returns the log2 of maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
-func (p Parameters) PlaintextLogDimensions() ring.Dimensions {
+// LogMaxDimensions returns the log2 of maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
+func (p Parameters) LogMaxDimensions() ring.Dimensions {
 	switch p.RingType() {
 	case ring.Standard:
 		return ring.Dimensions{Rows: 0, Cols: p.LogN() - 1}
 	case ring.ConjugateInvariant:
 		return ring.Dimensions{Rows: 0, Cols: p.LogN()}
 	default:
-		panic("cannot PlaintextLogDimensions: invalid ring type")
+		panic("cannot LogMaxDimensions: invalid ring type")
 	}
 }
 
-// PlaintextSlots returns the total number of entries (`slots`) that a plaintext can store.
-// This value is obtained by multiplying all dimensions from PlaintextDimensions.
-func (p Parameters) PlaintextSlots() int {
-	dims := p.PlaintextDimensions()
+// MaxSlots returns the total number of entries (`slots`) that a plaintext can store.
+// This value is obtained by multiplying all dimensions from MaxDimensions.
+func (p Parameters) MaxSlots() int {
+	dims := p.MaxDimensions()
 	return dims.Rows * dims.Cols
 }
 
-// PlaintextLogSlots returns the total number of entries (`slots`) that a plaintext can store.
+// LogMaxSlots returns the total number of entries (`slots`) that a plaintext can store.
 // This value is obtained by summing all log dimensions from LogDimensions.
-func (p Parameters) PlaintextLogSlots() int {
-	dims := p.PlaintextLogDimensions()
+func (p Parameters) LogMaxSlots() int {
+	dims := p.LogMaxDimensions()
 	return dims.Rows + dims.Cols
 }
 
-// LogPlaintextScale returns the log2 of the default plaintext scaling factor.
-func (p Parameters) LogPlaintextScale() int {
-	return int(math.Round(math.Log2(p.PlaintextScale().Float64())))
+// LogDefaultScale returns the log2 of the default plaintext scaling factor.
+func (p Parameters) LogDefaultScale() int {
+	return int(math.Round(math.Log2(p.DefaultScale().Float64())))
+}
+
+// EncodingPrecision returns the encoding precision in bits of the plaintext values which
+// is max(53, log2(DefaultScale)).
+func (p Parameters) EncodingPrecision() (prec uint) {
+	if log2scale := math.Log2(p.DefaultScale().Float64()); log2scale <= 53 {
+		prec = 53
+	} else {
+		prec = uint(log2scale)
+	}
+
+	return
+}
+
+// PrecisionMode returns the precision mode of the parameters.
+// This value can be ckks.PREC64 or ckks.PREC128.
+func (p Parameters) PrecisionMode() PrecisionMode {
+	return p.precisionMode
+}
+
+// LevelsConsummedPerRescaling returns the number of levels (i.e. primes)
+// consumed per rescaling. This value is 1 if the precision mode is PREC64
+// and is 2 if the precision mode is PREC128.
+func (p Parameters) LevelsConsummedPerRescaling() int {
+	switch p.precisionMode {
+	case PREC128:
+		return 2
+	default:
+		return 1
+	}
+}
+
+// MaxDepth returns the maximum depth enabled by the parameters,
+// which is obtained as p.MaxLevel() / p.LevelsConsummedPerRescaling().
+func (p Parameters) MaxDepth() int {
+	return p.MaxLevel() / p.LevelsConsummedPerRescaling()
 }
 
 // LogQLvl returns the size of the modulus Q in bits at a specific level
@@ -270,16 +316,16 @@ func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 
 func (p *ParametersLiteral) UnmarshalJSON(b []byte) (err error) {
 	var pl struct {
-		LogN              int
-		Q                 []uint64
-		P                 []uint64
-		LogQ              []int
-		LogP              []int
-		Pow2Base          int
-		Xe                map[string]interface{}
-		Xs                map[string]interface{}
-		RingType          ring.Type
-		LogPlaintextScale int
+		LogN            int
+		Q               []uint64
+		P               []uint64
+		LogQ            []int
+		LogP            []int
+		Pow2Base        int
+		Xe              map[string]interface{}
+		Xs              map[string]interface{}
+		RingType        ring.Type
+		LogDefaultScale int
 	}
 
 	err = json.Unmarshal(b, &pl)
@@ -302,6 +348,6 @@ func (p *ParametersLiteral) UnmarshalJSON(b []byte) (err error) {
 		}
 	}
 	p.RingType = pl.RingType
-	p.LogPlaintextScale = pl.LogPlaintextScale
+	p.LogDefaultScale = pl.LogDefaultScale
 	return err
 }

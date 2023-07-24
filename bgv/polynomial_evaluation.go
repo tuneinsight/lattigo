@@ -96,7 +96,7 @@ func (d dummyEvaluator) PolynomialDepth(degree int) int {
 // Rescale rescales the target DummyOperand n times and returns it.
 func (d dummyEvaluator) Rescale(op0 *hebase.DummyOperand) {
 	if !d.InvariantTensoring {
-		op0.PlaintextScale = op0.PlaintextScale.Div(rlwe.NewScale(d.params.Q()[op0.Level]))
+		op0.Scale = op0.Scale.Div(rlwe.NewScale(d.params.Q()[op0.Level]))
 		op0.Level--
 	}
 }
@@ -105,12 +105,12 @@ func (d dummyEvaluator) Rescale(op0 *hebase.DummyOperand) {
 func (d dummyEvaluator) MulNew(op0, op1 *hebase.DummyOperand) (opOut *hebase.DummyOperand) {
 	opOut = new(hebase.DummyOperand)
 	opOut.Level = utils.Min(op0.Level, op1.Level)
-	opOut.PlaintextScale = op0.PlaintextScale.Mul(op1.PlaintextScale)
+	opOut.Scale = op0.Scale.Mul(op1.Scale)
 	if d.InvariantTensoring {
 		params := d.params
 		qModTNeg := new(big.Int).Mod(params.RingQ().ModulusAtLevel[opOut.Level], new(big.Int).SetUint64(params.T())).Uint64()
 		qModTNeg = params.T() - qModTNeg
-		opOut.PlaintextScale = opOut.PlaintextScale.Div(params.NewScale(qModTNeg))
+		opOut.Scale = opOut.Scale.Div(params.NewScale(qModTNeg))
 	}
 
 	return
@@ -132,7 +132,7 @@ func (d dummyEvaluator) UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, t
 	tLevelNew = tLevelOld
 	tScaleNew = tScaleOld.Div(xPowScale)
 
-	// tScaleNew = targetScale*currentQi/XPow.PlaintextScale
+	// tScaleNew = targetScale*currentQi/XPow.Scale
 	if !d.InvariantTensoring {
 
 		var currentQi uint64

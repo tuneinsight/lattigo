@@ -24,9 +24,9 @@ func (eval *Evaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, minValue, log
 		iters++
 	}
 
-	ptScale2ModuliRatio := params.PlaintextScaleToModuliRatio()
+	levelsPerRescaling := params.LevelsConsummedPerRescaling()
 
-	if depth := iters * ptScale2ModuliRatio; btp == nil && depth > ct.Level() {
+	if depth := iters * levelsPerRescaling; btp == nil && depth > ct.Level() {
 		return nil, fmt.Errorf("cannot GoldschmidtDivisionNew: ct.Level()=%d < depth=%d and rlwe.Bootstrapper is nil", ct.Level(), depth)
 	}
 
@@ -47,13 +47,13 @@ func (eval *Evaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, minValue, log
 
 	for i := 1; i < iters; i++ {
 
-		if btp != nil && (b.Level() == btp.MinimumInputLevel() || b.Level() == ptScale2ModuliRatio-1) {
+		if btp != nil && (b.Level() == btp.MinimumInputLevel() || b.Level() == levelsPerRescaling-1) {
 			if b, err = btp.Bootstrap(b); err != nil {
 				return nil, err
 			}
 		}
 
-		if btp != nil && (a.Level() == btp.MinimumInputLevel() || a.Level() == ptScale2ModuliRatio-1) {
+		if btp != nil && (a.Level() == btp.MinimumInputLevel() || a.Level() == levelsPerRescaling-1) {
 			if a, err = btp.Bootstrap(a); err != nil {
 				return nil, err
 			}
@@ -63,11 +63,11 @@ func (eval *Evaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, minValue, log
 			return nil, err
 		}
 
-		if err = eval.Rescale(b, params.PlaintextScale(), b); err != nil {
+		if err = eval.Rescale(b, params.DefaultScale(), b); err != nil {
 			return nil, err
 		}
 
-		if btp != nil && (b.Level() == btp.MinimumInputLevel() || b.Level() == ptScale2ModuliRatio-1) {
+		if btp != nil && (b.Level() == btp.MinimumInputLevel() || b.Level() == levelsPerRescaling-1) {
 			if b, err = btp.Bootstrap(b); err != nil {
 				return nil, err
 			}
@@ -79,7 +79,7 @@ func (eval *Evaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, minValue, log
 			return nil, err
 		}
 
-		if err = eval.Rescale(tmp, params.PlaintextScale(), tmp); err != nil {
+		if err = eval.Rescale(tmp, params.DefaultScale(), tmp); err != nil {
 			return nil, err
 		}
 

@@ -177,9 +177,9 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey *E
 	bb.params = params
 	bb.Parameters = btpParams
 
-	bb.logdslots = btpParams.PlaintextLogDimensions().Cols
+	bb.logdslots = btpParams.LogMaxDimensions().Cols
 	bb.dslots = 1 << bb.logdslots
-	if maxLogSlots := params.PlaintextLogDimensions().Cols; bb.dslots < maxLogSlots {
+	if maxLogSlots := params.LogMaxDimensions().Cols; bb.dslots < maxLogSlots {
 		bb.dslots <<= 1
 		bb.logdslots++
 	}
@@ -229,9 +229,9 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey *E
 	// Rescaling factor to set the final ciphertext to the desired scale
 
 	if bb.SlotsToCoeffsParameters.Scaling == nil {
-		bb.SlotsToCoeffsParameters.Scaling = new(big.Float).SetFloat64(bb.params.PlaintextScale().Float64() / (bb.evalModPoly.ScalingFactor().Float64() / bb.evalModPoly.MessageRatio()) * qDiff)
+		bb.SlotsToCoeffsParameters.Scaling = new(big.Float).SetFloat64(bb.params.DefaultScale().Float64() / (bb.evalModPoly.ScalingFactor().Float64() / bb.evalModPoly.MessageRatio()) * qDiff)
 	} else {
-		bb.SlotsToCoeffsParameters.Scaling.Mul(bb.SlotsToCoeffsParameters.Scaling, new(big.Float).SetFloat64(bb.params.PlaintextScale().Float64()/(bb.evalModPoly.ScalingFactor().Float64()/bb.evalModPoly.MessageRatio())*qDiff))
+		bb.SlotsToCoeffsParameters.Scaling.Mul(bb.SlotsToCoeffsParameters.Scaling, new(big.Float).SetFloat64(bb.params.DefaultScale().Float64()/(bb.evalModPoly.ScalingFactor().Float64()/bb.evalModPoly.MessageRatio())*qDiff))
 	}
 
 	if bb.stcMatrices, err = ckks.NewHomomorphicDFTMatrixFromLiteral(bb.SlotsToCoeffsParameters, encoder); err != nil {

@@ -51,9 +51,9 @@ func (eval Evaluator) Polynomial(input interface{}, p interface{}, targetScale r
 
 	params := eval.GetParameters()
 
-	nbModuliPerRescale := params.PlaintextScaleToModuliRatio()
+	levelsConsummedPerRescaling := params.LevelsConsummedPerRescaling()
 
-	if err := checkEnoughLevels(powerbasis.Value[1].Level(), nbModuliPerRescale*polyVec.Value[0].Depth()); err != nil {
+	if err := checkEnoughLevels(powerbasis.Value[1].Level(), levelsConsummedPerRescaling*polyVec.Value[0].Depth()); err != nil {
 		return nil, err
 	}
 
@@ -80,7 +80,7 @@ func (eval Evaluator) Polynomial(input interface{}, p interface{}, targetScale r
 		}
 	}
 
-	PS := polyVec.GetPatersonStockmeyerPolynomial(params.Parameters, powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, &dummyEvaluator{*params, nbModuliPerRescale})
+	PS := polyVec.GetPatersonStockmeyerPolynomial(params.Parameters, powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, &dummyEvaluator{*params, levelsConsummedPerRescaling})
 
 	if opOut, err = hebase.EvaluatePatersonStockmeyerPolynomialVector(PS, powerbasis, polyEval); err != nil {
 		return nil, err
@@ -90,18 +90,18 @@ func (eval Evaluator) Polynomial(input interface{}, p interface{}, targetScale r
 }
 
 type dummyEvaluator struct {
-	params             Parameters
-	nbModuliPerRescale int
+	params                      Parameters
+	levelsConsummedPerRescaling int
 }
 
 func (d dummyEvaluator) PolynomialDepth(degree int) int {
-	return d.nbModuliPerRescale * (bits.Len64(uint64(degree)) - 1)
+	return d.levelsConsummedPerRescaling * (bits.Len64(uint64(degree)) - 1)
 }
 
 // Rescale rescales the target DummyOperand n times and returns it.
 func (d dummyEvaluator) Rescale(op0 *hebase.DummyOperand) {
-	for i := 0; i < d.nbModuliPerRescale; i++ {
-		op0.PlaintextScale = op0.PlaintextScale.Div(rlwe.NewScale(d.params.Q()[op0.Level]))
+	for i := 0; i < d.levelsConsummedPerRescaling; i++ {
+		op0.Scale = op0.Scale.Div(rlwe.NewScale(d.params.Q()[op0.Level]))
 		op0.Level--
 	}
 }
@@ -110,7 +110,7 @@ func (d dummyEvaluator) Rescale(op0 *hebase.DummyOperand) {
 func (d dummyEvaluator) MulNew(op0, op1 *hebase.DummyOperand) (opOut *hebase.DummyOperand) {
 	opOut = new(hebase.DummyOperand)
 	opOut.Level = utils.Min(op0.Level, op1.Level)
-	opOut.PlaintextScale = op0.PlaintextScale.Mul(op1.PlaintextScale)
+	opOut.Scale = op0.Scale.Mul(op1.Scale)
 	return
 }
 
@@ -120,7 +120,7 @@ func (d dummyEvaluator) UpdateLevelAndScaleBabyStep(lead bool, tLevelOld int, tS
 	tScaleNew = tScaleOld
 
 	if lead {
-		for i := 0; i < d.nbModuliPerRescale; i++ {
+		for i := 0; i < d.levelsConsummedPerRescaling; i++ {
 			tScaleNew = tScaleNew.Mul(rlwe.NewScale(d.params.Q()[tLevelNew-i]))
 		}
 	}
@@ -135,17 +135,17 @@ func (d dummyEvaluator) UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, t
 	var qi *big.Int
 	if lead {
 		qi = bignum.NewInt(Q[tLevelOld])
-		for i := 1; i < d.nbModuliPerRescale; i++ {
+		for i := 1; i < d.levelsConsummedPerRescaling; i++ {
 			qi.Mul(qi, bignum.NewInt(Q[tLevelOld-i]))
 		}
 	} else {
-		qi = bignum.NewInt(Q[tLevelOld+d.nbModuliPerRescale])
-		for i := 1; i < d.nbModuliPerRescale; i++ {
-			qi.Mul(qi, bignum.NewInt(Q[tLevelOld+d.nbModuliPerRescale-i]))
+		qi = bignum.NewInt(Q[tLevelOld+d.levelsConsummedPerRescaling])
+		for i := 1; i < d.levelsConsummedPerRescaling; i++ {
+			qi.Mul(qi, bignum.NewInt(Q[tLevelOld+d.levelsConsummedPerRescaling-i]))
 		}
 	}
 
-	tLevelNew = tLevelOld + d.nbModuliPerRescale
+	tLevelNew = tLevelOld + d.levelsConsummedPerRescaling
 	tScaleNew = tScaleOld.Mul(rlwe.NewScale(qi))
 	tScaleNew = tScaleNew.Div(xPowScale)
 
@@ -153,11 +153,11 @@ func (d dummyEvaluator) UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, t
 }
 
 func (d dummyEvaluator) GetPolynmialDepth(degree int) int {
-	return d.nbModuliPerRescale * (bits.Len64(uint64(degree)) - 1)
+	return d.levelsConsummedPerRescaling * (bits.Len64(uint64(degree)) - 1)
 }
 
 func (polyEval PolynomialEvaluator) Rescale(op0, op1 *rlwe.Ciphertext) (err error) {
-	return polyEval.Evaluator.Rescale(op0, polyEval.GetParameters().PlaintextScale(), op1)
+	return polyEval.Evaluator.Rescale(op0, polyEval.GetParameters().DefaultScale(), op1)
 }
 
 func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol hebase.PolynomialVector, pb hebase.PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {

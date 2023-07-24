@@ -47,16 +47,16 @@ type ParametersLiteral struct {
 // See the ParametersLiteral type for details on the BGV parameters.
 func (p ParametersLiteral) GetRLWEParametersLiteral() rlwe.ParametersLiteral {
 	return rlwe.ParametersLiteral{
-		LogN:           p.LogN,
-		Q:              p.Q,
-		P:              p.P,
-		LogQ:           p.LogQ,
-		LogP:           p.LogP,
-		Xe:             p.Xe,
-		Xs:             p.Xs,
-		RingType:       ring.Standard,
-		PlaintextScale: rlwe.NewScaleModT(1, p.T),
-		NTTFlag:        NTTFlag,
+		LogN:         p.LogN,
+		Q:            p.Q,
+		P:            p.P,
+		LogQ:         p.LogQ,
+		LogP:         p.LogP,
+		Xe:           p.Xe,
+		Xs:           p.Xs,
+		RingType:     ring.Standard,
+		DefaultScale: rlwe.NewScaleModT(1, p.T),
+		NTTFlag:      NTTFlag,
 	}
 }
 
@@ -150,41 +150,41 @@ func (p Parameters) GetRLWEParameters() *rlwe.Parameters {
 	return &p.Parameters
 }
 
-// PlaintextDimensions returns the maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
-func (p Parameters) PlaintextDimensions() ring.Dimensions {
+// MaxDimensions returns the maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
+func (p Parameters) MaxDimensions() ring.Dimensions {
 	switch p.RingType() {
 	case ring.Standard:
 		return ring.Dimensions{Rows: 2, Cols: p.RingT().N() >> 1}
 	case ring.ConjugateInvariant:
 		return ring.Dimensions{Rows: 1, Cols: p.RingT().N()}
 	default:
-		panic("cannot PlaintextDimensions: invalid ring type")
+		panic("cannot MaxDimensions: invalid ring type")
 	}
 }
 
-// PlaintextLogDimensions returns the log2 of maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
-func (p Parameters) PlaintextLogDimensions() ring.Dimensions {
+// LogMaxDimensions returns the log2 of maximum dimension of the matrix that can be SIMD packed in a single plaintext polynomial.
+func (p Parameters) LogMaxDimensions() ring.Dimensions {
 	switch p.RingType() {
 	case ring.Standard:
 		return ring.Dimensions{Rows: 1, Cols: p.RingT().LogN() - 1}
 	case ring.ConjugateInvariant:
 		return ring.Dimensions{Rows: 0, Cols: p.RingT().LogN()}
 	default:
-		panic("cannot PlaintextLogDimensions: invalid ring type")
+		panic("cannot LogMaxDimensions: invalid ring type")
 	}
 }
 
-// PlaintextSlots returns the total number of entries (`slots`) that a plaintext can store.
-// This value is obtained by multiplying all dimensions from PlaintextDimensions.
-func (p Parameters) PlaintextSlots() int {
-	dims := p.PlaintextDimensions()
+// MaxSlots returns the total number of entries (`slots`) that a plaintext can store.
+// This value is obtained by multiplying all dimensions from MaxDimensions.
+func (p Parameters) MaxSlots() int {
+	dims := p.MaxDimensions()
 	return dims.Rows * dims.Cols
 }
 
-// PlaintextLogSlots returns the total number of entries (`slots`) that a plaintext can store.
+// LogMaxSlots returns the total number of entries (`slots`) that a plaintext can store.
 // This value is obtained by summing all log dimensions from LogDimensions.
-func (p Parameters) PlaintextLogSlots() int {
-	dims := p.PlaintextLogDimensions()
+func (p Parameters) LogMaxSlots() int {
+	dims := p.LogMaxDimensions()
 	return dims.Rows + dims.Cols
 }
 

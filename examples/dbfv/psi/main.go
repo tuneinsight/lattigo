@@ -146,7 +146,7 @@ func main() {
 	})
 
 	// Check the result
-	res := make([]uint64, params.PlaintextSlots())
+	res := make([]uint64, params.MaxSlots())
 	if err := encoder.Decode(ptres, res); err != nil {
 		panic(err)
 	}

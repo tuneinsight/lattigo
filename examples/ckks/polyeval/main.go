@@ -25,10 +25,10 @@ func chebyshevinterpolation() {
 	// Scheme params are taken directly from the proposed defaults
 	params, err := ckks.NewParametersFromLiteral(
 		ckks.ParametersLiteral{
-			LogN:              14,
-			LogQ:              []int{55, 40, 40, 40, 40, 40, 40, 40},
-			LogP:              []int{45, 45},
-			LogPlaintextScale: 40,
+			LogN:            14,
+			LogQ:            []int{55, 40, 40, 40, 40, 40, 40, 40},
+			LogP:            []int{45, 45},
+			LogDefaultScale: 40,
 		})
 	if err != nil {
 		panic(err)
@@ -64,14 +64,14 @@ func chebyshevinterpolation() {
 	evaluator := ckks.NewEvaluator(params, evk)
 
 	// Values to encrypt
-	slots := params.PlaintextSlots()
+	slots := params.MaxSlots()
 	values := make([]float64, slots)
 	for i := range values {
 		values[i] = sampling.RandFloat64(-8, 8)
 	}
 
 	fmt.Printf("CKKS parameters: logN = %d, logQ = %f, levels = %d, scale= %f, noise = %T %v \n",
-		params.LogN(), params.LogQP(), params.MaxLevel()+1, params.PlaintextScale().Float64(), params.Xe(), params.Xe())
+		params.LogN(), params.LogQP(), params.MaxLevel()+1, params.DefaultScale().Float64(), params.Xe(), params.Xe())
 
 	fmt.Println()
 	fmt.Printf("Values     : %6f %6f %6f %6f...\n",
@@ -130,7 +130,7 @@ func chebyshevinterpolation() {
 		panic(err)
 	}
 
-	if err := evaluator.Rescale(ciphertext, params.PlaintextScale(), ciphertext); err != nil {
+	if err := evaluator.Rescale(ciphertext, params.DefaultScale(), ciphertext); err != nil {
 		panic(err)
 	}
 

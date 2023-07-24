@@ -61,7 +61,7 @@ type LinearTranfromationParameters[T any] interface {
 	// Level returns level at which to encode the linear transformation.
 	GetLevel() int
 
-	// PlaintextScale returns the plaintext scale at which to encode the linear transformation.
+	// DefaultScale returns the plaintext scale at which to encode the linear transformation.
 	GetScale() rlwe.Scale
 
 	// GetLogDimensions returns log2 dimensions of the matrix that can be SIMD packed

@@ -45,14 +45,14 @@ const (
 // This struct is consumed by `NewEvalModPolyFromLiteral` to generate the `EvalModPoly` struct, which notably stores
 // the coefficient of the polynomial approximating the function x mod Q[0].
 type EvalModLiteral struct {
-	LevelStart        int      // Starting level of EvalMod
-	LogPlaintextScale int      // Log2 of the scaling factor used during EvalMod
-	SineType          SineType // Chose between [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
-	LogMessageRatio   int      // Log2 of the ratio between Q0 and m, i.e. Q[0]/|m|
-	K                 int      // K parameter (interpolation in the range -K to K)
-	SineDegree        int      // Degree of the interpolation
-	DoubleAngle       int      // Number of rescale and double angle formula (only applies for cos and is ignored if sin is used)
-	ArcSineDegree     int      // Degree of the Taylor arcsine composed with f(2*pi*x) (if zero then not used)
+	LevelStart      int      // Starting level of EvalMod
+	LogDefaultScale int      // Log2 of the scaling factor used during EvalMod
+	SineType        SineType // Chose between [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
+	LogMessageRatio int      // Log2 of the ratio between Q0 and m, i.e. Q[0]/|m|
+	K               int      // K parameter (interpolation in the range -K to K)
+	SineDegree      int      // Degree of the interpolation
+	DoubleAngle     int      // Number of rescale and double angle formula (only applies for cos and is ignored if sin is used)
+	ArcSineDegree   int      // Degree of the Taylor arcsine composed with f(2*pi*x) (if zero then not used)
 }
 
 // MarshalBinary returns a JSON representation of the the target EvalModLiteral struct on a slice of bytes.
@@ -69,17 +69,17 @@ func (evm *EvalModLiteral) UnmarshalBinary(data []byte) (err error) {
 
 // EvalModPoly is a struct storing the parameters and polynomials approximating the function x mod Q[0] (the first prime of the moduli chain).
 type EvalModPoly struct {
-	levelStart        int
-	LogPlaintextScale int
-	sineType          SineType
-	LogMessageRatio   int
-	doubleAngle       int
-	qDiff             float64
-	scFac             float64
-	sqrt2Pi           float64
-	sinePoly          bignum.Polynomial
-	arcSinePoly       *bignum.Polynomial
-	k                 float64
+	levelStart      int
+	LogDefaultScale int
+	sineType        SineType
+	LogMessageRatio int
+	doubleAngle     int
+	qDiff           float64
+	scFac           float64
+	sqrt2Pi         float64
+	sinePoly        bignum.Polynomial
+	arcSinePoly     *bignum.Polynomial
+	k               float64
 }
 
 // LevelStart returns the starting level of the EvalMod.
@@ -89,7 +89,7 @@ func (evp EvalModPoly) LevelStart() int {
 
 // ScalingFactor returns scaling factor used during the EvalMod.
 func (evp EvalModPoly) ScalingFactor() rlwe.Scale {
-	return rlwe.NewScale(math.Exp2(float64(evp.LogPlaintextScale)))
+	return rlwe.NewScale(math.Exp2(float64(evp.LogDefaultScale)))
 }
 
 // ScFac returns 1/2^r where r is the number of double angle evaluation.
@@ -166,8 +166,8 @@ func NewEvalModPolyFromLiteral(params Parameters, evm EvalModLiteral) (EvalModPo
 
 		sinePoly = bignum.ChebyshevApproximation(sin2pi, bignum.Interval{
 			Nodes: evm.SineDegree,
-			A:     *new(big.Float).SetPrec(cosine.PlaintextPrecision).SetFloat64(-K),
-			B:     *new(big.Float).SetPrec(cosine.PlaintextPrecision).SetFloat64(K),
+			A:     *new(big.Float).SetPrec(cosine.EncodingPrecision).SetFloat64(-K),
+			B:     *new(big.Float).SetPrec(cosine.EncodingPrecision).SetFloat64(K),
 		})
 		sinePoly.IsEven = false
 
@@ -190,8 +190,8 @@ func NewEvalModPolyFromLiteral(params Parameters, evm EvalModLiteral) (EvalModPo
 	case CosContinuous:
 		sinePoly = bignum.ChebyshevApproximation(cos2pi, bignum.Interval{
 			Nodes: evm.SineDegree,
-			A:     *new(big.Float).SetPrec(cosine.PlaintextPrecision).SetFloat64(-K),
-			B:     *new(big.Float).SetPrec(cosine.PlaintextPrecision).SetFloat64(K),
+			A:     *new(big.Float).SetPrec(cosine.EncodingPrecision).SetFloat64(-K),
+			B:     *new(big.Float).SetPrec(cosine.EncodingPrecision).SetFloat64(K),
 		})
 		sinePoly.IsOdd = false
 
@@ -214,17 +214,17 @@ func NewEvalModPolyFromLiteral(params Parameters, evm EvalModLiteral) (EvalModPo
 	}
 
 	return EvalModPoly{
-		levelStart:        evm.LevelStart,
-		LogPlaintextScale: evm.LogPlaintextScale,
-		sineType:          evm.SineType,
-		LogMessageRatio:   evm.LogMessageRatio,
-		doubleAngle:       doubleAngle,
-		qDiff:             qDiff,
-		scFac:             scFac,
-		sqrt2Pi:           sqrt2pi,
-		arcSinePoly:       arcSinePoly,
-		sinePoly:          sinePoly,
-		k:                 K,
+		levelStart:      evm.LevelStart,
+		LogDefaultScale: evm.LogDefaultScale,
+		sineType:        evm.SineType,
+		LogMessageRatio: evm.LogMessageRatio,
+		doubleAngle:     doubleAngle,
+		qDiff:           qDiff,
+		scFac:           scFac,
+		sqrt2Pi:         sqrt2pi,
+		arcSinePoly:     arcSinePoly,
+		sinePoly:        sinePoly,
+		k:               K,
 	}, nil
 }
 

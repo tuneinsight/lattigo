@@ -20,11 +20,11 @@ func TestHomomorphicMod(t *testing.T) {
 	}
 
 	ParametersLiteral := ParametersLiteral{
-		LogN:              10,
-		LogQ:              []int{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 53},
-		LogP:              []int{61, 61, 61, 61, 61},
-		Xs:                ring.Ternary{H: 192},
-		LogPlaintextScale: 45,
+		LogN:            10,
+		LogQ:            []int{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 53},
+		LogP:            []int{61, 61, 61, 61, 61},
+		Xs:              ring.Ternary{H: 192},
+		LogDefaultScale: 45,
 	}
 
 	testEvalModMarshalling(t)
@@ -46,13 +46,13 @@ func testEvalModMarshalling(t *testing.T) {
 	t.Run("Marshalling", func(t *testing.T) {
 
 		evm := EvalModLiteral{
-			LevelStart:        12,
-			SineType:          SinContinuous,
-			LogMessageRatio:   8,
-			K:                 14,
-			SineDegree:        127,
-			ArcSineDegree:     7,
-			LogPlaintextScale: 60,
+			LevelStart:      12,
+			SineType:        SinContinuous,
+			LogMessageRatio: 8,
+			K:               14,
+			SineDegree:      127,
+			ArcSineDegree:   7,
+			LogDefaultScale: 60,
 		}
 
 		data, err := evm.MarshalBinary()
@@ -86,13 +86,13 @@ func testEvalMod(params Parameters, t *testing.T) {
 	t.Run("SineContinuousWithArcSine", func(t *testing.T) {
 
 		evm := EvalModLiteral{
-			LevelStart:        12,
-			SineType:          SinContinuous,
-			LogMessageRatio:   8,
-			K:                 14,
-			SineDegree:        127,
-			ArcSineDegree:     7,
-			LogPlaintextScale: 60,
+			LevelStart:      12,
+			SineType:        SinContinuous,
+			LogMessageRatio: 8,
+			K:               14,
+			SineDegree:      127,
+			ArcSineDegree:   7,
+			LogDefaultScale: 60,
 		}
 
 		EvalModPoly, err := NewEvalModPolyFromLiteral(params, evm)
@@ -112,7 +112,7 @@ func testEvalMod(params Parameters, t *testing.T) {
 
 		// Normalization
 		eval.Mul(ciphertext, 1/(float64(EvalModPoly.K())*EvalModPoly.QDiff()), ciphertext)
-		if err := eval.Rescale(ciphertext, params.PlaintextScale(), ciphertext); err != nil {
+		if err := eval.Rescale(ciphertext, params.DefaultScale(), ciphertext); err != nil {
 			t.Error(err)
 		}
 
@@ -141,13 +141,13 @@ func testEvalMod(params Parameters, t *testing.T) {
 	t.Run("CosDiscrete", func(t *testing.T) {
 
 		evm := EvalModLiteral{
-			LevelStart:        12,
-			SineType:          CosDiscrete,
-			LogMessageRatio:   8,
-			K:                 12,
-			SineDegree:        30,
-			DoubleAngle:       3,
-			LogPlaintextScale: 60,
+			LevelStart:      12,
+			SineType:        CosDiscrete,
+			LogMessageRatio: 8,
+			K:               12,
+			SineDegree:      30,
+			DoubleAngle:     3,
+			LogDefaultScale: 60,
 		}
 
 		EvalModPoly, err := NewEvalModPolyFromLiteral(params, evm)
@@ -167,7 +167,7 @@ func testEvalMod(params Parameters, t *testing.T) {
 
 		// Normalization
 		eval.Mul(ciphertext, 1/(float64(EvalModPoly.K())*EvalModPoly.QDiff()), ciphertext)
-		if err := eval.Rescale(ciphertext, params.PlaintextScale(), ciphertext); err != nil {
+		if err := eval.Rescale(ciphertext, params.DefaultScale(), ciphertext); err != nil {
 			t.Error(err)
 		}
 
@@ -197,13 +197,13 @@ func testEvalMod(params Parameters, t *testing.T) {
 	t.Run("CosContinuous", func(t *testing.T) {
 
 		evm := EvalModLiteral{
-			LevelStart:        12,
-			SineType:          CosContinuous,
-			LogMessageRatio:   4,
-			K:                 325,
-			SineDegree:        177,
-			DoubleAngle:       4,
-			LogPlaintextScale: 60,
+			LevelStart:      12,
+			SineType:        CosContinuous,
+			LogMessageRatio: 4,
+			K:               325,
+			SineDegree:      177,
+			DoubleAngle:     4,
+			LogDefaultScale: 60,
 		}
 
 		EvalModPoly, err := NewEvalModPolyFromLiteral(params, evm)
@@ -223,7 +223,7 @@ func testEvalMod(params Parameters, t *testing.T) {
 
 		// Normalization
 		eval.Mul(ciphertext, 1/(float64(EvalModPoly.K())*EvalModPoly.QDiff()), ciphertext)
-		if err := eval.Rescale(ciphertext, params.PlaintextScale(), ciphertext); err != nil {
+		if err := eval.Rescale(ciphertext, params.DefaultScale(), ciphertext); err != nil {
 			t.Error(err)
 		}
 
@@ -252,7 +252,7 @@ func testEvalMod(params Parameters, t *testing.T) {
 
 func newTestVectorsEvalMod(params Parameters, encryptor *rlwe.Encryptor, encoder *Encoder, evm EvalModPoly, t *testing.T) (values []float64, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
 
-	logSlots := params.PlaintextLogDimensions().Cols
+	logSlots := params.LogMaxDimensions().Cols
 
 	values = make([]float64, 1<<logSlots)
 

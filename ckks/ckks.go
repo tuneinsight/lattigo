@@ -20,8 +20,8 @@ import (
 func NewPlaintext(params Parameters, level int) (pt *rlwe.Plaintext) {
 	pt = rlwe.NewPlaintext(params, level)
 	pt.IsBatched = true
-	pt.Scale = params.PlaintextScale()
-	pt.LogDimensions = params.PlaintextLogDimensions()
+	pt.Scale = params.DefaultScale()
+	pt.LogDimensions = params.LogMaxDimensions()
 	return
 }
 
@@ -36,8 +36,8 @@ func NewPlaintext(params Parameters, level int) (pt *rlwe.Plaintext) {
 func NewCiphertext(params Parameters, degree, level int) (ct *rlwe.Ciphertext) {
 	ct = rlwe.NewCiphertext(params, degree, level)
 	ct.IsBatched = true
-	ct.Scale = params.PlaintextScale()
-	ct.LogDimensions = params.PlaintextLogDimensions()
+	ct.Scale = params.DefaultScale()
+	ct.LogDimensions = params.LogMaxDimensions()
 	return
 }
 

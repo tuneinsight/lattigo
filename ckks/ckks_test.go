@@ -31,7 +31,7 @@ func GetTestName(params Parameters, opname string) string {
 		int(math.Round(params.LogQP())),
 		params.QCount(),
 		params.PCount(),
-		int(math.Log2(params.PlaintextScale().Float64())))
+		int(math.Log2(params.DefaultScale().Float64())))
 }
 
 type testContext struct {
@@ -219,7 +219,7 @@ func verifyTestVectors(params Parameters, encoder *Encoder, decryptor *rlwe.Decr
 	rf64, _ := precStats.MeanPrecision.Real.Float64()
 	if64, _ := precStats.MeanPrecision.Imag.Float64()
 
-	minPrec := math.Log2(params.PlaintextScale().Float64()) - float64(params.LogN()+2)
+	minPrec := math.Log2(params.DefaultScale().Float64()) - float64(params.LogN()+2)
 	if minPrec < 0 {
 		minPrec = 0
 	}
@@ -232,10 +232,10 @@ func testParameters(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName(tc.params, "Parameters/NewParameters"), func(t *testing.T) {
 		params, err := NewParametersFromLiteral(ParametersLiteral{
-			LogN:              4,
-			LogQ:              []int{60, 60},
-			LogP:              []int{60},
-			LogPlaintextScale: 0,
+			LogN:            4,
+			LogQ:            []int{60, 60},
+			LogP:            []int{60},
+			LogDefaultScale: 0,
 		})
 		require.NoError(t, err)
 		require.Equal(t, ring.Standard, params.RingType()) // Default ring type should be standard
@@ -279,7 +279,7 @@ func testParameters(tc *testContext, t *testing.T) {
 		require.True(t, tc.params.Equal(paramsRec))
 
 		// checks that ckks.Parameters can be unmarshalled with log-moduli definition without error
-		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "LogPlaintextScale":30}`, tc.params.LogN()))
+		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "LogDefaultScale":30}`, tc.params.LogN()))
 		var paramsWithLogModuli Parameters
 		err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
 		require.Nil(t, err)
@@ -287,7 +287,7 @@ func testParameters(tc *testContext, t *testing.T) {
 		require.Equal(t, 1, paramsWithLogModuli.PCount())
 		require.Equal(t, ring.Standard, paramsWithLogModuli.RingType()) // Omitting the RingType field should result in a standard instance
 		require.Equal(t, rlwe.DefaultXe, paramsWithLogModuli.Xe())      // Omitting Xe should result in Default being used
-		require.Equal(t, float64(1<<30), paramsWithLogModuli.PlaintextScale().Float64())
+		require.Equal(t, float64(1<<30), paramsWithLogModuli.DefaultScale().Float64())
 
 		// checks that ckks.Parameters can be unmarshalled with log-moduli definition with empty P without error
 		dataWithLogModuliNoP := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[], "RingType": "ConjugateInvariant"}`, tc.params.LogN()))
@@ -350,7 +350,7 @@ func testEncoder(tc *testContext, t *testing.T) {
 			t.Logf("\nMean    precision : %.2f \n", math.Log2(1/meanprec))
 		}
 
-		minPrec := math.Log2(tc.params.PlaintextScale().Float64()) - float64(tc.params.LogN()+2)
+		minPrec := math.Log2(tc.params.DefaultScale().Float64()) - float64(tc.params.LogN()+2)
 		if minPrec < 0 {
 			minPrec = 0
 		}
@@ -528,7 +528,7 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 
 		ciphertext.Scale = ciphertext.Scale.Mul(rlwe.NewScale(constant))
 
-		if err := tc.evaluator.Rescale(ciphertext, tc.params.PlaintextScale(), ciphertext); err != nil {
+		if err := tc.evaluator.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
 			t.Fatal(err)
 		}
 
@@ -554,7 +554,7 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 			ciphertext.Scale = ciphertext.Scale.Mul(rlwe.NewScale(constant))
 		}
 
-		if err := tc.evaluator.Rescale(ciphertext, tc.params.PlaintextScale(), ciphertext); err != nil {
+		if err := tc.evaluator.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
 			t.Fatal(err)
 		}
 
@@ -818,7 +818,7 @@ func testFunctions(tc *testContext, t *testing.T) {
 			values[i][0].Quo(one, values[i][0])
 		}
 
-		logPrec := math.Log2(tc.params.PlaintextScale().Float64()) - float64(tc.params.LogN()-1)
+		logPrec := math.Log2(tc.params.DefaultScale().Float64()) - float64(tc.params.LogN()-1)
 
 		btp, err := NewSecretKeyBootstrapper(tc.params, tc.sk)
 		require.NoError(t, err)
@@ -934,7 +934,7 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1, 1, t)
 
-		prec := tc.params.PlaintextPrecision()
+		prec := tc.params.EncodingPrecision()
 
 		interval := bignum.Interval{
 			Nodes: degree,
@@ -947,7 +947,7 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 		scalar, constant := poly.ChangeOfBasis()
 		eval.Mul(ciphertext, scalar, ciphertext)
 		eval.Add(ciphertext, constant, ciphertext)
-		if err = eval.Rescale(ciphertext, tc.params.PlaintextScale(), ciphertext); err != nil {
+		if err = eval.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
 			t.Fatal(err)
 		}
 
@@ -980,7 +980,7 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, complex(a, 0), complex(b, 0), t)
 
-		prec := tc.params.PlaintextPrecision()
+		prec := tc.params.EncodingPrecision()
 
 		sin := func(x *bignum.Complex) (y *bignum.Complex) {
 			xf64, _ := x[0].Float64()
@@ -1006,7 +1006,7 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 
 		require.NoError(t, eval.Mul(ciphertext, scalar, ciphertext))
 		require.NoError(t, eval.Add(ciphertext, constant, ciphertext))
-		if err := eval.Rescale(ciphertext, tc.params.PlaintextScale(), ciphertext); err != nil {
+		if err := eval.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
 			t.Fatal(err)
 		}
 

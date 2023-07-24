@@ -58,9 +58,9 @@ func NewEncoder(parameters Parameters) *Encoder {
 
 	var bufB []*big.Int
 
-	if parameters.PlaintextLogDimensions().Cols < parameters.LogN()-1 {
+	if parameters.LogMaxDimensions().Cols < parameters.LogN()-1 {
 
-		slots := parameters.PlaintextSlots()
+		slots := parameters.MaxSlots()
 
 		bufB = make([]*big.Int, slots)
 
@@ -71,7 +71,7 @@ func NewEncoder(parameters Parameters) *Encoder {
 
 	return &Encoder{
 		parameters:  parameters,
-		indexMatrix: permuteMatrix(parameters.PlaintextLogSlots()),
+		indexMatrix: permuteMatrix(parameters.LogMaxSlots()),
 		bufQ:        ringQ.NewPoly(),
 		bufT:        ringT.NewPoly(),
 		bufB:        bufB,
@@ -172,9 +172,9 @@ func (ecd Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 //
 // inputs:
 //   - values: a slice of []uint64 or []int64 of size at most the cyclotomic order of T (smallest value for N satisfying T = 1 mod 2N)
-//   - plaintextScale: the scaling factor by which the values are multiplied before being encoded
+//   - DefaultScale: the scaling factor by which the values are multiplied before being encoded
 //   - pT: a polynomial with coefficients modulo T
-func (ecd Encoder) EncodeRingT(values interface{}, plaintextScale rlwe.Scale, pT ring.Poly) (err error) {
+func (ecd Encoder) EncodeRingT(values interface{}, DefaultScale rlwe.Scale, pT ring.Poly) (err error) {
 	perm := ecd.indexMatrix
 
 	pt := pT.Coeffs[0]
@@ -228,7 +228,7 @@ func (ecd Encoder) EncodeRingT(values interface{}, plaintextScale rlwe.Scale, pT
 
 	// INTT on the Y = X^{N/n}
 	ringT.INTT(pT, pT)
-	ringT.MulScalar(pT, plaintextScale.Uint64(), pT)
+	ringT.MulScalar(pT, DefaultScale.Uint64(), pT)
 
 	return nil
 }

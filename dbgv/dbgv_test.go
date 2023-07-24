@@ -26,8 +26,8 @@ func GetTestName(opname string, p bgv.Parameters, parties int) string {
 		p.LogN(),
 		int(math.Round(p.LogQ())),
 		int(math.Round(p.LogP())),
-		p.PlaintextLogDimensions().Rows,
-		p.PlaintextLogDimensions().Cols,
+		p.LogMaxDimensions().Rows,
+		p.LogMaxDimensions().Cols,
 		int(math.Round(p.LogT())),
 		p.QCount(),
 		p.PCount(),
@@ -304,7 +304,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 
 		//Decrypts and compare
 		require.True(t, ciphertext.Level() == maxLevel)
-		have := make([]uint64, tc.params.PlaintextSlots())
+		have := make([]uint64, tc.params.MaxSlots())
 		encoder.Decode(decryptorSk0.DecryptNew(ciphertext), have)
 		require.True(t, utils.EqualSlice(coeffs, have))
 	})
@@ -389,7 +389,7 @@ func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 			coeffsPermute[i] = coeffs[permutation[i]]
 		}
 
-		coeffsHave := make([]uint64, tc.params.PlaintextSlots())
+		coeffsHave := make([]uint64, tc.params.MaxSlots())
 		encoder.Decode(decryptorSk0.DecryptNew(ciphertext), coeffsHave)
 
 		//Decrypts and compares
@@ -488,7 +488,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 
 		transform.Func(coeffs)
 
-		coeffsHave := make([]uint64, tc.params.PlaintextSlots())
+		coeffsHave := make([]uint64, tc.params.MaxSlots())
 		dec, err := rlwe.NewDecryptor(paramsOut.Parameters, skIdealOut)
 		require.NoError(t, err)
 		bgv.NewEncoder(paramsOut).Decode(dec.DecryptNew(ciphertext), coeffsHave)
@@ -519,7 +519,7 @@ func newTestVectors(tc *testContext, encryptor *rlwe.Encryptor, t *testing.T) (c
 }
 
 func verifyTestVectors(tc *testContext, decryptor *rlwe.Decryptor, coeffs []uint64, ciphertext *rlwe.Ciphertext, t *testing.T) {
-	have := make([]uint64, tc.params.PlaintextSlots())
+	have := make([]uint64, tc.params.MaxSlots())
 	tc.encoder.Decode(decryptor.DecryptNew(ciphertext), have)
 	require.True(t, utils.EqualSlice(coeffs, have))
 }

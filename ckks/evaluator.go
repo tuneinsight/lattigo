@@ -85,7 +85,7 @@ func (eval Evaluator) Add(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 		opOut.Resize(op0.Degree(), level)
 
 		// Convertes the scalar to a complex RNS scalar
-		RNSReal, RNSImag := bigComplexToRNSScalar(eval.GetParameters().RingQ().AtLevel(level), &op0.Scale.Value, bignum.ToComplex(op1, eval.GetParameters().PlaintextPrecision()))
+		RNSReal, RNSImag := bigComplexToRNSScalar(eval.GetParameters().RingQ().AtLevel(level), &op0.Scale.Value, bignum.ToComplex(op1, eval.GetParameters().EncodingPrecision()))
 
 		// Generic inplace evaluation
 		eval.evaluateWithScalar(level, op0.Value[:1], RNSReal, RNSImag, opOut.Value[:1], eval.GetParameters().RingQ().AtLevel(level).AddDoubleRNSScalar)
@@ -178,7 +178,7 @@ func (eval Evaluator) Sub(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 		opOut.Resize(op0.Degree(), level)
 
 		// Convertes the scalar to a complex RNS scalar
-		RNSReal, RNSImag := bigComplexToRNSScalar(eval.GetParameters().RingQ().AtLevel(level), &op0.Scale.Value, bignum.ToComplex(op1, eval.GetParameters().PlaintextPrecision()))
+		RNSReal, RNSImag := bigComplexToRNSScalar(eval.GetParameters().RingQ().AtLevel(level), &op0.Scale.Value, bignum.ToComplex(op1, eval.GetParameters().EncodingPrecision()))
 
 		// Generic inplace evaluation
 		eval.evaluateWithScalar(level, op0.Value[:1], RNSReal, RNSImag, opOut.Value[:1], eval.GetParameters().RingQ().AtLevel(level).SubDoubleRNSScalar)
@@ -596,7 +596,7 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 		opOut.Resize(op0.Degree(), level)
 
 		// Convertes the scalar to a *bignum.Complex
-		cmplxBig := bignum.ToComplex(op1, eval.GetParameters().PlaintextPrecision())
+		cmplxBig := bignum.ToComplex(op1, eval.GetParameters().EncodingPrecision())
 
 		// Gets the ring at the target level
 		ringQ := eval.GetParameters().RingQ().AtLevel(level)
@@ -609,7 +609,7 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 
 			// If DefaultScalingFactor > 2^60, then multiple moduli are used per single rescale
 			// thus continues multiplying the scale with the appropriate number of moduli
-			for i := 1; i < eval.GetParameters().PlaintextScaleToModuliRatio(); i++ {
+			for i := 1; i < eval.GetParameters().LevelsConsummedPerRescaling(); i++ {
 				scale = scale.Mul(rlwe.NewScale(ringQ.SubRings[level-i].Modulus))
 			}
 		}
@@ -648,7 +648,7 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 
 		// If DefaultScalingFactor > 2^60, then multiple moduli are used per single rescale
 		// thus continues multiplying the scale with the appropriate number of moduli
-		for i := 1; i < eval.GetParameters().PlaintextScaleToModuliRatio(); i++ {
+		for i := 1; i < eval.GetParameters().LevelsConsummedPerRescaling(); i++ {
 			pt.Scale = pt.Scale.Mul(rlwe.NewScale(ringQ.SubRings[level-i].Modulus))
 		}
 
@@ -888,7 +888,7 @@ func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, opOut *r
 		ringQ := eval.GetParameters().RingQ().AtLevel(level)
 
 		// Convertes the scalar to a *bignum.Complex
-		cmplxBig := bignum.ToComplex(op1, eval.GetParameters().PlaintextPrecision())
+		cmplxBig := bignum.ToComplex(op1, eval.GetParameters().EncodingPrecision())
 
 		var scaleRLWE rlwe.Scale
 
@@ -901,7 +901,7 @@ func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, opOut *r
 			} else {
 				scaleRLWE = rlwe.NewScale(ringQ.SubRings[level].Modulus)
 
-				for i := 1; i < eval.GetParameters().PlaintextScaleToModuliRatio(); i++ {
+				for i := 1; i < eval.GetParameters().LevelsConsummedPerRescaling(); i++ {
 					scaleRLWE = scaleRLWE.Mul(rlwe.NewScale(ringQ.SubRings[level-i].Modulus))
 				}
 
@@ -941,7 +941,7 @@ func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, opOut *r
 
 			scaleRLWE = rlwe.NewScale(ringQ.SubRings[level].Modulus)
 
-			for i := 1; i < eval.GetParameters().PlaintextScaleToModuliRatio(); i++ {
+			for i := 1; i < eval.GetParameters().LevelsConsummedPerRescaling(); i++ {
 				scaleRLWE = scaleRLWE.Mul(rlwe.NewScale(ringQ.SubRings[level-i].Modulus))
 			}
 

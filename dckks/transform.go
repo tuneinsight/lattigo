@@ -109,7 +109,7 @@ func NewMaskedTransformProtocol(paramsIn, paramsOut ckks.Parameters, prec uint, 
 
 	rfp.prec = prec
 
-	scale := paramsOut.PlaintextScale().Value
+	scale := paramsOut.DefaultScale().Value
 
 	rfp.defaultScale, _ = new(big.Float).SetPrec(prec).Set(&scale).Int(nil)
 
@@ -377,7 +377,7 @@ func (rfp MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *Mas
 	}
 
 	*ciphertextOut.MetaData = *ct.MetaData
-	ciphertextOut.Scale = rfp.s2e.params.PlaintextScale()
+	ciphertextOut.Scale = rfp.s2e.params.DefaultScale()
 
 	return
 }

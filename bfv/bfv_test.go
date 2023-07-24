@@ -153,7 +153,7 @@ func newTestVectorsLvl(level int, scale rlwe.Scale, tc *testContext, encryptor *
 
 func verifyTestVectors(tc *testContext, decryptor *rlwe.Decryptor, coeffs ring.Poly, element rlwe.OperandInterface[ring.Poly], t *testing.T) {
 
-	coeffsTest := make([]uint64, tc.params.PlaintextSlots())
+	coeffsTest := make([]uint64, tc.params.MaxSlots())
 
 	switch el := element.(type) {
 	case *rlwe.Plaintext:
@@ -225,7 +225,7 @@ func testEncoder(tc *testContext, t *testing.T) {
 
 	for _, lvl := range tc.testLevel {
 		t.Run(GetTestName("Encoder/Uint", tc.params, lvl), func(t *testing.T) {
-			values, plaintext, _ := newTestVectorsLvl(lvl, tc.params.PlaintextScale(), tc, nil)
+			values, plaintext, _ := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, nil)
 			verifyTestVectors(tc, nil, values, plaintext, t)
 		})
 	}
@@ -248,7 +248,7 @@ func testEncoder(tc *testContext, t *testing.T) {
 
 			plaintext := NewPlaintext(tc.params, lvl)
 			tc.encoder.Encode(coeffsInt, plaintext)
-			have := make([]int64, tc.params.PlaintextSlots())
+			have := make([]int64, tc.params.MaxSlots())
 			tc.encoder.Decode(plaintext, have)
 			require.True(t, utils.EqualSlice(coeffsInt, have))
 		})
@@ -311,7 +311,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 		for _, lvl := range tc.testLevel {
 			t.Run(GetTestName("Add/Ct/Scalar/Inplace", tc.params, lvl), func(t *testing.T) {
 
-				values, _, ciphertext := newTestVectorsLvl(lvl, tc.params.PlaintextScale(), tc, tc.encryptorSk)
+				values, _, ciphertext := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
 
 				scalar := tc.params.T() >> 1
 
@@ -419,7 +419,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 					t.Skip("Level = 0")
 				}
 
-				values, _, ciphertext := newTestVectorsLvl(lvl, tc.params.PlaintextScale(), tc, tc.encryptorSk)
+				values, _, ciphertext := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
 
 				scalar := tc.params.T() >> 1
 
@@ -480,7 +480,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 					t.Skip("Level = 0")
 				}
 
-				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.PlaintextScale(), tc, tc.encryptorSk)
+				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
 				values1, _, ciphertext1 := newTestVectorsLvl(lvl, rlwe.NewScale(2), tc, tc.encryptorSk)
 				values2, _, ciphertext2 := newTestVectorsLvl(lvl, tc.params.NewScale(7), tc, tc.encryptorSk)
 
@@ -502,7 +502,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 					t.Skip("Level = 0")
 				}
 
-				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.PlaintextScale(), tc, tc.encryptorSk)
+				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
 				values1, plaintext1, _ := newTestVectorsLvl(lvl, rlwe.NewScale(2), tc, tc.encryptorSk)
 				values2, _, ciphertext2 := newTestVectorsLvl(lvl, tc.params.NewScale(7), tc, tc.encryptorSk)
 
@@ -545,7 +545,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 					t.Skip("Level = 0")
 				}
 
-				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.PlaintextScale(), tc, tc.encryptorSk)
+				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
 				values1, _, ciphertext1 := newTestVectorsLvl(lvl, rlwe.NewScale(2), tc, tc.encryptorSk)
 				values2, _, ciphertext2 := newTestVectorsLvl(lvl, tc.params.NewScale(7), tc, tc.encryptorSk)
 
@@ -582,7 +582,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				res, err := tc.evaluator.Polynomial(ciphertext, poly)
 				require.NoError(t, err)
 
-				require.True(t, res.Scale.Cmp(tc.params.PlaintextScale()) == 0)
+				require.True(t, res.Scale.Cmp(tc.params.DefaultScale()) == 0)
 
 				verifyTestVectors(tc, tc.decryptor, values, res, t)
 
@@ -628,7 +628,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				res, err := tc.evaluator.Polynomial(ciphertext, polyVector)
 				require.NoError(t, err)
 
-				require.True(t, res.Scale.Cmp(tc.params.PlaintextScale()) == 0)
+				require.True(t, res.Scale.Cmp(tc.params.DefaultScale()) == 0)
 
 				verifyTestVectors(tc, tc.decryptor, values, res, t)
 
@@ -640,7 +640,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 				ringT := tc.params.RingT()
 
-				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.PlaintextScale(), tc, tc.encryptorPk)
+				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorPk)
 
 				printNoise := func(msg string, values []uint64, ct *rlwe.Ciphertext) {
 					pt := NewPlaintext(tc.params, ct.Level())
@@ -654,7 +654,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 				if lvl != 0 {
 
-					values1, _, ciphertext1 := newTestVectorsLvl(lvl, tc.params.PlaintextScale(), tc, tc.encryptorSk)
+					values1, _, ciphertext1 := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
 
 					if *flagPrintNoise {
 						printNoise("0x", values0.Coeffs[0], ciphertext0)
@@ -692,7 +692,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 		params := tc.params
 
-		values, _, ciphertext := newTestVectorsLvl(level, tc.params.PlaintextScale(), tc, tc.encryptorSk)
+		values, _, ciphertext := newTestVectorsLvl(level, tc.params.DefaultScale(), tc, tc.encryptorSk)
 
 		diagonals := make(map[int][]uint64)
 
@@ -723,7 +723,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		ltparams := NewLinearTransformationParameters(LinearTransformationParametersLiteral[uint64]{
 			Diagonals:                diagonals,
 			Level:                    ciphertext.Level(),
-			Scale:                    tc.params.PlaintextScale(),
+			Scale:                    tc.params.DefaultScale(),
 			LogDimensions:            ciphertext.LogDimensions,
 			LogBabyStepGianStepRatio: 1,
 		})
@@ -763,7 +763,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 		params := tc.params
 
-		values, _, ciphertext := newTestVectorsLvl(level, tc.params.PlaintextScale(), tc, tc.encryptorSk)
+		values, _, ciphertext := newTestVectorsLvl(level, tc.params.DefaultScale(), tc, tc.encryptorSk)
 
 		diagonals := make(map[int][]uint64)
 
@@ -794,7 +794,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		ltparams := NewLinearTransformationParameters(LinearTransformationParametersLiteral[uint64]{
 			Diagonals:                diagonals,
 			Level:                    ciphertext.Level(),
-			Scale:                    tc.params.PlaintextScale(),
+			Scale:                    tc.params.DefaultScale(),
 			LogDimensions:            ciphertext.LogDimensions,
 			LogBabyStepGianStepRatio: -1,
 		})

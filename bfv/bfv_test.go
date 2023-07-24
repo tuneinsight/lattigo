@@ -52,7 +52,7 @@ func TestBFV(t *testing.T) {
 
 		for _, plaintextModulus := range testPlaintextModulus[:] {
 
-			p.T = plaintextModulus
+			p.PlaintextModulus = plaintextModulus
 
 			params, err := NewParametersFromLiteral(p)
 			require.NoError(t, err)
@@ -202,7 +202,7 @@ func testParameters(tc *testContext, t *testing.T) {
 		require.True(t, tc.params.Equal(paramsRec))
 
 		// checks that ckks.Parameters can be unmarshalled with log-moduli definition without error
-		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "T":65537}`, tc.params.LogN()))
+		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "PlaintextModulus":65537}`, tc.params.LogN()))
 		var paramsWithLogModuli Parameters
 		err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
 		require.Nil(t, err)
@@ -212,7 +212,7 @@ func testParameters(tc *testContext, t *testing.T) {
 		require.Equal(t, rlwe.DefaultXs, paramsWithLogModuli.Xs()) // Omitting Xe should result in Default being used
 
 		// checks that one can provide custom parameters for the secret-key and error distributions
-		dataWithCustomSecrets := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "T":65537, "Xs": {"Type": "Ternary", "H": 192}, "Xe": {"Type": "DiscreteGaussian", "Sigma": 6.6, "Bound": 39.6}}`, tc.params.LogN()))
+		dataWithCustomSecrets := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "PlaintextModulus":65537, "Xs": {"Type": "Ternary", "H": 192}, "Xe": {"Type": "DiscreteGaussian", "Sigma": 6.6, "Bound": 39.6}}`, tc.params.LogN()))
 		var paramsWithCustomSecrets Parameters
 		err = json.Unmarshal(dataWithCustomSecrets, &paramsWithCustomSecrets)
 		require.Nil(t, err)
@@ -233,7 +233,7 @@ func testEncoder(tc *testContext, t *testing.T) {
 	for _, lvl := range tc.testLevel {
 		t.Run(GetTestName("Encoder/Int", tc.params, lvl), func(t *testing.T) {
 
-			T := tc.params.T()
+			T := tc.params.PlaintextModulus()
 			THalf := T >> 1
 			coeffs := tc.uSampler.ReadNew()
 			coeffsInt := make([]int64, len(coeffs.Coeffs[0]))
@@ -313,7 +313,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 				values, _, ciphertext := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
 
-				scalar := tc.params.T() >> 1
+				scalar := tc.params.PlaintextModulus() >> 1
 
 				require.NoError(t, tc.evaluator.Add(ciphertext, scalar, ciphertext))
 				tc.ringT.AddScalar(values, scalar, values)
@@ -421,7 +421,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 				values, _, ciphertext := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
 
-				scalar := tc.params.T() >> 1
+				scalar := tc.params.PlaintextModulus() >> 1
 
 				tc.evaluator.Mul(ciphertext, scalar, ciphertext)
 				tc.ringT.MulScalar(values, scalar, values)
@@ -529,7 +529,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 				require.True(t, ciphertext0.Scale.Cmp(ciphertext1.Scale) != 0)
 
-				scalar := tc.params.T() >> 1
+				scalar := tc.params.PlaintextModulus() >> 1
 
 				require.NoError(t, tc.evaluator.MulThenAdd(ciphertext0, scalar, ciphertext1))
 				tc.ringT.MulScalarThenAdd(values0, scalar, values1)
@@ -572,7 +572,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 				coeffs := []uint64{1, 2, 3, 4, 5, 6, 7, 8}
 
-				T := tc.params.T()
+				T := tc.params.PlaintextModulus()
 				for i := range values.Coeffs[0] {
 					values.Coeffs[0][i] = ring.EvalPolyModP(values.Coeffs[0][i], coeffs, T)
 				}
@@ -618,7 +618,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 				}, slotIndex)
 				require.NoError(t, err)
 
-				TInt := new(big.Int).SetUint64(tc.params.T())
+				TInt := new(big.Int).SetUint64(tc.params.PlaintextModulus())
 				for pol, idx := range slotIndex {
 					for _, i := range idx {
 						values.Coeffs[0][i] = polyVector.Value[pol].EvaluateModP(new(big.Int).SetUint64(values.Coeffs[0][i]), TInt).Uint64()

@@ -105,12 +105,11 @@ func (d dummyEvaluator) Rescale(op0 *hebase.DummyOperand) {
 func (d dummyEvaluator) MulNew(op0, op1 *hebase.DummyOperand) (opOut *hebase.DummyOperand) {
 	opOut = new(hebase.DummyOperand)
 	opOut.Level = utils.Min(op0.Level, op1.Level)
-	opOut.Scale = op0.Scale.Mul(op1.Scale)
+
 	if d.InvariantTensoring {
-		params := d.params
-		qModTNeg := new(big.Int).Mod(params.RingQ().ModulusAtLevel[opOut.Level], new(big.Int).SetUint64(params.T())).Uint64()
-		qModTNeg = params.T() - qModTNeg
-		opOut.Scale = opOut.Scale.Div(params.NewScale(qModTNeg))
+		opOut.Scale = mulScaleInvariant(d.params, op0.Scale, op1.Scale, opOut.Level)
+	} else {
+		opOut.Scale = op0.Scale.Mul(op1.Scale)
 	}
 
 	return
@@ -146,7 +145,7 @@ func (d dummyEvaluator) UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, t
 
 	} else {
 
-		T := d.params.T()
+		T := d.params.PlaintextModulus()
 
 		// -Q mod T
 		qModTNeg := new(big.Int).Mod(d.params.RingQ().ModulusAtLevel[tLevelNew], new(big.Int).SetUint64(T)).Uint64()

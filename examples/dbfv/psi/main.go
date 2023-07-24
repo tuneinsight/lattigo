@@ -90,10 +90,10 @@ func main() {
 
 	// Creating encryption parameters from a default params with logN=14, logQP=438 with a plaintext modulus T=65537
 	params, err := bfv.NewParametersFromLiteral(bfv.ParametersLiteral{
-		LogN: 14,
-		LogQ: []int{56, 55, 55, 54, 54, 54},
-		LogP: []int{55, 55},
-		T:    65537,
+		LogN:             14,
+		LogQ:             []int{56, 55, 55, 54, 54, 54},
+		LogP:             []int{55, 55},
+		PlaintextModulus: 65537,
 	})
 	if err != nil {
 		panic(err)
@@ -135,7 +135,7 @@ func main() {
 	encOut := pcksPhase(params, tpk, encRes, P)
 
 	// Decrypt the result with the target secret key
-	l.Println("> Result:")
+	l.Println("> ResulPlaintextModulus:")
 	decryptor, err := bfv.NewDecryptor(params, tsk)
 	if err != nil {
 		panic(err)

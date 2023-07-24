@@ -104,10 +104,10 @@ func main() {
 	// Creating encryption parameters
 	// LogN = 13 & LogQP = 218
 	params, err := bfv.NewParametersFromLiteral(bfv.ParametersLiteral{
-		LogN: 13,
-		LogQ: []int{54, 54, 54},
-		LogP: []int{55},
-		T:    65537,
+		LogN:             13,
+		LogQ:             []int{54, 54, 54},
+		LogP:             []int{55},
+		PlaintextModulus: 65537,
 	})
 	if err != nil {
 		panic(err)
@@ -191,7 +191,7 @@ func main() {
 	// Collective (partial) decryption (key switch)
 	encOut := cksphase(params, P, result)
 
-	l.Println("> Result:")
+	l.Println("> ResulPlaintextModulus:")
 
 	// Decryption by the external party
 	decryptor, err := bfv.NewDecryptor(params, P[0].sk)

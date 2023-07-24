@@ -28,7 +28,7 @@ func BenchmarkDBGV(b *testing.B) {
 
 		for _, plaintextModulus := range testPlaintextModulus[:] {
 
-			p.T = plaintextModulus
+			p.PlaintextModulus = plaintextModulus
 
 			var params bgv.Parameters
 			if params, err = bgv.NewParametersFromLiteral(p); err != nil {

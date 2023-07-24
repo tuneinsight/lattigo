@@ -76,15 +76,15 @@ func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 
 func (p *ParametersLiteral) UnmarshalJSON(b []byte) (err error) {
 	var pl struct {
-		LogN     int
-		Q        []uint64
-		P        []uint64
-		LogQ     []int
-		LogP     []int
-		Xe       map[string]interface{}
-		Xs       map[string]interface{}
-		RingType ring.Type
-		T        uint64
+		LogN             int
+		Q                []uint64
+		P                []uint64
+		LogQ             []int
+		LogP             []int
+		Xe               map[string]interface{}
+		Xs               map[string]interface{}
+		RingType         ring.Type
+		PlaintextModulus uint64
 	}
 
 	err = json.Unmarshal(b, &pl)
@@ -106,6 +106,6 @@ func (p *ParametersLiteral) UnmarshalJSON(b []byte) (err error) {
 			return err
 		}
 	}
-	p.T = pl.T
+	p.PlaintextModulus = pl.PlaintextModulus
 	return err
 }

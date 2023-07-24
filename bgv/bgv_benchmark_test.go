@@ -24,7 +24,7 @@ func BenchmarkBGV(b *testing.B) {
 
 	for _, p := range paramsLiterals[:] {
 
-		p.T = testPlaintextModulus[1]
+		p.PlaintextModulus = testPlaintextModulus[1]
 
 		var params Parameters
 		if params, err = NewParametersFromLiteral(p); err != nil {
@@ -104,7 +104,7 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 	plaintext1.Operand.Value = ct.Value[:1]
 	plaintext1.Scale = scale
 	plaintext1.IsNTT = ciphertext0.IsNTT
-	scalar := params.T() >> 1
+	scalar := params.PlaintextModulus() >> 1
 
 	b.Run(GetTestName("Evaluator/Add/Ct/Ct", params, level), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {

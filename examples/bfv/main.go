@@ -59,10 +59,10 @@ func obliviousRiding() {
 	// BFV parameters (128 bit security) with plaintext modulus 65929217
 	// Creating encryption parameters from a default params with logN=14, logQP=438 with a plaintext modulus T=65929217
 	params, err := bfv.NewParametersFromLiteral(bfv.ParametersLiteral{
-		LogN: 14,
-		LogQ: []int{56, 55, 55, 54, 54, 54},
-		LogP: []int{55, 55},
-		T:    0x3ee0001,
+		LogN:             14,
+		LogQ:             []int{56, 55, 55, 54, 54, 54},
+		LogP:             []int{55, 55},
+		PlaintextModulus: 0x3ee0001,
 	})
 	if err != nil {
 		panic(err)
@@ -97,11 +97,11 @@ func obliviousRiding() {
 	fmt.Println("============================================")
 	fmt.Println()
 	fmt.Printf("Parameters : N=%d, T=%d, LogQP = %f, sigma = %T %v \n",
-		1<<params.LogN(), params.T(), params.LogQP(), params.Xe(), params.Xe())
+		1<<params.LogN(), params.PlaintextModulus(), params.LogQP(), params.Xe(), params.Xe())
 	fmt.Println()
 
-	maxvalue := uint64(math.Sqrt(float64(params.T()))) // max values = floor(sqrt(plaintext modulus))
-	mask := uint64(1<<bits.Len64(maxvalue) - 1)        // binary mask upper-bound for the uniform sampling
+	maxvalue := uint64(math.Sqrt(float64(params.PlaintextModulus()))) // max values = floor(sqrt(plaintext modulus))
+	mask := uint64(1<<bits.Len64(maxvalue) - 1)                       // binary mask upper-bound for the uniform sampling
 
 	fmt.Printf("Generating %d driversData and 1 Rider randomly positioned on a grid of %d x %d units \n",
 		nbDrivers, maxvalue, maxvalue)
@@ -181,7 +181,7 @@ func obliviousRiding() {
 		panic(err)
 	}
 
-	minIndex, minPosX, minPosY, minDist := 0, params.T(), params.T(), params.T()
+	minIndex, minPosX, minPosY, minDist := 0, params.PlaintextModulus(), params.PlaintextModulus(), params.PlaintextModulus()
 
 	errors := 0
 
@@ -203,7 +203,7 @@ func obliviousRiding() {
 		}
 
 		if i < 4 || i > nbDrivers-5 {
-			fmt.Printf("Distance with Driver %d : %8d = (%4d - %4d)^2 + (%4d - %4d)^2 --> correct: %t\n",
+			fmt.Printf("Distance with Driver %d : %8d = (%4d - %4d)^2 + (%4d - %4d)^2 --> correcPlaintextModulus: %t\n",
 				i, computedDist, driverPosX, riderPosX, driverPosY, riderPosY, computedDist == expectedDist)
 		}
 

@@ -275,15 +275,6 @@ func (p Parameters) DefaultScale() Scale {
 	return p.defaultScale
 }
 
-// PlaintextModulus returns the plaintext modulus, if any. Else returns 0.
-func (p Parameters) PlaintextModulus() uint64 {
-	if p.defaultScale.Mod != nil {
-		return p.defaultScale.Mod.Uint64()
-	}
-
-	return 0
-}
-
 // RingQ returns a pointer to ringQ
 func (p Parameters) RingQ() *ring.Ring {
 	return p.ringQ

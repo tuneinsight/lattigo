@@ -9,7 +9,7 @@ var (
 			0x20040001, 0x1ffc0001, 0x1ffb0001,
 			0x20068001, 0x1ff60001, 0x200b0001,
 			0x200d0001, 0x1ff18001, 0x200f8001}, // 40 + 11*29 bits
-		P: []uint64{0x10000140001, 0x7ffffb0001}, // 40 + 39 bits
-		T: 0x10001,                               // 16 bits
+		P:                []uint64{0x10000140001, 0x7ffffb0001}, // 40 + 39 bits
+		PlaintextModulus: 0x10001,                               // 16 bits
 	}
 )

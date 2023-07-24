@@ -33,14 +33,14 @@ const (
 // unset, standard default values for these field are substituted at parameter creation (see
 // NewParametersFromLiteral).
 type ParametersLiteral struct {
-	LogN int
-	Q    []uint64
-	P    []uint64
-	LogQ []int `json:",omitempty"`
-	LogP []int `json:",omitempty"`
-	Xe   ring.DistributionParameters
-	Xs   ring.DistributionParameters
-	T    uint64 // Plaintext modulus
+	LogN             int
+	Q                []uint64
+	P                []uint64
+	LogQ             []int `json:",omitempty"`
+	LogP             []int `json:",omitempty"`
+	Xe               ring.DistributionParameters
+	Xs               ring.DistributionParameters
+	PlaintextModulus uint64 // Plaintext modulus
 }
 
 // GetRLWEParametersLiteral returns the rlwe.ParametersLiteral from the target bgv.ParametersLiteral.
@@ -55,7 +55,7 @@ func (p ParametersLiteral) GetRLWEParametersLiteral() rlwe.ParametersLiteral {
 		Xe:           p.Xe,
 		Xs:           p.Xs,
 		RingType:     ring.Standard,
-		DefaultScale: rlwe.NewScaleModT(1, p.T),
+		DefaultScale: rlwe.NewScaleModT(1, p.PlaintextModulus),
 		NTTFlag:      NTTFlag,
 	}
 }
@@ -130,18 +130,18 @@ func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 	if err != nil {
 		return Parameters{}, err
 	}
-	return NewParameters(rlweParams, pl.T)
+	return NewParameters(rlweParams, pl.PlaintextModulus)
 }
 
 // ParametersLiteral returns the ParametersLiteral of the target Parameters.
 func (p Parameters) ParametersLiteral() ParametersLiteral {
 	return ParametersLiteral{
-		LogN: p.LogN(),
-		Q:    p.Q(),
-		P:    p.P(),
-		Xe:   p.Xe(),
-		Xs:   p.Xs(),
-		T:    p.T(),
+		LogN:             p.LogN(),
+		Q:                p.Q(),
+		P:                p.P(),
+		Xe:               p.Xe(),
+		Xs:               p.Xs(),
+		PlaintextModulus: p.PlaintextModulus(),
 	}
 }
 
@@ -193,14 +193,14 @@ func (p Parameters) RingQMul() *ring.Ring {
 	return p.ringQMul
 }
 
-// T returns the plaintext coefficient modulus t.
-func (p Parameters) T() uint64 {
+// PlaintextModulus returns the plaintext coefficient modulus t.
+func (p Parameters) PlaintextModulus() uint64 {
 	return p.ringT.SubRings[0].Modulus
 }
 
 // LogT returns log2(plaintext coefficient modulus).
 func (p Parameters) LogT() float64 {
-	return math.Log2(float64(p.T()))
+	return math.Log2(float64(p.PlaintextModulus()))
 }
 
 // RingT returns a pointer to the plaintext ring.
@@ -249,7 +249,7 @@ func (p Parameters) GaloisElementForRowRotation() uint64 {
 func (p Parameters) Equal(other rlwe.GetRLWEParameters) bool {
 	switch other := other.(type) {
 	case Parameters:
-		return p.Parameters.Equal(other.Parameters) && (p.T() == other.T())
+		return p.Parameters.Equal(other.Parameters) && (p.PlaintextModulus() == other.PlaintextModulus())
 	}
 
 	return false
@@ -284,16 +284,16 @@ func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 
 func (p *ParametersLiteral) UnmarshalJSON(b []byte) (err error) {
 	var pl struct {
-		LogN     int
-		Q        []uint64
-		P        []uint64
-		LogQ     []int
-		LogP     []int
-		Pow2Base int
-		Xe       map[string]interface{}
-		Xs       map[string]interface{}
-		RingType ring.Type
-		T        uint64
+		LogN             int
+		Q                []uint64
+		P                []uint64
+		LogQ             []int
+		LogP             []int
+		Pow2Base         int
+		Xe               map[string]interface{}
+		Xs               map[string]interface{}
+		RingType         ring.Type
+		PlaintextModulus uint64
 	}
 
 	err = json.Unmarshal(b, &pl)
@@ -315,6 +315,6 @@ func (p *ParametersLiteral) UnmarshalJSON(b []byte) (err error) {
 			return err
 		}
 	}
-	p.T = pl.T
+	p.PlaintextModulus = pl.PlaintextModulus
 	return err
 }

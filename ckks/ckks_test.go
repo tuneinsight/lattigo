@@ -1105,7 +1105,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		batch := 1 << logBatch
 		n := slots / batch
 
-		gks, err := tc.kgen.GenGaloisKeysNew(tc.params.GaloisElementsForInnerSum(batch, n), tc.sk)
+		gks, err := tc.kgen.GenGaloisKeysNew(hebase.GaloisElementsForInnerSum(tc.params, batch, n), tc.sk)
 		require.NoError(t, err)
 		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
 

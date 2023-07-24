@@ -143,6 +143,34 @@ func (eval Evaluator) InnerSum(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *r
 	return
 }
 
+// GaloisElementsForInnerSum returns the list of Galois elements necessary to apply the method
+// `InnerSum` operation with parameters `batch` and `n`.
+func GaloisElementsForInnerSum(params rlwe.GetRLWEParameters, batch, n int) (galEls []uint64) {
+
+	rotIndex := make(map[int]bool)
+
+	var k int
+	for i := 1; i < n; i <<= 1 {
+
+		k = i
+		k *= batch
+		rotIndex[k] = true
+
+		k = n - (n & ((i << 1) - 1))
+		k *= batch
+		rotIndex[k] = true
+	}
+
+	rotations := make([]int, len(rotIndex))
+	var i int
+	for j := range rotIndex {
+		rotations[i] = j
+		i++
+	}
+
+	return params.GetRLWEParameters().GaloisElements(rotations)
+}
+
 // Replicate applies an optimized replication on the Ciphertext (log2(n) + HW(n) rotations with double hoisting).
 // It acts as the inverse of a inner sum (summing elements from left to right).
 // The replication is parameterized by the size of the sub-vectors to replicate "batchSize" and
@@ -152,4 +180,10 @@ func (eval Evaluator) InnerSum(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *r
 // This method is faster than Replicate when the number of rotations is large and it uses log2(n) + HW(n) instead of 'n'.
 func (eval Evaluator) Replicate(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *rlwe.Ciphertext) (err error) {
 	return eval.InnerSum(ctIn, -batchSize, n, opOut)
+}
+
+// GaloisElementsForReplicate returns the list of Galois elements necessary to perform the
+// `Replicate` operation with parameters `batch` and `n`.
+func GaloisElementsForReplicate(params rlwe.GetRLWEParameters, batch, n int) (galEls []uint64) {
+	return GaloisElementsForInnerSum(params, -batch, n)
 }

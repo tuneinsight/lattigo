@@ -118,6 +118,31 @@ func (eval Evaluator) Trace(ctIn *rlwe.Ciphertext, logN int, opOut *rlwe.Ciphert
 	return
 }
 
+// GaloisElementsForTrace returns the list of Galois elements requored for the for the `Trace` operation.
+// Trace maps X -> sum((-1)^i * X^{i*n+1}) for 2^{LogN} <= i < N.
+func GaloisElementsForTrace(params rlwe.GetRLWEParameters, logN int) (galEls []uint64) {
+
+	p := params.GetRLWEParameters()
+
+	galEls = []uint64{}
+	for i, j := logN, 0; i < p.LogN()-1; i, j = i+1, j+1 {
+		galEls = append(galEls, p.GaloisElement(1<<i))
+	}
+
+	if logN == 0 {
+		switch p.RingType() {
+		case ring.Standard:
+			galEls = append(galEls, p.GaloisElementOrderTwoOrthogonalSubgroup())
+		case ring.ConjugateInvariant:
+			panic("cannot GaloisElementsForTrace: Galois element GaloisGen^-1 is undefined in ConjugateInvariant Ring")
+		default:
+			panic("cannot GaloisElementsForTrace: invalid ring type")
+		}
+	}
+
+	return
+}
+
 // Expand expands a RLWE Ciphertext encrypting sum ai * X^i to 2^logN ciphertexts,
 // each encrypting ai * X^0 for 0 <= i < 2^LogN. That is, it extracts the first 2^logN
 // coefficients, whose degree is a multiple of 2^logGap, of ctIn and returns an RLWE
@@ -224,6 +249,20 @@ func (eval Evaluator) Expand(ctIn *rlwe.Ciphertext, logN, logGap int) (opOut []*
 			ct.IsNTT = false
 		}
 	}
+	return
+}
+
+// GaloisElementsForExpand returns the list of Galois elements required
+// to perform the `Expand` operation with parameter `logN`.
+func GaloisElementsForExpand(params rlwe.GetRLWEParameters, logN int) (galEls []uint64) {
+	galEls = make([]uint64, logN)
+
+	NthRoot := params.GetRLWEParameters().RingQ().NthRoot()
+
+	for i := 0; i < logN; i++ {
+		galEls[i] = uint64(NthRoot/(2<<i) + 1)
+	}
+
 	return
 }
 
@@ -394,6 +433,32 @@ func (eval Evaluator) Pack(cts map[int]*rlwe.Ciphertext, inputLogGap int, zeroGa
 	}
 
 	return cts[0], nil
+}
+
+// GaloisElementsForPack returns the list of Galois elements required to perform the `Pack` operation.
+func GaloisElementsForPack(params rlwe.GetRLWEParameters, logGap int) (galEls []uint64) {
+
+	p := params.GetRLWEParameters()
+
+	if logGap > p.LogN() || logGap < 0 {
+		panic(fmt.Errorf("cannot GaloisElementsForPack: logGap > logN || logGap < 0"))
+	}
+
+	galEls = make([]uint64, 0, logGap)
+	for i := 0; i < logGap; i++ {
+		galEls = append(galEls, p.GaloisElement(1<<i))
+	}
+
+	switch p.RingType() {
+	case ring.Standard:
+		if logGap == p.LogN() {
+			galEls = append(galEls, p.GaloisElementOrderTwoOrthogonalSubgroup())
+		}
+	default:
+		panic("cannot GaloisElementsForPack: invalid ring type")
+	}
+
+	return
 }
 
 func GenXPow2(r *ring.Ring, logN int, div bool) (xPow []ring.Poly) {

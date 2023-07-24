@@ -6,8 +6,8 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/tuneinsight/lattigo/v4/hebase"
 	"github.com/tuneinsight/lattigo/v4/ring"
-
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
@@ -276,6 +276,35 @@ func (p Parameters) GaloisElementForColRotation(k int) uint64 {
 // dropped and this operation is not defined.
 func (p Parameters) GaloisElementForComplexConjugation() uint64 {
 	return p.Parameters.GaloisElementOrderTwoOrthogonalSubgroup()
+}
+
+// GaloisElementsForInnerSum returns the list of Galois elements necessary to apply the method
+// `InnerSum` operation with parameters `batch` and `n`.
+func (p Parameters) GaloisElementsForInnerSum(batch, n int) []uint64 {
+	return hebase.GaloisElementsForInnerSum(p, batch, n)
+}
+
+// GaloisElementsForReplicate returns the list of Galois elements necessary to perform the
+// `Replicate` operation with parameters `batch` and `n`.
+func (p Parameters) GaloisElementsForReplicate(batch, n int) []uint64 {
+	return hebase.GaloisElementsForReplicate(p, batch, n)
+}
+
+// GaloisElementsForTrace returns the list of Galois elements requored for the for the `Trace` operation.
+// Trace maps X -> sum((-1)^i * X^{i*n+1}) for 2^{LogN} <= i < N.
+func (p Parameters) GaloisElementsForTrace(logN int) []uint64 {
+	return hebase.GaloisElementsForTrace(p, logN)
+}
+
+// GaloisElementsForExpand returns the list of Galois elements required
+// to perform the `Expand` operation with parameter `logN`.
+func (p Parameters) GaloisElementsForExpand(logN int) []uint64 {
+	return hebase.GaloisElementsForExpand(p, logN)
+}
+
+// GaloisElementsForPack returns the list of Galois elements required to perform the `Pack` operation.
+func (p Parameters) GaloisElementsForPack(logN int) []uint64 {
+	return hebase.GaloisElementsForPack(p, logN)
 }
 
 // Equal compares two sets of parameters for equality.

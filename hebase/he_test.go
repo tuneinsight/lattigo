@@ -187,7 +187,7 @@ func testLinearTransformation(tc *TestContext, level, bpw2 int, t *testing.T) {
 		enc.Encrypt(pt, ctIn)
 
 		// GaloisKeys
-		var gks, err = kgen.GenGaloisKeysNew(params.GaloisElementsForExpand(logN), sk, evkParams)
+		var gks, err = kgen.GenGaloisKeysNew(GaloisElementsForExpand(params, logN), sk, evkParams)
 		require.NoError(t, err)
 
 		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
@@ -258,10 +258,7 @@ func testLinearTransformation(tc *TestContext, level, bpw2 int, t *testing.T) {
 		}
 
 		// Galois Keys
-		galEls, err := params.GaloisElementsForPack(params.LogN())
-		require.NoError(t, err)
-
-		gks, err := kgen.GenGaloisKeysNew(galEls, sk, evkParams)
+		gks, err := kgen.GenGaloisKeysNew(GaloisElementsForPack(params, params.LogN()), sk, evkParams)
 		require.NoError(t, err)
 
 		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
@@ -336,10 +333,7 @@ func testLinearTransformation(tc *TestContext, level, bpw2 int, t *testing.T) {
 		}
 
 		// Galois Keys
-		galEls, err := params.GaloisElementsForPack(params.LogN() - 1)
-		require.NoError(t, err)
-
-		gks, err := kgen.GenGaloisKeysNew(galEls, sk, evkParams)
+		gks, err := kgen.GenGaloisKeysNew(GaloisElementsForPack(params, params.LogN()-1), sk, evkParams)
 		require.NoError(t, err)
 
 		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
@@ -382,7 +376,7 @@ func testLinearTransformation(tc *TestContext, level, bpw2 int, t *testing.T) {
 		require.NoError(t, err)
 
 		// Galois Keys
-		gks, err := kgen.GenGaloisKeysNew(params.GaloisElementsForInnerSum(batch, n), sk)
+		gks, err := kgen.GenGaloisKeysNew(GaloisElementsForInnerSum(params, batch, n), sk)
 		require.NoError(t, err)
 
 		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)

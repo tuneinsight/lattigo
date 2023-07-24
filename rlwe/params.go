@@ -15,13 +15,10 @@ import (
 )
 
 // MaxLogN is the log2 of the largest supported polynomial modulus degree.
-const MaxLogN = 17
+const MaxLogN = 20
 
 // MinLogN is the log2 of the smallest supported polynomial modulus degree (needed to ensure the NTT correctness).
 const MinLogN = 4
-
-// MaxModuliCount is the largest supported number of moduli in the RNS representation.
-const MaxModuliCount = 34
 
 // MaxModuliSize is the largest bit-length supported for the moduli in the RNS representation.
 const MaxModuliSize = 60
@@ -694,10 +691,6 @@ func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 // CheckModuli checks that the provided q and p correspond to a valid moduli chain.
 func CheckModuli(q, p []uint64) error {
 
-	if len(q) > MaxModuliCount {
-		return fmt.Errorf("#Qi is larger than %d", MaxModuliCount)
-	}
-
 	for i, qi := range q {
 		if uint64(bits.Len64(qi)-1) > MaxModuliSize+1 {
 			return fmt.Errorf("a Qi bit-size (i=%d) is larger than %d", i, MaxModuliSize)
@@ -711,9 +704,6 @@ func CheckModuli(q, p []uint64) error {
 	}
 
 	if p != nil {
-		if len(p) > MaxModuliCount {
-			return fmt.Errorf("#Pi is larger than %d", MaxModuliCount)
-		}
 
 		for i, pi := range p {
 			if uint64(bits.Len64(pi)-1) > MaxModuliSize+2 {
@@ -737,12 +727,6 @@ func checkSizeParams(logN int, lenQ, lenP int) error {
 	}
 	if logN < MinLogN {
 		return fmt.Errorf("logN=%d is smaller than MinLogN=%d", logN, MinLogN)
-	}
-	if lenQ > MaxModuliCount {
-		return fmt.Errorf("lenQ=%d is larger than MaxModuliCount=%d", lenQ, MaxModuliCount)
-	}
-	if lenP > MaxModuliCount {
-		return fmt.Errorf("lenP=%d is larger than MaxModuliCount=%d", lenP, MaxModuliCount)
 	}
 	return nil
 }

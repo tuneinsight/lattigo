@@ -484,9 +484,9 @@ func (p Parameters) MaxBit(levelQ, levelP int) (c int) {
 	return
 }
 
-// DecompPw2 returns ceil(bits(qi))/Base2Decomposition for each qi.
+// BaseTwoDecompositionVectorSize returns ceil(bits(qi))/Base2Decomposition for each qi.
 // If levelP > 0 or Base2Decomposition == 0, then returns 1 for all qi.
-func (p Parameters) DecompPw2(levelQ, levelP, Base2Decomposition int) (base []int) {
+func (p Parameters) BaseTwoDecompositionVectorSize(levelQ, levelP, Base2Decomposition int) (base []int) {
 
 	logqi := p.LogQi()
 
@@ -505,8 +505,8 @@ func (p Parameters) DecompPw2(levelQ, levelP, Base2Decomposition int) (base []in
 	return
 }
 
-// DecompRNS returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
-func (p Parameters) DecompRNS(levelQ, levelP int) int {
+// BaseRNSDecompositionVectorSize returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
+func (p Parameters) BaseRNSDecompositionVectorSize(levelQ, levelP int) int {
 
 	if levelP == -1 {
 		return levelQ + 1

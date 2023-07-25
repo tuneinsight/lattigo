@@ -134,16 +134,16 @@ func (eval Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Cipher
 		mask = 0xFFFFFFFFFFFFFFFF
 	}
 
-	decompRNS := rgsw.Value[0].DecompRNS()
-	decompPw2 := rgsw.Value[0].DecompPw2()
+	BaseRNSDecompositionVectorSize := rgsw.Value[0].BaseRNSDecompositionVectorSize()
+	BaseTwoDecompositionVectorSize := rgsw.Value[0].BaseTwoDecompositionVectorSize()
 
 	// (a, b) + (c0 * rgsw[k][0], c0 * rgsw[k][1])
 	for k, el := range rgsw.Value {
 		ringQ.INTT(ct0.Value[k], eval.BuffInvNTT)
 		cw := eval.BuffQP[0].Q.Coeffs[0]
 		cwNTT := eval.BuffBitDecomp
-		for i := 0; i < decompRNS; i++ {
-			for j := 0; j < decompPw2[i]; j++ {
+		for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
+			for j := 0; j < BaseTwoDecompositionVectorSize[i]; j++ {
 				ring.MaskVec(eval.BuffInvNTT.Coeffs[i], j*pw2, mask, cw)
 				if k == 0 && i == 0 && j == 0 {
 
@@ -194,7 +194,7 @@ func (eval Evaluator) externalProductInPlaceMultipleP(levelQ, levelP int, ct0 *r
 	c0QP := ringqp.Poly{Q: c0OutQ, P: c0OutP}
 	c1QP := ringqp.Poly{Q: c1OutQ, P: c1OutP}
 
-	decompRNS := eval.params.DecompRNS(levelQ, levelP)
+	BaseRNSDecompositionVectorSize := eval.params.BaseRNSDecompositionVectorSize(levelQ, levelP)
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
@@ -214,7 +214,7 @@ func (eval Evaluator) externalProductInPlaceMultipleP(levelQ, levelP int, ct0 *r
 		}
 
 		// (a, b) + (c0 * rgsw[0][0], c0 * rgsw[0][1])
-		for i := 0; i < decompRNS; i++ {
+		for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
 
 			eval.DecomposeSingleNTT(levelQ, levelP, levelP+1, i, c2NTT, c2InvNTT, c2QP.Q, c2QP.P)
 

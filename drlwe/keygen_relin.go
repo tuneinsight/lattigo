@@ -93,14 +93,14 @@ func (ekg RelinearizationKeyGenProtocol) SampleCRP(crs CRS, evkParams ...rlwe.Ev
 
 	levelQ, levelP, BaseTwoDecomposition := rlwe.ResolveEvaluationKeysParameters(ekg.params, evkParams)
 
-	decompRNS := params.DecompRNS(levelQ, levelP)
-	decompPw2 := params.DecompPw2(levelQ, levelP, BaseTwoDecomposition)
+	BaseRNSDecompositionVectorSize := params.BaseRNSDecompositionVectorSize(levelQ, levelP)
+	BaseTwoDecompositionVectorSize := params.BaseTwoDecompositionVectorSize(levelQ, levelP, BaseTwoDecomposition)
 
 	us := ringqp.NewUniformSampler(crs, params.RingQP().AtLevel(levelQ, levelP))
 
-	m := make([][]ringqp.Poly, decompRNS)
+	m := make([][]ringqp.Poly, BaseRNSDecompositionVectorSize)
 	for i := range m {
-		vec := make([]ringqp.Poly, decompPw2[i])
+		vec := make([]ringqp.Poly, BaseTwoDecompositionVectorSize[i])
 		for j := range vec {
 			vec[j] = us.ReadNew()
 		}
@@ -148,18 +148,18 @@ func (ekg RelinearizationKeyGenProtocol) GenShareRoundOne(sk *rlwe.SecretKey, cr
 
 	c := crp.Value
 
-	decompRNS := shareOut.DecompRNS()
-	decompPw2 := shareOut.DecompPw2()
+	BaseRNSDecompositionVectorSize := shareOut.BaseRNSDecompositionVectorSize()
+	BaseTwoDecompositionVectorSize := shareOut.BaseTwoDecompositionVectorSize()
 
 	N := ringQ.N()
 
 	sampler := ekg.gaussianSamplerQ.AtLevel(levelQ)
 
 	var index int
-	for j := 0; j < utils.MaxSlice(decompPw2); j++ {
-		for i := 0; i < decompRNS; i++ {
+	for j := 0; j < utils.MaxSlice(BaseTwoDecompositionVectorSize); j++ {
+		for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
 
-			if j < decompPw2[i] {
+			if j < BaseTwoDecompositionVectorSize[i] {
 				// h = e
 				sampler.Read(shareOut.Value[i][j][0].Q)
 
@@ -224,8 +224,8 @@ func (ekg RelinearizationKeyGenProtocol) GenShareRoundTwo(ephSk, sk *rlwe.Secret
 
 	levelQ := shareOut.LevelQ()
 	levelP := shareOut.LevelP()
-	decompRNS := shareOut.DecompRNS()
-	decompPw2 := shareOut.DecompPw2()
+	BaseRNSDecompositionVectorSize := shareOut.BaseRNSDecompositionVectorSize()
+	BaseTwoDecompositionVectorSize := shareOut.BaseTwoDecompositionVectorSize()
 
 	ringQP := ekg.params.RingQP().AtLevel(levelQ, levelP)
 
@@ -236,8 +236,8 @@ func (ekg RelinearizationKeyGenProtocol) GenShareRoundTwo(ephSk, sk *rlwe.Secret
 
 	// Each sample is of the form [-u*a_i + s*w_i + e_i]
 	// So for each element of the base decomposition w_i:
-	for i := 0; i < decompRNS; i++ {
-		for j := 0; j < decompPw2[i]; j++ {
+	for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
+		for j := 0; j < BaseTwoDecompositionVectorSize[i]; j++ {
 
 			// Computes [(sum samples)*sk + e_1i, sk*a + e_2i]
 
@@ -273,13 +273,13 @@ func (ekg RelinearizationKeyGenProtocol) AggregateShares(share1, share2 Relinear
 
 	levelQ := share1.LevelQ()
 	levelP := share1.LevelP()
-	decompRNS := share1.DecompRNS()
-	decompPw2 := share1.DecompPw2()
+	BaseRNSDecompositionVectorSize := share1.BaseRNSDecompositionVectorSize()
+	BaseTwoDecompositionVectorSize := share1.BaseTwoDecompositionVectorSize()
 
 	ringQP := ekg.params.RingQP().AtLevel(levelQ, levelP)
 
-	for i := 0; i < decompRNS; i++ {
-		for j := 0; j < decompPw2[i]; j++ {
+	for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
+		for j := 0; j < BaseTwoDecompositionVectorSize[i]; j++ {
 			ringQP.Add(share1.Value[i][j][0], share2.Value[i][j][0], shareOut.Value[i][j][0])
 			ringQP.Add(share1.Value[i][j][1], share2.Value[i][j][1], shareOut.Value[i][j][1])
 		}
@@ -301,13 +301,13 @@ func (ekg RelinearizationKeyGenProtocol) GenRelinearizationKey(round1 Relineariz
 
 	levelQ := round1.LevelQ()
 	levelP := round1.LevelP()
-	decompRNS := round1.DecompRNS()
-	decompPw2 := round1.DecompPw2()
+	BaseRNSDecompositionVectorSize := round1.BaseRNSDecompositionVectorSize()
+	BaseTwoDecompositionVectorSize := round1.BaseTwoDecompositionVectorSize()
 
 	ringQP := ekg.params.RingQP().AtLevel(levelQ, levelP)
 
-	for i := 0; i < decompRNS; i++ {
-		for j := 0; j < decompPw2[i]; j++ {
+	for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
+		for j := 0; j < BaseTwoDecompositionVectorSize[i]; j++ {
 			ringQP.Add(round2.Value[i][j][0], round2.Value[i][j][1], evalKeyOut.Value[i][j][0])
 			evalKeyOut.Value[i][j][1].Copy(round1.Value[i][j][1])
 			ringQP.MForm(evalKeyOut.Value[i][j][0], evalKeyOut.Value[i][j][0])

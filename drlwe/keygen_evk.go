@@ -83,14 +83,14 @@ func (evkg EvaluationKeyGenProtocol) sampleCRP(crs CRS, levelQ, levelP, BaseTwoD
 
 	params := evkg.params
 
-	decompRNS := params.DecompRNS(levelQ, levelP)
-	decompPw2 := params.DecompPw2(levelQ, levelP, BaseTwoDecomposition)
+	BaseRNSDecompositionVectorSize := params.BaseRNSDecompositionVectorSize(levelQ, levelP)
+	BaseTwoDecompositionVectorSize := params.BaseTwoDecompositionVectorSize(levelQ, levelP, BaseTwoDecomposition)
 
 	us := ringqp.NewUniformSampler(crs, params.RingQP().AtLevel(levelQ, levelP))
 
-	m := make([][]ringqp.Poly, decompRNS)
+	m := make([][]ringqp.Poly, BaseRNSDecompositionVectorSize)
 	for i := range m {
-		vec := make([]ringqp.Poly, decompPw2[i])
+		vec := make([]ringqp.Poly, BaseTwoDecompositionVectorSize[i])
 		for j := range vec {
 			vec[j] = us.ReadNew()
 		}
@@ -114,12 +114,12 @@ func (evkg EvaluationKeyGenProtocol) GenShare(skIn, skOut *rlwe.SecretKey, crp E
 		return fmt.Errorf("cannot GenShare: min(skIn, skOut) LevelP != shareOut LevelP")
 	}
 
-	if shareOut.DecompRNS() != crp.DecompRNS() {
-		return fmt.Errorf("cannot GenSahre: crp.DecompRNS() != shareOut.DecompRNS()")
+	if shareOut.BaseRNSDecompositionVectorSize() != crp.BaseRNSDecompositionVectorSize() {
+		return fmt.Errorf("cannot GenSahre: crp.BaseRNSDecompositionVectorSize() != shareOut.BaseRNSDecompositionVectorSize()")
 	}
 
-	if !utils.EqualSlice(shareOut.DecompPw2(), crp.DecompPw2()) {
-		return fmt.Errorf("cannot GenSahre: crp.DecompPw2() != shareOut.DecompPw2()")
+	if !utils.EqualSlice(shareOut.BaseTwoDecompositionVectorSize(), crp.BaseTwoDecompositionVectorSize()) {
+		return fmt.Errorf("cannot GenSahre: crp.BaseTwoDecompositionVectorSize() != shareOut.BaseTwoDecompositionVectorSize()")
 	}
 
 	ringQP := evkg.params.RingQP().AtLevel(levelQ, levelP)
@@ -142,16 +142,16 @@ func (evkg EvaluationKeyGenProtocol) GenShare(skIn, skOut *rlwe.SecretKey, crp E
 
 	sampler := evkg.gaussianSamplerQ.AtLevel(levelQ)
 
-	decompPw2 := shareOut.DecompPw2()
-	decompRNS := shareOut.DecompRNS()
+	BaseTwoDecompositionVectorSize := shareOut.BaseTwoDecompositionVectorSize()
+	BaseRNSDecompositionVectorSize := shareOut.BaseRNSDecompositionVectorSize()
 
 	var index int
 
-	for j := 0; j < utils.MaxSlice(decompPw2); j++ {
+	for j := 0; j < utils.MaxSlice(BaseTwoDecompositionVectorSize); j++ {
 
-		for i := 0; i < decompRNS; i++ {
+		for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
 
-			if j < decompPw2[i] {
+			if j < BaseTwoDecompositionVectorSize[i] {
 
 				mij := m[i][j][0]
 
@@ -218,11 +218,11 @@ func (evkg EvaluationKeyGenProtocol) AggregateShares(share1, share2 EvaluationKe
 
 	ringQP := evkg.params.RingQP().AtLevel(levelQ, levelP)
 
-	DecompRNS := share1.DecompRNS()
-	DecompPw2 := share1.DecompPw2()
+	BaseRNSDecompositionVectorSize := share1.BaseRNSDecompositionVectorSize()
+	BaseTwoDecompositionVectorSize := share1.BaseTwoDecompositionVectorSize()
 
-	for i := 0; i < DecompRNS; i++ {
-		for j := 0; j < DecompPw2[i]; j++ {
+	for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
+		for j := 0; j < BaseTwoDecompositionVectorSize[i]; j++ {
 			ringQP.Add(m1[i][j][0], m2[i][j][0], m3[i][j][0])
 		}
 	}
@@ -244,10 +244,10 @@ func (evkg EvaluationKeyGenProtocol) GenEvaluationKey(share EvaluationKeyGenShar
 	m := share.Value
 	p := crp.Value
 
-	DecompRNS := len(m)
-	DecompPw2 := len(m[0])
-	for i := 0; i < DecompRNS; i++ {
-		for j := 0; j < DecompPw2; j++ {
+	BaseRNSDecompositionVectorSize := len(m)
+	BaseTwoDecompositionVectorSize := len(m[0])
+	for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
+		for j := 0; j < BaseTwoDecompositionVectorSize; j++ {
 			evk.Value[i][j][0].Copy(m[i][j][0])
 			evk.Value[i][j][1].Copy(p[i][j])
 		}
@@ -271,8 +271,8 @@ func (crp EvaluationKeyGenCRP) LevelP() int {
 	return crp.Value[0][0].LevelP()
 }
 
-// DecompPw2 returns the number of element in the Power of two decomposition basis for each prime of Q.
-func (crp EvaluationKeyGenCRP) DecompPw2() (base []int) {
+// BaseTwoDecompositionVectorSize returns the number of element in the Power of two decomposition basis for each prime of Q.
+func (crp EvaluationKeyGenCRP) BaseTwoDecompositionVectorSize() (base []int) {
 	base = make([]int, len(crp.Value))
 	for i := range crp.Value {
 		base[i] = len(crp.Value[i])
@@ -280,8 +280,8 @@ func (crp EvaluationKeyGenCRP) DecompPw2() (base []int) {
 	return
 }
 
-// DecompRNS returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
-func (crp EvaluationKeyGenCRP) DecompRNS() int {
+// BaseRNSDecompositionVectorSize returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)
+func (crp EvaluationKeyGenCRP) BaseRNSDecompositionVectorSize() int {
 	return len(crp.Value)
 }
 

@@ -216,9 +216,9 @@ func testRelinearizationKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int
 		rlk := rlwe.NewRelinearizationKey(params, evkParams)
 		rkg[0].GenRelinearizationKey(share1[0], share2[0], rlk)
 
-		decompRNS := params.DecompRNS(levelQ, levelP)
+		BaseRNSDecompositionVectorSize := params.BaseRNSDecompositionVectorSize(levelQ, levelP)
 
-		noiseBound := math.Log2(math.Sqrt(float64(decompRNS))*NoiseRelinearizationKey(params, nbParties)) + 1
+		noiseBound := math.Log2(math.Sqrt(float64(BaseRNSDecompositionVectorSize))*NoiseRelinearizationKey(params, nbParties)) + 1
 
 		require.GreaterOrEqual(t, noiseBound, rlwe.NoiseRelinearizationKey(rlk, tc.skIdeal, params))
 	})
@@ -271,9 +271,9 @@ func testEvaluationKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *
 		evk := rlwe.NewEvaluationKey(params, evkParams)
 		evkg[0].GenEvaluationKey(shares[0], crp, evk)
 
-		decompRNS := params.DecompRNS(levelQ, levelP)
+		BaseRNSDecompositionVectorSize := params.BaseRNSDecompositionVectorSize(levelQ, levelP)
 
-		noiseBound := math.Log2(math.Sqrt(float64(decompRNS))*NoiseEvaluationKey(params, nbParties)) + 1
+		noiseBound := math.Log2(math.Sqrt(float64(BaseRNSDecompositionVectorSize))*NoiseEvaluationKey(params, nbParties)) + 1
 
 		require.GreaterOrEqual(t, noiseBound, rlwe.NoiseEvaluationKey(evk, tc.skIdeal, skOutIdeal, params))
 	})
@@ -319,9 +319,9 @@ func testGaloisKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *test
 		galoisKey := rlwe.NewGaloisKey(params, evkParams)
 		gkg[0].GenGaloisKey(shares[0], crp, galoisKey)
 
-		decompRNS := params.DecompRNS(levelQ, levelP)
+		BaseRNSDecompositionVectorSize := params.BaseRNSDecompositionVectorSize(levelQ, levelP)
 
-		noiseBound := math.Log2(math.Sqrt(float64(decompRNS))*NoiseGaloisKey(params, nbParties)) + 1
+		noiseBound := math.Log2(math.Sqrt(float64(BaseRNSDecompositionVectorSize))*NoiseGaloisKey(params, nbParties)) + 1
 
 		require.GreaterOrEqual(t, noiseBound, rlwe.NoiseGaloisKey(galoisKey, tc.skIdeal, params))
 	})

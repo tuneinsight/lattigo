@@ -77,15 +77,15 @@ func (enc Encryptor) EncryptZero(ct interface{}) (err error) {
 		return enc.Encryptor.EncryptZero(ct)
 	}
 
-	decompRNS := rgswCt.Value[0].DecompRNS()
-	decompPw2 := rgswCt.Value[0].DecompPw2()
+	BaseRNSDecompositionVectorSize := rgswCt.Value[0].BaseRNSDecompositionVectorSize()
+	BaseTwoDecompositionVectorSize := rgswCt.Value[0].BaseTwoDecompositionVectorSize()
 
 	metadata := &rlwe.MetaData{}
 	metadata.IsMontgomery = true
 	metadata.IsNTT = true
 
-	for i := 0; i < decompRNS; i++ {
-		for j := 0; j < decompPw2[i]; j++ {
+	for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
+		for j := 0; j < BaseTwoDecompositionVectorSize[i]; j++ {
 
 			if err = enc.Encryptor.EncryptZero(rlwe.Operand[ringqp.Poly]{MetaData: metadata, Value: []ringqp.Poly(rgswCt.Value[0].Value[i][j])}); err != nil {
 				return

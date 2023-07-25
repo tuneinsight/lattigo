@@ -34,7 +34,7 @@ type evaluatorBuffers struct {
 func newEvaluatorBuffers(params Parameters) *evaluatorBuffers {
 
 	buff := new(evaluatorBuffers)
-	decompRNS := params.DecompRNS(params.MaxLevelQ(), 0)
+	BaseRNSDecompositionVectorSize := params.BaseRNSDecompositionVectorSize(params.MaxLevelQ(), 0)
 	ringQP := params.RingQP()
 
 	buff.BuffCt = NewCiphertext(params, 2, params.MaxLevel())
@@ -50,8 +50,8 @@ func newEvaluatorBuffers(params Parameters) *evaluatorBuffers {
 
 	buff.BuffInvNTT = params.RingQ().NewPoly()
 
-	buff.BuffDecompQP = make([]ringqp.Poly, decompRNS)
-	for i := 0; i < decompRNS; i++ {
+	buff.BuffDecompQP = make([]ringqp.Poly, BaseRNSDecompositionVectorSize)
+	for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
 		buff.BuffDecompQP[i] = ringQP.NewPoly()
 	}
 

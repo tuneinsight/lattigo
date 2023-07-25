@@ -28,12 +28,12 @@ func NewGadgetCiphertext(params GetRLWEParameters, Degree, LevelQ, LevelP, BaseT
 
 	p := params.GetRLWEParameters()
 
-	decompRNS := p.DecompRNS(LevelQ, LevelP)
-	decompPw2 := p.DecompPw2(LevelQ, LevelP, BaseTwoDecomposition)
+	BaseRNSDecompositionVectorSize := p.BaseRNSDecompositionVectorSize(LevelQ, LevelP)
+	BaseTwoDecompositionVectorSize := p.BaseTwoDecompositionVectorSize(LevelQ, LevelP, BaseTwoDecomposition)
 
-	m := make(structs.Matrix[vectorQP], decompRNS)
-	for i := 0; i < decompRNS; i++ {
-		m[i] = make([]vectorQP, decompPw2[i])
+	m := make(structs.Matrix[vectorQP], BaseRNSDecompositionVectorSize)
+	for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
+		m[i] = make([]vectorQP, BaseTwoDecompositionVectorSize[i])
 		for j := range m[i] {
 			m[i][j] = newVectorQP(params, Degree+1, LevelQ, LevelP)
 		}
@@ -52,13 +52,13 @@ func (ct GadgetCiphertext) LevelP() int {
 	return ct.Value[0][0][0].LevelP()
 }
 
-// DecompRNS returns the number of element in the RNS decomposition basis.
-func (ct GadgetCiphertext) DecompRNS() int {
+// BaseRNSDecompositionVectorSize returns the number of element in the RNS decomposition basis.
+func (ct GadgetCiphertext) BaseRNSDecompositionVectorSize() int {
 	return len(ct.Value)
 }
 
-// DecompPw2 returns the number of element in the Power of two decomposition basis for each prime of Q.
-func (ct GadgetCiphertext) DecompPw2() (base []int) {
+// BaseTwoDecompositionVectorSize returns the number of element in the Power of two decomposition basis for each prime of Q.
+func (ct GadgetCiphertext) BaseTwoDecompositionVectorSize() (base []int) {
 	base = make([]int, len(ct.Value))
 	for i := range ct.Value {
 		base[i] = len(ct.Value[i])
@@ -183,21 +183,21 @@ func AddPolyTimesGadgetVectorToGadgetCiphertext(pt ring.Poly, cts []GadgetCipher
 		}
 	}
 
-	decompRNS := len(cts[0].Value)
+	BaseRNSDecompositionVectorSize := len(cts[0].Value)
 
-	decompPw2 := make([]int, len(cts[0].Value))
-	for i := range decompPw2 {
-		decompPw2[i] = len(cts[0].Value[i])
+	BaseTwoDecompositionVectorSize := make([]int, len(cts[0].Value))
+	for i := range BaseTwoDecompositionVectorSize {
+		BaseTwoDecompositionVectorSize[i] = len(cts[0].Value[i])
 	}
 
 	N := ringQ.N()
 
 	var index int
-	for j := 0; j < utils.MaxSlice(decompPw2); j++ {
+	for j := 0; j < utils.MaxSlice(BaseTwoDecompositionVectorSize); j++ {
 
-		for i := 0; i < decompRNS; i++ {
+		for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
 
-			if j < decompPw2[i] {
+			if j < BaseTwoDecompositionVectorSize[i] {
 
 				// e + (m * P * w^2j) * (q_star * q_tild) mod QP
 				//
@@ -247,10 +247,10 @@ func NewGadgetPlaintext(params Parameters, value interface{}, levelQ, levelP, ba
 
 	ringQ := params.RingQP().RingQ.AtLevel(levelQ)
 
-	decompPw2 := utils.MaxSlice(params.DecompPw2(levelQ, levelP, baseTwoDecomposition))
+	BaseTwoDecompositionVectorSize := utils.MaxSlice(params.BaseTwoDecompositionVectorSize(levelQ, levelP, baseTwoDecomposition))
 
 	pt = new(GadgetPlaintext)
-	pt.Value = make([]ring.Poly, decompPw2)
+	pt.Value = make([]ring.Poly, BaseTwoDecompositionVectorSize)
 
 	switch el := value.(type) {
 	case uint64:

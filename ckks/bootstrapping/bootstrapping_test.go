@@ -28,7 +28,7 @@ func ParamsToString(params ckks.Parameters, LogSlots int, opname string) string 
 		params.LogQP(),
 		params.MaxLevel()+1,
 		params.PCount(),
-		params.DecompRNS(params.MaxLevelQ(), params.MaxLevelP()))
+		params.BaseRNSDecompositionVectorSize(params.MaxLevelQ(), params.MaxLevelP()))
 }
 
 func TestBootstrapParametersMarshalling(t *testing.T) {

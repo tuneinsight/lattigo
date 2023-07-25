@@ -131,7 +131,7 @@ func (eval Evaluator) gadgetProductMultiplePLazy(levelQ int, cx ring.Poly, gadge
 		ringQ.NTT(cxInvNTT, cxNTT)
 	}
 
-	decompRNS := eval.params.DecompRNS(levelQ, levelP)
+	BaseRNSDecompositionVectorSize := eval.params.BaseRNSDecompositionVectorSize(levelQ, levelP)
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
@@ -140,7 +140,7 @@ func (eval Evaluator) gadgetProductMultiplePLazy(levelQ int, cx ring.Poly, gadge
 
 	// Re-encryption with CRT decomposition for the Qi
 	var reduce int
-	for i := 0; i < decompRNS; i++ {
+	for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
 
 		eval.DecomposeSingleNTT(levelQ, levelP, levelP+1, i, cxNTT, cxInvNTT, c2QP.Q, c2QP.P)
 
@@ -195,8 +195,8 @@ func (eval Evaluator) gadgetProductSinglePAndBitDecompLazy(levelQ int, cx ring.P
 
 	pw2 := gadgetCt.BaseTwoDecomposition
 
-	decompRNS := levelQ + 1
-	decompPw2 := gadgetCt.DecompPw2()
+	BaseRNSDecompositionVectorSize := levelQ + 1
+	BaseTwoDecompositionVectorSize := gadgetCt.BaseTwoDecompositionVectorSize()
 
 	mask := uint64(((1 << pw2) - 1))
 
@@ -214,8 +214,8 @@ func (eval Evaluator) gadgetProductSinglePAndBitDecompLazy(levelQ int, cx ring.P
 
 	// Re-encryption with CRT decomposition for the Qi
 	var reduce int
-	for i := 0; i < decompRNS; i++ {
-		for j := 0; j < decompPw2[i]; j++ {
+	for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
+		for j := 0; j < BaseTwoDecompositionVectorSize[i]; j++ {
 
 			ring.MaskVec(cxInvNTT.Coeffs[i], j*pw2, mask, cw)
 
@@ -332,14 +332,14 @@ func (eval Evaluator) gadgetProductMultiplePLazyHoisted(levelQ int, BuffQPDecomp
 	c0QP := ct.Value[0]
 	c1QP := ct.Value[1]
 
-	decompRNS := eval.params.DecompRNS(levelQ, levelP)
+	BaseRNSDecompositionVectorSize := eval.params.BaseRNSDecompositionVectorSize(levelQ, levelP)
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
 
 	// Key switching with CRT decomposition for the Qi
 	var reduce int
-	for i := 0; i < decompRNS; i++ {
+	for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
 
 		gct := gadgetCt.Value[i][0]
 
@@ -395,22 +395,22 @@ func (eval Evaluator) DecomposeNTT(levelQ, levelP, nbPi int, c2 ring.Poly, c2IsN
 		ringQ.NTT(polyInvNTT, polyNTT)
 	}
 
-	decompRNS := eval.params.DecompRNS(levelQ, levelP)
-	for i := 0; i < decompRNS; i++ {
+	BaseRNSDecompositionVectorSize := eval.params.BaseRNSDecompositionVectorSize(levelQ, levelP)
+	for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
 		eval.DecomposeSingleNTT(levelQ, levelP, nbPi, i, polyNTT, polyInvNTT, decompQP[i].Q, decompQP[i].P)
 	}
 }
 
 // DecomposeSingleNTT takes the input polynomial c2 (c2NTT and c2InvNTT, respectively in the NTT and out of the NTT domain)
 // modulo the RNS basis, and returns the result on c2QiQ and c2QiP, the receiver polynomials respectively mod Q and mod P (in the NTT domain)
-func (eval Evaluator) DecomposeSingleNTT(levelQ, levelP, nbPi, decompRNS int, c2NTT, c2InvNTT, c2QiQ, c2QiP ring.Poly) {
+func (eval Evaluator) DecomposeSingleNTT(levelQ, levelP, nbPi, BaseRNSDecompositionVectorSize int, c2NTT, c2InvNTT, c2QiQ, c2QiP ring.Poly) {
 
 	ringQ := eval.params.RingQ().AtLevel(levelQ)
 	ringP := eval.params.RingP().AtLevel(levelP)
 
-	eval.Decomposer.DecomposeAndSplit(levelQ, levelP, nbPi, decompRNS, c2InvNTT, c2QiQ, c2QiP)
+	eval.Decomposer.DecomposeAndSplit(levelQ, levelP, nbPi, BaseRNSDecompositionVectorSize, c2InvNTT, c2QiQ, c2QiP)
 
-	p0idxst := decompRNS * nbPi
+	p0idxst := BaseRNSDecompositionVectorSize * nbPi
 	p0idxed := p0idxst + nbPi
 
 	// c2_qi = cx mod qi mod qi
@@ -433,10 +433,10 @@ type DecompositionBuffer [][]ringqp.Poly
 
 func (eval Evaluator) ALlocateDecompositionBuffer(levelQ, levelP, Pow2Base int) (DecompositionBuffer){
 
-	decompQP := make([][]ringqp.Poly, decompRNS)
-	for i := 0; i < decompRNS; i++ {
+	decompQP := make([][]ringqp.Poly, BaseRNSDecompositionVectorSize)
+	for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
 
-		for j := 0; j < decompPw2; j++{
+		for j := 0; j < BaseTwoDecompositionVectorSize; j++{
 			DecompositionBuffer[i][j] = ringQP.NewPoly()
 		}
 	}

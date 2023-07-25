@@ -331,21 +331,21 @@ func NewDecomposer(ringQ, ringP *Ring) (decomposer *Decomposer) {
 		P := P[:lvlP+2]
 
 		nbPi := len(P)
-		decompRNS := int(math.Ceil(float64(len(Q)) / float64(nbPi)))
+		BaseRNSDecompositionVectorSize := int(math.Ceil(float64(len(Q)) / float64(nbPi)))
 
-		xnbPi := make([]int, decompRNS)
+		xnbPi := make([]int, BaseRNSDecompositionVectorSize)
 		for i := range xnbPi {
 			xnbPi[i] = nbPi
 		}
 
 		if len(Q)%nbPi != 0 {
-			xnbPi[decompRNS-1] = len(Q) % nbPi
+			xnbPi[BaseRNSDecompositionVectorSize-1] = len(Q) % nbPi
 		}
 
-		decomposer.ModUpConstants[lvlP] = make([][]ModUpConstants, decompRNS)
+		decomposer.ModUpConstants[lvlP] = make([][]ModUpConstants, BaseRNSDecompositionVectorSize)
 
 		// Create ModUpConstants for each possible combination of [Qi,Pj] according to xnbPi
-		for i := 0; i < decompRNS; i++ {
+		for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
 
 			decomposer.ModUpConstants[lvlP][i] = make([]ModUpConstants, xnbPi[i]-1)
 
@@ -374,17 +374,17 @@ func NewDecomposer(ringQ, ringP *Ring) (decomposer *Decomposer) {
 
 // DecomposeAndSplit decomposes a polynomial p(x) in basis Q, reduces it modulo qi, and returns
 // the result in basis QP separately.
-func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, decompRNS int, p0Q, p1Q, p1P Poly) {
+func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, BaseRNSDecompositionVectorSize int, p0Q, p1Q, p1P Poly) {
 
 	ringQ := decomposer.ringQ.AtLevel(levelQ)
 	ringP := decomposer.ringP.AtLevel(levelP)
 
 	N := ringQ.N()
 
-	lvlQStart := decompRNS * nbPi
+	lvlQStart := BaseRNSDecompositionVectorSize * nbPi
 
 	var decompLvl int
-	if levelQ > nbPi*(decompRNS+1)-1 {
+	if levelQ > nbPi*(BaseRNSDecompositionVectorSize+1)-1 {
 		decompLvl = nbPi - 2
 	} else {
 		decompLvl = (levelQ % nbPi) - 1
@@ -424,14 +424,14 @@ func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, decompRNS 
 		// Otherwise, we apply a fast exact base conversion for the reconstruction
 	} else {
 
-		p0idxst := decompRNS * nbPi
+		p0idxst := BaseRNSDecompositionVectorSize * nbPi
 		p0idxed := p0idxst + nbPi
 
 		if p0idxed > levelQ+1 {
 			p0idxed = levelQ + 1
 		}
 
-		MUC := decomposer.ModUpConstants[nbPi-2][decompRNS][decompLvl]
+		MUC := decomposer.ModUpConstants[nbPi-2][BaseRNSDecompositionVectorSize][decompLvl]
 
 		var v, rlo, rhi [8]uint64
 		var vi [8]float64

@@ -6,6 +6,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 	"github.com/tuneinsight/lattigo/v4/utils/structs"
 )
@@ -99,7 +100,7 @@ func (ekg RelinearizationKeyGenProtocol) SampleCRP(crs CRS, evkParams ...rlwe.Ev
 
 	m := make([][]ringqp.Poly, decompRNS)
 	for i := range m {
-		vec := make([]ringqp.Poly, decompPw2)
+		vec := make([]ringqp.Poly, decompPw2[i])
 		for j := range vec {
 			vec[j] = us.ReadNew()
 		}
@@ -155,50 +156,53 @@ func (ekg RelinearizationKeyGenProtocol) GenShareRoundOne(sk *rlwe.SecretKey, cr
 	sampler := ekg.gaussianSamplerQ.AtLevel(levelQ)
 
 	var index int
-	for j := 0; j < decompPw2; j++ {
+	for j := 0; j < utils.MaxSlice(decompPw2); j++ {
 		for i := 0; i < decompRNS; i++ {
-			// h = e
-			sampler.Read(shareOut.Value[i][j][0].Q)
 
-			if hasModulusP {
-				ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][j][0].Q, levelP, shareOut.Value[i][j][0].Q, shareOut.Value[i][j][0].P)
-			}
+			if j < decompPw2[i] {
+				// h = e
+				sampler.Read(shareOut.Value[i][j][0].Q)
 
-			ringQP.NTT(shareOut.Value[i][j][0], shareOut.Value[i][j][0])
-
-			// h = sk*CrtBaseDecompQi + e
-			for k := 0; k < levelP+1; k++ {
-
-				index = i*(levelP+1) + k
-
-				// Handles the case where nb pj does not divides nb qi
-				if index >= levelQ+1 {
-					break
+				if hasModulusP {
+					ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][j][0].Q, levelP, shareOut.Value[i][j][0].Q, shareOut.Value[i][j][0].P)
 				}
 
-				qi := ringQ.SubRings[index].Modulus
-				skP := ekg.buf[0].Q.Coeffs[index]
-				h := shareOut.Value[i][j][0].Q.Coeffs[index]
+				ringQP.NTT(shareOut.Value[i][j][0], shareOut.Value[i][j][0])
 
-				for w := 0; w < N; w++ {
-					h[w] = ring.CRed(h[w]+skP[w], qi)
+				// h = sk*CrtBaseDecompQi + e
+				for k := 0; k < levelP+1; k++ {
+
+					index = i*(levelP+1) + k
+
+					// Handles the case where nb pj does not divides nb qi
+					if index >= levelQ+1 {
+						break
+					}
+
+					qi := ringQ.SubRings[index].Modulus
+					skP := ekg.buf[0].Q.Coeffs[index]
+					h := shareOut.Value[i][j][0].Q.Coeffs[index]
+
+					for w := 0; w < N; w++ {
+						h[w] = ring.CRed(h[w]+skP[w], qi)
+					}
 				}
+
+				// h = sk*CrtBaseDecompQi + -u*a + e
+				ringQP.MulCoeffsMontgomeryThenSub(ephSkOut.Value, c[i][j], shareOut.Value[i][j][0])
+
+				// Second Element
+				// e_2i
+				sampler.Read(shareOut.Value[i][j][1].Q)
+
+				if hasModulusP {
+					ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][j][1].Q, levelP, shareOut.Value[i][j][1].Q, shareOut.Value[i][j][1].P)
+				}
+
+				ringQP.NTT(shareOut.Value[i][j][1], shareOut.Value[i][j][1])
+				// s*a + e_2i
+				ringQP.MulCoeffsMontgomeryThenAdd(sk.Value, c[i][j], shareOut.Value[i][j][1])
 			}
-
-			// h = sk*CrtBaseDecompQi + -u*a + e
-			ringQP.MulCoeffsMontgomeryThenSub(ephSkOut.Value, c[i][j], shareOut.Value[i][j][0])
-
-			// Second Element
-			// e_2i
-			sampler.Read(shareOut.Value[i][j][1].Q)
-
-			if hasModulusP {
-				ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][j][1].Q, levelP, shareOut.Value[i][j][1].Q, shareOut.Value[i][j][1].P)
-			}
-
-			ringQP.NTT(shareOut.Value[i][j][1], shareOut.Value[i][j][1])
-			// s*a + e_2i
-			ringQP.MulCoeffsMontgomeryThenAdd(sk.Value, c[i][j], shareOut.Value[i][j][1])
 		}
 
 		ringQ.MulScalar(ekg.buf[0].Q, 1<<shareOut.BaseTwoDecomposition, ekg.buf[0].Q)
@@ -233,7 +237,7 @@ func (ekg RelinearizationKeyGenProtocol) GenShareRoundTwo(ephSk, sk *rlwe.Secret
 	// Each sample is of the form [-u*a_i + s*w_i + e_i]
 	// So for each element of the base decomposition w_i:
 	for i := 0; i < decompRNS; i++ {
-		for j := 0; j < decompPw2; j++ {
+		for j := 0; j < decompPw2[i]; j++ {
 
 			// Computes [(sum samples)*sk + e_1i, sk*a + e_2i]
 
@@ -275,7 +279,7 @@ func (ekg RelinearizationKeyGenProtocol) AggregateShares(share1, share2 Relinear
 	ringQP := ekg.params.RingQP().AtLevel(levelQ, levelP)
 
 	for i := 0; i < decompRNS; i++ {
-		for j := 0; j < decompPw2; j++ {
+		for j := 0; j < decompPw2[i]; j++ {
 			ringQP.Add(share1.Value[i][j][0], share2.Value[i][j][0], shareOut.Value[i][j][0])
 			ringQP.Add(share1.Value[i][j][1], share2.Value[i][j][1], shareOut.Value[i][j][1])
 		}
@@ -303,7 +307,7 @@ func (ekg RelinearizationKeyGenProtocol) GenRelinearizationKey(round1 Relineariz
 	ringQP := ekg.params.RingQP().AtLevel(levelQ, levelP)
 
 	for i := 0; i < decompRNS; i++ {
-		for j := 0; j < decompPw2; j++ {
+		for j := 0; j < decompPw2[i]; j++ {
 			ringQP.Add(round2.Value[i][j][0], round2.Value[i][j][1], evalKeyOut.Value[i][j][0])
 			evalKeyOut.Value[i][j][1].Copy(round1.Value[i][j][1])
 			ringQP.MForm(evalKeyOut.Value[i][j][0], evalKeyOut.Value[i][j][0])

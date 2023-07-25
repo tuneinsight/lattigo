@@ -54,7 +54,7 @@ func NoiseGadgetCiphertext(gct *GadgetCiphertext, pt ring.Poly, sk *SecretKey, p
 	levelQ, levelP := gct.LevelQ(), gct.LevelP()
 	ringQP := params.RingQP().AtLevel(levelQ, levelP)
 	ringQ, ringP := ringQP.RingQ, ringQP.RingP
-	decompPw2 := params.DecompPw2(levelQ, levelP, gct.BaseTwoDecomposition)
+	decompPw2 := utils.MinSlice(gct.DecompPw2()) // required else the check becomes very complicated
 
 	// Decrypts
 	// [-asIn + w*P*sOut + e, a] + [asIn]

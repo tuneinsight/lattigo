@@ -90,7 +90,7 @@ func (evkg EvaluationKeyGenProtocol) sampleCRP(crs CRS, levelQ, levelP, BaseTwoD
 
 	m := make([][]ringqp.Poly, decompRNS)
 	for i := range m {
-		vec := make([]ringqp.Poly, decompPw2)
+		vec := make([]ringqp.Poly, decompPw2[i])
 		for j := range vec {
 			vec[j] = us.ReadNew()
 		}
@@ -118,7 +118,7 @@ func (evkg EvaluationKeyGenProtocol) GenShare(skIn, skOut *rlwe.SecretKey, crp E
 		return fmt.Errorf("cannot GenSahre: crp.DecompRNS() != shareOut.DecompRNS()")
 	}
 
-	if shareOut.DecompPw2() != crp.DecompPw2() {
+	if !utils.EqualSlice(shareOut.DecompPw2(), crp.DecompPw2()) {
 		return fmt.Errorf("cannot GenSahre: crp.DecompPw2() != shareOut.DecompPw2()")
 	}
 
@@ -142,46 +142,54 @@ func (evkg EvaluationKeyGenProtocol) GenShare(skIn, skOut *rlwe.SecretKey, crp E
 
 	sampler := evkg.gaussianSamplerQ.AtLevel(levelQ)
 
+	decompPw2 := shareOut.DecompPw2()
+	decompRNS := shareOut.DecompRNS()
+
 	var index int
-	for j := 0; j < shareOut.DecompPw2(); j++ {
-		for i := 0; i < shareOut.DecompRNS(); i++ {
 
-			mij := m[i][j][0]
+	for j := 0; j < utils.MaxSlice(decompPw2); j++ {
 
-			// e
-			sampler.Read(mij.Q)
+		for i := 0; i < decompRNS; i++ {
 
-			if hasModulusP {
-				ringQP.ExtendBasisSmallNormAndCenter(mij.Q, levelP, mij.Q, mij.P)
-			}
+			if j < decompPw2[i] {
 
-			ringQP.NTTLazy(mij, mij)
-			ringQP.MForm(mij, mij)
+				mij := m[i][j][0]
 
-			// a is the CRP
+				// e
+				sampler.Read(mij.Q)
 
-			// e + sk_in * (qiBarre*qiStar) * 2^w
-			// (qiBarre*qiStar)%qi = 1, else 0
-			for k := 0; k < levelP+1; k++ {
-
-				index = i*(levelP+1) + k
-
-				// Handles the case where nb pj does not divides nb qi
-				if index >= levelQ+1 {
-					break
+				if hasModulusP {
+					ringQP.ExtendBasisSmallNormAndCenter(mij.Q, levelP, mij.Q, mij.P)
 				}
 
-				qi := ringQ.SubRings[index].Modulus
-				tmp0 := evkg.buff[0].Q.Coeffs[index]
-				tmp1 := mij.Q.Coeffs[index]
+				ringQP.NTTLazy(mij, mij)
+				ringQP.MForm(mij, mij)
 
-				for w := 0; w < N; w++ {
-					tmp1[w] = ring.CRed(tmp1[w]+tmp0[w], qi)
+				// a is the CRP
+
+				// e + sk_in * (qiBarre*qiStar) * 2^w
+				// (qiBarre*qiStar)%qi = 1, else 0
+				for k := 0; k < levelP+1; k++ {
+
+					index = i*(levelP+1) + k
+
+					// Handles the case where nb pj does not divides nb qi
+					if index >= levelQ+1 {
+						break
+					}
+
+					qi := ringQ.SubRings[index].Modulus
+					tmp0 := evkg.buff[0].Q.Coeffs[index]
+					tmp1 := mij.Q.Coeffs[index]
+
+					for w := 0; w < N; w++ {
+						tmp1[w] = ring.CRed(tmp1[w]+tmp0[w], qi)
+					}
 				}
-			}
 
-			// sk_in * (qiBarre*qiStar) * 2^w - a*sk + e
-			ringQP.MulCoeffsMontgomeryThenSub(c[i][j], skOut.Value, mij)
+				// sk_in * (qiBarre*qiStar) * 2^w - a*sk + e
+				ringQP.MulCoeffsMontgomeryThenSub(c[i][j], skOut.Value, mij)
+			}
 		}
 
 		ringQ.MulScalar(evkg.buff[0].Q, 1<<shareOut.BaseTwoDecomposition, evkg.buff[0].Q)
@@ -214,7 +222,7 @@ func (evkg EvaluationKeyGenProtocol) AggregateShares(share1, share2 EvaluationKe
 	DecompPw2 := share1.DecompPw2()
 
 	for i := 0; i < DecompRNS; i++ {
-		for j := 0; j < DecompPw2; j++ {
+		for j := 0; j < DecompPw2[i]; j++ {
 			ringQP.Add(m1[i][j][0], m2[i][j][0], m3[i][j][0])
 		}
 	}
@@ -263,9 +271,13 @@ func (crp EvaluationKeyGenCRP) LevelP() int {
 	return crp.Value[0][0].LevelP()
 }
 
-// DecompPw2 returns ceil(p.MaxBitQ(levelQ, levelP)/DecompPw2).
-func (crp EvaluationKeyGenCRP) DecompPw2() int {
-	return len(crp.Value[0])
+// DecompPw2 returns the number of element in the Power of two decomposition basis for each prime of Q.
+func (crp EvaluationKeyGenCRP) DecompPw2() (base []int) {
+	base = make([]int, len(crp.Value))
+	for i := range crp.Value {
+		base[i] = len(crp.Value[i])
+	}
+	return
 }
 
 // DecompRNS returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)

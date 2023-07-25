@@ -215,7 +215,7 @@ func (eval Evaluator) gadgetProductSinglePAndBitDecompLazy(levelQ int, cx ring.P
 	// Re-encryption with CRT decomposition for the Qi
 	var reduce int
 	for i := 0; i < decompRNS; i++ {
-		for j := 0; j < decompPw2; j++ {
+		for j := 0; j < decompPw2[i]; j++ {
 
 			ring.MaskVec(cxInvNTT.Coeffs[i], j*pw2, mask, cw)
 

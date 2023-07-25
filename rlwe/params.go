@@ -436,12 +436,32 @@ func (p Parameters) LogQ() (logq float64) {
 	return p.ringQ.LogModuli()
 }
 
+// LogQi returns the bit-size of each primes of the modulus Q.
+func (p Parameters) LogQi() (logqi []int) {
+	qi := p.Q()
+	logqi = make([]int, len(qi))
+	for i := range qi {
+		logqi[i] = bits.Len64(qi[i])
+	}
+	return
+}
+
 // LogP returns the size of the extended modulus P in bits
 func (p Parameters) LogP() (logp float64) {
 	if p.ringP == nil {
 		return 0
 	}
 	return p.ringP.LogModuli()
+}
+
+// LogPi returns the bit-size of each primes of the modulus P.
+func (p Parameters) LogPi() (logpi []int) {
+	pi := p.Q()
+	logpi = make([]int, len(pi))
+	for i := range pi {
+		logpi[i] = bits.Len64(pi[i])
+	}
+	return
 }
 
 // LogQP returns the size of the extended modulus QP in bits
@@ -464,13 +484,25 @@ func (p Parameters) MaxBit(levelQ, levelP int) (c int) {
 	return
 }
 
-// DecompPw2 returns ceil(p.MaxBitQ(levelQ, levelP)/Base2Decomposition).
-func (p Parameters) DecompPw2(levelQ, levelP, Base2Decomposition int) (c int) {
+// DecompPw2 returns ceil(bits(qi))/Base2Decomposition for each qi.
+// If levelP > 0 or Base2Decomposition == 0, then returns 1 for all qi.
+func (p Parameters) DecompPw2(levelQ, levelP, Base2Decomposition int) (base []int) {
+
+	logqi := p.LogQi()
+
+	base = make([]int, len(logqi))
+
 	if Base2Decomposition == 0 || levelP > 0 {
-		return 1
+		for i := range base {
+			base[i] = 1
+		}
+	} else {
+		for i := range base {
+			base[i] = (logqi[i] + Base2Decomposition - 1) / Base2Decomposition
+		}
 	}
 
-	return (p.MaxBit(levelQ, levelP) + Base2Decomposition - 1) / Base2Decomposition
+	return
 }
 
 // DecompRNS returns the number of element in the RNS decomposition basis: Ceil(lenQi / lenPi)

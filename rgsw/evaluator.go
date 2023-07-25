@@ -143,7 +143,7 @@ func (eval Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Cipher
 		cw := eval.BuffQP[0].Q.Coeffs[0]
 		cwNTT := eval.BuffBitDecomp
 		for i := 0; i < decompRNS; i++ {
-			for j := 0; j < decompPw2; j++ {
+			for j := 0; j < decompPw2[i]; j++ {
 				ring.MaskVec(eval.BuffInvNTT.Coeffs[i], j*pw2, mask, cw)
 				if k == 0 && i == 0 && j == 0 {
 

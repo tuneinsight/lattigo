@@ -84,8 +84,8 @@ func (enc Encryptor) EncryptZero(ct interface{}) (err error) {
 	metadata.IsMontgomery = true
 	metadata.IsNTT = true
 
-	for j := 0; j < decompPw2; j++ {
-		for i := 0; i < decompRNS; i++ {
+	for i := 0; i < decompRNS; i++ {
+		for j := 0; j < decompPw2[i]; j++ {
 
 			if err = enc.Encryptor.EncryptZero(rlwe.Operand[ringqp.Poly]{MetaData: metadata, Value: []ringqp.Poly(rgswCt.Value[0].Value[i][j])}); err != nil {
 				return

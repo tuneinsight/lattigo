@@ -33,7 +33,7 @@ func NewGadgetCiphertext(params GetRLWEParameters, Degree, LevelQ, LevelP, BaseT
 
 	m := make(structs.Matrix[vectorQP], decompRNS)
 	for i := 0; i < decompRNS; i++ {
-		m[i] = make([]vectorQP, decompPw2)
+		m[i] = make([]vectorQP, decompPw2[i])
 		for j := range m[i] {
 			m[i][j] = newVectorQP(params, Degree+1, LevelQ, LevelP)
 		}
@@ -57,9 +57,13 @@ func (ct GadgetCiphertext) DecompRNS() int {
 	return len(ct.Value)
 }
 
-// DecompPw2 returns the number of element in the Power of two decomposition basis.
-func (ct GadgetCiphertext) DecompPw2() int {
-	return len(ct.Value[0])
+// DecompPw2 returns the number of element in the Power of two decomposition basis for each prime of Q.
+func (ct GadgetCiphertext) DecompPw2() (base []int) {
+	base = make([]int, len(ct.Value))
+	for i := range ct.Value {
+		base[i] = len(ct.Value[i])
+	}
+	return
 }
 
 // Equal checks two Ciphertexts for equality.
@@ -179,40 +183,49 @@ func AddPolyTimesGadgetVectorToGadgetCiphertext(pt ring.Poly, cts []GadgetCipher
 		}
 	}
 
-	RNSDecomp := len(cts[0].Value)
-	BITDecomp := len(cts[0].Value[0])
+	decompRNS := len(cts[0].Value)
+
+	decompPw2 := make([]int, len(cts[0].Value))
+	for i := range decompPw2 {
+		decompPw2[i] = len(cts[0].Value[i])
+	}
+
 	N := ringQ.N()
 
 	var index int
-	for j := 0; j < BITDecomp; j++ {
-		for i := 0; i < RNSDecomp; i++ {
+	for j := 0; j < utils.MaxSlice(decompPw2); j++ {
 
-			// e + (m * P * w^2j) * (q_star * q_tild) mod QP
-			//
-			// q_prod = prod(q[i*#Pi+j])
-			// q_star = Q/qprod
-			// q_tild = q_star^-1 mod q_prod
-			//
-			// Therefore : (pt * P * w^2j) * (q_star * q_tild) = pt*P*w^2j mod q[i*#Pi+j], else 0
-			for k := 0; k < levelP+1; k++ {
+		for i := 0; i < decompRNS; i++ {
 
-				index = i*(levelP+1) + k
+			if j < decompPw2[i] {
 
-				// Handle cases where #pj does not divide #qi
-				if index >= levelQ+1 {
-					break
-				}
+				// e + (m * P * w^2j) * (q_star * q_tild) mod QP
+				//
+				// q_prod = prod(q[i*#Pi+j])
+				// q_star = Q/qprod
+				// q_tild = q_star^-1 mod q_prod
+				//
+				// Therefore : (pt * P * w^2j) * (q_star * q_tild) = pt*P*w^2j mod q[i*#Pi+j], else 0
+				for k := 0; k < levelP+1; k++ {
 
-				qi := ringQ.SubRings[index].Modulus
-				p0tmp := buff.Coeffs[index]
+					index = i*(levelP+1) + k
 
-				for u, ct := range cts {
-					p1tmp := ct.Value[i][j][u].Q.Coeffs[index]
-					for w := 0; w < N; w++ {
-						p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
+					// Handle cases where #pj does not divide #qi
+					if index >= levelQ+1 {
+						break
 					}
-				}
 
+					qi := ringQ.SubRings[index].Modulus
+					p0tmp := buff.Coeffs[index]
+
+					for u, ct := range cts {
+						p1tmp := ct.Value[i][j][u].Q.Coeffs[index]
+						for w := 0; w < N; w++ {
+							p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
+						}
+					}
+
+				}
 			}
 		}
 
@@ -234,7 +247,7 @@ func NewGadgetPlaintext(params Parameters, value interface{}, levelQ, levelP, ba
 
 	ringQ := params.RingQP().RingQ.AtLevel(levelQ)
 
-	decompPw2 := params.DecompPw2(levelQ, levelP, baseTwoDecomposition)
+	decompPw2 := utils.MaxSlice(params.DecompPw2(levelQ, levelP, baseTwoDecomposition))
 
 	pt = new(GadgetPlaintext)
 	pt.Value = make([]ring.Poly, decompPw2)

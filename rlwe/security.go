@@ -16,4 +16,4 @@ const (
 // DefaultXe is the default discret Gaussian distribution.
 var DefaultXe = ring.DiscreteGaussian{Sigma: DefaultNoise, Bound: DefaultNoiseBound}
 
-var DefaultXs = ring.Ternary{P: 1 / 3.0}
+var DefaultXs = ring.Ternary{P: 2 / 3.0}

@@ -61,7 +61,7 @@ func newEvaluatorBuffers(params Parameters) *evaluatorBuffers {
 }
 
 // NewEvaluator creates a new Evaluator.
-func NewEvaluator(params GetRLWEParameters, evk EvaluationKeySet) (eval *Evaluator) {
+func NewEvaluator(params ParameterProvider, evk EvaluationKeySet) (eval *Evaluator) {
 	eval = new(Evaluator)
 	p := params.GetRLWEParameters()
 	eval.params = *p

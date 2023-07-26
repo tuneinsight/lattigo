@@ -24,7 +24,7 @@ type GadgetCiphertext struct {
 // Ciphertext is always in the NTT domain.
 // A GadgetCiphertext is created by default at degree 1 with the the maximum levelQ and levelP and with no base 2 decomposition.
 // Give the optional GadgetCiphertextParameters struct to create a GadgetCiphertext with at a specific degree, levelQ, levelP and/or base 2 decomposition.
-func NewGadgetCiphertext(params GetRLWEParameters, Degree, LevelQ, LevelP, BaseTwoDecomposition int) *GadgetCiphertext {
+func NewGadgetCiphertext(params ParameterProvider, Degree, LevelQ, LevelP, BaseTwoDecomposition int) *GadgetCiphertext {
 
 	p := params.GetRLWEParameters()
 

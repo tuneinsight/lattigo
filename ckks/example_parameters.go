@@ -17,7 +17,7 @@ var (
 		// and should be usually as close as possible to 2^{LogDefaultScale}.
 		// The first prime must be large enough to store the result of the computation. In this example parameters, the
 		// first prime is close to 2^{55} and the expected final scaling factor is 2^{LogDefaultScale}, thus the gap
-		// between Q[0] and 2^{LogDefaultScale} is 2^{10}, leaving room for a plaintext message whose magnitude can 
+		// between Q[0] and 2^{LogDefaultScale} is 2^{10}, leaving room for a plaintext message whose magnitude can
 		// be up to 2^{9} (one bit is reserved for the sign).
 		Q: []uint64{
 			0x80000000080001, // 55
@@ -34,7 +34,7 @@ var (
 
 		// LogDefaultScale is the log2 of the initial scaling factor (i.e the scaling factor that ciphertext and plaintext
 		// have by default when allocated).
-		// This value is usually the same 
+		// This value is usually the same
 		LogDefaultScale: 45,
 
 		// Optional parameters:
@@ -56,7 +56,7 @@ var (
 		// basis will be triplets of primes of Q, i.e. [(q0 * q1 * q2), (q3 * q4 * q5), ...]. The number of elements in the decomposition
 		// basis is therefor reduced by a factor of 3, and so are the size of the keys and the complexity of the key-switching.
 		// As a rule of thumb, allocating sqrt(#qi) primes to P is a good starting point.
-		// The drawback of adding more primes to P is these primes contribute to the total modulus used to estimate the security 
+		// The drawback of adding more primes to P is these primes contribute to the total modulus used to estimate the security
 		// but not to the total homomorphic capacity.
 		// For additional information about this hybrid key-switching, see Section 3 of Better Bootstrapping for Approximate Homomorphic
 		// Encryption (https://eprint.iacr.org/2019/688.pdf).

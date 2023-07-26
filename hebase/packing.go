@@ -120,7 +120,7 @@ func (eval Evaluator) Trace(ctIn *rlwe.Ciphertext, logN int, opOut *rlwe.Ciphert
 
 // GaloisElementsForTrace returns the list of Galois elements requored for the for the `Trace` operation.
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for 2^{LogN} <= i < N.
-func GaloisElementsForTrace(params rlwe.GetRLWEParameters, logN int) (galEls []uint64) {
+func GaloisElementsForTrace(params rlwe.ParameterProvider, logN int) (galEls []uint64) {
 
 	p := params.GetRLWEParameters()
 
@@ -254,7 +254,7 @@ func (eval Evaluator) Expand(ctIn *rlwe.Ciphertext, logN, logGap int) (opOut []*
 
 // GaloisElementsForExpand returns the list of Galois elements required
 // to perform the `Expand` operation with parameter `logN`.
-func GaloisElementsForExpand(params rlwe.GetRLWEParameters, logN int) (galEls []uint64) {
+func GaloisElementsForExpand(params rlwe.ParameterProvider, logN int) (galEls []uint64) {
 	galEls = make([]uint64, logN)
 
 	NthRoot := params.GetRLWEParameters().RingQ().NthRoot()
@@ -436,7 +436,7 @@ func (eval Evaluator) Pack(cts map[int]*rlwe.Ciphertext, inputLogGap int, zeroGa
 }
 
 // GaloisElementsForPack returns the list of Galois elements required to perform the `Pack` operation.
-func GaloisElementsForPack(params rlwe.GetRLWEParameters, logGap int) (galEls []uint64) {
+func GaloisElementsForPack(params rlwe.ParameterProvider, logGap int) (galEls []uint64) {
 
 	p := params.GetRLWEParameters()
 

@@ -18,7 +18,7 @@ type SecretKey struct {
 }
 
 // NewSecretKey generates a new SecretKey with zero values.
-func NewSecretKey(params GetRLWEParameters) *SecretKey {
+func NewSecretKey(params ParameterProvider) *SecretKey {
 	return &SecretKey{Value: params.GetRLWEParameters().RingQP().NewPoly()}
 }
 
@@ -93,7 +93,7 @@ func (sk *SecretKey) isEncryptionKey() {}
 type vectorQP []ringqp.Poly
 
 // NewPublicKey returns a new PublicKey with zero values.
-func newVectorQP(params GetRLWEParameters, size, levelQ, levelP int) (v vectorQP) {
+func newVectorQP(params ParameterProvider, size, levelQ, levelP int) (v vectorQP) {
 	rqp := params.GetRLWEParameters().RingQP().AtLevel(levelQ, levelP)
 
 	v = make(vectorQP, size)
@@ -197,7 +197,7 @@ type PublicKey struct {
 }
 
 // NewPublicKey returns a new PublicKey with zero values.
-func NewPublicKey(params GetRLWEParameters) (pk *PublicKey) {
+func NewPublicKey(params ParameterProvider) (pk *PublicKey) {
 	p := params.GetRLWEParameters()
 	return &PublicKey{Value: newVectorQP(params, 2, p.MaxLevelQ(), p.MaxLevelP())}
 }
@@ -314,7 +314,7 @@ func ResolveEvaluationKeysParameters(params Parameters, evkParams []EvaluationKe
 }
 
 // NewEvaluationKey returns a new EvaluationKey with pre-allocated zero-value.
-func NewEvaluationKey(params GetRLWEParameters, evkParams ...EvaluationKeyParameters) *EvaluationKey {
+func NewEvaluationKey(params ParameterProvider, evkParams ...EvaluationKeyParameters) *EvaluationKey {
 	p := *params.GetRLWEParameters()
 	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeysParameters(p, evkParams)
 	return newEvaluationKey(p, levelQ, levelP, BaseTwoDecomposition)
@@ -343,7 +343,7 @@ type RelinearizationKey struct {
 }
 
 // NewRelinearizationKey allocates a new RelinearizationKey with zero coefficients.
-func NewRelinearizationKey(params GetRLWEParameters, evkParams ...EvaluationKeyParameters) *RelinearizationKey {
+func NewRelinearizationKey(params ParameterProvider, evkParams ...EvaluationKeyParameters) *RelinearizationKey {
 	p := *params.GetRLWEParameters()
 	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeysParameters(p, evkParams)
 	return newRelinearizationKey(p, levelQ, levelP, BaseTwoDecomposition)
@@ -381,7 +381,7 @@ type GaloisKey struct {
 }
 
 // NewGaloisKey allocates a new GaloisKey with zero coefficients and GaloisElement set to zero.
-func NewGaloisKey(params GetRLWEParameters, evkParams ...EvaluationKeyParameters) *GaloisKey {
+func NewGaloisKey(params ParameterProvider, evkParams ...EvaluationKeyParameters) *GaloisKey {
 	p := *params.GetRLWEParameters()
 	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeysParameters(p, evkParams)
 	return newGaloisKey(p, levelQ, levelP, BaseTwoDecomposition)

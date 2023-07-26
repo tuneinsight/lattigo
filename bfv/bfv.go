@@ -11,72 +11,50 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 )
 
-// NewPlaintext allocates a new rlwe.Plaintext.
+// NewPlaintext allocates a new rlwe.Plaintext from the BFV parameters, at the
+// specified level. If the level argument is not provided, the plaintext is
+// initialized at level params.MaxLevelQ().
 //
-// inputs:
-//   - params: an rlwe.GetRLWEParameters interface
-//   - level: the level of the plaintext
-//
-// output: a newly allocated rlwe.Plaintext at the specified level.
-//
-// Note: the user can update the field `MetaData` to set a specific scaling factor,
-// plaintext dimensions (if applicable) or encoding domain, before encoding values
-// on the created plaintext.
-func NewPlaintext(params Parameters, level int) (pt *rlwe.Plaintext) {
-	pt = rlwe.NewPlaintext(params, level)
+// The plaintext is initialized with its metadata so that it can be passed to a,
+// bfv.Encoder. Before doing so, the user can update the MetaData field to set
+// a specific scaling factor,
+// plaintext dimensions (if applicable) or encoding domain.
+func NewPlaintext(params Parameters, level ...int) (pt *rlwe.Plaintext) {
+	pt = rlwe.NewPlaintext(params, level...)
 	pt.IsBatched = true
 	pt.Scale = params.DefaultScale()
 	pt.LogDimensions = params.LogMaxDimensions()
 	return
 }
 
-// NewCiphertext allocates a new rlwe.Ciphertext.
+// NewCiphertext allocates a new rlwe.Ciphertext from the BFV parameters,
+// at the specified level and ciphertex degree. If the level argument is not
+// provided, the ciphertext is initialized at level params.MaxLevelQ().
 //
-// inputs:
-//
-//   - params: an rlwe.GetRLWEParameters interface
-//
-//   - degree: the degree of the ciphertext
-//
-//   - level: the level of the Ciphertext
-//
-// output: a newly allocated rlwe.Ciphertext of the specified degree and level.
-func NewCiphertext(params Parameters, degree, level int) (ct *rlwe.Ciphertext) {
-	ct = rlwe.NewCiphertext(params, degree, level)
+// To create a ciphertext for encrypting a new message, the ciphertext should be
+// at degree 1.
+func NewCiphertext(params Parameters, degree int, level ...int) (ct *rlwe.Ciphertext) {
+	ct = rlwe.NewCiphertext(params, degree, level...)
 	ct.IsBatched = true
 	ct.Scale = params.DefaultScale()
 	ct.LogDimensions = params.LogMaxDimensions()
 	return
 }
 
-// NewEncryptor instantiates a new rlwe.Encryptor.
-//
-// inputs:
-//   - params: an rlwe.GetRLWEParameters interface
-//   - key: *rlwe.SecretKey or *rlwe.PublicKey
-//
-// output: an rlwe.Encryptor instantiated with the provided key.
+// NewEncryptor instantiates a new rlwe.Encryptor from the given BFV parameters and
+// encryption key. This key can be either a *rlwe.SecretKey or a *rlwe.PublicKey.
 func NewEncryptor(params Parameters, key rlwe.EncryptionKey) (*rlwe.Encryptor, error) {
 	return rlwe.NewEncryptor(params, key)
 }
 
-// NewDecryptor instantiates a new rlwe.Decryptor.
-//
-// inputs:
-//   - params: an rlwe.GetRLWEParameters interface
-//   - key: *rlwe.SecretKey
-//
-// output: an rlwe.Decryptor instantiated with the provided key.
+// NewDecryptor instantiates a new rlwe.Decryptor from the given BFV parameters and
+// secret decryption key.
 func NewDecryptor(params Parameters, key *rlwe.SecretKey) (*rlwe.Decryptor, error) {
 	return rlwe.NewDecryptor(params, key)
 }
 
-// NewKeyGenerator instantiates a new rlwe.KeyGenerator.
-//
-// inputs:
-//   - params: an rlwe.GetRLWEParameters interface
-//
-// output: an rlwe.KeyGenerator.
+// NewKeyGenerator instantiates a new rlwe.KeyGenerator from the given
+// BFV parameters.
 func NewKeyGenerator(params Parameters) *rlwe.KeyGenerator {
 	return rlwe.NewKeyGenerator(params)
 }

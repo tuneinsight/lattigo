@@ -29,7 +29,7 @@ const GaloisGen uint64 = ring.GaloisGen
 
 type DistributionLiteral interface{}
 
-type GetRLWEParameters interface {
+type ParameterProvider interface {
 	GetRLWEParameters() *Parameters
 }
 
@@ -580,7 +580,7 @@ func (p Parameters) SolveDiscreteLogGaloisElement(galEl uint64) (k int) {
 }
 
 // Equal checks two Parameter structs for equality.
-func (p Parameters) Equal(other GetRLWEParameters) (res bool) {
+func (p Parameters) Equal(other ParameterProvider) (res bool) {
 
 	switch other := other.(type) {
 	case Parameters:
@@ -655,6 +655,19 @@ func CheckModuli(q, p []uint64) error {
 	}
 
 	return nil
+}
+
+// UnpackLevelParams is an internal function for unpacking level values
+// passed as variadic function parameters.
+func (p Parameters) UnpackLevelParams(args []int) (levelQ, levelP int) {
+	switch len(args) {
+	case 0:
+		return p.MaxLevelQ(), p.MaxLevelP()
+	case 1:
+		return args[0], p.MaxLevelP()
+	default:
+		return args[0], args[1]
+	}
 }
 
 func checkSizeParams(logN int, lenQ, lenP int) error {

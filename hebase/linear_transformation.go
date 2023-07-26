@@ -153,16 +153,16 @@ type LinearTransformation struct {
 }
 
 // GaloisElements returns the list of Galois elements needed for the evaluation of the linear transformation.
-func (LT LinearTransformation) GaloisElements(params rlwe.GetRLWEParameters) (galEls []uint64) {
+func (LT LinearTransformation) GaloisElements(params rlwe.ParameterProvider) (galEls []uint64) {
 	return galoisElementsForLinearTransformation(params, utils.GetKeys(LT.Vec), LT.LogDimensions.Cols, LT.LogBSGSRatio)
 }
 
 // GaloisElementsForLinearTransformation returns the list of Galois elements required to evaluate the linear transformation.
-func GaloisElementsForLinearTransformation[T any](params rlwe.GetRLWEParameters, lt LinearTranfromationParameters[T]) (galEls []uint64) {
+func GaloisElementsForLinearTransformation[T any](params rlwe.ParameterProvider, lt LinearTranfromationParameters[T]) (galEls []uint64) {
 	return galoisElementsForLinearTransformation(params, lt.GetDiagonalsList(), 1<<lt.GetLogDimensions().Cols, lt.GetLogBabyStepGianStepRatio())
 }
 
-func galoisElementsForLinearTransformation(params rlwe.GetRLWEParameters, diags []int, slots, logbsgs int) (galEls []uint64) {
+func galoisElementsForLinearTransformation(params rlwe.ParameterProvider, diags []int, slots, logbsgs int) (galEls []uint64) {
 
 	p := params.GetRLWEParameters()
 
@@ -186,7 +186,7 @@ func galoisElementsForLinearTransformation(params rlwe.GetRLWEParameters, diags 
 }
 
 // NewLinearTransformation allocates a new LinearTransformation with zero values according to the parameters specified by the LinearTranfromationParameters.
-func NewLinearTransformation[T any](params rlwe.GetRLWEParameters, lt LinearTranfromationParameters[T]) LinearTransformation {
+func NewLinearTransformation[T any](params rlwe.ParameterProvider, lt LinearTranfromationParameters[T]) LinearTransformation {
 
 	p := params.GetRLWEParameters()
 

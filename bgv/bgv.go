@@ -8,7 +8,7 @@ import (
 // NewPlaintext allocates a new rlwe.Plaintext.
 //
 // inputs:
-//   - params: an rlwe.GetRLWEParameters interface
+//   - params: an rlwe.ParameterProvider interface
 //   - level: the level of the plaintext
 //
 // output: a newly allocated rlwe.Plaintext at the specified level.
@@ -27,7 +27,7 @@ func NewPlaintext(params Parameters, level int) (pt *rlwe.Plaintext) {
 // NewCiphertext allocates a new rlwe.Ciphertext.
 //
 // inputs:
-//   - params: an rlwe.GetRLWEParameters interface
+//   - params: an rlwe.ParameterProvider interface
 //   - degree: the degree of the ciphertext
 //   - level: the level of the Ciphertext
 //
@@ -43,7 +43,7 @@ func NewCiphertext(params Parameters, degree, level int) (ct *rlwe.Ciphertext) {
 // NewEncryptor instantiates a new rlwe.Encryptor.
 //
 // inputs:
-//   - params: an rlwe.GetRLWEParameters interface
+//   - params: an rlwe.ParameterProvider interface
 //   - key: *rlwe.SecretKey or *rlwe.PublicKey
 //
 // output: an rlwe.Encryptor instantiated with the provided key.
@@ -54,7 +54,7 @@ func NewEncryptor(params Parameters, key rlwe.EncryptionKey) (*rlwe.Encryptor, e
 // NewDecryptor instantiates a new rlwe.Decryptor.
 //
 // inputs:
-//   - params: an rlwe.GetRLWEParameters interface
+//   - params: an rlwe.ParameterProvider interface
 //   - key: *rlwe.SecretKey
 //
 // output: an rlwe.Decryptor instantiated with the provided key.
@@ -65,7 +65,7 @@ func NewDecryptor(params Parameters, key *rlwe.SecretKey) (*rlwe.Decryptor, erro
 // NewKeyGenerator instantiates a new rlwe.KeyGenerator.
 //
 // inputs:
-//   - params: an rlwe.GetRLWEParameters interface
+//   - params: an rlwe.ParameterProvider interface
 //
 // output: an rlwe.KeyGenerator.
 func NewKeyGenerator(params Parameters) *rlwe.KeyGenerator {

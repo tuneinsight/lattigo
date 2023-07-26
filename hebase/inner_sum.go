@@ -145,7 +145,7 @@ func (eval Evaluator) InnerSum(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *r
 
 // GaloisElementsForInnerSum returns the list of Galois elements necessary to apply the method
 // `InnerSum` operation with parameters `batch` and `n`.
-func GaloisElementsForInnerSum(params rlwe.GetRLWEParameters, batch, n int) (galEls []uint64) {
+func GaloisElementsForInnerSum(params rlwe.ParameterProvider, batch, n int) (galEls []uint64) {
 
 	rotIndex := make(map[int]bool)
 
@@ -184,6 +184,6 @@ func (eval Evaluator) Replicate(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *
 
 // GaloisElementsForReplicate returns the list of Galois elements necessary to perform the
 // `Replicate` operation with parameters `batch` and `n`.
-func GaloisElementsForReplicate(params rlwe.GetRLWEParameters, batch, n int) (galEls []uint64) {
+func GaloisElementsForReplicate(params rlwe.ParameterProvider, batch, n int) (galEls []uint64) {
 	return GaloisElementsForInnerSum(params, -batch, n)
 }

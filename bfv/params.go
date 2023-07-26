@@ -55,7 +55,7 @@ type Parameters struct {
 }
 
 // Equal compares two sets of parameters for equality.
-func (p Parameters) Equal(other rlwe.GetRLWEParameters) bool {
+func (p Parameters) Equal(other rlwe.ParameterProvider) bool {
 	switch other := other.(type) {
 	case Parameters:
 		return p.Parameters.Equal(other.Parameters)

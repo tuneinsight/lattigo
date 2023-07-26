@@ -52,12 +52,12 @@ func NewLinearTransformationParmeters[T int64 | uint64](params LinearTransformat
 }
 
 // GaloisElementsForLinearTransformation returns the list of Galois elements required to evaluate the linear transformation.
-func GaloisElementsForLinearTransformation[T int64 | uint64](params rlwe.GetRLWEParameters, lt hebase.LinearTranfromationParameters[T]) (galEls []uint64) {
+func GaloisElementsForLinearTransformation[T int64 | uint64](params rlwe.ParameterProvider, lt hebase.LinearTranfromationParameters[T]) (galEls []uint64) {
 	return hebase.GaloisElementsForLinearTransformation(params, lt)
 }
 
 // NewLinearTransformation allocates a new LinearTransformation with zero values and according to the provided parameters.
-func NewLinearTransformation[T int64 | uint64](params rlwe.GetRLWEParameters, lt hebase.LinearTranfromationParameters[T]) hebase.LinearTransformation {
+func NewLinearTransformation[T int64 | uint64](params rlwe.ParameterProvider, lt hebase.LinearTranfromationParameters[T]) hebase.LinearTransformation {
 	return hebase.NewLinearTransformation(params, lt)
 }
 

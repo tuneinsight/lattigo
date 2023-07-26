@@ -16,7 +16,7 @@ type Decryptor struct {
 }
 
 // NewDecryptor instantiates a new generic RLWE Decryptor.
-func NewDecryptor(params GetRLWEParameters, sk *SecretKey) (*Decryptor, error) {
+func NewDecryptor(params ParameterProvider, sk *SecretKey) (*Decryptor, error) {
 
 	p := params.GetRLWEParameters()
 

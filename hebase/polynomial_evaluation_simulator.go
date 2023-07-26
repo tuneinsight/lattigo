@@ -23,7 +23,7 @@ type DummyEvaluator interface {
 type DummyPowerBasis map[int]*DummyOperand
 
 // GenPower populates the target DummyPowerBasis with the nth power.
-func (d DummyPowerBasis) GenPower(params rlwe.GetRLWEParameters, n int, eval DummyEvaluator) {
+func (d DummyPowerBasis) GenPower(params rlwe.ParameterProvider, n int, eval DummyEvaluator) {
 
 	if n < 2 {
 		return

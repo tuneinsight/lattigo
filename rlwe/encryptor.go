@@ -17,7 +17,7 @@ type EncryptionKey interface {
 }
 
 // NewEncryptor creates a new Encryptor from either a public key or a private key.
-func NewEncryptor(params GetRLWEParameters, key EncryptionKey) (*Encryptor, error) {
+func NewEncryptor(params ParameterProvider, key EncryptionKey) (*Encryptor, error) {
 
 	p := *params.GetRLWEParameters()
 

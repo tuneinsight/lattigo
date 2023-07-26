@@ -26,10 +26,12 @@ type Operand[T ring.Poly | ringqp.Poly] struct {
 }
 
 // NewOperandQ allocates a new Operand[ring.Poly].
-func NewOperandQ(params GetRLWEParameters, degree, levelQ int) *Operand[ring.Poly] {
+func NewOperandQ(params ParameterProvider, degree int, levelQ ...int) *Operand[ring.Poly] {
 	p := params.GetRLWEParameters()
 
-	ringQ := p.RingQ().AtLevel(levelQ)
+	lvlq, _ := p.UnpackLevelParams(levelQ)
+
+	ringQ := p.RingQ().AtLevel(lvlq)
 
 	Value := make([]ring.Poly, degree+1)
 	for i := range Value {
@@ -47,7 +49,7 @@ func NewOperandQ(params GetRLWEParameters, degree, levelQ int) *Operand[ring.Pol
 }
 
 // NewOperandQP allocates a new Operand[ringqp.Poly].
-func NewOperandQP(params GetRLWEParameters, degree, levelQ, levelP int) *Operand[ringqp.Poly] {
+func NewOperandQP(params ParameterProvider, degree, levelQ, levelP int) *Operand[ringqp.Poly] {
 
 	p := params.GetRLWEParameters()
 
@@ -201,7 +203,7 @@ func GetSmallestLargest[T ring.Poly | ringqp.Poly](el0, el1 *Operand[T]) (smalle
 }
 
 // PopulateElementRandom creates a new rlwe.Element with random coefficients.
-func PopulateElementRandom(prng sampling.PRNG, params GetRLWEParameters, ct *Operand[ring.Poly]) {
+func PopulateElementRandom(prng sampling.PRNG, params ParameterProvider, ct *Operand[ring.Poly]) {
 	sampler := ring.NewUniformSampler(prng, params.GetRLWEParameters().RingQ()).AtLevel(ct.Level())
 	for i := range ct.Value {
 		sampler.Read(ct.Value[i])

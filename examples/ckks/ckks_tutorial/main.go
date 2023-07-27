@@ -725,7 +725,7 @@ func main() {
 	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, gks...))
 
 	// And we valuate the linear transform
-	if err := eval.LinearTransformation(ct1, lt, []*rlwe.Ciphertext{res}); err != nil {
+	if err := eval.LinearTransformation(ct1, []*rlwe.Ciphertext{res}, lt); err != nil {
 		panic(err)
 	}
 

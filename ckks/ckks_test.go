@@ -1181,7 +1181,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 		eval := tc.evaluator.WithKey(evk)
 
-		require.NoError(t, eval.LinearTransformation(ciphertext, linTransf, []*rlwe.Ciphertext{ciphertext}))
+		require.NoError(t, eval.LinearTransformation(ciphertext, []*rlwe.Ciphertext{ciphertext}, linTransf))
 
 		tmp := make([]*bignum.Complex, len(values))
 		for i := range tmp {
@@ -1246,7 +1246,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 		eval := tc.evaluator.WithKey(evk)
 
-		require.NoError(t, eval.LinearTransformation(ciphertext, linTransf, []*rlwe.Ciphertext{ciphertext}))
+		require.NoError(t, eval.LinearTransformation(ciphertext, []*rlwe.Ciphertext{ciphertext}, linTransf))
 
 		tmp := make([]*bignum.Complex, len(values))
 		for i := range tmp {

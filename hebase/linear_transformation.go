@@ -336,94 +336,45 @@ func rotateAndEncodeDiagonal[T any](v []T, encoder EncoderInterface[T, ringqp.Po
 // LinearTransformationNew evaluates a linear transform on the pre-allocated Ciphertexts.
 // The LinearTransformation can either be an (ordered) list of LinearTransformation or a single LinearTransformation.
 // In either case a list of Ciphertext is returned (the second case returning a list containing a single Ciphertext).
-func (eval Evaluator) LinearTransformationNew(ctIn *rlwe.Ciphertext, linearTransformation interface{}) (opOut []*rlwe.Ciphertext, err error) {
+func (eval Evaluator) LinearTransformationNew(ctIn *rlwe.Ciphertext, linearTransformations ...LinearTransformation) (opOut []*rlwe.Ciphertext, err error) {
 
 	params := eval.GetRLWEParameters()
-
-	switch LTs := linearTransformation.(type) {
-	case []LinearTransformation:
-		opOut = make([]*rlwe.Ciphertext, len(LTs))
-
-		var maxLevel int
-		for _, LT := range LTs {
-			maxLevel = utils.Max(maxLevel, LT.Level)
-		}
-
-		minLevel := utils.Min(maxLevel, ctIn.Level())
-		eval.DecomposeNTT(minLevel, params.MaxLevelP(), params.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
-
-		for i, LT := range LTs {
-			opOut[i] = rlwe.NewCiphertext(params, 1, minLevel)
-
-			if LT.N1 == 0 {
-				if err = eval.MultiplyByDiagMatrix(ctIn, LT, eval.BuffDecompQP, opOut[i]); err != nil {
-					return
-				}
-			} else {
-				if err = eval.MultiplyByDiagMatrixBSGS(ctIn, LT, eval.BuffDecompQP, opOut[i]); err != nil {
-					return
-				}
-			}
-		}
-
-	case LinearTransformation:
-
-		minLevel := utils.Min(LTs.Level, ctIn.Level())
-		eval.DecomposeNTT(minLevel, params.MaxLevelP(), params.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
-
-		opOut = []*rlwe.Ciphertext{rlwe.NewCiphertext(params, 1, minLevel)}
-
-		if LTs.N1 == 0 {
-			if err = eval.MultiplyByDiagMatrix(ctIn, LTs, eval.BuffDecompQP, opOut[0]); err != nil {
-				return
-			}
-		} else {
-			if err = eval.MultiplyByDiagMatrixBSGS(ctIn, LTs, eval.BuffDecompQP, opOut[0]); err != nil {
-				return
-			}
-		}
+	level := getOutputLevel(ctIn, linearTransformations...)
+	opOut = make([]*rlwe.Ciphertext, len(linearTransformations))
+	for i := range opOut {
+		opOut[i] = rlwe.NewCiphertext(params, 1, level)
 	}
+
+	err = eval.LinearTransformation(ctIn, opOut, linearTransformations...)
 	return
 }
 
 // LinearTransformation evaluates a linear transform on the pre-allocated Ciphertexts.
 // The LinearTransformation can either be an (ordered) list of LinearTransformation or a single LinearTransformation.
 // In either case a list of Ciphertext is returned (the second case returning a list containing a single Ciphertext).
-func (eval Evaluator) LinearTransformation(ctIn *rlwe.Ciphertext, linearTransformation interface{}, opOut []*rlwe.Ciphertext) (err error) {
+func (eval Evaluator) LinearTransformation(ctIn *rlwe.Ciphertext, opOut []*rlwe.Ciphertext, linearTransformation ...LinearTransformation) (err error) {
 
 	params := eval.GetRLWEParameters()
 
-	switch LTs := linearTransformation.(type) {
-	case []LinearTransformation:
-		var maxLevel int
-		for _, LT := range LTs {
-			maxLevel = utils.Max(maxLevel, LT.Level)
+	if len(opOut) < len(linearTransformation) {
+		return fmt.Errorf("output *rlwe.Ciphertext slice is too small")
+	}
+	for i := range linearTransformation {
+		if opOut[i] == nil {
+			return fmt.Errorf("output slice contains unallocated ciphertext")
 		}
+	}
 
-		minLevel := utils.Min(maxLevel, ctIn.Level())
-		eval.DecomposeNTT(minLevel, params.MaxLevelP(), params.PCount(), ctIn.Value[1], true, eval.BuffDecompQP)
+	level := getOutputLevel(ctIn, linearTransformation...)
 
-		for i, LT := range LTs {
-			if LT.N1 == 0 {
-				if err = eval.MultiplyByDiagMatrix(ctIn, LT, eval.BuffDecompQP, opOut[i]); err != nil {
-					return
-				}
-			} else {
-				if err = eval.MultiplyByDiagMatrixBSGS(ctIn, LT, eval.BuffDecompQP, opOut[i]); err != nil {
-					return
-				}
-			}
-		}
-
-	case LinearTransformation:
-		minLevel := utils.Min(LTs.Level, ctIn.Level())
-		eval.DecomposeNTT(minLevel, params.MaxLevelP(), params.PCount(), ctIn.Value[1], true, eval.BuffDecompQP)
-		if LTs.N1 == 0 {
-			if err = eval.MultiplyByDiagMatrix(ctIn, LTs, eval.BuffDecompQP, opOut[0]); err != nil {
+	eval.DecomposeNTT(level, params.MaxLevelP(), params.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
+	for i, lt := range linearTransformation {
+		if lt.N1 == 0 {
+			if err = eval.MultiplyByDiagMatrix(ctIn, lt, eval.BuffDecompQP, opOut[i]); err != nil {
 				return
 			}
 		} else {
-			if err = eval.MultiplyByDiagMatrixBSGS(ctIn, LTs, eval.BuffDecompQP, opOut[0]); err != nil {
+			if err = eval.MultiplyByDiagMatrixBSGS(ctIn, lt, eval.BuffDecompQP, opOut[i]); err != nil {
 				return
 			}
 		}
@@ -727,5 +678,14 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 	eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, opOut.Value[0], c0OutQP.P, opOut.Value[0]) // sum(phi(c0 * P + d0_QP))/P
 	eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, opOut.Value[1], c1OutQP.P, opOut.Value[1]) // sum(phi(d1_QP))/P
 
+	return
+}
+
+func getOutputLevel(ctIn *rlwe.Ciphertext, linearTransformations ...LinearTransformation) (level int) {
+	var maxLevel int
+	for _, lt := range linearTransformations {
+		maxLevel = utils.Max(maxLevel, lt.Level)
+	}
+	level = utils.Min(maxLevel, ctIn.Level())
 	return
 }

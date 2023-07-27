@@ -306,7 +306,7 @@ func (eval Evaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []hebase.LinearTra
 			in, out = ctIn, opOut
 		}
 
-		if err = eval.LinearTransformation(in, plainVector, []*rlwe.Ciphertext{out}); err != nil {
+		if err = eval.LinearTransformation(in, []*rlwe.Ciphertext{out}, plainVector); err != nil {
 			return
 		}
 

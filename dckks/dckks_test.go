@@ -518,7 +518,13 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		rf64, _ := precStats.MeanPrecision.Real.Float64()
 		if64, _ := precStats.MeanPrecision.Imag.Float64()
 
-		minPrec := math.Log2(paramsOut.DefaultScale().Float64()) - float64(paramsOut.LogN()+2)
+		minPrec := math.Log2(paramsOut.DefaultScale().Float64())
+		switch params.RingType() {
+		case ring.Standard:
+			minPrec -= float64(paramsOut.LogN()) + 2
+		case ring.ConjugateInvariant:
+			minPrec -= float64(paramsOut.LogN()) + 2.5
+		}
 		if minPrec < 0 {
 			minPrec = 0
 		}

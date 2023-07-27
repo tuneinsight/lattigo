@@ -7,14 +7,14 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
-// PolynomialEvaluatorInterface defines the set of common and scheme agnostic homomorphic operations
+// PolynomialEvaluator defines the set of common and scheme agnostic homomorphic operations
 // that are required for the encrypted evaluation of plaintext polynomial.
-type PolynomialEvaluatorInterface interface {
+type PolynomialEvaluator interface {
 	EvaluatorInterface
 	EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol PolynomialVector, pb PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error)
 }
 
-func EvaluatePatersonStockmeyerPolynomialVector(poly PatersonStockmeyerPolynomialVector, pb PowerBasis, eval PolynomialEvaluatorInterface) (res *rlwe.Ciphertext, err error) {
+func EvaluatePatersonStockmeyerPolynomialVector(poly PatersonStockmeyerPolynomialVector, pb PowerBasis, eval PolynomialEvaluator) (res *rlwe.Ciphertext, err error) {
 
 	type Poly struct {
 		Degree int
@@ -109,7 +109,7 @@ func EvaluatePatersonStockmeyerPolynomialVector(poly PatersonStockmeyerPolynomia
 }
 
 // Evaluates a = a + b * xpow
-func evalMonomial(a, b, xpow *rlwe.Ciphertext, eval PolynomialEvaluatorInterface) (err error) {
+func evalMonomial(a, b, xpow *rlwe.Ciphertext, eval PolynomialEvaluator) (err error) {
 
 	if b.Degree() == 2 {
 		if err = eval.Relinearize(b, b); err != nil {

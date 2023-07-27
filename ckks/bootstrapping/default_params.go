@@ -57,8 +57,8 @@ var (
 			LogDefaultScale: 45,
 		},
 		ParametersLiteral{
-			SlotsToCoeffsFactorizationDepthAndLogDefaultScales: [][]int{{42}, {42}, {42}},
-			CoeffsToSlotsFactorizationDepthAndLogDefaultScales: [][]int{{58}, {58}, {58}, {58}},
+			SlotsToCoeffsFactorizationDepthAndLogScales: [][]int{{42}, {42}, {42}},
+			CoeffsToSlotsFactorizationDepthAndLogScales: [][]int{{58}, {58}, {58}, {58}},
 			LogMessageRatio: utils.Pointy(2),
 			ArcSineDegree:   utils.Pointy(7),
 		},
@@ -80,9 +80,9 @@ var (
 			LogDefaultScale: 30,
 		},
 		ParametersLiteral{
-			SlotsToCoeffsFactorizationDepthAndLogDefaultScales: [][]int{{30}, {30, 30}},
-			CoeffsToSlotsFactorizationDepthAndLogDefaultScales: [][]int{{53}, {53}, {53}, {53}},
-			EvalModLogDefaultScale:                             utils.Pointy(55),
+			SlotsToCoeffsFactorizationDepthAndLogScales: [][]int{{30}, {30, 30}},
+			CoeffsToSlotsFactorizationDepthAndLogScales: [][]int{{53}, {53}, {53}, {53}},
+			EvalModLogScale: utils.Pointy(55),
 		},
 	}
 
@@ -102,9 +102,9 @@ var (
 			LogDefaultScale: 25,
 		},
 		ParametersLiteral{
-			SlotsToCoeffsFactorizationDepthAndLogDefaultScales: [][]int{{30, 30}},
-			CoeffsToSlotsFactorizationDepthAndLogDefaultScales: [][]int{{49}, {49}},
-			EvalModLogDefaultScale:                             utils.Pointy(50),
+			SlotsToCoeffsFactorizationDepthAndLogScales: [][]int{{30, 30}},
+			CoeffsToSlotsFactorizationDepthAndLogScales: [][]int{{49}, {49}},
+			EvalModLogScale: utils.Pointy(50),
 		},
 	}
 
@@ -142,8 +142,8 @@ var (
 			LogDefaultScale: 45,
 		},
 		ParametersLiteral{
-			SlotsToCoeffsFactorizationDepthAndLogDefaultScales: [][]int{{42}, {42}, {42}},
-			CoeffsToSlotsFactorizationDepthAndLogDefaultScales: [][]int{{58}, {58}, {58}, {58}},
+			SlotsToCoeffsFactorizationDepthAndLogScales: [][]int{{42}, {42}, {42}},
+			CoeffsToSlotsFactorizationDepthAndLogScales: [][]int{{58}, {58}, {58}, {58}},
 			LogMessageRatio: utils.Pointy(2),
 			ArcSineDegree:   utils.Pointy(7),
 		},
@@ -165,9 +165,9 @@ var (
 			LogDefaultScale: 30,
 		},
 		ParametersLiteral{
-			SlotsToCoeffsFactorizationDepthAndLogDefaultScales: [][]int{{30}, {30, 30}},
-			CoeffsToSlotsFactorizationDepthAndLogDefaultScales: [][]int{{53}, {53}, {53}, {53}},
-			EvalModLogDefaultScale:                             utils.Pointy(55),
+			SlotsToCoeffsFactorizationDepthAndLogScales: [][]int{{30}, {30, 30}},
+			CoeffsToSlotsFactorizationDepthAndLogScales: [][]int{{53}, {53}, {53}, {53}},
+			EvalModLogScale: utils.Pointy(55),
 		},
 	}
 
@@ -187,9 +187,9 @@ var (
 			LogDefaultScale: 31,
 		},
 		ParametersLiteral{
-			SlotsToCoeffsFactorizationDepthAndLogDefaultScales: [][]int{{30, 30}},
-			CoeffsToSlotsFactorizationDepthAndLogDefaultScales: [][]int{{52}, {52}},
-			EvalModLogDefaultScale:                             utils.Pointy(55),
+			SlotsToCoeffsFactorizationDepthAndLogScales: [][]int{{30, 30}},
+			CoeffsToSlotsFactorizationDepthAndLogScales: [][]int{{52}, {52}},
+			EvalModLogScale: utils.Pointy(55),
 		},
 	}
 )

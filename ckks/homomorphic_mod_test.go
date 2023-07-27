@@ -52,7 +52,7 @@ func testEvalModMarshalling(t *testing.T) {
 			K:               14,
 			SineDegree:      127,
 			ArcSineDegree:   7,
-			LogDefaultScale: 60,
+			LogScale:        60,
 		}
 
 		data, err := evm.MarshalBinary()
@@ -92,7 +92,7 @@ func testEvalMod(params Parameters, t *testing.T) {
 			K:               14,
 			SineDegree:      127,
 			ArcSineDegree:   7,
-			LogDefaultScale: 60,
+			LogScale:        60,
 		}
 
 		EvalModPoly, err := NewEvalModPolyFromLiteral(params, evm)
@@ -147,7 +147,7 @@ func testEvalMod(params Parameters, t *testing.T) {
 			K:               12,
 			SineDegree:      30,
 			DoubleAngle:     3,
-			LogDefaultScale: 60,
+			LogScale:        60,
 		}
 
 		EvalModPoly, err := NewEvalModPolyFromLiteral(params, evm)
@@ -203,7 +203,7 @@ func testEvalMod(params Parameters, t *testing.T) {
 			K:               325,
 			SineDegree:      177,
 			DoubleAngle:     4,
-			LogDefaultScale: 60,
+			LogScale:        60,
 		}
 
 		EvalModPoly, err := NewEvalModPolyFromLiteral(params, evm)

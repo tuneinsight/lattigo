@@ -31,7 +31,7 @@ import (
 //
 // LogSlots: the maximum number of slots of the ciphertext. Default value: LogN-1.
 //
-// CoeffsToSlotsFactorizationDepthAndLogDefaultScales: the scaling factor and distribution of the moduli for the SlotsToCoeffs (homomorphic encoding) step.
+// CoeffsToSlotsFactorizationDepthAndLogScales: the scaling factor and distribution of the moduli for the SlotsToCoeffs (homomorphic encoding) step.
 //
 //	Default value is [][]int{min(4, max(LogSlots, 1)) * 56}.
 //	This is a double slice where the first dimension is the index of the prime to be used, and the second dimension the scaling factors to be used: [level][scaling].
@@ -40,11 +40,11 @@ import (
 //	Non standard parameterization can include multiple scaling factors for a same prime, for example [][]int{{30}, {30, 30}} will use two levels for three matrices.
 //	The first two matrices will consume a prime of 30 + 30 bits, and have a scaling factor which prime^(1/2), and the third matrix will consume the second prime of 30 bits.
 //
-// SlotsToCoeffsFactorizationDepthAndLogDefaultScales: the scaling factor and distribution of the moduli for the CoeffsToSlots (homomorphic decoding) step.
+// SlotsToCoeffsFactorizationDepthAndLogScales: the scaling factor and distribution of the moduli for the CoeffsToSlots (homomorphic decoding) step.
 //
-//	Parameterization is identical to C2SLogDefaultScale. and the default value is [][]int{min(3, max(LogSlots, 1)) * 39}.
+//	Parameterization is identical to C2SLogScale. and the default value is [][]int{min(3, max(LogSlots, 1)) * 39}.
 //
-// EvalModLogDefaultScale: the scaling factor used during the EvalMod step (all primes will have this bit-size).
+// EvalModLogScale: the scaling factor used during the EvalMod step (all primes will have this bit-size).
 //
 //	Default value is 60.
 //
@@ -59,7 +59,7 @@ import (
 //		This ratio directly impacts the precision of the bootstrapping.
 //		The homomorphic modular reduction x mod 1 is approximated with by sin(2*pi*x)/(2*pi), which is a good approximation
 //		when x is close to the origin. Thus a large message ratio (i.e. 2^8) implies that x is small with respect to Q, and thus close to the origin.
-//		When using a small ratio (i.e. 2^4), for example if ct.DefaultScale is close to Q[0] is small or if |m| is large, the ArcSine degree can be set to
+//		When using a small ratio (i.e. 2^4), for example if ct.Scale is close to Q[0] is small or if |m| is large, the ArcSine degree can be set to
 //	 a non zero value (i.e. 5 or 7). This will greatly improve the precision of the bootstrapping, at the expense of slightly increasing its depth.
 //
 // SineType: the type of approximation for the modular reduction polynomial. By default set to ckks.CosDiscrete.
@@ -72,18 +72,18 @@ import (
 //
 // ArcSineDeg: the degree of the ArcSine Taylor polynomial, by default set to 0.
 type ParametersLiteral struct {
-	LogSlots                                           *int          // Default: LogN-1
-	CoeffsToSlotsFactorizationDepthAndLogDefaultScales [][]int       // Default: [][]int{min(4, max(LogSlots, 1)) * 56}
-	SlotsToCoeffsFactorizationDepthAndLogDefaultScales [][]int       // Default: [][]int{min(3, max(LogSlots, 1)) * 39}
-	EvalModLogDefaultScale                             *int          // Default: 60
-	EphemeralSecretWeight                              *int          // Default: 32
-	Iterations                                         *int          // Default: 1
-	SineType                                           ckks.SineType // Default: ckks.CosDiscrete
-	LogMessageRatio                                    *int          // Default: 8
-	K                                                  *int          // Default: 16
-	SineDegree                                         *int          // Default: 30
-	DoubleAngle                                        *int          // Default: 3
-	ArcSineDegree                                      *int          // Default: 0
+	LogSlots                                    *int          // Default: LogN-1
+	CoeffsToSlotsFactorizationDepthAndLogScales [][]int       // Default: [][]int{min(4, max(LogSlots, 1)) * 56}
+	SlotsToCoeffsFactorizationDepthAndLogScales [][]int       // Default: [][]int{min(3, max(LogSlots, 1)) * 39}
+	EvalModLogScale                             *int          // Default: 60
+	EphemeralSecretWeight                       *int          // Default: 32
+	Iterations                                  *int          // Default: 1
+	SineType                                    ckks.SineType // Default: ckks.CosDiscrete
+	LogMessageRatio                             *int          // Default: 8
+	K                                           *int          // Default: 16
+	SineDegree                                  *int          // Default: 30
+	DoubleAngle                                 *int          // Default: 3
+	ArcSineDegree                               *int          // Default: 0
 }
 
 const (
@@ -91,18 +91,18 @@ const (
 	DefaultCoeffsToSlotsFactorizationDepth = 4
 	// DefaultSlotsToCoeffsFactorizationDepth is the default factorization depth SlotsToCoeffs step.
 	DefaultSlotsToCoeffsFactorizationDepth = 3
-	// DefaultCoeffsToSlotsLogDefaultScale is the default scaling factors for the CoeffsToSlots step.
-	DefaultCoeffsToSlotsLogDefaultScale = 56
-	// DefaultSlotsToCoeffsLogDefaultScale is the default scaling factors for the SlotsToCoeffs step.
-	DefaultSlotsToCoeffsLogDefaultScale = 39
-	// DefaultEvalModLogDefaultScale is the default scaling factor for the EvalMod step.
-	DefaultEvalModLogDefaultScale = 60
+	// DefaultCoeffsToSlotsLogScale is the default scaling factors for the CoeffsToSlots step.
+	DefaultCoeffsToSlotsLogScale = 56
+	// DefaultSlotsToCoeffsLogScale is the default scaling factors for the SlotsToCoeffs step.
+	DefaultSlotsToCoeffsLogScale = 39
+	// DefaultEvalModLogScale is the default scaling factor for the EvalMod step.
+	DefaultEvalModLogScale = 60
 	// DefaultEphemeralSecretWeight is the default Hamming weight of the ephemeral secret.
 	DefaultEphemeralSecretWeight = 32
 	// DefaultIterations is the default number of bootstrapping iterations.
 	DefaultIterations = 1
-	// DefaultIterationsLogDefaultScale is the default scaling factor for the additional prime consumed per additional bootstrapping iteration above 1.
-	DefaultIterationsLogDefaultScale = 25
+	// DefaultIterationsLogScale is the default scaling factor for the additional prime consumed per additional bootstrapping iteration above 1.
+	DefaultIterationsLogScale = 25
 	// DefaultSineType is the default function and approximation technique for the homomorphic modular reduction polynomial.
 	DefaultSineType = ckks.CosDiscrete
 	// DefaultLogMessageRatio is the default ratio between Q[0] and |m|.
@@ -146,63 +146,63 @@ func (p *ParametersLiteral) GetLogSlots(LogN int) (LogSlots int, err error) {
 	return
 }
 
-// GetCoeffsToSlotsFactorizationDepthAndLogDefaultScales returns a copy of the CoeffsToSlotsFactorizationDepthAndLogDefaultScales field of the target ParametersLiteral.
-// The default value constructed from DefaultC2SFactorization and DefaultC2SLogDefaultScale is returned if the field is nil.
-func (p *ParametersLiteral) GetCoeffsToSlotsFactorizationDepthAndLogDefaultScales(LogSlots int) (CoeffsToSlotsFactorizationDepthAndLogDefaultScales [][]int, err error) {
-	if p.CoeffsToSlotsFactorizationDepthAndLogDefaultScales == nil {
-		CoeffsToSlotsFactorizationDepthAndLogDefaultScales = make([][]int, utils.Min(DefaultCoeffsToSlotsFactorizationDepth, utils.Max(LogSlots, 1)))
-		for i := range CoeffsToSlotsFactorizationDepthAndLogDefaultScales {
-			CoeffsToSlotsFactorizationDepthAndLogDefaultScales[i] = []int{DefaultCoeffsToSlotsLogDefaultScale}
+// GetCoeffsToSlotsFactorizationDepthAndLogScales returns a copy of the CoeffsToSlotsFactorizationDepthAndLogScales field of the target ParametersLiteral.
+// The default value constructed from DefaultC2SFactorization and DefaultC2SLogScale is returned if the field is nil.
+func (p *ParametersLiteral) GetCoeffsToSlotsFactorizationDepthAndLogScales(LogSlots int) (CoeffsToSlotsFactorizationDepthAndLogScales [][]int, err error) {
+	if p.CoeffsToSlotsFactorizationDepthAndLogScales == nil {
+		CoeffsToSlotsFactorizationDepthAndLogScales = make([][]int, utils.Min(DefaultCoeffsToSlotsFactorizationDepth, utils.Max(LogSlots, 1)))
+		for i := range CoeffsToSlotsFactorizationDepthAndLogScales {
+			CoeffsToSlotsFactorizationDepthAndLogScales[i] = []int{DefaultCoeffsToSlotsLogScale}
 		}
 	} else {
 		var depth int
-		for _, level := range p.CoeffsToSlotsFactorizationDepthAndLogDefaultScales {
+		for _, level := range p.CoeffsToSlotsFactorizationDepthAndLogScales {
 			for range level {
 				depth++
 				if depth > LogSlots {
-					return nil, fmt.Errorf("field CoeffsToSlotsFactorizationDepthAndLogDefaultScales cannot contain parameters for a depth > LogSlots")
+					return nil, fmt.Errorf("field CoeffsToSlotsFactorizationDepthAndLogScales cannot contain parameters for a depth > LogSlots")
 				}
 			}
 		}
-		CoeffsToSlotsFactorizationDepthAndLogDefaultScales = p.CoeffsToSlotsFactorizationDepthAndLogDefaultScales
+		CoeffsToSlotsFactorizationDepthAndLogScales = p.CoeffsToSlotsFactorizationDepthAndLogScales
 	}
 	return
 }
 
-// GetSlotsToCoeffsFactorizationDepthAndLogDefaultScales returns a copy of the SlotsToCoeffsFactorizationDepthAndLogDefaultScales field of the target ParametersLiteral.
-// The default value constructed from DefaultS2CFactorization and DefaultS2CLogDefaultScale is returned if the field is nil.
-func (p *ParametersLiteral) GetSlotsToCoeffsFactorizationDepthAndLogDefaultScales(LogSlots int) (SlotsToCoeffsFactorizationDepthAndLogDefaultScales [][]int, err error) {
-	if p.SlotsToCoeffsFactorizationDepthAndLogDefaultScales == nil {
-		SlotsToCoeffsFactorizationDepthAndLogDefaultScales = make([][]int, utils.Min(DefaultSlotsToCoeffsFactorizationDepth, utils.Max(LogSlots, 1)))
-		for i := range SlotsToCoeffsFactorizationDepthAndLogDefaultScales {
-			SlotsToCoeffsFactorizationDepthAndLogDefaultScales[i] = []int{DefaultSlotsToCoeffsLogDefaultScale}
+// GetSlotsToCoeffsFactorizationDepthAndLogScales returns a copy of the SlotsToCoeffsFactorizationDepthAndLogScales field of the target ParametersLiteral.
+// The default value constructed from DefaultS2CFactorization and DefaultS2CLogScale is returned if the field is nil.
+func (p *ParametersLiteral) GetSlotsToCoeffsFactorizationDepthAndLogScales(LogSlots int) (SlotsToCoeffsFactorizationDepthAndLogScales [][]int, err error) {
+	if p.SlotsToCoeffsFactorizationDepthAndLogScales == nil {
+		SlotsToCoeffsFactorizationDepthAndLogScales = make([][]int, utils.Min(DefaultSlotsToCoeffsFactorizationDepth, utils.Max(LogSlots, 1)))
+		for i := range SlotsToCoeffsFactorizationDepthAndLogScales {
+			SlotsToCoeffsFactorizationDepthAndLogScales[i] = []int{DefaultSlotsToCoeffsLogScale}
 		}
 	} else {
 		var depth int
-		for _, level := range p.SlotsToCoeffsFactorizationDepthAndLogDefaultScales {
+		for _, level := range p.SlotsToCoeffsFactorizationDepthAndLogScales {
 			for range level {
 				depth++
 				if depth > LogSlots {
-					return nil, fmt.Errorf("field SlotsToCoeffsFactorizationDepthAndLogDefaultScales cannot contain parameters for a depth > LogSlots")
+					return nil, fmt.Errorf("field SlotsToCoeffsFactorizationDepthAndLogScales cannot contain parameters for a depth > LogSlots")
 				}
 			}
 		}
-		SlotsToCoeffsFactorizationDepthAndLogDefaultScales = p.SlotsToCoeffsFactorizationDepthAndLogDefaultScales
+		SlotsToCoeffsFactorizationDepthAndLogScales = p.SlotsToCoeffsFactorizationDepthAndLogScales
 	}
 	return
 }
 
-// GetEvalModLogDefaultScale returns the EvalModLogDefaultScale field of the target ParametersLiteral.
-// The default value DefaultEvalModLogDefaultScale is returned is the field is nil.
-func (p *ParametersLiteral) GetEvalModLogDefaultScale() (EvalModLogDefaultScale int, err error) {
-	if v := p.EvalModLogDefaultScale; v == nil {
-		EvalModLogDefaultScale = DefaultEvalModLogDefaultScale
+// GetEvalModLogScale returns the EvalModLogScale field of the target ParametersLiteral.
+// The default value DefaultEvalModLogScale is returned is the field is nil.
+func (p *ParametersLiteral) GetEvalModLogScale() (EvalModLogScale int, err error) {
+	if v := p.EvalModLogScale; v == nil {
+		EvalModLogScale = DefaultEvalModLogScale
 
 	} else {
-		EvalModLogDefaultScale = *v
+		EvalModLogScale = *v
 
-		if EvalModLogDefaultScale < 0 || EvalModLogDefaultScale > 60 {
-			return EvalModLogDefaultScale, fmt.Errorf("field EvalModLogDefaultScale cannot be smaller than 0 or greater than 60")
+		if EvalModLogScale < 0 || EvalModLogScale > 60 {
+			return EvalModLogScale, fmt.Errorf("field EvalModLogScale cannot be smaller than 0 or greater than 60")
 		}
 	}
 
@@ -337,24 +337,24 @@ func (p *ParametersLiteral) GetEphemeralSecretWeight() (EphemeralSecretWeight in
 // The value is rounded up and thus will overestimate the value by up to 1 bit.
 func (p *ParametersLiteral) BitConsumption(LogSlots int) (logQ int, err error) {
 
-	var C2SLogDefaultScale [][]int
-	if C2SLogDefaultScale, err = p.GetCoeffsToSlotsFactorizationDepthAndLogDefaultScales(LogSlots); err != nil {
+	var C2SLogScale [][]int
+	if C2SLogScale, err = p.GetCoeffsToSlotsFactorizationDepthAndLogScales(LogSlots); err != nil {
 		return
 	}
 
-	for i := range C2SLogDefaultScale {
-		for _, logQi := range C2SLogDefaultScale[i] {
+	for i := range C2SLogScale {
+		for _, logQi := range C2SLogScale[i] {
 			logQ += logQi
 		}
 	}
 
-	var S2CLogDefaultScale [][]int
-	if S2CLogDefaultScale, err = p.GetSlotsToCoeffsFactorizationDepthAndLogDefaultScales(LogSlots); err != nil {
+	var S2CLogScale [][]int
+	if S2CLogScale, err = p.GetSlotsToCoeffsFactorizationDepthAndLogScales(LogSlots); err != nil {
 		return
 	}
 
-	for i := range S2CLogDefaultScale {
-		for _, logQi := range S2CLogDefaultScale[i] {
+	for i := range S2CLogScale {
+		for _, logQi := range S2CLogScale[i] {
 			logQ += logQi
 		}
 	}
@@ -364,8 +364,8 @@ func (p *ParametersLiteral) BitConsumption(LogSlots int) (logQ int, err error) {
 		return
 	}
 
-	var EvalModLogDefaultScale int
-	if EvalModLogDefaultScale, err = p.GetEvalModLogDefaultScale(); err != nil {
+	var EvalModLogScale int
+	if EvalModLogScale, err = p.GetEvalModLogScale(); err != nil {
 		return
 	}
 
@@ -384,7 +384,7 @@ func (p *ParametersLiteral) BitConsumption(LogSlots int) (logQ int, err error) {
 		return
 	}
 
-	logQ += 1 + EvalModLogDefaultScale*(bits.Len64(uint64(SineDegree))+DoubleAngle+bits.Len64(uint64(ArcSineDegree))) + (Iterations-1)*DefaultIterationsLogDefaultScale
+	logQ += 1 + EvalModLogScale*(bits.Len64(uint64(SineDegree))+DoubleAngle+bits.Len64(uint64(ArcSineDegree))) + (Iterations-1)*DefaultIterationsLogScale
 
 	return
 }

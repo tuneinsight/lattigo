@@ -36,13 +36,13 @@ func TestBootstrapParametersMarshalling(t *testing.T) {
 	t.Run("ParametersLiteral", func(t *testing.T) {
 
 		paramsLit := ParametersLiteral{
-			CoeffsToSlotsFactorizationDepthAndLogDefaultScales: [][]int{{53}, {53}, {53}, {53}},
-			SlotsToCoeffsFactorizationDepthAndLogDefaultScales: [][]int{{30}, {30, 30}},
-			EvalModLogDefaultScale:                             utils.Pointy(59),
-			EphemeralSecretWeight:                              utils.Pointy(1),
-			Iterations:                                         utils.Pointy(2),
-			SineDegree:                                         utils.Pointy(32),
-			ArcSineDegree:                                      utils.Pointy(7),
+			CoeffsToSlotsFactorizationDepthAndLogScales: [][]int{{53}, {53}, {53}, {53}},
+			SlotsToCoeffsFactorizationDepthAndLogScales: [][]int{{30}, {30, 30}},
+			EvalModLogScale:       utils.Pointy(59),
+			EphemeralSecretWeight: utils.Pointy(1),
+			Iterations:            utils.Pointy(2),
+			SineDegree:            utils.Pointy(32),
+			ArcSineDegree:         utils.Pointy(7),
 		}
 
 		data, err := paramsLit.MarshalBinary()

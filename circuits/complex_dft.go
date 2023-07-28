@@ -13,7 +13,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
-type HDFTEvaluatorInt interface {
+type ComplexDFTEvaluator interface {
 	rlwe.ParameterProvider
 	EvaluatorForLinearTransform
 	Add(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
@@ -21,7 +21,7 @@ type HDFTEvaluatorInt interface {
 	Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
 	Conjugate(op0 *rlwe.Ciphertext, opOut *rlwe.Ciphertext) (err error)
 	Rotate(op0 *rlwe.Ciphertext, k int, opOut *rlwe.Ciphertext) (err error)
-	Rescale(op0 *rlwe.Ciphertext, minScale rlwe.Scale, opOut *rlwe.Ciphertext) (err error)
+	Rescale(op0 *rlwe.Ciphertext, opOut *rlwe.Ciphertext) (err error)
 }
 
 // DFTType is a type used to distinguish different linear transformations.
@@ -121,14 +121,14 @@ func (d *HomomorphicDFTMatrixLiteral) UnmarshalBinary(data []byte) error {
 }
 
 type HDFTEvaluator struct {
-	HDFTEvaluatorInt
+	ComplexDFTEvaluator
 	*LinearTransformEvaluator
 	parameters ckks.Parameters
 }
 
-func NewHDFTEvaluator(params ckks.Parameters, eval HDFTEvaluatorInt) *HDFTEvaluator {
+func NewHDFTEvaluator(params ckks.Parameters, eval ComplexDFTEvaluator) *HDFTEvaluator {
 	hdfteval := new(HDFTEvaluator)
-	hdfteval.HDFTEvaluatorInt = eval
+	hdfteval.ComplexDFTEvaluator = eval
 	hdfteval.LinearTransformEvaluator = NewEvaluator(eval)
 	hdfteval.parameters = params
 	return hdfteval
@@ -321,7 +321,6 @@ func (eval *HDFTEvaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []LinearTrans
 	inputLogSlots := ctIn.LogDimensions
 
 	// Sequentially multiplies w with the provided dft matrices.
-	scale := ctIn.Scale
 	var in, out *rlwe.Ciphertext
 	for i, plainVector := range plainVectors {
 		in, out = opOut, opOut
@@ -333,7 +332,7 @@ func (eval *HDFTEvaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []LinearTrans
 			return
 		}
 
-		if err = eval.Rescale(out, scale, out); err != nil {
+		if err = eval.Rescale(out, out); err != nil {
 			return
 		}
 	}

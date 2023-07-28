@@ -512,7 +512,7 @@ func testEvaluatorSub(tc *testContext, t *testing.T) {
 
 func testEvaluatorRescale(tc *testContext, t *testing.T) {
 
-	t.Run(GetTestName(tc.params, "Evaluator/Rescale/Single"), func(t *testing.T) {
+	t.Run(GetTestName(tc.params, "Evaluator/RescaleTo/Single"), func(t *testing.T) {
 
 		if tc.params.MaxLevel() < 2 {
 			t.Skip("skipping test for params max level < 2")
@@ -526,14 +526,14 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 
 		ciphertext.Scale = ciphertext.Scale.Mul(rlwe.NewScale(constant))
 
-		if err := tc.evaluator.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
+		if err := tc.evaluator.RescaleTo(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
 			t.Fatal(err)
 		}
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, t)
 	})
 
-	t.Run(GetTestName(tc.params, "Evaluator/Rescale/Many"), func(t *testing.T) {
+	t.Run(GetTestName(tc.params, "Evaluator/RescaleTo/Many"), func(t *testing.T) {
 
 		if tc.params.MaxLevel() < 2 {
 			t.Skip("skipping test for params max level < 2")
@@ -552,7 +552,7 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 			ciphertext.Scale = ciphertext.Scale.Mul(rlwe.NewScale(constant))
 		}
 
-		if err := tc.evaluator.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
+		if err := tc.evaluator.RescaleTo(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
 			t.Fatal(err)
 		}
 
@@ -945,7 +945,7 @@ func testChebyshevInterpolator(tc *testContext, t *testing.T) {
 		scalar, constant := poly.ChangeOfBasis()
 		eval.Mul(ciphertext, scalar, ciphertext)
 		eval.Add(ciphertext, constant, ciphertext)
-		if err = eval.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
+		if err = eval.RescaleTo(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
 			t.Fatal(err)
 		}
 
@@ -1004,7 +1004,7 @@ func testDecryptPublic(tc *testContext, t *testing.T) {
 
 		require.NoError(t, eval.Mul(ciphertext, scalar, ciphertext))
 		require.NoError(t, eval.Add(ciphertext, constant, ciphertext))
-		if err := eval.Rescale(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
+		if err := eval.RescaleTo(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
 			t.Fatal(err)
 		}
 

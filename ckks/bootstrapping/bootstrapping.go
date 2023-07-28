@@ -86,7 +86,7 @@ func (btp *Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (opOut *rlwe.Ciphertex
 			return nil, fmt.Errorf("cannot Bootstrap: %w", err)
 		}
 
-		if err = btp.Rescale(tmp, btp.params.DefaultScale(), tmp); err != nil {
+		if err = btp.RescaleTo(tmp, btp.params.DefaultScale(), tmp); err != nil {
 			return nil, fmt.Errorf("cannot Bootstrap: %w", err)
 		}
 

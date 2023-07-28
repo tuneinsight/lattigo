@@ -156,10 +156,6 @@ func (d dummyEvaluator) GetPolynmialDepth(degree int) int {
 	return d.levelsConsummedPerRescaling * (bits.Len64(uint64(degree)) - 1)
 }
 
-func (polyEval PolynomialEvaluator) Rescale(op0, op1 *rlwe.Ciphertext) (err error) {
-	return polyEval.Evaluator.Rescale(op0, polyEval.GetParameters().DefaultScale(), op1)
-}
-
 func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol hebase.PolynomialVector, pb hebase.PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
 
 	// Map[int] of the powers [X^{0}, X^{1}, X^{2}, ...]

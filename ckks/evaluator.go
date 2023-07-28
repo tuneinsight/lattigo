@@ -447,7 +447,7 @@ func (eval Evaluator) SetScale(ct *rlwe.Ciphertext, scale rlwe.Scale) (err error
 	if err = eval.Mul(ct, &ratioFlo, ct); err != nil {
 		return fmt.Errorf("cannot SetScale: %w", err)
 	}
-	if err = eval.Rescale(ct, scale, ct); err != nil {
+	if err = eval.RescaleTo(ct, scale, ct); err != nil {
 		return fmt.Errorf("cannot SetScale: %w", err)
 	}
 	ct.Scale = scale
@@ -468,45 +468,72 @@ func (eval Evaluator) DropLevel(op0 *rlwe.Ciphertext, levels int) {
 	op0.Resize(op0.Degree(), op0.Level()-levels)
 }
 
-// RescaleNew divides op0 by the last modulus in the moduli chain, and repeats this
-// procedure (consuming one level each time) until the scale reaches the original scale or before it goes below it, and returns the result
-// in a newly created element. Since all the moduli in the moduli chain are generated to be close to the
-// original scale, this procedure is equivalent to dividing the input element by the scale and adding
-// some error.
-// Returns an error if "threshold <= 0", ct.Scale = 0, ct.Level() = 0, ct.IsNTT() != true
-func (eval Evaluator) RescaleNew(op0 *rlwe.Ciphertext, minScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
-	opOut = NewCiphertext(*eval.GetParameters(), op0.Degree(), op0.Level())
-	return opOut, eval.Rescale(op0, minScale, opOut)
-}
-
-// Rescale divides op0 by the last modulus in the moduli chain, and repeats this
-// procedure (consuming one level each time) until the scale reaches the original scale or before it goes below it, and returns the result
-// in opOut. Since all the moduli in the moduli chain are generated to be close to the
-// original scale, this procedure is equivalent to dividing the input element by the scale and adding
-// some error.
-// Returns an error if "minScale <= 0", ct.Scale = 0, ct.Level() = 0, ct.IsNTT() != true or if ct.Leve() != opOut.Level()
-func (eval Evaluator) Rescale(op0 *rlwe.Ciphertext, minScale rlwe.Scale, opOut *rlwe.Ciphertext) (err error) {
+// Rescale divides op0 by the last prime of the moduli chain and repeats this procedure
+// params.LevelsConsummedPerRescaling() times.
+// Returns an error if:
+// - Either op0 or opOut MetaData are nil
+// - The level of op0 is too low to enable a rescale
+func (eval Evaluator) Rescale(op0, opOut *rlwe.Ciphertext) (err error) {
 
 	if op0.MetaData == nil || opOut.MetaData == nil {
 		return fmt.Errorf("cannot Rescale: op0.MetaData or opOut.MetaData is nil")
 	}
 
+	params := eval.GetParameters()
+
+	nbRescales := params.LevelsConsummedPerRescaling()
+
+	if op0.Level() <= nbRescales-1 {
+		return fmt.Errorf("cannot Rescale: input Ciphertext level is too low")
+	}
+
+	if op0 != opOut {
+		opOut.Resize(op0.Degree(), op0.Level()-nbRescales)
+	}
+
+	*opOut.MetaData = *op0.MetaData
+
+	ringQ := params.RingQ().AtLevel(op0.Level())
+
+	for i := 0; i < nbRescales; i++ {
+		opOut.Scale = opOut.Scale.Div(rlwe.NewScale(ringQ.SubRings[op0.Level()-i].Modulus))
+	}
+
+	for i := range opOut.Value {
+		ringQ.DivRoundByLastModulusManyNTT(nbRescales, op0.Value[i], eval.buffQ[0], opOut.Value[i])
+	}
+
+	if op0 == opOut {
+		opOut.Resize(op0.Degree(), op0.Level()-nbRescales)
+	}
+
+	return
+}
+
+// RescaleTo divides op0 by the last prime in the moduli chain, and repeats this procedure (consuming one level each time)
+// and stops if the scale reaches `minScale` or if it would go below `minscale/2`, and returns the result in opOut.
+// Returns an error if:
+// - minScale <= 0
+// - ct.Scale <= 0
+// - ct.Level() = 0
+func (eval Evaluator) RescaleTo(op0 *rlwe.Ciphertext, minScale rlwe.Scale, opOut *rlwe.Ciphertext) (err error) {
+
+	if op0.MetaData == nil || opOut.MetaData == nil {
+		return fmt.Errorf("cannot RescaleTo: op0.MetaData or opOut.MetaData is nil")
+	}
+
 	if minScale.Cmp(rlwe.NewScale(0)) != 1 {
-		return fmt.Errorf("cannot Rescale: minScale is <0")
+		return fmt.Errorf("cannot RescaleTo: minScale is <0")
 	}
 
 	minScale = minScale.Div(rlwe.NewScale(2))
 
 	if op0.Scale.Cmp(rlwe.NewScale(0)) != 1 {
-		return fmt.Errorf("cannot Rescale: ciphertext scale is <0")
+		return fmt.Errorf("cannot RescaleTo: ciphertext scale is <0")
 	}
 
 	if op0.Level() == 0 {
-		return fmt.Errorf("cannot Rescale: input Ciphertext already at level 0")
-	}
-
-	if opOut.Degree() != op0.Degree() {
-		return fmt.Errorf("cannot Rescale: op0.Degree() != opOut.Degree()")
+		return fmt.Errorf("cannot RescaleTo: input Ciphertext already at level 0")
 	}
 
 	*opOut.MetaData = *op0.MetaData
@@ -530,6 +557,10 @@ func (eval Evaluator) Rescale(op0 *rlwe.Ciphertext, minScale rlwe.Scale, opOut *
 
 		nbRescales++
 		newLevel--
+	}
+
+	if op0 != opOut {
+		opOut.Resize(op0.Degree(), op0.Level()-nbRescales)
 	}
 
 	if nbRescales > 0 {

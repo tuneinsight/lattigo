@@ -322,7 +322,7 @@ func (eval Evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) (
 			return nil, fmt.Errorf("cannot EvalModNew: %w", err)
 		}
 
-		if err = eval.Rescale(ct, rlwe.NewScale(targetScale), ct); err != nil {
+		if err = eval.RescaleTo(ct, rlwe.NewScale(targetScale), ct); err != nil {
 			return nil, fmt.Errorf("cannot EvalModNew: %w", err)
 		}
 	}

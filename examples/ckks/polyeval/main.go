@@ -130,7 +130,7 @@ func chebyshevinterpolation() {
 		panic(err)
 	}
 
-	if err := evaluator.Rescale(ciphertext, params.DefaultScale(), ciphertext); err != nil {
+	if err := evaluator.Rescale(ciphertext, ciphertext); err != nil {
 		panic(err)
 	}
 

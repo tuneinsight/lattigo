@@ -145,7 +145,7 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 		ciphertext1.Scale = tc.params.DefaultScale().Mul(tc.params.DefaultScale())
 
 		for i := 0; i < b.N; i++ {
-			eval.Rescale(ciphertext1, tc.params.DefaultScale(), ciphertext2)
+			eval.RescaleTo(ciphertext1, tc.params.DefaultScale(), ciphertext2)
 		}
 	})
 }

@@ -413,7 +413,7 @@ func main() {
 	// The middle argument `Scale` tells the evaluator the minimum scale that the receiver operand must have.
 	// In other words, the evaluator will rescale the input operand until it reaches the given threshold or can't rescale further because the resulting
 	// scale would be smaller.
-	if err = eval.Rescale(res, params.DefaultScale(), res); err != nil {
+	if err = eval.Rescale(res, res); err != nil {
 		panic(err)
 	}
 
@@ -572,7 +572,7 @@ func main() {
 		panic(err)
 	}
 
-	if err = eval.Rescale(res, params.DefaultScale(), res); err != nil {
+	if err = eval.Rescale(res, res); err != nil {
 		panic(err)
 	}
 
@@ -730,7 +730,7 @@ func main() {
 	}
 
 	// Result is not returned rescaled
-	if err = eval.Rescale(res, params.DefaultScale(), res); err != nil {
+	if err = eval.Rescale(res, res); err != nil {
 		panic(err)
 	}
 

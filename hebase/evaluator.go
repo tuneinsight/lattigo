@@ -16,19 +16,3 @@ type EvaluatorInterface interface {
 	Relinearize(op0, op1 *rlwe.Ciphertext) (err error)
 	Rescale(op0, op1 *rlwe.Ciphertext) (err error)
 }
-
-type Evaluator struct {
-	rlwe.Evaluator
-}
-
-func NewEvaluator(params rlwe.ParameterProvider, evk rlwe.EvaluationKeySet) (eval *Evaluator) {
-	return &Evaluator{*rlwe.NewEvaluator(params, evk)}
-}
-
-func (eval Evaluator) WithKey(evk rlwe.EvaluationKeySet) *Evaluator {
-	return &Evaluator{*eval.Evaluator.WithKey(evk)}
-}
-
-func (eval Evaluator) ShallowCopy() *Evaluator {
-	return &Evaluator{*eval.Evaluator.ShallowCopy()}
-}

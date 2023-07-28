@@ -8,7 +8,6 @@ import (
 	"github.com/tuneinsight/lattigo/v4/bgv"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 )
 
 // NewPlaintext allocates a new rlwe.Plaintext from the BFV parameters, at the
@@ -73,14 +72,6 @@ func NewEncoder(params Parameters) *Encoder {
 // shared with the receiver.
 func (e Encoder) ShallowCopy() *Encoder {
 	return &Encoder{Encoder: e.Encoder.ShallowCopy()}
-}
-
-type encoder[T int64 | uint64, U *ring.Poly | ringqp.Poly | *rlwe.Plaintext] struct {
-	*Encoder
-}
-
-func (e encoder[T, U]) Encode(values []T, metadata *rlwe.MetaData, output U) (err error) {
-	return e.Encoder.Embed(values, false, metadata, output)
 }
 
 // Evaluator is a struct that holds the necessary elements to perform the homomorphic operations between ciphertexts and/or plaintexts.

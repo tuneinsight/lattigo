@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
@@ -13,6 +14,7 @@ import (
 // the polynomial approximation, and the keys for the bootstrapping.
 type Bootstrapper struct {
 	*ckks.Evaluator
+	*circuits.HDFTEvaluator
 	*bootstrapperBase
 }
 
@@ -25,8 +27,8 @@ type bootstrapperBase struct {
 	logdslots int
 
 	evalModPoly ckks.EvalModPoly
-	stcMatrices ckks.HomomorphicDFTMatrix
-	ctsMatrices ckks.HomomorphicDFTMatrix
+	stcMatrices circuits.HomomorphicDFTMatrix
+	ctsMatrices circuits.HomomorphicDFTMatrix
 
 	q0OverMessageRatio float64
 }
@@ -70,6 +72,8 @@ func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKeys *Eval
 	btp.EvaluationKeySet = btpKeys
 
 	btp.Evaluator = ckks.NewEvaluator(params, btpKeys)
+
+	btp.HDFTEvaluator = circuits.NewHDFTEvaluator(params, btp.Evaluator)
 
 	return
 }
@@ -221,7 +225,7 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey *E
 		bb.CoeffsToSlotsParameters.Scaling.Mul(bb.CoeffsToSlotsParameters.Scaling, new(big.Float).SetFloat64(qDiv/(K*scFac*qDiff)))
 	}
 
-	if bb.ctsMatrices, err = ckks.NewHomomorphicDFTMatrixFromLiteral(bb.CoeffsToSlotsParameters, encoder); err != nil {
+	if bb.ctsMatrices, err = circuits.NewHomomorphicDFTMatrixFromLiteral(params, bb.CoeffsToSlotsParameters, encoder); err != nil {
 		return
 	}
 
@@ -234,7 +238,7 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey *E
 		bb.SlotsToCoeffsParameters.Scaling.Mul(bb.SlotsToCoeffsParameters.Scaling, new(big.Float).SetFloat64(bb.params.DefaultScale().Float64()/(bb.evalModPoly.ScalingFactor().Float64()/bb.evalModPoly.MessageRatio())*qDiff))
 	}
 
-	if bb.stcMatrices, err = ckks.NewHomomorphicDFTMatrixFromLiteral(bb.SlotsToCoeffsParameters, encoder); err != nil {
+	if bb.stcMatrices, err = circuits.NewHomomorphicDFTMatrixFromLiteral(params, bb.SlotsToCoeffsParameters, encoder); err != nil {
 		return
 	}
 

@@ -13,15 +13,15 @@ import (
 type Evaluator struct {
 	params Parameters
 	EvaluationKeySet
-	*evaluatorBuffers
+	*EvaluatorBuffers
 
-	AutomorphismIndex map[uint64][]uint64
+	automorphismIndex map[uint64][]uint64
 
 	BasisExtender *ring.BasisExtender
 	Decomposer    *ring.Decomposer
 }
 
-type evaluatorBuffers struct {
+type EvaluatorBuffers struct {
 	BuffCt *Ciphertext
 	// BuffQP[0-1]: Key-Switch output Key-Switch on the fly decomp(c2)
 	// BuffQP[2-5]: Available
@@ -31,9 +31,9 @@ type evaluatorBuffers struct {
 	BuffBitDecomp []uint64
 }
 
-func newEvaluatorBuffers(params Parameters) *evaluatorBuffers {
+func NewEvaluatorBuffers(params Parameters) *EvaluatorBuffers {
 
-	buff := new(evaluatorBuffers)
+	buff := new(EvaluatorBuffers)
 	BaseRNSDecompositionVectorSize := params.BaseRNSDecompositionVectorSize(params.MaxLevelQ(), 0)
 	ringQP := params.RingQP()
 
@@ -65,7 +65,7 @@ func NewEvaluator(params ParameterProvider, evk EvaluationKeySet) (eval *Evaluat
 	eval = new(Evaluator)
 	p := params.GetRLWEParameters()
 	eval.params = *p
-	eval.evaluatorBuffers = newEvaluatorBuffers(eval.params)
+	eval.EvaluatorBuffers = NewEvaluatorBuffers(eval.params)
 
 	if p.RingP() != nil {
 		eval.BasisExtender = ring.NewBasisExtender(p.RingQ(), p.RingP())
@@ -92,12 +92,12 @@ func NewEvaluator(params ParameterProvider, evk EvaluationKeySet) (eval *Evaluat
 		}
 	}
 
-	eval.AutomorphismIndex = AutomorphismIndex
+	eval.automorphismIndex = AutomorphismIndex
 
 	return
 }
 
-func (eval Evaluator) GetRLWEParameters() *Parameters {
+func (eval *Evaluator) GetRLWEParameters() *Parameters {
 	return &eval.params
 }
 
@@ -111,12 +111,12 @@ func (eval Evaluator) CheckAndGetGaloisKey(galEl uint64) (evk *GaloisKey, err er
 		return nil, fmt.Errorf("evaluation key interface is nil")
 	}
 
-	if eval.AutomorphismIndex == nil {
-		eval.AutomorphismIndex = map[uint64][]uint64{}
+	if eval.automorphismIndex == nil {
+		eval.automorphismIndex = map[uint64][]uint64{}
 	}
 
-	if _, ok := eval.AutomorphismIndex[galEl]; !ok {
-		if eval.AutomorphismIndex[galEl], err = ring.AutomorphismNTTIndex(eval.params.N(), eval.params.RingQ().NthRoot(), galEl); err != nil {
+	if _, ok := eval.automorphismIndex[galEl]; !ok {
+		if eval.automorphismIndex[galEl], err = ring.AutomorphismNTTIndex(eval.params.N(), eval.params.RingQ().NthRoot(), galEl); err != nil {
 			panic(err)
 		}
 	}
@@ -239,9 +239,9 @@ func (eval Evaluator) ShallowCopy() *Evaluator {
 		params:            eval.params,
 		Decomposer:        eval.Decomposer,
 		BasisExtender:     eval.BasisExtender.ShallowCopy(),
-		evaluatorBuffers:  newEvaluatorBuffers(eval.params),
+		EvaluatorBuffers:  NewEvaluatorBuffers(eval.params),
 		EvaluationKeySet:  eval.EvaluationKeySet,
-		AutomorphismIndex: eval.AutomorphismIndex,
+		automorphismIndex: eval.automorphismIndex,
 	}
 }
 
@@ -267,10 +267,22 @@ func (eval Evaluator) WithKey(evk EvaluationKeySet) *Evaluator {
 
 	return &Evaluator{
 		params:            eval.params,
-		evaluatorBuffers:  eval.evaluatorBuffers,
+		EvaluatorBuffers:  eval.EvaluatorBuffers,
 		Decomposer:        eval.Decomposer,
 		BasisExtender:     eval.BasisExtender,
 		EvaluationKeySet:  evk,
-		AutomorphismIndex: AutomorphismIndex,
+		automorphismIndex: AutomorphismIndex,
 	}
+}
+
+func (eval *Evaluator) AutomorphismIndex(galEl uint64) []uint64 {
+	return eval.automorphismIndex[galEl]
+}
+
+func (eval *Evaluator) GetEvaluatorBuffer() *EvaluatorBuffers {
+	return eval.EvaluatorBuffers
+}
+
+func (eval *Evaluator) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q ring.Poly) {
+	eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, p1Q, p1P, p2Q)
 }

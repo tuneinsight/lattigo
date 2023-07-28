@@ -1105,11 +1105,3 @@ func (ecd Encoder) ShallowCopy() *Encoder {
 		buffCmplx:    buffCmplx,
 	}
 }
-
-type encoder[T float64 | complex128 | *big.Float | *bignum.Complex, U ring.Poly | ringqp.Poly | *rlwe.Plaintext] struct {
-	*Encoder
-}
-
-func (e *encoder[T, U]) Encode(values []T, metadata *rlwe.MetaData, output U) (err error) {
-	return e.Encoder.Embed(values, metadata, output)
-}

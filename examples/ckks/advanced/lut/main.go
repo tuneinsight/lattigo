@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rgsw/lut"
 	"github.com/tuneinsight/lattigo/v4/ring"
@@ -93,8 +94,8 @@ func main() {
 	normalization := 2.0 / (b - a) // all inputs are normalized before the LUT evaluation.
 
 	// SlotsToCoeffsParameters homomorphic encoding parameters
-	var SlotsToCoeffsParameters = ckks.HomomorphicDFTMatrixLiteral{
-		Type:       ckks.Decode,
+	var SlotsToCoeffsParameters = circuits.HomomorphicDFTMatrixLiteral{
+		Type:       circuits.HomomorphicDecode,
 		LogSlots:   LogSlots,
 		Scaling:    new(big.Float).SetFloat64(normalization * diffScale),
 		LevelStart: 1,        // starting level
@@ -102,8 +103,8 @@ func main() {
 	}
 
 	// CoeffsToSlotsParameters homomorphic decoding parameters
-	var CoeffsToSlotsParameters = ckks.HomomorphicDFTMatrixLiteral{
-		Type:       ckks.Encode,
+	var CoeffsToSlotsParameters = circuits.HomomorphicDFTMatrixLiteral{
+		Type:       circuits.HomomorphicEncode,
 		LogSlots:   LogSlots,
 		LevelStart: 1,        // starting level
 		Levels:     []int{1}, // Decomposition levels of the encoding matrix (this will use one one matrix in one level)
@@ -149,11 +150,11 @@ func main() {
 
 	fmt.Printf("Gen SlotsToCoeffs Matrices... ")
 	now = time.Now()
-	SlotsToCoeffsMatrix, err := ckks.NewHomomorphicDFTMatrixFromLiteral(SlotsToCoeffsParameters, encoderN12)
+	SlotsToCoeffsMatrix, err := circuits.NewHomomorphicDFTMatrixFromLiteral(paramsN12, SlotsToCoeffsParameters, encoderN12)
 	if err != nil {
 		panic(err)
 	}
-	CoeffsToSlotsMatrix, err := ckks.NewHomomorphicDFTMatrixFromLiteral(CoeffsToSlotsParameters, encoderN12)
+	CoeffsToSlotsMatrix, err := circuits.NewHomomorphicDFTMatrixFromLiteral(paramsN12, CoeffsToSlotsParameters, encoderN12)
 	if err != nil {
 		panic(err)
 	}
@@ -177,6 +178,7 @@ func main() {
 
 	// CKKS Evaluator
 	evalCKKS := ckks.NewEvaluator(paramsN12, evk)
+	evalHDFT := circuits.NewHDFTEvaluator(paramsN12, evalCKKS)
 
 	fmt.Printf("Encrypting bits of skLWE in RGSW... ")
 	now = time.Now()
@@ -207,7 +209,7 @@ func main() {
 	now = time.Now()
 
 	// Homomorphic Decoding: [(a+bi), (c+di)] -> [a, c, b, d]
-	ctN12, err = evalCKKS.SlotsToCoeffsNew(ctN12, nil, SlotsToCoeffsMatrix)
+	ctN12, err = evalHDFT.SlotsToCoeffsNew(ctN12, nil, SlotsToCoeffsMatrix)
 	if err != nil {
 		panic(err)
 	}
@@ -238,7 +240,7 @@ func main() {
 	fmt.Printf("Homomorphic Encoding... ")
 	now = time.Now()
 	// Homomorphic Encoding: [LUT(a), LUT(c), LUT(b), LUT(d)] -> [(LUT(a)+LUT(b)i), (LUT(c)+LUT(d)i)]
-	ctN12, _, err = evalCKKS.CoeffsToSlotsNew(ctN12, CoeffsToSlotsMatrix)
+	ctN12, _, err = evalHDFT.CoeffsToSlotsNew(ctN12, CoeffsToSlotsMatrix)
 	if err != nil {
 		panic(err)
 	}

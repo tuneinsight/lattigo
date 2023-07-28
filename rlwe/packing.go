@@ -1,4 +1,4 @@
-package hebase
+package rlwe
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
@@ -34,7 +33,7 @@ import (
 //	= [8 + 0X + 0X^2 - 0X^3 + 0X^4 + 0X^5 + 0X^6 - 0X^7]
 //
 // The method will return an error if the input and output ciphertexts degree is not one.
-func (eval Evaluator) Trace(ctIn *rlwe.Ciphertext, logN int, opOut *rlwe.Ciphertext) (err error) {
+func (eval Evaluator) Trace(ctIn *Ciphertext, logN int, opOut *Ciphertext) (err error) {
 
 	if ctIn.Degree() != 1 || opOut.Degree() != 1 {
 		return fmt.Errorf("ctIn.Degree() != 1 or opOut.Degree() != 1")
@@ -75,7 +74,7 @@ func (eval Evaluator) Trace(ctIn *rlwe.Ciphertext, logN int, opOut *rlwe.Ciphert
 			opOut.IsNTT = true
 		}
 
-		buff, err := rlwe.NewCiphertextAtLevelFromPoly(level, []ring.Poly{eval.BuffQP[3].Q, eval.BuffQP[4].Q})
+		buff, err := NewCiphertextAtLevelFromPoly(level, []ring.Poly{eval.BuffQP[3].Q, eval.BuffQP[4].Q})
 
 		if err != nil {
 			panic(err)
@@ -120,7 +119,7 @@ func (eval Evaluator) Trace(ctIn *rlwe.Ciphertext, logN int, opOut *rlwe.Ciphert
 
 // GaloisElementsForTrace returns the list of Galois elements requored for the for the `Trace` operation.
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for 2^{LogN} <= i < N.
-func GaloisElementsForTrace(params rlwe.ParameterProvider, logN int) (galEls []uint64) {
+func GaloisElementsForTrace(params ParameterProvider, logN int) (galEls []uint64) {
 
 	p := params.GetRLWEParameters()
 
@@ -151,7 +150,7 @@ func GaloisElementsForTrace(params rlwe.ParameterProvider, logN int) (galEls []u
 // The method will return an error if:
 //   - The input ciphertext degree is not one
 //   - The ring type is not ring.Standard
-func (eval Evaluator) Expand(ctIn *rlwe.Ciphertext, logN, logGap int) (opOut []*rlwe.Ciphertext, err error) {
+func (eval Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (opOut []*Ciphertext, err error) {
 
 	if ctIn.Degree() != 1 {
 		return nil, fmt.Errorf("cannot Expand: ctIn.Degree() != 1")
@@ -170,7 +169,7 @@ func (eval Evaluator) Expand(ctIn *rlwe.Ciphertext, logN, logGap int) (opOut []*
 	// Compute X^{-2^{i}} from 1 to LogN
 	xPow2 := GenXPow2(ringQ, logN, true)
 
-	opOut = make([]*rlwe.Ciphertext, 1<<(logN-logGap))
+	opOut = make([]*Ciphertext, 1<<(logN-logGap))
 	opOut[0] = ctIn.CopyNew()
 	opOut[0].LogDimensions = ring.Dimensions{Rows: 0, Cols: 0}
 
@@ -189,7 +188,7 @@ func (eval Evaluator) Expand(ctIn *rlwe.Ciphertext, logN, logGap int) (opOut []*
 
 	gap := 1 << logGap
 
-	tmp, err := rlwe.NewCiphertextAtLevelFromPoly(level, []ring.Poly{eval.BuffCt.Value[0], eval.BuffCt.Value[1]})
+	tmp, err := NewCiphertextAtLevelFromPoly(level, []ring.Poly{eval.BuffCt.Value[0], eval.BuffCt.Value[1]})
 
 	if err != nil {
 		panic(err)
@@ -254,7 +253,7 @@ func (eval Evaluator) Expand(ctIn *rlwe.Ciphertext, logN, logGap int) (opOut []*
 
 // GaloisElementsForExpand returns the list of Galois elements required
 // to perform the `Expand` operation with parameter `logN`.
-func GaloisElementsForExpand(params rlwe.ParameterProvider, logN int) (galEls []uint64) {
+func GaloisElementsForExpand(params ParameterProvider, logN int) (galEls []uint64) {
 	galEls = make([]uint64, logN)
 
 	NthRoot := params.GetRLWEParameters().RingQ().NthRoot()
@@ -299,7 +298,7 @@ func GaloisElementsForExpand(params rlwe.ParameterProvider, logN int) (galEls []
 //	         map[1]: 2^{-1} * (map[1] + X^2 * map[3] + phi_{5^2}(map[1] - X^2 * map[3]) = [x10, X, x30, X, x11, X, x31, X]
 //	 Step 2:
 //	         map[0]: 2^{-1} * (map[0] + X^1 * map[1] + phi_{5^4}(map[0] - X^1 * map[1]) = [x00, x10, x20, x30, x01, x11, x21, x22]
-func (eval Evaluator) Pack(cts map[int]*rlwe.Ciphertext, inputLogGap int, zeroGarbageSlots bool) (ct *rlwe.Ciphertext, err error) {
+func (eval Evaluator) Pack(cts map[int]*Ciphertext, inputLogGap int, zeroGarbageSlots bool) (ct *Ciphertext, err error) {
 
 	params := eval.GetRLWEParameters()
 
@@ -363,9 +362,9 @@ func (eval Evaluator) Pack(cts map[int]*rlwe.Ciphertext, inputLogGap int, zeroGa
 		ringQ.MulScalarBigint(ct.Value[1], NInv, ct.Value[1])
 	}
 
-	tmpa := &rlwe.Ciphertext{}
+	tmpa := &Ciphertext{}
 	tmpa.Value = []ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()}
-	tmpa.MetaData = &rlwe.MetaData{}
+	tmpa.MetaData = &MetaData{}
 	tmpa.MetaData.IsNTT = true
 
 	for i := logStart; i < logEnd; i++ {
@@ -436,7 +435,7 @@ func (eval Evaluator) Pack(cts map[int]*rlwe.Ciphertext, inputLogGap int, zeroGa
 }
 
 // GaloisElementsForPack returns the list of Galois elements required to perform the `Pack` operation.
-func GaloisElementsForPack(params rlwe.ParameterProvider, logGap int) (galEls []uint64) {
+func GaloisElementsForPack(params ParameterProvider, logGap int) (galEls []uint64) {
 
 	p := params.GetRLWEParameters()
 

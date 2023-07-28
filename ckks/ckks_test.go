@@ -15,7 +15,6 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/hebase"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
@@ -97,7 +96,6 @@ func TestCKKS(t *testing.T) {
 				testEvaluatePoly,
 				testChebyshevInterpolator,
 				testBridge,
-				testLinearTransformation,
 			} {
 				testSet(tc, t)
 				runtime.GC()
@@ -1090,180 +1088,5 @@ func testBridge(tc *testContext, t *testing.T) {
 		switcher.ComplexToReal(evalStandar, stdCTHave, ciCTHave)
 
 		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciCTHave, nil, t)
-	})
-}
-
-func testLinearTransformation(tc *testContext, t *testing.T) {
-
-	t.Run(GetTestName(tc.params, "Average"), func(t *testing.T) {
-
-		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
-
-		slots := ciphertext.Slots()
-
-		logBatch := 9
-		batch := 1 << logBatch
-		n := slots / batch
-
-		gks, err := tc.kgen.GenGaloisKeysNew(hebase.GaloisElementsForInnerSum(tc.params, batch, n), tc.sk)
-		require.NoError(t, err)
-		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
-
-		eval := tc.evaluator.WithKey(evk)
-
-		eval.Average(ciphertext, logBatch, ciphertext)
-
-		tmp0 := make([]*bignum.Complex, len(values))
-		for i := range tmp0 {
-			tmp0[i] = values[i].Clone()
-		}
-
-		for i := 1; i < n; i++ {
-
-			tmp1 := utils.RotateSlice(tmp0, i*batch)
-
-			for j := range values {
-				values[j].Add(values[j], tmp1[j])
-			}
-		}
-
-		nB := new(big.Float).SetFloat64(float64(n))
-
-		for i := range values {
-			values[i][0].Quo(values[i][0], nB)
-			values[i][1].Quo(values[i][1], nB)
-		}
-
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, t)
-	})
-
-	t.Run(GetTestName(tc.params, "LinearTransform/BSGS=True"), func(t *testing.T) {
-
-		params := tc.params
-
-		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
-
-		slots := ciphertext.Slots()
-
-		nonZeroDiags := []int{-15, -4, -1, 0, 1, 2, 3, 4, 15}
-
-		one := new(big.Float).SetInt64(1)
-		zero := new(big.Float)
-
-		diagonals := make(map[int][]*bignum.Complex)
-		for _, i := range nonZeroDiags {
-			diagonals[i] = make([]*bignum.Complex, slots)
-
-			for j := 0; j < slots; j++ {
-				diagonals[i][j] = &bignum.Complex{one, zero}
-			}
-		}
-
-		ltparams := NewLinearTransformationParameters(LinearTransformationParametersLiteral[*bignum.Complex]{
-			Diagonals:                diagonals,
-			Level:                    ciphertext.Level(),
-			Scale:                    rlwe.NewScale(params.Q()[ciphertext.Level()]),
-			LogDimensions:            ciphertext.LogDimensions,
-			LogBabyStepGianStepRatio: 1,
-		})
-
-		// Allocate the linear transformation
-		linTransf := NewLinearTransformation[*bignum.Complex](params, ltparams)
-
-		// Encode on the linear transformation
-		require.NoError(t, EncodeLinearTransformation[*bignum.Complex](linTransf, ltparams, tc.encoder))
-
-		galEls := GaloisElementsForLinearTransformation[*bignum.Complex](params, ltparams)
-
-		gks, err := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
-		require.NoError(t, err)
-		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
-
-		eval := tc.evaluator.WithKey(evk)
-
-		require.NoError(t, eval.LinearTransformation(ciphertext, []*rlwe.Ciphertext{ciphertext}, linTransf))
-
-		tmp := make([]*bignum.Complex, len(values))
-		for i := range tmp {
-			tmp[i] = values[i].Clone()
-		}
-
-		for i := 0; i < slots; i++ {
-			values[i].Add(values[i], tmp[(i-15+slots)%slots])
-			values[i].Add(values[i], tmp[(i-4+slots)%slots])
-			values[i].Add(values[i], tmp[(i-1+slots)%slots])
-			values[i].Add(values[i], tmp[(i+1)%slots])
-			values[i].Add(values[i], tmp[(i+2)%slots])
-			values[i].Add(values[i], tmp[(i+3)%slots])
-			values[i].Add(values[i], tmp[(i+4)%slots])
-			values[i].Add(values[i], tmp[(i+15)%slots])
-		}
-
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, t)
-	})
-
-	t.Run(GetTestName(tc.params, "LinearTransform/BSGS=False"), func(t *testing.T) {
-
-		params := tc.params
-
-		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
-
-		slots := ciphertext.Slots()
-
-		nonZeroDiags := []int{-15, -4, -1, 0, 1, 2, 3, 4, 15}
-
-		one := new(big.Float).SetInt64(1)
-		zero := new(big.Float)
-
-		diagonals := make(map[int][]*bignum.Complex)
-		for _, i := range nonZeroDiags {
-			diagonals[i] = make([]*bignum.Complex, slots)
-
-			for j := 0; j < slots; j++ {
-				diagonals[i][j] = &bignum.Complex{one, zero}
-			}
-		}
-
-		ltparams := NewLinearTransformationParameters(LinearTransformationParametersLiteral[*bignum.Complex]{
-			Diagonals:                diagonals,
-			Level:                    ciphertext.Level(),
-			Scale:                    rlwe.NewScale(params.Q()[ciphertext.Level()]),
-			LogDimensions:            ciphertext.LogDimensions,
-			LogBabyStepGianStepRatio: -1,
-		})
-
-		// Allocate the linear transformation
-		linTransf := NewLinearTransformation[*bignum.Complex](params, ltparams)
-
-		// Encode on the linear transformation
-		require.NoError(t, EncodeLinearTransformation[*bignum.Complex](linTransf, ltparams, tc.encoder))
-
-		galEls := GaloisElementsForLinearTransformation[*bignum.Complex](params, ltparams)
-
-		gks, err := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
-		require.NoError(t, err)
-		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
-
-		eval := tc.evaluator.WithKey(evk)
-
-		require.NoError(t, eval.LinearTransformation(ciphertext, []*rlwe.Ciphertext{ciphertext}, linTransf))
-
-		tmp := make([]*bignum.Complex, len(values))
-		for i := range tmp {
-			tmp[i] = values[i].Clone()
-		}
-
-		for i := 0; i < slots; i++ {
-			values[i].Add(values[i], tmp[(i-15+slots)%slots])
-			values[i].Add(values[i], tmp[(i-4+slots)%slots])
-			values[i].Add(values[i], tmp[(i-1+slots)%slots])
-			values[i].Add(values[i], tmp[(i+1)%slots])
-			values[i].Add(values[i], tmp[(i+2)%slots])
-			values[i].Add(values[i], tmp[(i+3)%slots])
-			values[i].Add(values[i], tmp[(i+4)%slots])
-			values[i].Add(values[i], tmp[(i+15)%slots])
-		}
-
-		verifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, t)
 	})
 }

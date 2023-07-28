@@ -1,15 +1,14 @@
-package hebase
+package rlwe
 
 import (
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 )
 
 // InnerSum applies an optimized inner sum on the Ciphertext (log2(n) + HW(n) rotations with double hoisting).
 // The operation assumes that `ctIn` encrypts SlotCount/`batchSize` sub-vectors of size `batchSize` which it adds together (in parallel) in groups of `n`.
 // It outputs in opOut a Ciphertext for which the "leftmost" sub-vector of each group is equal to the sum of the group.
-func (eval Evaluator) InnerSum(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *rlwe.Ciphertext) (err error) {
+func (eval Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, opOut *Ciphertext) (err error) {
 
 	params := eval.GetRLWEParameters()
 
@@ -23,13 +22,13 @@ func (eval Evaluator) InnerSum(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *r
 	opOut.Resize(opOut.Degree(), levelQ)
 	*opOut.MetaData = *ctIn.MetaData
 
-	ctInNTT, err := rlwe.NewCiphertextAtLevelFromPoly(levelQ, eval.BuffCt.Value[:2])
+	ctInNTT, err := NewCiphertextAtLevelFromPoly(levelQ, eval.BuffCt.Value[:2])
 
 	if err != nil {
 		panic(err)
 	}
 
-	ctInNTT.MetaData = &rlwe.MetaData{}
+	ctInNTT.MetaData = &MetaData{}
 	ctInNTT.IsNTT = true
 
 	if !ctIn.IsNTT {
@@ -50,15 +49,15 @@ func (eval Evaluator) InnerSum(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *r
 		// BuffQP[0:2] are used by AutomorphismHoistedLazy
 
 		// Accumulator mod QP (i.e. opOut Mod QP)
-		accQP := &rlwe.Operand[ringqp.Poly]{Value: []ringqp.Poly{eval.BuffQP[2], eval.BuffQP[3]}}
+		accQP := &Operand[ringqp.Poly]{Value: []ringqp.Poly{eval.BuffQP[2], eval.BuffQP[3]}}
 		accQP.MetaData = ctInNTT.MetaData
 
 		// Buffer mod QP (i.e. to store the result of lazy gadget products)
-		cQP := &rlwe.Operand[ringqp.Poly]{Value: []ringqp.Poly{eval.BuffQP[4], eval.BuffQP[5]}}
+		cQP := &Operand[ringqp.Poly]{Value: []ringqp.Poly{eval.BuffQP[4], eval.BuffQP[5]}}
 		cQP.MetaData = ctInNTT.MetaData
 
 		// Buffer mod Q (i.e. to store the result of gadget products)
-		cQ, err := rlwe.NewCiphertextAtLevelFromPoly(levelQ, []ring.Poly{cQP.Value[0].Q, cQP.Value[1].Q})
+		cQ, err := NewCiphertextAtLevelFromPoly(levelQ, []ring.Poly{cQP.Value[0].Q, cQP.Value[1].Q})
 
 		if err != nil {
 			panic(err)
@@ -145,7 +144,7 @@ func (eval Evaluator) InnerSum(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *r
 
 // GaloisElementsForInnerSum returns the list of Galois elements necessary to apply the method
 // `InnerSum` operation with parameters `batch` and `n`.
-func GaloisElementsForInnerSum(params rlwe.ParameterProvider, batch, n int) (galEls []uint64) {
+func GaloisElementsForInnerSum(params ParameterProvider, batch, n int) (galEls []uint64) {
 
 	rotIndex := make(map[int]bool)
 
@@ -178,12 +177,12 @@ func GaloisElementsForInnerSum(params rlwe.ParameterProvider, batch, n int) (gal
 // To ensure correctness, a gap of zero values of size batchSize * (n-1) must exist between
 // two consecutive sub-vectors to replicate.
 // This method is faster than Replicate when the number of rotations is large and it uses log2(n) + HW(n) instead of 'n'.
-func (eval Evaluator) Replicate(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *rlwe.Ciphertext) (err error) {
+func (eval Evaluator) Replicate(ctIn *Ciphertext, batchSize, n int, opOut *Ciphertext) (err error) {
 	return eval.InnerSum(ctIn, -batchSize, n, opOut)
 }
 
 // GaloisElementsForReplicate returns the list of Galois elements necessary to perform the
 // `Replicate` operation with parameters `batch` and `n`.
-func GaloisElementsForReplicate(params rlwe.ParameterProvider, batch, n int) (galEls []uint64) {
+func GaloisElementsForReplicate(params ParameterProvider, batch, n int) (galEls []uint64) {
 	return GaloisElementsForInnerSum(params, -batch, n)
 }

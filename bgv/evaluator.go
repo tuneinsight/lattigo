@@ -5,7 +5,6 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v4/hebase"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
@@ -17,7 +16,7 @@ import (
 type Evaluator struct {
 	*evaluatorBase
 	*evaluatorBuffers
-	*hebase.Evaluator
+	*rlwe.Evaluator
 	*Encoder
 }
 
@@ -108,7 +107,7 @@ func NewEvaluator(parameters Parameters, evk rlwe.EvaluationKeySet) *Evaluator {
 	ev := new(Evaluator)
 	ev.evaluatorBase = newEvaluatorPrecomp(parameters)
 	ev.evaluatorBuffers = newEvaluatorBuffer(parameters)
-	ev.Evaluator = hebase.NewEvaluator(parameters.Parameters, evk)
+	ev.Evaluator = rlwe.NewEvaluator(parameters.Parameters, evk)
 	ev.Encoder = NewEncoder(parameters)
 
 	return ev
@@ -1404,6 +1403,10 @@ func (eval Evaluator) MatchScalesAndLevel(ct0, opOut *rlwe.Ciphertext) {
 
 	opOut.Resize(opOut.Degree(), level)
 	opOut.Scale = opOut.Scale.Mul(eval.parameters.NewScale(r1))
+}
+
+func (eval Evaluator) GetRLWEParameters() *rlwe.Parameters {
+	return eval.Evaluator.GetRLWEParameters()
 }
 
 func (eval Evaluator) matchScalesBinary(scale0, scale1 uint64) (r0, r1, e uint64) {

@@ -5,8 +5,8 @@ import (
 	"math/cmplx"
 	"math/rand"
 
+	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/ckks"
-	"github.com/tuneinsight/lattigo/v4/hebase"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
@@ -678,7 +678,7 @@ func main() {
 	nonZeroDiagonales := []int{-15, -4, -1, 0, 1, 2, 3, 4, 15}
 
 	// We allocate the non-zero diagonales and populate them
-	diagonals := make(map[int][]complex128)
+	diagonals := make(circuits.Diagonals[complex128])
 
 	for _, i := range nonZeroDiagonales {
 		tmp := make([]complex128, Slots)
@@ -694,38 +694,38 @@ func main() {
 	// Here we use the default structs of the rlwe package, which is compliant to the rlwe.LinearTransformationParameters interface
 	// But a user is free to use any struct compliant to this interface.
 	// See the definition of the interface for more information about the parameters.
-	ltparams := ckks.NewLinearTransformationParameters(ckks.LinearTransformationParametersLiteral[complex128]{
-		Diagonals:                diagonals,
+	ltparams := circuits.LinearTransformationParameters{
+		DiagonalsIndexList:       diagonals.NonZeroIndexList(),
 		Level:                    ct1.Level(),
 		Scale:                    rlwe.NewScale(params.Q()[ct1.Level()]),
 		LogDimensions:            ct1.LogDimensions,
 		LogBabyStepGianStepRatio: 1,
-	})
+	}
 
 	// We allocated the rlwe.LinearTransformation.
 	// The allocation takes into account the parameters of the linear transformation.
-	lt := ckks.NewLinearTransformation[complex128](params, ltparams)
+	lt := circuits.NewLinearTransformation(params, ltparams)
 
 	// We encode our linear transformation on the allocated rlwe.LinearTransformation.
 	// Not that trying to encode a linear transformation with different non-zero diagonals,
 	// plaintext dimensions or baby-step giant-step ratio than the one used to allocate the
 	// rlwe.LinearTransformation will return an error.
-	if err := ckks.EncodeLinearTransformation[complex128](lt, ltparams, ecd); err != nil {
+	if err := circuits.EncodeFloatLinearTransformation[complex128](ltparams, ecd, diagonals, lt); err != nil {
 		panic(err)
 	}
 
 	// Then we generate the corresponding Galois keys.
 	// The list of Galois elements can also be obtained with `lt.GaloisElements`
 	// but this requires to have it pre-allocated, which is not always desirable.
-	galEls = ckks.GaloisElementsForLinearTransformation[complex128](params, ltparams)
+	galEls = circuits.GaloisElementsForLinearTransformation(params, ltparams)
 	gks, err = kgen.GenGaloisKeysNew(galEls, sk)
 	if err != nil {
 		panic(err)
 	}
-	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, gks...))
+	ltEval := circuits.NewEvaluator(eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, gks...)))
 
 	// And we valuate the linear transform
-	if err := eval.LinearTransformation(ct1, []*rlwe.Ciphertext{res}, lt); err != nil {
+	if err := ltEval.LinearTransformation(ct1, []*rlwe.Ciphertext{res}, lt); err != nil {
 		panic(err)
 	}
 
@@ -774,9 +774,9 @@ func EvaluateLinearTransform(values []complex128, diags map[int][]complex128) (r
 
 	keys := utils.GetKeys(diags)
 
-	N1 := hebase.FindBestBSGSRatio(keys, len(values), 1)
+	N1 := circuits.FindBestBSGSRatio(keys, len(values), 1)
 
-	index, _, _ := hebase.BSGSIndex(keys, slots, N1)
+	index, _, _ := circuits.BSGSIndex(keys, slots, N1)
 
 	res = make([]complex128, slots)
 

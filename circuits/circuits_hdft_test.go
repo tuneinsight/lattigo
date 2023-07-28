@@ -1,4 +1,4 @@
-package ckks
+package circuits
 
 import (
 	"math/big"
@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -21,7 +22,7 @@ func TestHomomorphicDFT(t *testing.T) {
 		t.Skip("skipping homomorphic DFT tests for GOARCH=wasm")
 	}
 
-	ParametersLiteral := ParametersLiteral{
+	ParametersLiteral := ckks.ParametersLiteral{
 		LogN:            10,
 		LogQ:            []int{60, 45, 45, 45, 45, 45, 45, 45},
 		LogP:            []int{61, 61},
@@ -31,13 +32,13 @@ func TestHomomorphicDFT(t *testing.T) {
 
 	testHomomorphicDFTMatrixLiteralMarshalling(t)
 
-	var params Parameters
-	if params, err = NewParametersFromLiteral(ParametersLiteral); err != nil {
+	var params ckks.Parameters
+	if params, err = ckks.NewParametersFromLiteral(ParametersLiteral); err != nil {
 		t.Fatal(err)
 	}
 
 	for _, logSlots := range []int{params.LogMaxDimensions().Cols - 1, params.LogMaxDimensions().Cols} {
-		for _, testSet := range []func(params Parameters, logSlots int, t *testing.T){
+		for _, testSet := range []func(params ckks.Parameters, logSlots int, t *testing.T){
 			testHomomorphicEncoding,
 			testHomomorphicDecoding,
 		} {
@@ -51,7 +52,7 @@ func testHomomorphicDFTMatrixLiteralMarshalling(t *testing.T) {
 	t.Run("Marshalling", func(t *testing.T) {
 		m := HomomorphicDFTMatrixLiteral{
 			LogSlots:        15,
-			Type:            Decode,
+			Type:            HomomorphicDecode,
 			LevelStart:      12,
 			LogBSGSRatio:    2,
 			Levels:          []int{1, 1, 1},
@@ -70,7 +71,7 @@ func testHomomorphicDFTMatrixLiteralMarshalling(t *testing.T) {
 	})
 }
 
-func testHomomorphicEncoding(params Parameters, LogSlots int, t *testing.T) {
+func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T) {
 
 	slots := 1 << LogSlots
 
@@ -81,9 +82,9 @@ func testHomomorphicEncoding(params Parameters, LogSlots int, t *testing.T) {
 		packing = "SparsePacking"
 	}
 
-	var params2N Parameters
+	var params2N ckks.Parameters
 	var err error
-	if params2N, err = NewParametersFromLiteral(ParametersLiteral{
+	if params2N, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
 		LogN:            params.LogN() + 1,
 		LogQ:            []int{60},
 		LogP:            []int{61},
@@ -92,7 +93,7 @@ func testHomomorphicEncoding(params Parameters, LogSlots int, t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ecd2N := NewEncoder(params2N)
+	ecd2N := ckks.NewEncoder(params2N)
 
 	t.Run("Encode/"+packing, func(t *testing.T) {
 
@@ -122,22 +123,22 @@ func testHomomorphicEncoding(params Parameters, LogSlots int, t *testing.T) {
 
 		CoeffsToSlotsParametersLiteral := HomomorphicDFTMatrixLiteral{
 			LogSlots:        LogSlots,
-			Type:            Encode,
+			Type:            HomomorphicEncode,
 			RepackImag2Real: true,
 			LevelStart:      params.MaxLevel(),
 			Levels:          Levels,
 		}
 
-		kgen := NewKeyGenerator(params)
+		kgen := ckks.NewKeyGenerator(params)
 		sk := kgen.GenSecretKeyNew()
-		encoder := NewEncoder(params)
-		encryptor, err := NewEncryptor(params, sk)
+		encoder := ckks.NewEncoder(params)
+		encryptor, err := ckks.NewEncryptor(params, sk)
 		require.NoError(t, err)
-		decryptor, err := NewDecryptor(params, sk)
+		decryptor, err := ckks.NewDecryptor(params, sk)
 		require.NoError(t, err)
 
 		// Generates the encoding matrices
-		CoeffsToSlotMatrices, err := NewHomomorphicDFTMatrixFromLiteral(CoeffsToSlotsParametersLiteral, encoder)
+		CoeffsToSlotMatrices, err := NewHomomorphicDFTMatrixFromLiteral(params, CoeffsToSlotsParametersLiteral, encoder)
 		require.NoError(t, err)
 
 		// Gets Galois elements
@@ -151,7 +152,8 @@ func testHomomorphicEncoding(params Parameters, LogSlots int, t *testing.T) {
 		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
 
 		// Creates an evaluator with the rotation keys
-		eval := NewEvaluator(params, evk)
+		eval := ckks.NewEvaluator(params, evk)
+		hdftEval := NewHDFTEvaluator(params, eval)
 
 		prec := params.EncodingPrecision()
 
@@ -188,7 +190,7 @@ func testHomomorphicEncoding(params Parameters, LogSlots int, t *testing.T) {
 		}
 
 		// Encodes coefficient-wise and encrypts the test vector
-		pt := NewPlaintext(params, params.MaxLevel())
+		pt := ckks.NewPlaintext(params, params.MaxLevel())
 		pt.LogDimensions = ring.Dimensions{Rows: 0, Cols: LogSlots}
 		pt.IsBatched = false
 
@@ -201,7 +203,7 @@ func testHomomorphicEncoding(params Parameters, LogSlots int, t *testing.T) {
 		require.NoError(t, err)
 
 		// Applies the homomorphic DFT
-		ct0, ct1, err := eval.CoeffsToSlotsNew(ct, CoeffsToSlotMatrices)
+		ct0, ct1, err := hdftEval.CoeffsToSlotsNew(ct, CoeffsToSlotMatrices)
 		require.NoError(t, err)
 
 		// Checks against the original coefficients
@@ -239,7 +241,7 @@ func testHomomorphicEncoding(params Parameters, LogSlots int, t *testing.T) {
 			}
 
 			// Compares
-			verifyTestVectors(params, ecd2N, nil, want, have, nil, t)
+			verifyCKKSTestVectors(params, ecd2N, nil, want, have, nil, t)
 
 		} else {
 
@@ -283,13 +285,13 @@ func testHomomorphicEncoding(params Parameters, LogSlots int, t *testing.T) {
 				wantImag[i], wantImag[j] = vec1[i][0], vec1[i][1]
 			}
 
-			verifyTestVectors(params, ecd2N, nil, wantReal, haveReal, nil, t)
-			verifyTestVectors(params, ecd2N, nil, wantImag, haveImag, nil, t)
+			verifyCKKSTestVectors(params, ecd2N, nil, wantReal, haveReal, nil, t)
+			verifyCKKSTestVectors(params, ecd2N, nil, wantImag, haveImag, nil, t)
 		}
 	})
 }
 
-func testHomomorphicDecoding(params Parameters, LogSlots int, t *testing.T) {
+func testHomomorphicDecoding(params ckks.Parameters, LogSlots int, t *testing.T) {
 
 	slots := 1 << LogSlots
 
@@ -330,22 +332,22 @@ func testHomomorphicDecoding(params Parameters, LogSlots int, t *testing.T) {
 
 		SlotsToCoeffsParametersLiteral := HomomorphicDFTMatrixLiteral{
 			LogSlots:        LogSlots,
-			Type:            Decode,
+			Type:            HomomorphicDecode,
 			RepackImag2Real: true,
 			LevelStart:      params.MaxLevel(),
 			Levels:          Levels,
 		}
 
-		kgen := NewKeyGenerator(params)
+		kgen := ckks.NewKeyGenerator(params)
 		sk := kgen.GenSecretKeyNew()
-		encoder := NewEncoder(params)
-		encryptor, err := NewEncryptor(params, sk)
+		encoder := ckks.NewEncoder(params)
+		encryptor, err := ckks.NewEncryptor(params, sk)
 		require.NoError(t, err)
-		decryptor, err := NewDecryptor(params, sk)
+		decryptor, err := ckks.NewDecryptor(params, sk)
 		require.NoError(t, err)
 
 		// Generates the encoding matrices
-		SlotsToCoeffsMatrix, err := NewHomomorphicDFTMatrixFromLiteral(SlotsToCoeffsParametersLiteral, encoder)
+		SlotsToCoeffsMatrix, err := NewHomomorphicDFTMatrixFromLiteral(params, SlotsToCoeffsParametersLiteral, encoder)
 		require.NoError(t, err)
 
 		// Gets the Galois elements
@@ -359,7 +361,8 @@ func testHomomorphicDecoding(params Parameters, LogSlots int, t *testing.T) {
 		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
 
 		// Creates an evaluator with the rotation keys
-		eval := NewEvaluator(params, evk)
+		eval := ckks.NewEvaluator(params, evk)
+		hdftEval := NewHDFTEvaluator(params, eval)
 
 		prec := params.EncodingPrecision()
 
@@ -386,7 +389,7 @@ func testHomomorphicDecoding(params Parameters, LogSlots int, t *testing.T) {
 		}
 
 		// Encodes and encrypts the test vectors
-		plaintext := NewPlaintext(params, params.MaxLevel())
+		plaintext := ckks.NewPlaintext(params, params.MaxLevel())
 		plaintext.LogDimensions = ring.Dimensions{Rows: 0, Cols: LogSlots}
 		if err = encoder.Encode(valuesReal, plaintext); err != nil {
 			t.Fatal(err)
@@ -405,7 +408,7 @@ func testHomomorphicDecoding(params Parameters, LogSlots int, t *testing.T) {
 		}
 
 		// Applies the homomorphic DFT
-		res, err := eval.SlotsToCoeffsNew(ct0, ct1, SlotsToCoeffsMatrix)
+		res, err := hdftEval.SlotsToCoeffsNew(ct0, ct1, SlotsToCoeffsMatrix)
 		require.NoError(t, err)
 
 		// Decrypt and decode in the coefficient domain
@@ -435,6 +438,6 @@ func testHomomorphicDecoding(params Parameters, LogSlots int, t *testing.T) {
 		// Result is bit-reversed, so applies the bit-reverse permutation on the reference vector
 		utils.BitReverseInPlaceSlice(valuesReal, slots)
 
-		verifyTestVectors(params, encoder, decryptor, valuesReal, valuesTest, nil, t)
+		verifyCKKSTestVectors(params, encoder, decryptor, valuesReal, valuesTest, nil, t)
 	})
 }

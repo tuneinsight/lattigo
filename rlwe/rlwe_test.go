@@ -74,6 +74,7 @@ func TestRLWE(t *testing.T) {
 						testGadgetProduct,
 						testApplyEvaluationKey,
 						testAutomorphism,
+						testSlotOperations,
 					} {
 						testSet(tc, level, paramsLit.BaseTwoDecomposition, t)
 						runtime.GC()
@@ -897,6 +898,273 @@ func testAutomorphism(tc *TestContext, level, bpw2 int, t *testing.T) {
 
 		// Logs the noise
 		require.GreaterOrEqual(t, NoiseBound, ringQ.Log2OfStandardDeviation(pt.Value))
+	})
+}
+
+func testSlotOperations(tc *TestContext, level, bpw2 int, t *testing.T) {
+
+	params := tc.params
+	sk := tc.sk
+	kgen := tc.kgen
+	eval := tc.eval
+	enc := tc.enc
+	dec := tc.dec
+
+	evkParams := EvaluationKeyParameters{LevelQ: utils.Pointy(level), BaseTwoDecomposition: utils.Pointy(bpw2)}
+
+	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/Expand"), func(t *testing.T) {
+
+		if params.RingType() != ring.Standard {
+			t.Skip("Expand not supported for ring.Type = ring.ConjugateInvariant")
+		}
+
+		pt := NewPlaintext(params, level)
+		ringQ := params.RingQ().AtLevel(level)
+
+		logN := 4
+		logGap := 0
+		gap := 1 << logGap
+
+		values := make([]uint64, params.N())
+
+		scale := 1 << 22
+
+		for i := 0; i < 1<<logN; i++ { // embeds even coefficients only
+			values[i] = uint64(i * scale)
+		}
+
+		for i := 0; i < pt.Level()+1; i++ {
+			copy(pt.Value.Coeffs[i], values)
+		}
+
+		if pt.IsNTT {
+			ringQ.NTT(pt.Value, pt.Value)
+		}
+
+		ctIn := NewCiphertext(params, 1, level)
+		enc.Encrypt(pt, ctIn)
+
+		// GaloisKeys
+		var gks, err = kgen.GenGaloisKeysNew(GaloisElementsForExpand(params, logN), sk, evkParams)
+		require.NoError(t, err)
+
+		evk := NewMemEvaluationKeySet(nil, gks...)
+
+		eval := NewEvaluator(params, evk)
+
+		ciphertexts, err := eval.WithKey(evk).Expand(ctIn, logN, logGap)
+		require.NoError(t, err)
+
+		Q := ringQ.ModuliChain()
+
+		NoiseBound := float64(params.LogN() - logN + bpw2)
+
+		if bpw2 != 0 {
+			NoiseBound += float64(level + 5)
+		}
+
+		for i := range ciphertexts {
+
+			dec.Decrypt(ciphertexts[i], pt)
+
+			if pt.IsNTT {
+				ringQ.INTT(pt.Value, pt.Value)
+			}
+
+			for j := 0; j < level+1; j++ {
+				pt.Value.Coeffs[j][0] = ring.CRed(pt.Value.Coeffs[j][0]+Q[j]-values[i*gap], Q[j])
+			}
+
+			// Logs the noise
+			require.GreaterOrEqual(t, NoiseBound, ringQ.Log2OfStandardDeviation(pt.Value))
+		}
+	})
+
+	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/Pack/LogGap=LogN"), func(t *testing.T) {
+
+		if params.RingType() != ring.Standard {
+			t.Skip("Pack not supported for ring.Type = ring.ConjugateInvariant")
+		}
+
+		pt := NewPlaintext(params, level)
+		N := params.N()
+		ringQ := tc.params.RingQ().AtLevel(level)
+		gap := params.N() / 16
+
+		ptPacked := NewPlaintext(params, level)
+		ciphertexts := make(map[int]*Ciphertext)
+		slotIndex := make(map[int]bool)
+		for i := 0; i < N; i += gap {
+
+			ciphertexts[i] = enc.EncryptZeroNew(level)
+
+			scalar := (1 << 30) + uint64(i)*(1<<20)
+
+			if ciphertexts[i].IsNTT {
+				ringQ.AddScalar(ciphertexts[i].Value[0], scalar, ciphertexts[i].Value[0])
+			} else {
+				for j := 0; j < level+1; j++ {
+					ciphertexts[i].Value[0].Coeffs[j][0] = ring.CRed(ciphertexts[i].Value[0].Coeffs[j][0]+scalar, ringQ.SubRings[j].Modulus)
+				}
+			}
+
+			slotIndex[i] = true
+
+			for j := 0; j < level+1; j++ {
+				ptPacked.Value.Coeffs[j][i] = scalar
+			}
+		}
+
+		// Galois Keys
+		gks, err := kgen.GenGaloisKeysNew(GaloisElementsForPack(params, params.LogN()), sk, evkParams)
+		require.NoError(t, err)
+
+		evk := NewMemEvaluationKeySet(nil, gks...)
+
+		ct, err := eval.WithKey(evk).Pack(ciphertexts, params.LogN(), false)
+		require.NoError(t, err)
+
+		dec.Decrypt(ct, pt)
+
+		if pt.IsNTT {
+			ringQ.INTT(pt.Value, pt.Value)
+		}
+
+		ringQ.Sub(pt.Value, ptPacked.Value, pt.Value)
+
+		for i := 0; i < N; i++ {
+			if i%gap != 0 {
+				for j := 0; j < level+1; j++ {
+					pt.Value.Coeffs[j][i] = 0
+				}
+			}
+		}
+
+		NoiseBound := 15.0 + float64(bpw2)
+
+		if bpw2 != 0 {
+			NoiseBound += math.Log2(float64(level)+1.0) + 1.0
+		}
+
+		// Logs the noise
+		require.GreaterOrEqual(t, NoiseBound, ringQ.Log2OfStandardDeviation(pt.Value))
+	})
+
+	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/Pack/LogGap=LogN-1"), func(t *testing.T) {
+
+		if params.RingType() != ring.Standard {
+			t.Skip("Pack not supported for ring.Type = ring.ConjugateInvariant")
+		}
+
+		pt := NewPlaintext(params, level)
+		N := params.N()
+		ringQ := tc.params.RingQ().AtLevel(level)
+
+		ptPacked := NewPlaintext(params, level)
+		ciphertexts := make(map[int]*Ciphertext)
+		slotIndex := make(map[int]bool)
+		for i := 0; i < N/2; i += params.N() / 16 {
+
+			ciphertexts[i] = enc.EncryptZeroNew(level)
+
+			scalar := (1 << 30) + uint64(i)*(1<<20)
+
+			if ciphertexts[i].IsNTT {
+				ringQ.INTT(ciphertexts[i].Value[0], ciphertexts[i].Value[0])
+			}
+
+			for j := 0; j < level+1; j++ {
+				ciphertexts[i].Value[0].Coeffs[j][0] = ring.CRed(ciphertexts[i].Value[0].Coeffs[j][0]+scalar, ringQ.SubRings[j].Modulus)
+				ciphertexts[i].Value[0].Coeffs[j][N/2] = ring.CRed(ciphertexts[i].Value[0].Coeffs[j][N/2]+scalar, ringQ.SubRings[j].Modulus)
+			}
+
+			if ciphertexts[i].IsNTT {
+				ringQ.NTT(ciphertexts[i].Value[0], ciphertexts[i].Value[0])
+			}
+
+			slotIndex[i] = true
+
+			for j := 0; j < level+1; j++ {
+				ptPacked.Value.Coeffs[j][i] = scalar
+				ptPacked.Value.Coeffs[j][i+N/2] = scalar
+			}
+		}
+
+		// Galois Keys
+		gks, err := kgen.GenGaloisKeysNew(GaloisElementsForPack(params, params.LogN()-1), sk, evkParams)
+		require.NoError(t, err)
+
+		evk := NewMemEvaluationKeySet(nil, gks...)
+
+		ct, err := eval.WithKey(evk).Pack(ciphertexts, params.LogN()-1, true)
+		require.NoError(t, err)
+
+		dec.Decrypt(ct, pt)
+
+		if pt.IsNTT {
+			ringQ.INTT(pt.Value, pt.Value)
+		}
+
+		ringQ.Sub(pt.Value, ptPacked.Value, pt.Value)
+
+		NoiseBound := 15.0 + float64(bpw2)
+
+		if bpw2 != 0 {
+			NoiseBound += math.Log2(float64(level)+1.0) + 1.0
+		}
+
+		// Logs the noise
+		require.GreaterOrEqual(t, NoiseBound, ringQ.Log2OfStandardDeviation(pt.Value))
+	})
+
+	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/InnerSum"), func(t *testing.T) {
+
+		if params.MaxLevelP() == -1 {
+			t.Skip("test requires #P > 0")
+		}
+
+		batch := 5
+		n := 7
+
+		ringQ := tc.params.RingQ().AtLevel(level)
+
+		pt := genPlaintext(params, level, 1<<30)
+		ptInnerSum := *pt.Value.CopyNew()
+		ct, err := enc.EncryptNew(pt)
+		require.NoError(t, err)
+
+		// Galois Keys
+		gks, err := kgen.GenGaloisKeysNew(GaloisElementsForInnerSum(params, batch, n), sk)
+		require.NoError(t, err)
+
+		evk := NewMemEvaluationKeySet(nil, gks...)
+
+		eval.WithKey(evk).InnerSum(ct, batch, n, ct)
+
+		dec.Decrypt(ct, pt)
+
+		if pt.IsNTT {
+			ringQ.INTT(pt.Value, pt.Value)
+			ringQ.INTT(ptInnerSum, ptInnerSum)
+		}
+
+		polyTmp := ringQ.NewPoly()
+
+		// Applies the same circuit (naively) on the plaintext
+		polyInnerSum := *ptInnerSum.CopyNew()
+		for i := 1; i < n; i++ {
+			galEl := params.GaloisElement(i * batch)
+			ringQ.Automorphism(ptInnerSum, galEl, polyTmp)
+			ringQ.Add(polyInnerSum, polyTmp, polyInnerSum)
+		}
+
+		ringQ.Sub(pt.Value, polyInnerSum, pt.Value)
+
+		NoiseBound := float64(params.LogN())
+
+		// Logs the noise
+		require.GreaterOrEqual(t, NoiseBound, ringQ.Log2OfStandardDeviation(pt.Value))
+
 	})
 }
 

@@ -43,8 +43,8 @@ func (eval Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, opOut *Cipher
 	ringQ.Add(ctTmp.Value[0], ctIn.Value[0], ctTmp.Value[0])
 
 	if ctIn.IsNTT {
-		ringQ.AutomorphismNTTWithIndex(ctTmp.Value[0], eval.AutomorphismIndex[galEl], opOut.Value[0])
-		ringQ.AutomorphismNTTWithIndex(ctTmp.Value[1], eval.AutomorphismIndex[galEl], opOut.Value[1])
+		ringQ.AutomorphismNTTWithIndex(ctTmp.Value[0], eval.automorphismIndex[galEl], opOut.Value[0])
+		ringQ.AutomorphismNTTWithIndex(ctTmp.Value[1], eval.automorphismIndex[galEl], opOut.Value[1])
 	} else {
 		ringQ.Automorphism(ctTmp.Value[0], galEl, opOut.Value[0])
 		ringQ.Automorphism(ctTmp.Value[1], galEl, opOut.Value[1])
@@ -89,8 +89,8 @@ func (eval Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1DecompQ
 	ringQ.Add(ctTmp.Value[0], ctIn.Value[0], ctTmp.Value[0])
 
 	if ctIn.IsNTT {
-		ringQ.AutomorphismNTTWithIndex(ctTmp.Value[0], eval.AutomorphismIndex[galEl], opOut.Value[0])
-		ringQ.AutomorphismNTTWithIndex(ctTmp.Value[1], eval.AutomorphismIndex[galEl], opOut.Value[1])
+		ringQ.AutomorphismNTTWithIndex(ctTmp.Value[0], eval.automorphismIndex[galEl], opOut.Value[0])
+		ringQ.AutomorphismNTTWithIndex(ctTmp.Value[1], eval.automorphismIndex[galEl], opOut.Value[1])
 	} else {
 		ringQ.Automorphism(ctTmp.Value[0], galEl, opOut.Value[0])
 		ringQ.Automorphism(ctTmp.Value[1], galEl, opOut.Value[1])
@@ -124,7 +124,7 @@ func (eval Evaluator) AutomorphismHoistedLazy(levelQ int, ctIn *Ciphertext, c1De
 	ringQ := ringQP.RingQ
 	ringP := ringQP.RingP
 
-	index := eval.AutomorphismIndex[galEl]
+	index := eval.automorphismIndex[galEl]
 
 	if ctQP.IsNTT {
 

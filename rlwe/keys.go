@@ -288,7 +288,7 @@ type EvaluationKeyParameters struct {
 	BaseTwoDecomposition *int
 }
 
-func ResolveEvaluationKeysParameters(params Parameters, evkParams []EvaluationKeyParameters) (levelQ, levelP, BaseTwoDecomposition int) {
+func ResolveEvaluationKeyParameters(params Parameters, evkParams []EvaluationKeyParameters) (levelQ, levelP, BaseTwoDecomposition int) {
 	if len(evkParams) != 0 {
 		if evkParams[0].LevelQ == nil {
 			levelQ = params.MaxLevelQ()
@@ -316,7 +316,7 @@ func ResolveEvaluationKeysParameters(params Parameters, evkParams []EvaluationKe
 // NewEvaluationKey returns a new EvaluationKey with pre-allocated zero-value.
 func NewEvaluationKey(params ParameterProvider, evkParams ...EvaluationKeyParameters) *EvaluationKey {
 	p := *params.GetRLWEParameters()
-	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeysParameters(p, evkParams)
+	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeyParameters(p, evkParams)
 	return newEvaluationKey(p, levelQ, levelP, BaseTwoDecomposition)
 }
 
@@ -345,7 +345,7 @@ type RelinearizationKey struct {
 // NewRelinearizationKey allocates a new RelinearizationKey with zero coefficients.
 func NewRelinearizationKey(params ParameterProvider, evkParams ...EvaluationKeyParameters) *RelinearizationKey {
 	p := *params.GetRLWEParameters()
-	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeysParameters(p, evkParams)
+	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeyParameters(p, evkParams)
 	return newRelinearizationKey(p, levelQ, levelP, BaseTwoDecomposition)
 }
 
@@ -383,7 +383,7 @@ type GaloisKey struct {
 // NewGaloisKey allocates a new GaloisKey with zero coefficients and GaloisElement set to zero.
 func NewGaloisKey(params ParameterProvider, evkParams ...EvaluationKeyParameters) *GaloisKey {
 	p := *params.GetRLWEParameters()
-	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeysParameters(p, evkParams)
+	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeyParameters(p, evkParams)
 	return newGaloisKey(p, levelQ, levelP, BaseTwoDecomposition)
 }
 

@@ -1,85 +1,109 @@
 package lut
 
 import (
+	"math/big"
+
 	"github.com/tuneinsight/lattigo/v4/rgsw"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
-// EvaluationKey is a struct storing the encryption
-// of the bits of the LWE key.
-type EvaluationKey struct {
-	SkPos []*rgsw.Ciphertext
-	SkNeg []*rgsw.Ciphertext
+const (
+	// Parameter w of Algorithm 3 in https://eprint.iacr.org/2022/198
+	windowSize = 10
+)
+
+// BlindRotatationEvaluationKeySet is a interface implementing methods
+// to load the blind rotation keys (RGSW) and automorphism keys
+// (via the rlwe.EvaluationKeySet interface).
+// Implementation of this interface must be safe for concurrent use.
+type BlindRotatationEvaluationKeySet interface {
+
+	// GetBlingRotateKey should return RGSW(X^{s[i]})
+	GetBlingRotateKey(i int) *rgsw.Ciphertext
+
+	// GetEvaluationKeySet should return an rlwe.EvaluationKeySet
+	// providing access to all the required automorphism keys.
+	GetEvaluationKeySet() rlwe.EvaluationKeySet
 }
 
-func (evk EvaluationKey) Base2Decomposition() int {
-	return evk.SkPos[0].Value[0].BaseTwoDecomposition
+// MemBlindRotatationEvaluationKeySet is a basic in-memory implementation of the BlindRotatationEvaluationKeySet interface.
+type MemBlindRotatationEvaluationKeySet struct {
+	BlindRotationKeys []*rgsw.Ciphertext
+	AutomorphismKeys  []*rlwe.GaloisKey
+}
+
+func (evk MemBlindRotatationEvaluationKeySet) GetBlingRotateKey(i int) *rgsw.Ciphertext {
+	return evk.BlindRotationKeys[i]
+}
+
+func (evk MemBlindRotatationEvaluationKeySet) GetEvaluationKeySet() rlwe.EvaluationKeySet {
+	return rlwe.NewMemEvaluationKeySet(nil, evk.AutomorphismKeys...)
+}
+
+func (evk MemBlindRotatationEvaluationKeySet) BaseTwoDecomposition() int {
+	return evk.BlindRotationKeys[0].Value[0].BaseTwoDecomposition
 }
 
 // GenEvaluationKeyNew generates a new LUT evaluation key
-func GenEvaluationKeyNew(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, paramsLWE rlwe.Parameters, skLWE *rlwe.SecretKey, Base2Decomposition int) (key EvaluationKey, err error) {
+func GenEvaluationKeyNew(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, paramsLWE rlwe.Parameters, skLWE *rlwe.SecretKey, evkParams ...rlwe.EvaluationKeyParameters) (key MemBlindRotatationEvaluationKeySet, err error) {
 
-	skLWEInvNTT := paramsLWE.RingQ().NewPoly()
-
-	paramsLWE.RingQ().INTT(skLWE.Value.Q, skLWEInvNTT)
-
-	plaintextRGSWOne := rlwe.NewPlaintext(paramsRLWE, paramsRLWE.MaxLevel())
-	plaintextRGSWOne.IsNTT = true
-	NRLWE := paramsRLWE.N()
-	for j := 0; j < paramsRLWE.QCount(); j++ {
-		for i := 0; i < NRLWE; i++ {
-			plaintextRGSWOne.Value.Coeffs[j][i] = 1
-		}
+	skLWECopy := skLWE.CopyNew()
+	paramsLWE.RingQ().AtLevel(0).INTT(skLWECopy.Value.Q, skLWECopy.Value.Q)
+	paramsLWE.RingQ().AtLevel(0).IMForm(skLWECopy.Value.Q, skLWECopy.Value.Q)
+	sk := make([]*big.Int, paramsLWE.N())
+	for i := range sk {
+		sk[i] = new(big.Int)
 	}
+	paramsLWE.RingQ().AtLevel(0).PolyToBigintCentered(skLWECopy.Value.Q, 1, sk)
 
 	encryptor, err := rgsw.NewEncryptor(paramsRLWE, skRLWE)
 	if err != nil {
 		return key, err
 	}
 
-	levelQ := paramsRLWE.QCount() - 1
-	levelP := paramsRLWE.PCount() - 1
+	levelQ, levelP, BaseTwoDecomposition := rlwe.ResolveEvaluationKeyParameters(paramsRLWE, evkParams)
 
-	skRGSWPos := make([]*rgsw.Ciphertext, paramsLWE.N())
-	skRGSWNeg := make([]*rgsw.Ciphertext, paramsLWE.N())
+	skiRGSW := make([]*rgsw.Ciphertext, paramsLWE.N())
 
-	ringQ := paramsLWE.RingQ()
-	Q := ringQ.SubRings[0].Modulus
-	OneMForm := ring.MForm(1, Q, ringQ.SubRings[0].BRedConstant)
-	MinusOneMform := ring.MForm(Q-1, Q, ringQ.SubRings[0].BRedConstant)
+	ptXi := make(map[int]*rlwe.Plaintext)
 
-	for i, si := range skLWEInvNTT.Coeffs[0] {
+	for i, si := range sk {
 
-		skRGSWPos[i] = rgsw.NewCiphertext(paramsRLWE, levelQ, levelP, Base2Decomposition)
-		skRGSWNeg[i] = rgsw.NewCiphertext(paramsRLWE, levelQ, levelP, Base2Decomposition)
+		siInt := int(si.Int64())
 
-		// sk_i =  1 -> [RGSW(1), RGSW(0)]
-		if si == OneMForm {
-			if err = encryptor.Encrypt(plaintextRGSWOne, skRGSWPos[i]); err != nil {
-				return
-			}
-			if err = encryptor.EncryptZero(skRGSWNeg[i]); err != nil {
-				return
-			}
-			// sk_i = -1 -> [RGSW(0), RGSW(1)]
-		} else if si == MinusOneMform {
-			if err = encryptor.EncryptZero(skRGSWPos[i]); err != nil {
-				return
-			}
-			if err = encryptor.Encrypt(plaintextRGSWOne, skRGSWNeg[i]); err != nil {
-				return
-			}
-			// sk_i =  0 -> [RGSW(0), RGSW(0)]
-		} else {
-			if err = encryptor.EncryptZero(skRGSWPos[i]); err != nil {
-				return
-			}
-			if err = encryptor.EncryptZero(skRGSWNeg[i]); err != nil {
-				return
-			}
+		if _, ok := ptXi[siInt]; !ok {
+
+			pt := &rlwe.Plaintext{}
+			pt.MetaData = &rlwe.MetaData{}
+			pt.IsNTT = true
+			pt.Value = paramsRLWE.RingQ().NewMonomialXi(siInt)
+			paramsRLWE.RingQ().NTT(pt.Value, pt.Value)
+
+			ptXi[siInt] = pt
+		}
+
+		skiRGSW[i] = rgsw.NewCiphertext(paramsRLWE, levelQ, levelP, BaseTwoDecomposition)
+
+		if err = encryptor.Encrypt(ptXi[siInt], skiRGSW[i]); err != nil {
+			return
 		}
 	}
 
-	return EvaluationKey{SkPos: skRGSWPos, SkNeg: skRGSWNeg}, nil
+	kgen := rlwe.NewKeyGenerator(paramsRLWE)
+
+	galEls := make([]uint64, windowSize)
+	for i := 0; i < windowSize; i++ {
+		galEls[i] = paramsRLWE.GaloisElement(i + 1)
+	}
+
+	galEls = append(galEls, paramsRLWE.RingQ().NthRoot()-ring.GaloisGen)
+
+	gks, err := kgen.GenGaloisKeysNew(galEls, skRLWE, rlwe.EvaluationKeyParameters{BaseTwoDecomposition: utils.Pointy(BaseTwoDecomposition)})
+	if err != nil {
+		return MemBlindRotatationEvaluationKeySet{}, err
+	}
+
+	return MemBlindRotatationEvaluationKeySet{BlindRotationKeys: skiRGSW, AutomorphismKeys: gks}, nil
 }

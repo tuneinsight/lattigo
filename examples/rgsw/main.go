@@ -9,6 +9,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rgsw/lut"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // Function to evaluate
@@ -45,7 +46,8 @@ func main() {
 		panic(err)
 	}
 
-	Base2Decomposition := 7
+	// Set the parameters for the blind rotation keys
+	evkParams := rlwe.EvaluationKeyParameters{BaseTwoDecomposition: utils.Pointy(7)}
 
 	// Scale of the RLWE samples
 	scaleLWE := float64(paramsLWE.Q()[0]) / 4.0
@@ -99,15 +101,13 @@ func main() {
 	}
 
 	// Evaluator for the LUT evaluation
-	eval := lut.NewEvaluator(paramsLUT, paramsLWE, Base2Decomposition, nil)
-
-	eval.Sk = skLWE
+	eval := lut.NewEvaluator(paramsLUT, paramsLWE)
 
 	// Secret of the RGSW ciphertexts encrypting the bits of skLWE
 	skLUT := rlwe.NewKeyGenerator(paramsLUT).GenSecretKeyNew()
 
 	// Collection of RGSW ciphertexts encrypting the bits of skLWE under skLUT
-	LUTKEY, err := lut.GenEvaluationKeyNew(paramsLUT, skLUT, paramsLWE, skLWE, Base2Decomposition)
+	blindeRotateKey, err := lut.GenEvaluationKeyNew(paramsLUT, skLUT, paramsLWE, skLWE, evkParams)
 	if err != nil {
 		panic(err)
 	}
@@ -116,7 +116,10 @@ func main() {
 	// Returns one RLWE sample per slot in ctLWE
 
 	now := time.Now()
-	ctsLUT := eval.Evaluate(ctLWE, lutPolyMap, LUTKEY)
+	ctsLUT, err := eval.Evaluate(ctLWE, lutPolyMap, blindeRotateKey)
+	if err != nil{
+		panic(err)
+	}
 	fmt.Printf("Done: %s (avg/LUT %3.1f [ms])\n", time.Since(now), float64(time.Since(now).Milliseconds())/float64(slots))
 
 	// Decrypts, decodes and compares

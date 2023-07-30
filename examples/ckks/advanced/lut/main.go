@@ -11,6 +11,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rgsw/lut"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // This example showcases how lookup tables can complement the CKKS scheme to compute non-linear functions
@@ -81,7 +82,8 @@ func main() {
 		panic(err)
 	}
 
-	Base2Decomposition := 12
+	// Set the parameters for the blind rotation keys
+	evkParams := rlwe.EvaluationKeyParameters{BaseTwoDecomposition: utils.Pointy(12)}
 
 	// LUT interval
 	a, b := -8.0, 8.0
@@ -174,7 +176,7 @@ func main() {
 	evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
 
 	// LUT Evaluator
-	evalLUT := lut.NewEvaluator(paramsN12.Parameters, paramsN11.Parameters, Base2Decomposition, evk)
+	evalLUT := lut.NewEvaluator(paramsN12.Parameters, paramsN11.Parameters)
 
 	// CKKS Evaluator
 	evalCKKS := ckks.NewEvaluator(paramsN12, evk)
@@ -182,7 +184,7 @@ func main() {
 
 	fmt.Printf("Encrypting bits of skLWE in RGSW... ")
 	now = time.Now()
-	LUTKEY, err := lut.GenEvaluationKeyNew(paramsN12.Parameters, skN12, paramsN11.Parameters, skN11, Base2Decomposition) // Generate RGSW(sk_i) for all coefficients of sk
+	blindRotateKey, err := lut.GenEvaluationKeyNew(paramsN12.Parameters, skN12, paramsN11.Parameters, skN11, evkParams) // Generate RGSW(sk_i) for all coefficients of sk
 	if err != nil {
 		panic(err)
 	}
@@ -226,7 +228,7 @@ func main() {
 	fmt.Printf("Evaluating LUT... ")
 	now = time.Now()
 	// Extracts & EvalLUT(LWEs, indexLUT) on the fly -> Repack(LWEs, indexRepack) -> RLWE
-	ctN12, err = evalLUT.EvaluateAndRepack(ctN11, lutPolyMap, repackIndex, LUTKEY)
+	ctN12, err = evalLUT.EvaluateAndRepack(ctN11, lutPolyMap, repackIndex, blindRotateKey, evk)
 	if err != nil {
 		panic(err)
 	}

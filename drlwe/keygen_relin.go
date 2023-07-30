@@ -91,7 +91,7 @@ func NewRelinearizationKeyGenProtocol(params rlwe.Parameters) RelinearizationKey
 func (ekg RelinearizationKeyGenProtocol) SampleCRP(crs CRS, evkParams ...rlwe.EvaluationKeyParameters) RelinearizationKeyGenCRP {
 	params := ekg.params
 
-	levelQ, levelP, BaseTwoDecomposition := rlwe.ResolveEvaluationKeysParameters(ekg.params, evkParams)
+	levelQ, levelP, BaseTwoDecomposition := rlwe.ResolveEvaluationKeyParameters(ekg.params, evkParams)
 
 	BaseRNSDecompositionVectorSize := params.BaseRNSDecompositionVectorSize(levelQ, levelP)
 	BaseTwoDecompositionVectorSize := params.BaseTwoDecompositionVectorSize(levelQ, levelP, BaseTwoDecomposition)
@@ -321,7 +321,7 @@ func (ekg RelinearizationKeyGenProtocol) AllocateShare(evkParams ...rlwe.Evaluat
 	params := ekg.params
 	ephSk = rlwe.NewSecretKey(params)
 
-	levelQ, levelP, BaseTwoDecomposition := rlwe.ResolveEvaluationKeysParameters(ekg.params, evkParams)
+	levelQ, levelP, BaseTwoDecomposition := rlwe.ResolveEvaluationKeyParameters(ekg.params, evkParams)
 
 	r1 = RelinearizationKeyGenShare{GadgetCiphertext: *rlwe.NewGadgetCiphertext(params, 1, levelQ, levelP, BaseTwoDecomposition)}
 	r2 = RelinearizationKeyGenShare{GadgetCiphertext: *rlwe.NewGadgetCiphertext(params, 1, levelQ, levelP, BaseTwoDecomposition)}

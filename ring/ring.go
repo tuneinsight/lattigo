@@ -357,6 +357,31 @@ func (r Ring) NewPoly() Poly {
 	return NewPoly(r.N(), r.level)
 }
 
+// NewMonomialXi returns a polynomial X^{i}.
+func (r Ring) NewMonomialXi(i int) (p Poly) {
+
+	p = r.NewPoly()
+
+	N := r.N()
+
+	i &= (N << 1) - 1
+
+	if i >= N {
+		i -= N << 1
+	}
+
+	for k, s := range r.SubRings[:r.level+1] {
+
+		if i < 0 {
+			p.Coeffs[k][N+i] = s.Modulus - 1
+		} else {
+			p.Coeffs[k][i] = 1
+		}
+	}
+
+	return
+}
+
 // SetCoefficientsBigint sets the coefficients of p1 from an array of Int variables.
 func (r Ring) SetCoefficientsBigint(coeffs []*big.Int, p1 Poly) {
 

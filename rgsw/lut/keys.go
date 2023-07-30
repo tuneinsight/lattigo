@@ -21,11 +21,11 @@ const (
 type BlindRotatationEvaluationKeySet interface {
 
 	// GetBlingRotateKey should return RGSW(X^{s[i]})
-	GetBlingRotateKey(i int) *rgsw.Ciphertext
+	GetBlingRotateKey(i int) (brk *rgsw.Ciphertext, err error)
 
 	// GetEvaluationKeySet should return an rlwe.EvaluationKeySet
 	// providing access to all the required automorphism keys.
-	GetEvaluationKeySet() rlwe.EvaluationKeySet
+	GetEvaluationKeySet() (evk rlwe.EvaluationKeySet, err error)
 }
 
 // MemBlindRotatationEvaluationKeySet is a basic in-memory implementation of the BlindRotatationEvaluationKeySet interface.
@@ -34,16 +34,12 @@ type MemBlindRotatationEvaluationKeySet struct {
 	AutomorphismKeys  []*rlwe.GaloisKey
 }
 
-func (evk MemBlindRotatationEvaluationKeySet) GetBlingRotateKey(i int) *rgsw.Ciphertext {
-	return evk.BlindRotationKeys[i]
+func (evk MemBlindRotatationEvaluationKeySet) GetBlingRotateKey(i int) (*rgsw.Ciphertext, error) {
+	return evk.BlindRotationKeys[i], nil
 }
 
-func (evk MemBlindRotatationEvaluationKeySet) GetEvaluationKeySet() rlwe.EvaluationKeySet {
-	return rlwe.NewMemEvaluationKeySet(nil, evk.AutomorphismKeys...)
-}
-
-func (evk MemBlindRotatationEvaluationKeySet) BaseTwoDecomposition() int {
-	return evk.BlindRotationKeys[0].Value[0].BaseTwoDecomposition
+func (evk MemBlindRotatationEvaluationKeySet) GetEvaluationKeySet() (rlwe.EvaluationKeySet, error) {
+	return rlwe.NewMemEvaluationKeySet(nil, evk.AutomorphismKeys...), nil
 }
 
 // GenEvaluationKeyNew generates a new LUT evaluation key

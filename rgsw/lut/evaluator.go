@@ -35,6 +35,8 @@ func NewEvaluator(paramsLUT, paramsLWE rlwe.Parameters) (eval *Evaluator) {
 	eval.accumulator = rlwe.NewCiphertext(paramsLUT, 1, paramsLUT.MaxLevel())
 	eval.accumulator.IsNTT = true // This flag is always true
 
+	// Generates a map for the discret log of (+/- 1) * GaloisGen^k for 0 <= k < N-1.
+	// galoisGenDiscretLog: map[+/-G^{k} mod 2N] = k
 	eval.galoisGenDiscretLog = getGaloisElementInverseMap(ring.GaloisGen, paramsLUT.N())
 
 	return
@@ -66,14 +68,26 @@ func (eval *Evaluator) EvaluateAndRepack(ct *rlwe.Ciphertext, lutPolyWithSlotInd
 // Returns a map[slot_index] -> LUT(ct[slot_index])
 func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[int]*ring.Poly, key BlindRotatationEvaluationKeySet) (res map[int]*rlwe.Ciphertext, err error) {
 
-	eval.Evaluator = eval.Evaluator.WithKey(key.GetEvaluationKeySet())
+	evk, err := key.GetEvaluationKeySet()
+
+	if err != nil {
+		return nil, err
+	}
+
+	eval.Evaluator = eval.Evaluator.WithKey(evk)
 
 	bRLWEMod2N := eval.poolMod2N[0]
 	aRLWEMod2N := eval.poolMod2N[1]
 
 	acc := eval.accumulator
 
-	ringQLUT := eval.paramsLUT.RingQ().AtLevel(key.GetBlingRotateKey(0).LevelQ())
+	brk, err := key.GetBlingRotateKey(0)
+
+	if err != nil {
+		return nil, err
+	}
+
+	ringQLUT := eval.paramsLUT.RingQ().AtLevel(brk.LevelQ())
 	ringQLWE := eval.paramsLWE.RingQ().AtLevel(ct.Level())
 
 	if ct.IsNTT {
@@ -104,9 +118,6 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[in
 
 	res = make(map[int]*rlwe.Ciphertext)
 
-	// Generates a map for the discret log of (+/- 1) * GaloisGen^k for 0 <= k < N-1
-	// map[+/-G^{k} mod 2N] = k
-
 	var prevIndex int
 	for index := 0; index < NLWE; index++ {
 
@@ -118,6 +129,7 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[in
 			a := aRLWEMod2N.Coeffs[0]
 			b := bRLWEMod2N.Coeffs[0][index]
 
+			// Line 2 of Algorithm 7 of https://eprint.iacr.org/2022/198
 			// Acc = (f(X^{-g}) * X^{-g * b}, 0)
 			Xb := ringQLUT.NewMonomialXi(int(b))
 			ringQLUT.NTT(Xb, Xb)
@@ -126,10 +138,12 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[in
 			ringQLUT.AutomorphismNTT(acc.Value[1], ringQLUT.NthRoot()-ring.GaloisGen, acc.Value[0])
 			acc.Value[1].Zero()
 
+			// Line 3 of Algorithm 7 https://eprint.iacr.org/2022/198 (Algorithm 3 of https://eprint.iacr.org/2022/198)
 			if err = eval.BlindRotateCore(a, acc, key); err != nil {
 				panic(err)
 			}
 
+			// f(X) * X^{b + <a, s>}
 			res[index] = acc.CopyNew()
 
 			if !eval.paramsLUT.NTTFlag() {
@@ -138,12 +152,12 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[in
 				res[index].IsNTT = false
 			}
 		}
-		// LUT[RLWE] = LUT[RLWE] * X^{m+e}
 	}
 
 	return
 }
 
+// BlindRotateCore implements Algorithm 3 of https://eprint.iacr.org/2022/198
 func (eval *Evaluator) BlindRotateCore(a []uint64, acc *rlwe.Ciphertext, evk BlindRotatationEvaluationKeySet) (err error) {
 
 	// GaloisElement(k) = GaloisGen^{k} mod 2N
@@ -156,27 +170,14 @@ func (eval *Evaluator) BlindRotateCore(a []uint64, acc *rlwe.Ciphertext, evk Bli
 
 	// Algorithm 3 of https://eprint.iacr.org/2022/198
 	var v int
-	// Lines 3 to 9
+	// Lines 3 to 9 (negative set of a[i] = -g^{k} mod 2N)
 	for i := Nhalf - 1; i > 0; i-- {
-
 		if v, err = eval.evaluateFromDiscretLogSets(GaloisElement, discretLogSets, -i, v, acc, evk); err != nil {
 			return
 		}
-
-		v++
-
-		// Second and third conditions of line 7
-		if v == windowSize || i == 1 {
-
-			if err = eval.Automorphism(acc, GaloisElement(v), acc); err != nil {
-				return
-			}
-
-			v = 0
-		}
 	}
 
-	// Line 10 (0 of the negative set is 2N)
+	// Line 10 (0 in the negative set is 2N)
 	if _, err = eval.evaluateFromDiscretLogSets(GaloisElement, discretLogSets, eval.paramsLUT.N()<<1, 0, acc, evk); err != nil {
 		return
 	}
@@ -187,26 +188,14 @@ func (eval *Evaluator) BlindRotateCore(a []uint64, acc *rlwe.Ciphertext, evk Bli
 		return
 	}
 
-	// Lines 13 - 19
+	// Lines 13 - 19 (positive set of a[i] = g^{k} mod 2N)
 	for i := Nhalf - 1; i > 0; i-- {
-
 		if v, err = eval.evaluateFromDiscretLogSets(GaloisElement, discretLogSets, i, v, acc, evk); err != nil {
 			return
 		}
-
-		v++
-
-		// Second and third conditions of line 17
-		if v == windowSize || i == 1 {
-			if err = eval.Automorphism(acc, GaloisElement(v), acc); err != nil {
-				return
-			}
-
-			v = 0
-		}
 	}
 
-	// Lines 20 - 21 (0 of the positive set is 0)
+	// Lines 20 - 21 (0 in the positive set is 0)
 	if _, err = eval.evaluateFromDiscretLogSets(GaloisElement, discretLogSets, 0, 0, acc, evk); err != nil {
 		return
 	}
@@ -214,6 +203,7 @@ func (eval *Evaluator) BlindRotateCore(a []uint64, acc *rlwe.Ciphertext, evk Bli
 	return
 }
 
+// evaluateFromDiscretLogSets loops of Algorithm 3 of https://eprint.iacr.org/2022/198
 func (eval *Evaluator) evaluateFromDiscretLogSets(GaloisElement func(k int) (galEl uint64), sets map[int][]int, k, v int, acc *rlwe.Ciphertext, evk BlindRotatationEvaluationKeySet) (int, error) {
 
 	// Checks if k is in the discret log sets
@@ -230,14 +220,33 @@ func (eval *Evaluator) evaluateFromDiscretLogSets(GaloisElement func(k int) (gal
 		}
 
 		for _, j := range set {
+
+			brk, err := evk.GetBlingRotateKey(j)
+			if err != nil {
+				return v, err
+			}
+
 			// acc = acc * RGSW(X^{s[j]})
-			eval.ExternalProduct(acc, evk.GetBlingRotateKey(j), acc)
+			eval.ExternalProduct(acc, brk, acc)
 		}
+	}
+
+	v++
+
+	// Second and third conditions of line 7 or 17
+	if v == windowSize || k == 1 {
+
+		if err := eval.Automorphism(acc, GaloisElement(v), acc); err != nil {
+			return v, err
+		}
+
+		v = 0
 	}
 
 	return v, nil
 }
 
+// getGaloisElementInverseMap generates a map [(+/-) g^{k} mod 2N] = +/- k
 func getGaloisElementInverseMap(GaloisGen uint64, N int) (GaloisGenDiscretLog map[uint64]int) {
 
 	twoN := N << 1
@@ -257,6 +266,7 @@ func getGaloisElementInverseMap(GaloisGen uint64, N int) (GaloisGenDiscretLog ma
 	return
 }
 
+// getDiscretLogSets returns map[+/-k] = [i...] for a[0 <= i < N] = {(+/-) g^{k} mod 2N for +/- k}
 func (eval *Evaluator) getDiscretLogSets(a []uint64) (discretLogSets map[int][]int) {
 
 	GaloisGenDiscretLog := eval.galoisGenDiscretLog
@@ -278,7 +288,7 @@ func (eval *Evaluator) getDiscretLogSets(a []uint64) (discretLogSets map[int][]i
 }
 
 // modSwitchRLWETo2NLvl applies round(x * 2N / Q) to the coefficients of polQ and returns the result on pol2N.
-// makeOdd ensures that output coefficients are odd.
+// makeOdd ensures that output coefficients are odd by xoring with 1 (if not already zero).
 func (eval *Evaluator) modSwitchRLWETo2NLvl(level int, polQ, pol2N ring.Poly, makeOdd bool) {
 	coeffsBigint := make([]*big.Int, len(polQ.Coeffs[0]))
 

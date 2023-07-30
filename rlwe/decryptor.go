@@ -89,6 +89,7 @@ func (d Decryptor) Decrypt(ct *Ciphertext, pt *Plaintext) {
 // Decryptor can be used concurrently.
 func (d Decryptor) ShallowCopy() *Decryptor {
 	return &Decryptor{
+		params: d.params,
 		ringQ: d.ringQ,
 		buff:  d.ringQ.NewPoly(),
 		sk:    d.sk,
@@ -100,6 +101,7 @@ func (d Decryptor) ShallowCopy() *Decryptor {
 // are reallocated. The receiver and the returned Decryptor can be used concurrently.
 func (d Decryptor) WithKey(sk *SecretKey) *Decryptor {
 	return &Decryptor{
+		params: d.params,
 		ringQ: d.ringQ,
 		buff:  d.ringQ.NewPoly(),
 		sk:    sk,

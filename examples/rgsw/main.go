@@ -117,7 +117,7 @@ func main() {
 
 	now := time.Now()
 	ctsLUT, err := eval.Evaluate(ctLWE, lutPolyMap, blindeRotateKey)
-	if err != nil{
+	if err != nil {
 		panic(err)
 	}
 	fmt.Printf("Done: %s (avg/LUT %3.1f [ms])\n", time.Since(now), float64(time.Since(now).Milliseconds())/float64(slots))

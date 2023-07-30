@@ -90,9 +90,9 @@ func (d Decryptor) Decrypt(ct *Ciphertext, pt *Plaintext) {
 func (d Decryptor) ShallowCopy() *Decryptor {
 	return &Decryptor{
 		params: d.params,
-		ringQ: d.ringQ,
-		buff:  d.ringQ.NewPoly(),
-		sk:    d.sk,
+		ringQ:  d.ringQ,
+		buff:   d.ringQ.NewPoly(),
+		sk:     d.sk,
 	}
 }
 
@@ -102,8 +102,8 @@ func (d Decryptor) ShallowCopy() *Decryptor {
 func (d Decryptor) WithKey(sk *SecretKey) *Decryptor {
 	return &Decryptor{
 		params: d.params,
-		ringQ: d.ringQ,
-		buff:  d.ringQ.NewPoly(),
-		sk:    sk,
+		ringQ:  d.ringQ,
+		buff:   d.ringQ.NewPoly(),
+		sk:     sk,
 	}
 }

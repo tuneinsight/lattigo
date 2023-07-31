@@ -235,7 +235,7 @@ func testEncToShareProtocol(tc *testContext, t *testing.T) {
 		pt.Scale = ciphertext.Scale
 		tc.ringQ.AtLevel(pt.Level()).SetCoefficientsBigint(rec.Value, pt.Value)
 
-		verifyTestVectors(tc, nil, coeffs, pt, t)
+		ckks.VerifyTestVectors(params, tc.encoder, nil, coeffs, pt, nil, *printPrecisionStats, t)
 
 		crp := P[0].s2e.SampleCRP(params.MaxLevel(), tc.crs)
 
@@ -250,8 +250,7 @@ func testEncToShareProtocol(tc *testContext, t *testing.T) {
 		ctRec.Scale = params.DefaultScale()
 		P[0].s2e.GetEncryption(P[0].publicShareS2E, crp, ctRec)
 
-		verifyTestVectors(tc, tc.decryptorSk0, coeffs, ctRec, t)
-
+		ckks.VerifyTestVectors(params, tc.encoder, tc.decryptorSk0, coeffs, ctRec, nil, *printPrecisionStats, t)
 	})
 }
 
@@ -318,7 +317,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 
 				P0.Finalize(ciphertext, crp, P0.share, ciphertext)
 
-				verifyTestVectors(tc, decryptorSk0, coeffs, ciphertext, t)
+				ckks.VerifyTestVectors(params, tc.encoder, decryptorSk0, coeffs, ciphertext, nil, *printPrecisionStats, t)
 			})
 		}
 
@@ -403,7 +402,7 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 			coeffs[i][1].Mul(coeffs[i][1], bignum.NewFloat(0.7071067811865476, logBound))
 		}
 
-		verifyTestVectors(tc, decryptorSk0, coeffs, ciphertext, t)
+		ckks.VerifyTestVectors(params, tc.encoder, decryptorSk0, coeffs, ciphertext, nil, *printPrecisionStats, t)
 	})
 }
 
@@ -509,28 +508,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		dec, err := ckks.NewDecryptor(paramsOut, skIdealOut)
 		require.NoError(t, err)
 
-		precStats := ckks.GetPrecisionStats(paramsOut, ckks.NewEncoder(paramsOut), nil, coeffs, dec.DecryptNew(ciphertext), nil, false)
-
-		if *printPrecisionStats {
-			t.Log(precStats.String())
-		}
-
-		rf64, _ := precStats.MeanPrecision.Real.Float64()
-		if64, _ := precStats.MeanPrecision.Imag.Float64()
-
-		minPrec := math.Log2(paramsOut.DefaultScale().Float64())
-		switch params.RingType() {
-		case ring.Standard:
-			minPrec -= float64(paramsOut.LogN()) + 2
-		case ring.ConjugateInvariant:
-			minPrec -= float64(paramsOut.LogN()) + 2.5
-		}
-		if minPrec < 0 {
-			minPrec = 0
-		}
-
-		require.GreaterOrEqual(t, rf64, minPrec)
-		require.GreaterOrEqual(t, if64, minPrec)
+		ckks.VerifyTestVectors(paramsOut, ckks.NewEncoder(paramsOut), dec, coeffs, ciphertext, nil, *printPrecisionStats, t)
 	})
 }
 
@@ -577,24 +555,4 @@ func newTestVectorsAtScale(tc *testContext, encryptor *rlwe.Encryptor, a, b comp
 	}
 
 	return values, pt, ct
-}
-
-func verifyTestVectors(tc *testContext, decryptor *rlwe.Decryptor, valuesWant, valuesHave interface{}, t *testing.T) {
-
-	precStats := ckks.GetPrecisionStats(tc.params, tc.encoder, decryptor, valuesWant, valuesHave, nil, false)
-
-	if *printPrecisionStats {
-		t.Log(precStats.String())
-	}
-
-	rf64, _ := precStats.MeanPrecision.Real.Float64()
-	if64, _ := precStats.MeanPrecision.Imag.Float64()
-
-	minPrec := math.Log2(tc.params.DefaultScale().Float64()) - float64(tc.params.LogN()+2)
-	if minPrec < 0 {
-		minPrec = 0
-	}
-
-	require.GreaterOrEqual(t, rf64, minPrec)
-	require.GreaterOrEqual(t, if64, minPrec)
 }

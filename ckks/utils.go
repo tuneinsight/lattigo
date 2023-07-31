@@ -3,7 +3,9 @@ package ckks
 import (
 	"math"
 	"math/big"
+	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
@@ -354,4 +356,31 @@ func BigFloatToFixedPointCRT(r *ring.Ring, values []*big.Float, scale *big.Float
 			}
 		}
 	}
+}
+
+func VerifyTestVectors(params Parameters, encoder *Encoder, decryptor *rlwe.Decryptor, valuesWant, valuesHave interface{}, noise ring.DistributionParameters, printPrecisionStats bool, t *testing.T) {
+
+	precStats := GetPrecisionStats(params, encoder, decryptor, valuesWant, valuesHave, noise, false)
+
+	if printPrecisionStats {
+		t.Log(precStats.String())
+	}
+
+	rf64, _ := precStats.MeanPrecision.Real.Float64()
+	if64, _ := precStats.MeanPrecision.Imag.Float64()
+
+	minPrec := math.Log2(params.DefaultScale().Float64())
+
+	switch params.RingType() {
+	case ring.Standard:
+		minPrec -= float64(params.LogN()) + 2 // Z[X]/(X^{N} + 1)
+	case ring.ConjugateInvariant:
+		minPrec -= float64(params.LogN()) + 2.5 // Z[X + X^1]/(X^{2N} + 1)
+	}
+	if minPrec < 0 {
+		minPrec = 0
+	}
+
+	require.GreaterOrEqual(t, rf64, minPrec)
+	require.GreaterOrEqual(t, if64, minPrec)
 }

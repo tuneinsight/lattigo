@@ -135,7 +135,7 @@ func testEvalMod(params Parameters, t *testing.T) {
 			values[i] = x
 		}
 
-		verifyTestVectors(params, encoder, decryptor, values, ciphertext, nil, t)
+		VerifyTestVectors(params, encoder, decryptor, values, ciphertext, nil, *printPrecisionStats, t)
 	})
 
 	t.Run("CosDiscrete", func(t *testing.T) {
@@ -191,7 +191,7 @@ func testEvalMod(params Parameters, t *testing.T) {
 			values[i] = x
 		}
 
-		verifyTestVectors(params, encoder, decryptor, values, ciphertext, nil, t)
+		VerifyTestVectors(params, encoder, decryptor, values, ciphertext, nil, *printPrecisionStats, t)
 	})
 
 	t.Run("CosContinuous", func(t *testing.T) {
@@ -246,7 +246,7 @@ func testEvalMod(params Parameters, t *testing.T) {
 			values[i] = x
 		}
 
-		verifyTestVectors(params, encoder, decryptor, values, ciphertext, nil, t)
+		VerifyTestVectors(params, encoder, decryptor, values, ciphertext, nil, *printPrecisionStats, t)
 	})
 }
 

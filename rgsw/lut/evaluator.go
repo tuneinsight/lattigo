@@ -81,7 +81,7 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[in
 
 	acc := eval.accumulator
 
-	brk, err := key.GetBlingRotateKey(0)
+	brk, err := key.GetBlindRotationKey(0)
 
 	if err != nil {
 		return nil, err
@@ -221,7 +221,7 @@ func (eval *Evaluator) evaluateFromDiscretLogSets(GaloisElement func(k int) (gal
 
 		for _, j := range set {
 
-			brk, err := evk.GetBlingRotateKey(j)
+			brk, err := evk.GetBlindRotationKey(j)
 			if err != nil {
 				return v, err
 			}

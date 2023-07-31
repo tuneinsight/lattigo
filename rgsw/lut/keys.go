@@ -20,8 +20,8 @@ const (
 // Implementation of this interface must be safe for concurrent use.
 type BlindRotatationEvaluationKeySet interface {
 
-	// GetBlingRotateKey should return RGSW(X^{s[i]})
-	GetBlingRotateKey(i int) (brk *rgsw.Ciphertext, err error)
+	// GetBlindRotationKey should return RGSW(X^{s[i]})
+	GetBlindRotationKey(i int) (brk *rgsw.Ciphertext, err error)
 
 	// GetEvaluationKeySet should return an rlwe.EvaluationKeySet
 	// providing access to all the required automorphism keys.
@@ -34,7 +34,7 @@ type MemBlindRotatationEvaluationKeySet struct {
 	AutomorphismKeys  []*rlwe.GaloisKey
 }
 
-func (evk MemBlindRotatationEvaluationKeySet) GetBlingRotateKey(i int) (*rgsw.Ciphertext, error) {
+func (evk MemBlindRotatationEvaluationKeySet) GetBlindRotationKey(i int) (*rgsw.Ciphertext, error) {
 	return evk.BlindRotationKeys[i], nil
 }
 

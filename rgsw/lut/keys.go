@@ -96,7 +96,12 @@ func GenEvaluationKeyNew(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, par
 
 	galEls = append(galEls, paramsRLWE.RingQ().NthRoot()-ring.GaloisGen)
 
-	gks, err := kgen.GenGaloisKeysNew(galEls, skRLWE, rlwe.EvaluationKeyParameters{BaseTwoDecomposition: utils.Pointy(BaseTwoDecomposition)})
+	gks, err := kgen.GenGaloisKeysNew(galEls, skRLWE, rlwe.EvaluationKeyParameters{
+		LevelQ:               utils.Pointy(levelQ),
+		LevelP:               utils.Pointy(levelP),
+		BaseTwoDecomposition: utils.Pointy(BaseTwoDecomposition),
+	})
+
 	if err != nil {
 		return MemBlindRotatationEvaluationKeySet{}, err
 	}

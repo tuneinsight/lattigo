@@ -924,12 +924,12 @@ func (eval Evaluator) tensorScaleInvariant(ct0 *rlwe.Ciphertext, ct1 *rlwe.Opera
 		ringQ.Add(opOut.Value[1], tmpCt.Value[1], opOut.Value[1])
 	}
 
-	opOut.Scale = mulScaleInvariant(eval.parameters, ct0.Scale, tmp1Q0.Scale, level)
+	opOut.Scale = MulScaleInvariant(eval.parameters, ct0.Scale, tmp1Q0.Scale, level)
 
 	return
 }
 
-func mulScaleInvariant(params Parameters, a, b rlwe.Scale, level int) (c rlwe.Scale) {
+func MulScaleInvariant(params Parameters, a, b rlwe.Scale, level int) (c rlwe.Scale) {
 	c = a.Mul(b)
 	qModTNeg := new(big.Int).Mod(params.RingQ().ModulusAtLevel[level], new(big.Int).SetUint64(params.PlaintextModulus())).Uint64()
 	qModTNeg = params.PlaintextModulus() - qModTNeg

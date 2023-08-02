@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
@@ -72,18 +72,18 @@ import (
 //
 // ArcSineDeg: the degree of the ArcSine Taylor polynomial, by default set to 0.
 type ParametersLiteral struct {
-	LogSlots                                    *int          // Default: LogN-1
-	CoeffsToSlotsFactorizationDepthAndLogScales [][]int       // Default: [][]int{min(4, max(LogSlots, 1)) * 56}
-	SlotsToCoeffsFactorizationDepthAndLogScales [][]int       // Default: [][]int{min(3, max(LogSlots, 1)) * 39}
-	EvalModLogScale                             *int          // Default: 60
-	EphemeralSecretWeight                       *int          // Default: 32
-	Iterations                                  *int          // Default: 1
-	SineType                                    ckks.SineType // Default: ckks.CosDiscrete
-	LogMessageRatio                             *int          // Default: 8
-	K                                           *int          // Default: 16
-	SineDegree                                  *int          // Default: 30
-	DoubleAngle                                 *int          // Default: 3
-	ArcSineDegree                               *int          // Default: 0
+	LogSlots                                    *int              // Default: LogN-1
+	CoeffsToSlotsFactorizationDepthAndLogScales [][]int           // Default: [][]int{min(4, max(LogSlots, 1)) * 56}
+	SlotsToCoeffsFactorizationDepthAndLogScales [][]int           // Default: [][]int{min(3, max(LogSlots, 1)) * 39}
+	EvalModLogScale                             *int              // Default: 60
+	EphemeralSecretWeight                       *int              // Default: 32
+	Iterations                                  *int              // Default: 1
+	SineType                                    circuits.SineType // Default: ckks.CosDiscrete
+	LogMessageRatio                             *int              // Default: 8
+	K                                           *int              // Default: 16
+	SineDegree                                  *int              // Default: 30
+	DoubleAngle                                 *int              // Default: 3
+	ArcSineDegree                               *int              // Default: 0
 }
 
 const (
@@ -104,7 +104,7 @@ const (
 	// DefaultIterationsLogScale is the default scaling factor for the additional prime consumed per additional bootstrapping iteration above 1.
 	DefaultIterationsLogScale = 25
 	// DefaultSineType is the default function and approximation technique for the homomorphic modular reduction polynomial.
-	DefaultSineType = ckks.CosDiscrete
+	DefaultSineType = circuits.CosDiscrete
 	// DefaultLogMessageRatio is the default ratio between Q[0] and |m|.
 	DefaultLogMessageRatio = 8
 	// DefaultK is the default interval [-K+1, K-1] for the polynomial approximation of the homomorphic modular reduction.
@@ -227,7 +227,7 @@ func (p *ParametersLiteral) GetIterations() (Iterations int, err error) {
 
 // GetSineType returns the SineType field of the target ParametersLiteral.
 // The default value DefaultSineType is returned is the field is nil.
-func (p *ParametersLiteral) GetSineType() (SineType ckks.SineType) {
+func (p *ParametersLiteral) GetSineType() (SineType circuits.SineType) {
 	return p.SineType
 }
 
@@ -286,7 +286,7 @@ func (p *ParametersLiteral) GetDoubleAngle() (DoubleAngle int, err error) {
 	if v := p.DoubleAngle; v == nil {
 
 		switch p.GetSineType() {
-		case ckks.SinContinuous:
+		case circuits.SinContinuous:
 			DoubleAngle = 0
 		default:
 			DoubleAngle = DefaultDoubleAngle

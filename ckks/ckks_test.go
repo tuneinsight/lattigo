@@ -6,14 +6,12 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"math/bits"
 	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ring"
 
-	"github.com/tuneinsight/lattigo/v4/hebase"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -92,9 +90,6 @@ func TestCKKS(t *testing.T) {
 				testEvaluatorMul,
 				testEvaluatorMulThenAdd,
 				testFunctions,
-				testDecryptPublic,
-				testEvaluatePoly,
-				testChebyshevInterpolator,
 				testBridge,
 			} {
 				testSet(tc, t)
@@ -806,210 +801,6 @@ func testFunctions(tc *testContext, t *testing.T) {
 		}
 
 		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, *printPrecisionStats, t)
-	})
-}
-
-func testEvaluatePoly(tc *testContext, t *testing.T) {
-
-	var err error
-
-	t.Run(GetTestName(tc.params, "EvaluatePoly/PolySingle/Exp"), func(t *testing.T) {
-
-		if tc.params.MaxLevel() < 3 {
-			t.Skip("skipping test for params max level < 3")
-		}
-
-		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1, 1, t)
-
-		prec := tc.encoder.Prec()
-
-		coeffs := []*big.Float{
-			bignum.NewFloat(1, prec),
-			bignum.NewFloat(1, prec),
-			new(big.Float).Quo(bignum.NewFloat(1, prec), bignum.NewFloat(2, prec)),
-			new(big.Float).Quo(bignum.NewFloat(1, prec), bignum.NewFloat(6, prec)),
-			new(big.Float).Quo(bignum.NewFloat(1, prec), bignum.NewFloat(24, prec)),
-			new(big.Float).Quo(bignum.NewFloat(1, prec), bignum.NewFloat(120, prec)),
-			new(big.Float).Quo(bignum.NewFloat(1, prec), bignum.NewFloat(720, prec)),
-			new(big.Float).Quo(bignum.NewFloat(1, prec), bignum.NewFloat(5040, prec)),
-		}
-
-		poly := bignum.NewPolynomial(bignum.Monomial, coeffs, nil)
-
-		for i := range values {
-			values[i] = poly.Evaluate(values[i])
-		}
-
-		if ciphertext, err = tc.evaluator.Polynomial(ciphertext, poly, ciphertext.Scale); err != nil {
-			t.Fatal(err)
-		}
-
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, *printPrecisionStats, t)
-	})
-
-	t.Run(GetTestName(tc.params, "Polynomial/PolyVector/Exp"), func(t *testing.T) {
-
-		if tc.params.MaxLevel() < 3 {
-			t.Skip("skipping test for params max level < 3")
-		}
-
-		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1, 1, t)
-
-		prec := tc.encoder.Prec()
-
-		coeffs := []*big.Float{
-			bignum.NewFloat(1, prec),
-			bignum.NewFloat(1, prec),
-			new(big.Float).Quo(bignum.NewFloat(1, prec), bignum.NewFloat(2, prec)),
-			new(big.Float).Quo(bignum.NewFloat(1, prec), bignum.NewFloat(6, prec)),
-			new(big.Float).Quo(bignum.NewFloat(1, prec), bignum.NewFloat(24, prec)),
-			new(big.Float).Quo(bignum.NewFloat(1, prec), bignum.NewFloat(120, prec)),
-			new(big.Float).Quo(bignum.NewFloat(1, prec), bignum.NewFloat(720, prec)),
-			new(big.Float).Quo(bignum.NewFloat(1, prec), bignum.NewFloat(5040, prec)),
-		}
-
-		poly := bignum.NewPolynomial(bignum.Monomial, coeffs, nil)
-
-		slots := ciphertext.Slots()
-
-		slotIndex := make(map[int][]int)
-		idx := make([]int, slots>>1)
-		for i := 0; i < slots>>1; i++ {
-			idx[i] = 2 * i
-		}
-
-		slotIndex[0] = idx
-
-		valuesWant := make([]*bignum.Complex, slots)
-		for _, j := range idx {
-			valuesWant[j] = poly.Evaluate(values[j])
-		}
-
-		polyVector, err := NewPolynomialVector([]hebase.Polynomial{NewPolynomial(poly)}, slotIndex)
-		require.NoError(t, err)
-
-		if ciphertext, err = tc.evaluator.Polynomial(ciphertext, polyVector, ciphertext.Scale); err != nil {
-			t.Fatal(err)
-		}
-
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, valuesWant, ciphertext, nil, *printPrecisionStats, t)
-	})
-}
-
-func testChebyshevInterpolator(tc *testContext, t *testing.T) {
-
-	var err error
-
-	t.Run(GetTestName(tc.params, "ChebyshevInterpolator/Sin"), func(t *testing.T) {
-
-		degree := 13
-
-		if tc.params.MaxDepth() < bits.Len64(uint64(degree)) {
-			t.Skip("skipping test: not enough levels")
-		}
-
-		eval := tc.evaluator
-
-		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1, 1, t)
-
-		prec := tc.params.EncodingPrecision()
-
-		interval := bignum.Interval{
-			Nodes: degree,
-			A:     *new(big.Float).SetPrec(prec).SetFloat64(-8),
-			B:     *new(big.Float).SetPrec(prec).SetFloat64(8),
-		}
-
-		poly := NewPolynomial(bignum.ChebyshevApproximation(math.Sin, interval))
-
-		scalar, constant := poly.ChangeOfBasis()
-		eval.Mul(ciphertext, scalar, ciphertext)
-		eval.Add(ciphertext, constant, ciphertext)
-		if err = eval.RescaleTo(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
-			t.Fatal(err)
-		}
-
-		if ciphertext, err = eval.Polynomial(ciphertext, poly, ciphertext.Scale); err != nil {
-			t.Fatal(err)
-		}
-
-		for i := range values {
-			values[i] = poly.Evaluate(values[i])
-		}
-
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, *printPrecisionStats, t)
-	})
-}
-
-func testDecryptPublic(tc *testContext, t *testing.T) {
-
-	var err error
-
-	t.Run(GetTestName(tc.params, "DecryptPublic/Sin"), func(t *testing.T) {
-
-		degree := 7
-		a, b := -1.5, 1.5
-
-		if tc.params.MaxDepth() < bits.Len64(uint64(degree)) {
-			t.Skip("skipping test: not enough levels")
-		}
-
-		eval := tc.evaluator
-
-		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, complex(a, 0), complex(b, 0), t)
-
-		prec := tc.params.EncodingPrecision()
-
-		sin := func(x *bignum.Complex) (y *bignum.Complex) {
-			xf64, _ := x[0].Float64()
-			y = bignum.NewComplex()
-			y.SetPrec(prec)
-			y[0].SetFloat64(math.Sin(xf64))
-			return
-		}
-
-		interval := bignum.Interval{
-			Nodes: degree,
-			A:     *new(big.Float).SetPrec(prec).SetFloat64(a),
-			B:     *new(big.Float).SetPrec(prec).SetFloat64(b),
-		}
-
-		poly := bignum.ChebyshevApproximation(sin, interval)
-
-		for i := range values {
-			values[i] = poly.Evaluate(values[i])
-		}
-
-		scalar, constant := poly.ChangeOfBasis()
-
-		require.NoError(t, eval.Mul(ciphertext, scalar, ciphertext))
-		require.NoError(t, eval.Add(ciphertext, constant, ciphertext))
-		if err := eval.RescaleTo(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
-			t.Fatal(err)
-		}
-
-		if ciphertext, err = eval.Polynomial(ciphertext, poly, ciphertext.Scale); err != nil {
-			t.Fatal(err)
-		}
-
-		plaintext := tc.decryptor.DecryptNew(ciphertext)
-
-		valuesHave := make([]*big.Float, plaintext.Slots())
-
-		require.NoError(t, tc.encoder.Decode(plaintext, valuesHave))
-
-		VerifyTestVectors(tc.params, tc.encoder, nil, values, valuesHave, nil, *printPrecisionStats, t)
-
-		for i := range valuesHave {
-			valuesHave[i].Sub(valuesHave[i], values[i][0])
-		}
-
-		// This should make it lose at most ~0.5 bit or precision.
-		sigma := StandardDeviation(valuesHave, rlwe.NewScale(plaintext.Scale.Float64()/math.Sqrt(float64(len(values)))))
-
-		tc.encoder.DecodePublic(plaintext, valuesHave, ring.DiscreteGaussian{Sigma: sigma, Bound: 2.5066282746310002 * sigma})
-
-		VerifyTestVectors(tc.params, tc.encoder, nil, values, valuesHave, nil, *printPrecisionStats, t)
 	})
 }
 

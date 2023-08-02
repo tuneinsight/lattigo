@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"math"
+	"math/big"
 	"runtime"
 	"testing"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
@@ -89,7 +91,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 		params := tc.params
 
-		values, _, ciphertext := newTestVectorsLvl(level, tc.params.DefaultScale(), tc, tc.encryptorSk)
+		values, _, ciphertext := newBFVTestVectorsLvl(level, tc.params.DefaultScale(), tc, tc.encryptorSk)
 
 		diagonals := make(Diagonals[uint64])
 
@@ -154,14 +156,14 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 4), values.Coeffs[0])
 		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 15), values.Coeffs[0])
 
-		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
+		verifyBFVTestVectors(tc, tc.decryptor, values, ciphertext, t)
 	})
 
 	t.Run(GetTestName("Evaluator/LinearTransform/BSGS=false", bgv.Parameters(tc.params.Parameters), level), func(t *testing.T) {
 
 		params := tc.params
 
-		values, _, ciphertext := newTestVectorsLvl(level, tc.params.DefaultScale(), tc, tc.encryptorSk)
+		values, _, ciphertext := newBFVTestVectorsLvl(level, tc.params.DefaultScale(), tc, tc.encryptorSk)
 
 		diagonals := make(Diagonals[uint64])
 
@@ -226,7 +228,84 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 4), values.Coeffs[0])
 		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 15), values.Coeffs[0])
 
-		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
+		verifyBFVTestVectors(tc, tc.decryptor, values, ciphertext, t)
+	})
+
+	t.Run("PolyEval", func(t *testing.T) {
+
+		polyEval := NewBGVPolynomialEvaluator(tc.params.Parameters, tc.evaluator.Evaluator)
+
+		t.Run("Single", func(t *testing.T) {
+
+			if tc.params.MaxLevel() < 4 {
+				t.Skip("MaxLevel() to low")
+			}
+
+			values, _, ciphertext := newBFVTestVectorsLvl(tc.params.MaxLevel(), tc.params.NewScale(1), tc, tc.encryptorSk)
+
+			coeffs := []uint64{1, 2, 3, 4, 5, 6, 7, 8}
+
+			T := tc.params.PlaintextModulus()
+			for i := range values.Coeffs[0] {
+				values.Coeffs[0][i] = ring.EvalPolyModP(values.Coeffs[0][i], coeffs, T)
+			}
+
+			poly := bignum.NewPolynomial(bignum.Monomial, coeffs, nil)
+
+			res, err := polyEval.Polynomial(ciphertext, poly, true, tc.params.DefaultScale()) // TODO simpler interface for BFV ?
+			require.NoError(t, err)
+
+			require.True(t, res.Scale.Cmp(tc.params.DefaultScale()) == 0)
+
+			verifyBFVTestVectors(tc, tc.decryptor, values, res, t)
+
+		})
+
+		t.Run("Vector", func(t *testing.T) {
+
+			if tc.params.MaxLevel() < 4 {
+				t.Skip("MaxLevel() to low")
+			}
+
+			values, _, ciphertext := newBFVTestVectorsLvl(tc.params.MaxLevel(), tc.params.NewScale(7), tc, tc.encryptorSk)
+
+			coeffs0 := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+			coeffs1 := []uint64{2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17}
+
+			slots := values.N()
+
+			slotIndex := make(map[int][]int)
+			idx0 := make([]int, slots>>1)
+			idx1 := make([]int, slots>>1)
+			for i := 0; i < slots>>1; i++ {
+				idx0[i] = 2 * i
+				idx1[i] = 2*i + 1
+			}
+
+			slotIndex[0] = idx0
+			slotIndex[1] = idx1
+
+			polyVector, err := NewPolynomialVector([]Polynomial{
+				NewBGVPolynomial(coeffs0),
+				NewBGVPolynomial(coeffs1),
+			}, slotIndex)
+			require.NoError(t, err)
+
+			TInt := new(big.Int).SetUint64(tc.params.PlaintextModulus())
+			for pol, idx := range slotIndex {
+				for _, i := range idx {
+					values.Coeffs[0][i] = polyVector.Value[pol].EvaluateModP(new(big.Int).SetUint64(values.Coeffs[0][i]), TInt).Uint64()
+				}
+			}
+
+			res, err := polyEval.Polynomial(ciphertext, polyVector, true, tc.params.DefaultScale())
+			require.NoError(t, err)
+
+			require.True(t, res.Scale.Cmp(tc.params.DefaultScale()) == 0)
+
+			verifyBFVTestVectors(tc, tc.decryptor, values, res, t)
+
+		})
 	})
 }
 
@@ -289,7 +368,7 @@ func genTestParams(params bfv.Parameters) (tc *testContext, err error) {
 	return
 }
 
-func newTestVectorsLvl(level int, scale rlwe.Scale, tc *testContext, encryptor *rlwe.Encryptor) (coeffs ring.Poly, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
+func newBFVTestVectorsLvl(level int, scale rlwe.Scale, tc *testContext, encryptor *rlwe.Encryptor) (coeffs ring.Poly, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
 	coeffs = tc.uSampler.ReadNew()
 	for i := range coeffs.Coeffs[0] {
 		coeffs.Coeffs[0][i] = uint64(i)
@@ -308,7 +387,7 @@ func newTestVectorsLvl(level int, scale rlwe.Scale, tc *testContext, encryptor *
 	return coeffs, plaintext, ciphertext
 }
 
-func verifyTestVectors(tc *testContext, decryptor *rlwe.Decryptor, coeffs ring.Poly, element rlwe.OperandInterface[ring.Poly], t *testing.T) {
+func verifyBFVTestVectors(tc *testContext, decryptor *rlwe.Decryptor, coeffs ring.Poly, element rlwe.OperandInterface[ring.Poly], t *testing.T) {
 
 	coeffsTest := make([]uint64, tc.params.MaxSlots())
 

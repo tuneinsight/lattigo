@@ -5,8 +5,8 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/ckks"
-	"github.com/tuneinsight/lattigo/v4/hebase"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -134,13 +134,15 @@ func chebyshevinterpolation() {
 		panic(err)
 	}
 
-	polyVec, err := ckks.NewPolynomialVector([]hebase.Polynomial{ckks.NewPolynomial(approxF), ckks.NewPolynomial(approxG)}, slotsIndex)
+	polyVec, err := circuits.NewPolynomialVector([]circuits.Polynomial{circuits.NewPolynomial(approxF), circuits.NewPolynomial(approxG)}, slotsIndex)
 	if err != nil {
 		panic(err)
 	}
 
+	polyEval := circuits.NewCKKSPolynomialEvaluator(params, evaluator)
+
 	// We evaluate the interpolated Chebyshev interpolant on the ciphertext
-	if ciphertext, err = evaluator.Polynomial(ciphertext, polyVec, ciphertext.Scale); err != nil {
+	if ciphertext, err = polyEval.Polynomial(ciphertext, polyVec, ciphertext.Scale); err != nil {
 		panic(err)
 	}
 

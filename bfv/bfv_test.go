@@ -5,15 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"math"
-	"math/big"
 	"runtime"
 	"testing"
 
-	"github.com/tuneinsight/lattigo/v4/hebase"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
-	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 
 	"github.com/stretchr/testify/require"
@@ -558,81 +555,6 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 			})
 		}
-
-		t.Run("PolyEval", func(t *testing.T) {
-
-			t.Run("Single", func(t *testing.T) {
-
-				if tc.params.MaxLevel() < 4 {
-					t.Skip("MaxLevel() to low")
-				}
-
-				values, _, ciphertext := newTestVectorsLvl(tc.params.MaxLevel(), tc.params.NewScale(1), tc, tc.encryptorSk)
-
-				coeffs := []uint64{1, 2, 3, 4, 5, 6, 7, 8}
-
-				T := tc.params.PlaintextModulus()
-				for i := range values.Coeffs[0] {
-					values.Coeffs[0][i] = ring.EvalPolyModP(values.Coeffs[0][i], coeffs, T)
-				}
-
-				poly := bignum.NewPolynomial(bignum.Monomial, coeffs, nil)
-
-				res, err := tc.evaluator.Polynomial(ciphertext, poly)
-				require.NoError(t, err)
-
-				require.True(t, res.Scale.Cmp(tc.params.DefaultScale()) == 0)
-
-				verifyTestVectors(tc, tc.decryptor, values, res, t)
-
-			})
-
-			t.Run("Vector", func(t *testing.T) {
-
-				if tc.params.MaxLevel() < 4 {
-					t.Skip("MaxLevel() to low")
-				}
-
-				values, _, ciphertext := newTestVectorsLvl(tc.params.MaxLevel(), tc.params.NewScale(7), tc, tc.encryptorSk)
-
-				coeffs0 := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
-				coeffs1 := []uint64{2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17}
-
-				slots := values.N()
-
-				slotIndex := make(map[int][]int)
-				idx0 := make([]int, slots>>1)
-				idx1 := make([]int, slots>>1)
-				for i := 0; i < slots>>1; i++ {
-					idx0[i] = 2 * i
-					idx1[i] = 2*i + 1
-				}
-
-				slotIndex[0] = idx0
-				slotIndex[1] = idx1
-
-				polyVector, err := NewPolynomialVector([]hebase.Polynomial{
-					NewPolynomial(coeffs0),
-					NewPolynomial(coeffs1),
-				}, slotIndex)
-				require.NoError(t, err)
-
-				TInt := new(big.Int).SetUint64(tc.params.PlaintextModulus())
-				for pol, idx := range slotIndex {
-					for _, i := range idx {
-						values.Coeffs[0][i] = polyVector.Value[pol].EvaluateModP(new(big.Int).SetUint64(values.Coeffs[0][i]), TInt).Uint64()
-					}
-				}
-
-				res, err := tc.evaluator.Polynomial(ciphertext, polyVector)
-				require.NoError(t, err)
-
-				require.True(t, res.Scale.Cmp(tc.params.DefaultScale()) == 0)
-
-				verifyTestVectors(tc, tc.decryptor, values, res, t)
-
-			})
-		})
 
 		for _, lvl := range tc.testLevel[:] {
 			t.Run(GetTestName("Rescale", tc.params, lvl), func(t *testing.T) {

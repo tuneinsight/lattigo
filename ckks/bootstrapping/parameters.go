@@ -13,7 +13,7 @@ import (
 // Parameters is a struct for the default bootstrapping parameters
 type Parameters struct {
 	SlotsToCoeffsParameters circuits.HomomorphicDFTMatrixLiteral
-	EvalModParameters       ckks.EvalModLiteral
+	EvalModParameters       circuits.EvalModLiteral
 	CoeffsToSlotsParameters circuits.HomomorphicDFTMatrixLiteral
 	Iterations              int
 	EphemeralSecretWeight   int // Hamming weight of the ephemeral secret. If 0, no ephemeral secret is used during the bootstrapping.
@@ -97,7 +97,7 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 		return ckks.ParametersLiteral{}, Parameters{}, err
 	}
 
-	EvalModParams := ckks.EvalModLiteral{
+	EvalModParams := circuits.EvalModLiteral{
 		LogScale:        EvalModLogScale,
 		SineType:        SineType,
 		SineDegree:      SineDegree,

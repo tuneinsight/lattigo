@@ -1,52 +1,88 @@
-package bgv
+package circuits
 
 import (
 	"fmt"
 	"math/big"
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v4/hebase"
+	"github.com/tuneinsight/lattigo/v4/bgv"
+	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
-func (eval Evaluator) Polynomial(input interface{}, p interface{}, InvariantTensoring bool, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
+type BGVEvaluatorForPolyEval interface {
+	EvaluatorForPolyEval
+	MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
+	Encode(values interface{}, pt *rlwe.Plaintext) (err error)
+	BuffQ() [3]ring.Poly
+}
 
-	var polyVec hebase.PolynomialVector
+type BGVPolyEvaluator struct {
+	*bgv.Evaluator
+	*PolynomialEvaluator
+	bgv.Parameters
+}
+
+// NewBGVPowerBasis is a wrapper of NewPolynomialBasis.
+// This function creates a new powerBasis from the input ciphertext.
+// The input ciphertext is treated as the base monomial X used to
+// generate the other powers X^{n}.
+func NewBGVPowerBasis(ct *rlwe.Ciphertext) PowerBasis {
+	return NewPowerBasis(ct, bignum.Monomial)
+}
+
+// NewBGVPolynomial is a wrapper of NewPolynomial.
+// This function creates a new polynomial from the input coefficients.
+// This polynomial can be evaluated on a ciphertext.
+func NewBGVPolynomial[T int64 | uint64](coeffs []T) Polynomial {
+	return NewPolynomial(bignum.NewPolynomial(bignum.Monomial, coeffs, nil))
+}
+
+// NewBGVPolynomialVector is a wrapper of NewPolynomialVector.
+// This function creates a new PolynomialVector from the input polynomials and the desired function mapping.
+// This polynomial vector can be evaluated on a ciphertext.
+func NewBGVPolynomialVector(polys []Polynomial, mapping map[int][]int) (PolynomialVector, error) {
+	return NewPolynomialVector(polys, mapping)
+}
+
+func NewBGVPolynomialEvaluator(params bgv.Parameters, eval *bgv.Evaluator) *BGVPolyEvaluator {
+	e := new(BGVPolyEvaluator)
+	e.Evaluator = eval
+	e.PolynomialEvaluator = &PolynomialEvaluator{eval, eval.GetEvaluatorBuffer()}
+	e.Parameters = params
+	return e
+}
+
+func (eval *BGVPolyEvaluator) Polynomial(input interface{}, p interface{}, InvariantTensoring bool, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
+
+	var polyVec PolynomialVector
 	switch p := p.(type) {
 	case bignum.Polynomial:
-		polyVec = hebase.PolynomialVector{Value: []hebase.Polynomial{{Polynomial: p, MaxDeg: p.Degree(), Lead: true, Lazy: false}}}
-	case hebase.Polynomial:
-		polyVec = hebase.PolynomialVector{Value: []hebase.Polynomial{p}}
-	case hebase.PolynomialVector:
+		polyVec = PolynomialVector{Value: []Polynomial{{Polynomial: p, MaxDeg: p.Degree(), Lead: true, Lazy: false}}}
+	case Polynomial:
+		polyVec = PolynomialVector{Value: []Polynomial{p}}
+	case PolynomialVector:
 		polyVec = p
 	default:
 		return nil, fmt.Errorf("cannot Polynomial: invalid polynomial type: %T", p)
 	}
 
-	polyEval := PolynomialEvaluator{
-		Evaluator:          &eval,
-		InvariantTensoring: InvariantTensoring,
-	}
-
-	var powerbasis hebase.PowerBasis
+	var powerbasis PowerBasis
 	switch input := input.(type) {
 	case *rlwe.Ciphertext:
-
 		if level, depth := input.Level(), polyVec.Value[0].Depth(); level < depth {
 			return nil, fmt.Errorf("%d levels < %d log(d) -> cannot evaluate poly", level, depth)
 		}
-
-		powerbasis = hebase.NewPowerBasis(input, bignum.Monomial)
-
-	case hebase.PowerBasis:
+		powerbasis = NewPowerBasis(input, bignum.Monomial)
+	case PowerBasis:
 		if input.Value[1] == nil {
 			return nil, fmt.Errorf("cannot evaluatePolyVector: given PowerBasis[1] is empty")
 		}
 		powerbasis = input
 	default:
-		return nil, fmt.Errorf("cannot evaluatePolyVector: invalid input, must be either *hebase.Ciphertext or *PowerBasis")
+		return nil, fmt.Errorf("cannot evaluatePolyVector: invalid input, must be either *Ciphertext or *PowerBasis")
 	}
 
 	logDegree := bits.Len64(uint64(polyVec.Value[0].Degree()))
@@ -57,36 +93,47 @@ func (eval Evaluator) Polynomial(input interface{}, p interface{}, InvariantTens
 		odd, even = odd || p.IsOdd, even || p.IsEven
 	}
 
+	var pbe PowerBasisEvaluator = eval.Evaluator
+	if InvariantTensoring {
+		scaleInvEval := &BGVScaleInvariantEvaluator{Evaluator: eval.Evaluator}
+		pbe = scaleInvEval
+		eval.PolynomialEvaluator.EvaluatorForPolyEval = scaleInvEval
+	}
+
 	// Computes all the powers of two with relinearization
 	// This will recursively compute and store all powers of two up to 2^logDegree
-	if err = powerbasis.GenPower(1<<(logDegree-1), false, polyEval); err != nil {
+	if err = powerbasis.GenPower(1<<(logDegree-1), false, pbe); err != nil {
 		return nil, err
 	}
 
 	// Computes the intermediate powers, starting from the largest, without relinearization if possible
 	for i := (1 << logSplit) - 1; i > 2; i-- {
 		if !(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd) {
-			if err = powerbasis.GenPower(i, polyVec.Value[0].Lazy, polyEval); err != nil {
+			if err = powerbasis.GenPower(i, polyVec.Value[0].Lazy, pbe); err != nil {
 				return nil, err
 			}
 		}
 	}
 
-	PS := polyVec.GetPatersonStockmeyerPolynomial(*eval.GetParameters(), powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, &dummyEvaluator{*eval.GetParameters(), InvariantTensoring})
+	PS := polyVec.GetPatersonStockmeyerPolynomial(eval.Parameters.Parameters, powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, &dummyBGVPolyEvaluator{eval.Parameters, InvariantTensoring})
 
-	if opOut, err = hebase.EvaluatePatersonStockmeyerPolynomialVector(PS, powerbasis, polyEval); err != nil {
+	if opOut, err = eval.EvaluatePatersonStockmeyerPolynomialVector(eval, PS, powerbasis); err != nil {
 		return nil, err
+	}
+
+	if InvariantTensoring {
+		eval.PolynomialEvaluator.EvaluatorForPolyEval = eval.Evaluator
 	}
 
 	return opOut, err
 }
 
-type dummyEvaluator struct {
-	params             Parameters
+type dummyBGVPolyEvaluator struct {
+	params             bgv.Parameters
 	InvariantTensoring bool
 }
 
-func (d dummyEvaluator) PolynomialDepth(degree int) int {
+func (d dummyBGVPolyEvaluator) PolynomialDepth(degree int) int {
 	if d.InvariantTensoring {
 		return 0
 	}
@@ -94,7 +141,7 @@ func (d dummyEvaluator) PolynomialDepth(degree int) int {
 }
 
 // Rescale rescales the target DummyOperand n times and returns it.
-func (d dummyEvaluator) Rescale(op0 *hebase.DummyOperand) {
+func (d dummyBGVPolyEvaluator) Rescale(op0 *DummyOperand) {
 	if !d.InvariantTensoring {
 		op0.Scale = op0.Scale.Div(rlwe.NewScale(d.params.Q()[op0.Level]))
 		op0.Level--
@@ -102,12 +149,12 @@ func (d dummyEvaluator) Rescale(op0 *hebase.DummyOperand) {
 }
 
 // Mul multiplies two DummyOperand, stores the result the taret DummyOperand and returns the result.
-func (d dummyEvaluator) MulNew(op0, op1 *hebase.DummyOperand) (opOut *hebase.DummyOperand) {
-	opOut = new(hebase.DummyOperand)
+func (d dummyBGVPolyEvaluator) MulNew(op0, op1 *DummyOperand) (opOut *DummyOperand) {
+	opOut = new(DummyOperand)
 	opOut.Level = utils.Min(op0.Level, op1.Level)
 
 	if d.InvariantTensoring {
-		opOut.Scale = mulScaleInvariant(d.params, op0.Scale, op1.Scale, opOut.Level)
+		opOut.Scale = bgv.MulScaleInvariant(d.params, op0.Scale, op1.Scale, opOut.Level)
 	} else {
 		opOut.Scale = op0.Scale.Mul(op1.Scale)
 	}
@@ -115,7 +162,7 @@ func (d dummyEvaluator) MulNew(op0, op1 *hebase.DummyOperand) (opOut *hebase.Dum
 	return
 }
 
-func (d dummyEvaluator) UpdateLevelAndScaleBabyStep(lead bool, tLevelOld int, tScaleOld rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale) {
+func (d dummyBGVPolyEvaluator) UpdateLevelAndScaleBabyStep(lead bool, tLevelOld int, tScaleOld rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale) {
 	tLevelNew = tLevelOld
 	tScaleNew = tScaleOld
 	if !d.InvariantTensoring && lead {
@@ -124,7 +171,7 @@ func (d dummyEvaluator) UpdateLevelAndScaleBabyStep(lead bool, tLevelOld int, tS
 	return
 }
 
-func (d dummyEvaluator) UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, tScaleOld, xPowScale rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale) {
+func (d dummyBGVPolyEvaluator) UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, tScaleOld, xPowScale rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale) {
 
 	Q := d.params.Q()
 
@@ -160,59 +207,35 @@ func (d dummyEvaluator) UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, t
 	return
 }
 
-func NewPolynomialEvaluator(eval *Evaluator, InvariantTensoring bool) *PolynomialEvaluator {
-	return &PolynomialEvaluator{Evaluator: eval, InvariantTensoring: InvariantTensoring}
+type BGVScaleInvariantEvaluator struct {
+	*bgv.Evaluator
 }
 
-type PolynomialEvaluator struct {
-	*Evaluator
-	InvariantTensoring bool
+func (polyEval BGVScaleInvariantEvaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
+	return polyEval.MulScaleInvariant(op0, op1, opOut)
 }
 
-func (polyEval PolynomialEvaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
-	if !polyEval.InvariantTensoring {
-		return polyEval.Evaluator.Mul(op0, op1, opOut)
-	} else {
-		return polyEval.Evaluator.MulScaleInvariant(op0, op1, opOut)
-	}
+func (polyEval BGVScaleInvariantEvaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
+	return polyEval.Evaluator.MulRelinScaleInvariant(op0, op1, opOut)
 }
 
-func (polyEval PolynomialEvaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
-	if !polyEval.InvariantTensoring {
-		return polyEval.Evaluator.MulRelin(op0, op1, opOut)
-	} else {
-		return polyEval.Evaluator.MulRelinScaleInvariant(op0, op1, opOut)
-	}
+func (polyEval BGVScaleInvariantEvaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
+	return polyEval.Evaluator.MulScaleInvariantNew(op0, op1)
 }
 
-func (polyEval PolynomialEvaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
-	if !polyEval.InvariantTensoring {
-		return polyEval.Evaluator.MulNew(op0, op1)
-	} else {
-		return polyEval.Evaluator.MulScaleInvariantNew(op0, op1)
-	}
+func (polyEval BGVScaleInvariantEvaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
+	return polyEval.Evaluator.MulRelinScaleInvariantNew(op0, op1)
 }
 
-func (polyEval PolynomialEvaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
-	if !polyEval.InvariantTensoring {
-		return polyEval.Evaluator.MulRelinNew(op0, op1)
-	} else {
-		return polyEval.Evaluator.MulRelinScaleInvariantNew(op0, op1)
-	}
+func (polyEval BGVScaleInvariantEvaluator) Rescale(op0, op1 *rlwe.Ciphertext) (err error) {
+	return nil
 }
 
-func (polyEval PolynomialEvaluator) Rescale(op0, op1 *rlwe.Ciphertext) (err error) {
-	if !polyEval.InvariantTensoring {
-		return polyEval.Evaluator.Rescale(op0, op1)
-	}
-	return
-}
-
-func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol hebase.PolynomialVector, pb hebase.PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
+func (eval BGVPolyEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol PolynomialVector, pb PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
 
 	X := pb.Value
 
-	params := *polyEval.Evaluator.GetParameters()
+	params := eval.Parameters
 	slotsIndex := pol.SlotsIndex
 	slots := params.RingT().N()
 	even := pol.IsEven()
@@ -245,7 +268,7 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 		if minimumDegreeNonZeroCoefficient == 0 {
 
 			// Allocates the output ciphertext
-			res = NewCiphertext(params, 1, targetLevel)
+			res = bgv.NewCiphertext(params, 1, targetLevel)
 			res.Scale = targetScale
 
 			// Looks for non-zero coefficients among the degree 0 coefficients of the polynomials
@@ -265,9 +288,9 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 					panic(err)
 				}
 				pt.Scale = res.Scale
-				pt.IsNTT = NTTFlag
+				pt.IsNTT = bgv.NTTFlag
 				pt.IsBatched = true
-				if err = polyEval.Encode(values, pt); err != nil {
+				if err = eval.Encode(values, pt); err != nil {
 					return nil, err
 				}
 			}
@@ -276,18 +299,18 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 		}
 
 		// Allocates the output ciphertext
-		res = NewCiphertext(params, maximumCiphertextDegree, targetLevel)
+		res = bgv.NewCiphertext(params, maximumCiphertextDegree, targetLevel)
 		res.Scale = targetScale
 
 		// Allocates a temporary plaintext to encode the values
-		buffq := polyEval.Evaluator.BuffQ()
+		buffq := eval.Evaluator.BuffQ()
 		pt, err := rlwe.NewPlaintextAtLevelFromPoly(targetLevel, buffq[0]) // buffQ[0] is safe in this case
 		if err != nil {
 			panic(err)
 		}
 		pt.IsBatched = true
 		pt.Scale = targetScale
-		pt.IsNTT = NTTFlag
+		pt.IsNTT = bgv.NTTFlag
 
 		// Looks for a non-zero coefficient among the degree zero coefficient of the polynomials
 		for i, p := range pol.Value {
@@ -304,7 +327,7 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 		if toEncode {
 			// Add would actually scale the plaintext accordingly,
 			// but encoding with the correct scale is slightly faster
-			if err := polyEval.Add(res, values, res); err != nil {
+			if err := eval.Add(res, values, res); err != nil {
 				return nil, err
 			}
 
@@ -347,7 +370,7 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 
 				// MulAndAdd would actually scale the plaintext accordingly,
 				// but encoding with the correct scale is slightly faster
-				if err = polyEval.MulThenAdd(X[key], values, res); err != nil {
+				if err = eval.MulThenAdd(X[key], values, res); err != nil {
 					return nil, err
 				}
 				toEncode = false
@@ -360,11 +383,11 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 
 		if minimumDegreeNonZeroCoefficient == 0 {
 
-			res = NewCiphertext(params, 1, targetLevel)
+			res = bgv.NewCiphertext(params, 1, targetLevel)
 			res.Scale = targetScale
 
 			if c != 0 {
-				if err := polyEval.Add(res, c, res); err != nil {
+				if err := eval.Add(res, c, res); err != nil {
 					return nil, err
 				}
 			}
@@ -372,11 +395,11 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 			return
 		}
 
-		res = NewCiphertext(params, maximumCiphertextDegree, targetLevel)
+		res = bgv.NewCiphertext(params, maximumCiphertextDegree, targetLevel)
 		res.Scale = targetScale
 
 		if c != 0 {
-			if err := polyEval.Add(res, c, res); err != nil {
+			if err := eval.Add(res, c, res); err != nil {
 				return nil, err
 			}
 		}
@@ -384,7 +407,7 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 		for key := pol.Value[0].Degree(); key > 0; key-- {
 			if c = pol.Value[0].Coeffs[key].Uint64(); key != 0 && c != 0 {
 				// MulScalarAndAdd automatically scales c to match the scale of res.
-				if err := polyEval.MulThenAdd(X[key], c, res); err != nil {
+				if err := eval.MulThenAdd(X[key], c, res); err != nil {
 					return nil, err
 				}
 			}

@@ -15,6 +15,7 @@ import (
 type Bootstrapper struct {
 	*ckks.Evaluator
 	*circuits.HDFTEvaluator
+	*circuits.HModEvaluator
 	*bootstrapperBase
 }
 
@@ -26,7 +27,7 @@ type bootstrapperBase struct {
 	dslots    int // Number of plaintext slots after the re-encoding
 	logdslots int
 
-	evalModPoly ckks.EvalModPoly
+	evalModPoly circuits.EvalModPoly
 	stcMatrices circuits.HomomorphicDFTMatrix
 	ctsMatrices circuits.HomomorphicDFTMatrix
 
@@ -44,11 +45,11 @@ type EvaluationKeySet struct {
 // NewBootstrapper creates a new Bootstrapper.
 func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKeys *EvaluationKeySet) (btp *Bootstrapper, err error) {
 
-	if btpParams.EvalModParameters.SineType == ckks.SinContinuous && btpParams.EvalModParameters.DoubleAngle != 0 {
+	if btpParams.EvalModParameters.SineType == circuits.SinContinuous && btpParams.EvalModParameters.DoubleAngle != 0 {
 		return nil, fmt.Errorf("cannot use double angle formul for SineType = Sin -> must use SineType = Cos")
 	}
 
-	if btpParams.EvalModParameters.SineType == ckks.CosDiscrete && btpParams.EvalModParameters.SineDegree < 2*(btpParams.EvalModParameters.K-1) {
+	if btpParams.EvalModParameters.SineType == circuits.CosDiscrete && btpParams.EvalModParameters.SineDegree < 2*(btpParams.EvalModParameters.K-1) {
 		return nil, fmt.Errorf("SineType 'ckks.CosDiscrete' uses a minimum degree of 2*(K-1) but EvalMod degree is smaller")
 	}
 
@@ -74,6 +75,8 @@ func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKeys *Eval
 	btp.Evaluator = ckks.NewEvaluator(params, btpKeys)
 
 	btp.HDFTEvaluator = circuits.NewHDFTEvaluator(params, btp.Evaluator)
+
+	btp.HModEvaluator = circuits.NewHModEvaluator(btp.Evaluator)
 
 	return
 }
@@ -188,7 +191,7 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey *E
 		bb.logdslots++
 	}
 
-	if bb.evalModPoly, err = ckks.NewEvalModPolyFromLiteral(params, btpParams.EvalModParameters); err != nil {
+	if bb.evalModPoly, err = circuits.NewEvalModPolyFromLiteral(params, btpParams.EvalModParameters); err != nil {
 		return nil, err
 	}
 

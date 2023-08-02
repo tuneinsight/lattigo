@@ -1,4 +1,4 @@
-package hebase
+package circuits
 
 import (
 	"bufio"
@@ -48,7 +48,7 @@ func SplitDegree(n int) (a, b int) {
 // GenPower recursively computes X^{n}.
 // If lazy = true, the final X^{n} will not be relinearized.
 // Previous non-relinearized X^{n} that are required to compute the target X^{n} are automatically relinearized.
-func (p *PowerBasis) GenPower(n int, lazy bool, eval EvaluatorInterface) (err error) {
+func (p *PowerBasis) GenPower(n int, lazy bool, eval PowerBasisEvaluator) (err error) {
 
 	if eval == nil {
 		return fmt.Errorf("cannot GenPower: EvaluatorInterface is nil")
@@ -71,7 +71,7 @@ func (p *PowerBasis) GenPower(n int, lazy bool, eval EvaluatorInterface) (err er
 	return nil
 }
 
-func (p *PowerBasis) genPower(n int, lazy, rescale bool, eval EvaluatorInterface) (rescaltOut bool, err error) {
+func (p *PowerBasis) genPower(n int, lazy, rescale bool, eval PowerBasisEvaluator) (rescaltOut bool, err error) {
 
 	if p.Value[n] == nil {
 

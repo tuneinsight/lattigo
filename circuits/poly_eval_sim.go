@@ -1,4 +1,4 @@
-package hebase
+package circuits
 
 import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"

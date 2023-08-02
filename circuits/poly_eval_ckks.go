@@ -1,15 +1,59 @@
-package ckks
+package circuits
 
 import (
 	"fmt"
 	"math/big"
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v4/hebase"
+	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
+
+type CKKSEvaluatorForPolyEval interface {
+	EvaluatorForPolyEval
+	MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
+	Encode(values interface{}, pt *rlwe.Plaintext) (err error)
+	// BuffQ() [3]ring.Poly
+}
+
+type CKKSPolyEvaluator struct {
+	PolynomialEvaluator
+	CKKSEvaluatorForPolyEval
+	Parameters ckks.Parameters
+}
+
+// NewCKKSPowerBasis is a wrapper of NewPolynomialBasis.
+// This function creates a new powerBasis from the input ciphertext.
+// The input ciphertext is treated as the base monomial X used to
+// generate the other powers X^{n}.
+func NewCKKSPowerBasis(ct *rlwe.Ciphertext, basis bignum.Basis) PowerBasis {
+	return NewPowerBasis(ct, basis)
+}
+
+// NewCKKSPolynomial is a wrapper of NewPolynomial.
+// This function creates a new polynomial from the input coefficients.
+// This polynomial can be evaluated on a ciphertext.
+func NewCKKSPolynomial(poly bignum.Polynomial) Polynomial {
+	return NewPolynomial(poly)
+}
+
+// NewCKKSPolynomialVector is a wrapper of NewPolynomialVector.
+// This function creates a new PolynomialVector from the input polynomials and the desired function mapping.
+// This polynomial vector can be evaluated on a ciphertext.
+func NewCKKSPolynomialVector(polys []Polynomial, mapping map[int][]int) (PolynomialVector, error) {
+	return NewPolynomialVector(polys, mapping)
+}
+
+func NewCKKSPolynomialEvaluator(params ckks.Parameters, eval CKKSEvaluatorForPolyEval) *CKKSPolyEvaluator {
+	e := new(CKKSPolyEvaluator)
+	e.EvaluatorForPolyEval = eval
+	e.CKKSEvaluatorForPolyEval = eval
+	e.EvaluatorBuffers = e.GetEvaluatorBuffer()
+	e.Parameters = params
+	return e
+}
 
 // Polynomial evaluates a polynomial in standard basis on the input Ciphertext in ceil(log2(deg+1)) levels.
 // Returns an error if the input ciphertext does not have enough level to carry out the full polynomial evaluation.
@@ -17,41 +61,37 @@ import (
 // If the polynomial is given in Chebyshev basis, then a change of basis ct' = (2/(b-a)) * (ct + (-a-b)/(b-a))
 // is necessary before the polynomial evaluation to ensure correctness.
 // input must be either *rlwe.Ciphertext or *PolynomialBasis.
-// pol: a *bignum.Polynomial, *hebase.Polynomial or *hebase.PolynomialVector
+// pol: a *bignum.Polynomial, *Polynomial or *PolynomialVector
 // targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
 // for example be used to correct small deviations in the ciphertext scale and reset it to the default scale.
-func (eval Evaluator) Polynomial(input interface{}, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
+func (eval CKKSPolyEvaluator) Polynomial(input interface{}, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 
-	var polyVec hebase.PolynomialVector
+	var polyVec PolynomialVector
 	switch p := p.(type) {
 	case bignum.Polynomial:
-		polyVec = hebase.PolynomialVector{Value: []hebase.Polynomial{{Polynomial: p, MaxDeg: p.Degree(), Lead: true, Lazy: false}}}
-	case hebase.Polynomial:
-		polyVec = hebase.PolynomialVector{Value: []hebase.Polynomial{p}}
-	case hebase.PolynomialVector:
+		polyVec = PolynomialVector{Value: []Polynomial{{Polynomial: p, MaxDeg: p.Degree(), Lead: true, Lazy: false}}}
+	case Polynomial:
+		polyVec = PolynomialVector{Value: []Polynomial{p}}
+	case PolynomialVector:
 		polyVec = p
 	default:
 		return nil, fmt.Errorf("cannot Polynomial: invalid polynomial type: %T", p)
 	}
 
-	polyEval := NewPolynomialEvaluator(&eval)
-
-	var powerbasis hebase.PowerBasis
+	var powerbasis PowerBasis
 	switch input := input.(type) {
 	case *rlwe.Ciphertext:
-		powerbasis = hebase.NewPowerBasis(input, polyVec.Value[0].Basis)
-	case hebase.PowerBasis:
+		powerbasis = NewPowerBasis(input, polyVec.Value[0].Basis)
+	case PowerBasis:
 		if input.Value[1] == nil {
 			return nil, fmt.Errorf("cannot evaluatePolyVector: given PowerBasis.Value[1] is empty")
 		}
 		powerbasis = input
 	default:
-		return nil, fmt.Errorf("cannot evaluatePolyVector: invalid input, must be either *rlwe.Ciphertext or *hebase.PowerBasis")
+		return nil, fmt.Errorf("cannot evaluatePolyVector: invalid input, must be either *rlwe.Ciphertext or *PowerBasis")
 	}
 
-	params := eval.GetParameters()
-
-	levelsConsummedPerRescaling := params.LevelsConsummedPerRescaling()
+	levelsConsummedPerRescaling := eval.Parameters.LevelsConsummedPerRescaling()
 
 	if err := checkEnoughLevels(powerbasis.Value[1].Level(), levelsConsummedPerRescaling*polyVec.Value[0].Depth()); err != nil {
 		return nil, err
@@ -60,46 +100,48 @@ func (eval Evaluator) Polynomial(input interface{}, p interface{}, targetScale r
 	logDegree := bits.Len64(uint64(polyVec.Value[0].Degree()))
 	logSplit := bignum.OptimalSplit(logDegree)
 
-	var odd, even bool = false, false
+	var odd, even = false, false
 	for _, p := range polyVec.Value {
 		odd, even = odd || p.IsOdd, even || p.IsEven
 	}
 
 	// Computes all the powers of two with relinearization
 	// This will recursively compute and store all powers of two up to 2^logDegree
-	if err = powerbasis.GenPower(1<<(logDegree-1), false, polyEval); err != nil {
+	if err = powerbasis.GenPower(1<<(logDegree-1), false, eval); err != nil {
 		return nil, err
 	}
 
 	// Computes the intermediate powers, starting from the largest, without relinearization if possible
 	for i := (1 << logSplit) - 1; i > 2; i-- {
 		if !(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd) {
-			if err = powerbasis.GenPower(i, polyVec.Value[0].Lazy, polyEval); err != nil {
+			if err = powerbasis.GenPower(i, polyVec.Value[0].Lazy, eval); err != nil {
 				return nil, err
 			}
 		}
 	}
 
-	PS := polyVec.GetPatersonStockmeyerPolynomial(params.Parameters, powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, &dummyEvaluator{*params, levelsConsummedPerRescaling})
+	params := *eval.GetRLWEParameters()
 
-	if opOut, err = hebase.EvaluatePatersonStockmeyerPolynomialVector(PS, powerbasis, polyEval); err != nil {
+	PS := polyVec.GetPatersonStockmeyerPolynomial(params, powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, &ckksDummyEvaluator{params, levelsConsummedPerRescaling})
+
+	if opOut, err = eval.EvaluatePatersonStockmeyerPolynomialVector(eval, PS, powerbasis); err != nil {
 		return nil, err
 	}
 
 	return opOut, err
 }
 
-type dummyEvaluator struct {
-	params                      Parameters
+type ckksDummyEvaluator struct {
+	params                      rlwe.Parameters
 	levelsConsummedPerRescaling int
 }
 
-func (d dummyEvaluator) PolynomialDepth(degree int) int {
+func (d ckksDummyEvaluator) PolynomialDepth(degree int) int {
 	return d.levelsConsummedPerRescaling * (bits.Len64(uint64(degree)) - 1)
 }
 
 // Rescale rescales the target DummyOperand n times and returns it.
-func (d dummyEvaluator) Rescale(op0 *hebase.DummyOperand) {
+func (d ckksDummyEvaluator) Rescale(op0 *DummyOperand) {
 	for i := 0; i < d.levelsConsummedPerRescaling; i++ {
 		op0.Scale = op0.Scale.Div(rlwe.NewScale(d.params.Q()[op0.Level]))
 		op0.Level--
@@ -107,14 +149,14 @@ func (d dummyEvaluator) Rescale(op0 *hebase.DummyOperand) {
 }
 
 // Mul multiplies two DummyOperand, stores the result the taret DummyOperand and returns the result.
-func (d dummyEvaluator) MulNew(op0, op1 *hebase.DummyOperand) (opOut *hebase.DummyOperand) {
-	opOut = new(hebase.DummyOperand)
+func (d ckksDummyEvaluator) MulNew(op0, op1 *DummyOperand) (opOut *DummyOperand) {
+	opOut = new(DummyOperand)
 	opOut.Level = utils.Min(op0.Level, op1.Level)
 	opOut.Scale = op0.Scale.Mul(op1.Scale)
 	return
 }
 
-func (d dummyEvaluator) UpdateLevelAndScaleBabyStep(lead bool, tLevelOld int, tScaleOld rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale) {
+func (d ckksDummyEvaluator) UpdateLevelAndScaleBabyStep(lead bool, tLevelOld int, tScaleOld rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale) {
 
 	tLevelNew = tLevelOld
 	tScaleNew = tScaleOld
@@ -128,7 +170,7 @@ func (d dummyEvaluator) UpdateLevelAndScaleBabyStep(lead bool, tLevelOld int, tS
 	return
 }
 
-func (d dummyEvaluator) UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, tScaleOld, xPowScale rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale) {
+func (d ckksDummyEvaluator) UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, tScaleOld, xPowScale rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale) {
 
 	Q := d.params.Q()
 
@@ -152,11 +194,11 @@ func (d dummyEvaluator) UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, t
 	return
 }
 
-func (d dummyEvaluator) GetPolynmialDepth(degree int) int {
+func (d ckksDummyEvaluator) GetPolynmialDepth(degree int) int {
 	return d.levelsConsummedPerRescaling * (bits.Len64(uint64(degree)) - 1)
 }
 
-func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol hebase.PolynomialVector, pb hebase.PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
+func (eval CKKSPolyEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol PolynomialVector, pb PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
 
 	// Map[int] of the powers [X^{0}, X^{1}, X^{2}, ...]
 	X := pb.Value
@@ -165,7 +207,7 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 	logSlots := X[1].LogDimensions
 	slots := 1 << logSlots.Cols
 
-	params := polyEval.Evaluator.Encoder.parameters
+	params := eval.Parameters
 	slotsIndex := pol.SlotsIndex
 	even := pol.IsEven()
 	odd := pol.IsOdd()
@@ -198,7 +240,7 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 		if minimumDegreeNonZeroCoefficient == 0 {
 
 			// Allocates the output ciphertext
-			res = NewCiphertext(params, 1, targetLevel)
+			res = ckks.NewCiphertext(params, 1, targetLevel)
 			res.Scale = targetScale
 			res.LogDimensions = logSlots
 
@@ -219,7 +261,7 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 				pt := &rlwe.Plaintext{}
 				pt.Value = res.Value[0]
 				pt.MetaData = res.MetaData
-				if err = polyEval.Evaluator.Encoder.Encode(values, pt); err != nil {
+				if err = eval.Encode(values, pt); err != nil {
 					return nil, err
 				}
 			}
@@ -228,7 +270,7 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 		}
 
 		// Allocates the output ciphertext
-		res = NewCiphertext(params, maximumCiphertextDegree, targetLevel)
+		res = ckks.NewCiphertext(params, maximumCiphertextDegree, targetLevel)
 		res.Scale = targetScale
 		res.LogDimensions = logSlots
 
@@ -247,7 +289,7 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 		// If a non-zero degre coefficient was found, encode and adds the values on the output
 		// ciphertext
 		if toEncode {
-			if err = polyEval.Add(res, values, res); err != nil {
+			if err = eval.Add(res, values, res); err != nil {
 				return
 			}
 			toEncode = false
@@ -293,7 +335,7 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 			// If a non-zero degre coefficient was found, encode and adds the values on the output
 			// ciphertext
 			if toEncode {
-				if err = polyEval.MulThenAdd(X[key], values, res); err != nil {
+				if err = eval.MulThenAdd(X[key], values, res); err != nil {
 					return
 				}
 				toEncode = false
@@ -309,12 +351,12 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 
 		if minimumDegreeNonZeroCoefficient == 0 {
 
-			res = NewCiphertext(params, 1, targetLevel)
+			res = ckks.NewCiphertext(params, 1, targetLevel)
 			res.Scale = targetScale
 			res.LogDimensions = logSlots
 
 			if !isZero(c) {
-				if err = polyEval.Add(res, c, res); err != nil {
+				if err = eval.Add(res, c, res); err != nil {
 					return
 				}
 			}
@@ -322,19 +364,19 @@ func (polyEval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targe
 			return
 		}
 
-		res = NewCiphertext(params, maximumCiphertextDegree, targetLevel)
+		res = ckks.NewCiphertext(params, maximumCiphertextDegree, targetLevel)
 		res.Scale = targetScale
 		res.LogDimensions = logSlots
 
 		if c != nil {
-			if err = polyEval.Add(res, c, res); err != nil {
+			if err = eval.Add(res, c, res); err != nil {
 				return
 			}
 		}
 
 		for key := pol.Value[0].Degree(); key > 0; key-- {
 			if c = pol.Value[0].Coeffs[key]; key != 0 && !isZero(c) && (!(even || odd) || (key&1 == 0 && even) || (key&1 == 1 && odd)) {
-				if err = polyEval.Evaluator.MulThenAdd(X[key], c, res); err != nil {
+				if err = eval.MulThenAdd(X[key], c, res); err != nil {
 					return
 				}
 			}

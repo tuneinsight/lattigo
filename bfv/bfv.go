@@ -161,14 +161,3 @@ func (eval Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut 
 func (eval Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
 	return eval.Evaluator.MulRelinScaleInvariant(op0, op1, opOut)
 }
-
-// Polynomial evaluates opOut = P(input).
-//
-// inputs:
-//   - input: *rlwe.Ciphertext or *he.PoweBasis
-//   - pol: *bignum.Polynomial, *he.Polynomial or *he.PolynomialVector
-//
-// output: an *rlwe.Ciphertext encrypting pol(input)
-func (eval Evaluator) Polynomial(input, pol interface{}) (opOut *rlwe.Ciphertext, err error) {
-	return eval.Evaluator.Polynomial(input, pol, true, eval.Evaluator.GetParameters().DefaultScale())
-}

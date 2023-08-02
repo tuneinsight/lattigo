@@ -576,12 +576,14 @@ func main() {
 		panic(err)
 	}
 
+	polyEval := circuits.NewCKKSPolynomialEvaluator(params, eval)
+
 	// And we evaluate this polynomial on the ciphertext
 	// The last argument, `params.DefaultScale()` is the scale that we want the ciphertext
 	// to have after the evaluation, which is usually the default scale, 2^{45} in this example.
 	// Other values can be specified, but they should be close to the default scale, else the
 	// depth consumption will not be optimal.
-	if res, err = eval.Polynomial(res, poly, params.DefaultScale()); err != nil {
+	if res, err = polyEval.Polynomial(res, poly, params.DefaultScale()); err != nil {
 		panic(err)
 	}
 

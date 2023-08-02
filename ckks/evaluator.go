@@ -14,7 +14,7 @@ import (
 // Evaluator is a struct that holds the necessary elements to execute the homomorphic operations between Ciphertexts and/or Plaintexts.
 // It also holds a memory buffer used to store intermediate computations.
 type Evaluator struct {
-	Encoder *Encoder
+	*Encoder
 	*evaluatorBuffers
 	*rlwe.Evaluator
 }
@@ -33,6 +33,11 @@ func NewEvaluator(parameters Parameters, evk rlwe.EvaluationKeySet) *Evaluator {
 // GetParameters returns a pointer to the underlying ckks.Parameters.
 func (eval Evaluator) GetParameters() *Parameters {
 	return &eval.Encoder.parameters
+}
+
+// GetRLWEParameters returns a pointer to the underlying rlwe.Parameters.
+func (eval Evaluator) GetRLWEParameters() *rlwe.Parameters {
+	return &eval.Encoder.parameters.Parameters
 }
 
 type evaluatorBuffers struct {

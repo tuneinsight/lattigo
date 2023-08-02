@@ -1,4 +1,4 @@
-package ckks
+package circuits
 
 import (
 	"encoding/json"
@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"math/bits"
 
+	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/ckks/cosine"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -116,7 +117,7 @@ func (evp EvalModPoly) QDiff() float64 {
 // NewEvalModPolyFromLiteral generates an EvalModPoly struct from the EvalModLiteral struct.
 // The EvalModPoly struct is used by the `EvalModNew` method from the `Evaluator`, which
 // homomorphically evaluates x mod Q[0] (the first prime of the moduli chain) on the ciphertext.
-func NewEvalModPolyFromLiteral(params Parameters, evm EvalModLiteral) (EvalModPoly, error) {
+func NewEvalModPolyFromLiteral(params ckks.Parameters, evm EvalModLiteral) (EvalModPoly, error) {
 
 	var arcSinePoly *bignum.Polynomial
 	var sinePoly bignum.Polynomial
@@ -245,6 +246,15 @@ func (evm EvalModLiteral) Depth() (depth int) {
 	return depth
 }
 
+type HModEvaluator struct {
+	*ckks.Evaluator
+	CKKSPolyEvaluator
+}
+
+func NewHModEvaluator(eval *ckks.Evaluator) *HModEvaluator {
+	return &HModEvaluator{Evaluator: eval, CKKSPolyEvaluator: *NewCKKSPolynomialEvaluator(*eval.GetParameters(), eval)}
+}
+
 // EvalModNew applies a homomorphic mod Q on a vector scaled by Delta, scaled down to mod 1 :
 //
 //  1. Delta * (Q/Delta * I(X) + m(X)) (Delta = scaling factor, I(X) integer poly, m(X) message)
@@ -259,7 +269,7 @@ func (evm EvalModLiteral) Depth() (depth int) {
 // !! Assumes that the input is normalized by 1/K for K the range of the approximation.
 //
 // Scaling back error correction by 2^{round(log(Q))}/Q afterward is included in the polynomial
-func (eval Evaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) (*rlwe.Ciphertext, error) {
+func (eval *HModEvaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPoly) (*rlwe.Ciphertext, error) {
 
 	var err error
 

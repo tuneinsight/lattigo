@@ -6,6 +6,7 @@ import (
 	"math/cmplx"
 	"time"
 
+	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
@@ -170,7 +171,9 @@ func example() {
 	// We create a new polynomial, with the standard basis [1, x, x^2, ...], with no interval.
 	poly := bignum.NewPolynomial(bignum.Monomial, coeffs, nil)
 
-	if ciphertext, err = evaluator.Polynomial(ciphertext, poly, ciphertext.Scale); err != nil {
+	polyEval := circuits.NewCKKSPolynomialEvaluator(params, evaluator)
+
+	if ciphertext, err = polyEval.Polynomial(ciphertext, poly, ciphertext.Scale); err != nil {
 		panic(err)
 	}
 
@@ -190,8 +193,8 @@ func example() {
 
 	start = time.Now()
 
-	monomialBasis := ckks.NewPowerBasis(ciphertext, bignum.Monomial)
-	if err = monomialBasis.GenPower(int(r), false, ckks.NewPolynomialEvaluator(evaluator)); err != nil {
+	monomialBasis := circuits.NewPowerBasis(ciphertext, bignum.Monomial)
+	if err = monomialBasis.GenPower(int(r), false, evaluator); err != nil {
 		panic(err)
 	}
 	ciphertext = monomialBasis.Value[int(r)]

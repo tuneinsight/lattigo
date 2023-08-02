@@ -2,6 +2,7 @@ package circuits
 
 import (
 	"encoding/json"
+	"math/big"
 	"runtime"
 	"testing"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils"
 
 	"github.com/stretchr/testify/require"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
@@ -323,4 +325,112 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 
 		verifyBGVTestVectors(tc, tc.decryptor, values, ciphertext, t)
 	})
+
+	t.Run("Evaluator/PolyEval", func(t *testing.T) {
+
+		t.Run("Single", func(t *testing.T) {
+
+			if tc.params.MaxLevel() < 4 {
+				t.Skip("MaxLevel() to low")
+			}
+
+			values, _, ciphertext := newBGVTestVectorsLvl(tc.params.MaxLevel(), tc.params.NewScale(1), tc, tc.encryptorSk)
+
+			coeffs := []uint64{0, 0, 1}
+
+			T := tc.params.PlaintextModulus()
+			for i := range values.Coeffs[0] {
+				values.Coeffs[0][i] = ring.EvalPolyModP(values.Coeffs[0][i], coeffs, T)
+			}
+
+			poly := bignum.NewPolynomial(bignum.Monomial, coeffs, nil)
+
+			t.Run(GetTestName("Standard", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
+
+				polyEval := NewBGVPolynomialEvaluator(tc.params, tc.evaluator)
+
+				res, err := polyEval.Polynomial(ciphertext, poly, false, tc.params.DefaultScale())
+				require.NoError(t, err)
+
+				require.True(t, res.Scale.Cmp(tc.params.DefaultScale()) == 0)
+
+				verifyBGVTestVectors(tc, tc.decryptor, values, res, t)
+			})
+
+			t.Run(GetTestName("Invariant", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
+
+				polyEval := NewBGVPolynomialEvaluator(tc.params, tc.evaluator)
+
+				res, err := polyEval.Polynomial(ciphertext, poly, true, tc.params.DefaultScale())
+				require.NoError(t, err)
+
+				require.True(t, res.Scale.Cmp(tc.params.DefaultScale()) == 0)
+
+				verifyBGVTestVectors(tc, tc.decryptor, values, res, t)
+			})
+		})
+
+		t.Run("Vector", func(t *testing.T) {
+
+			if tc.params.MaxLevel() < 4 {
+				t.Skip("MaxLevel() to low")
+			}
+
+			values, _, ciphertext := newBGVTestVectorsLvl(tc.params.MaxLevel(), tc.params.NewScale(7), tc, tc.encryptorSk)
+
+			coeffs0 := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+			coeffs1 := []uint64{2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17}
+
+			slots := values.N()
+
+			slotIndex := make(map[int][]int)
+			idx0 := make([]int, slots>>1)
+			idx1 := make([]int, slots>>1)
+			for i := 0; i < slots>>1; i++ {
+				idx0[i] = 2 * i
+				idx1[i] = 2*i + 1
+			}
+
+			slotIndex[0] = idx0
+			slotIndex[1] = idx1
+
+			polyVector, err := NewPolynomialVector([]Polynomial{
+				NewBGVPolynomial(coeffs0),
+				NewBGVPolynomial(coeffs1),
+			}, slotIndex)
+			require.NoError(t, err)
+
+			TInt := new(big.Int).SetUint64(tc.params.PlaintextModulus())
+			for pol, idx := range slotIndex {
+				for _, i := range idx {
+					values.Coeffs[0][i] = polyVector.Value[pol].EvaluateModP(new(big.Int).SetUint64(values.Coeffs[0][i]), TInt).Uint64()
+				}
+			}
+
+			t.Run(GetTestName("Standard", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
+
+				polyEval := NewBGVPolynomialEvaluator(tc.params, tc.evaluator)
+
+				res, err := polyEval.Polynomial(ciphertext, polyVector, false, tc.params.DefaultScale())
+				require.NoError(t, err)
+
+				require.True(t, res.Scale.Cmp(tc.params.DefaultScale()) == 0)
+
+				verifyBGVTestVectors(tc, tc.decryptor, values, res, t)
+			})
+
+			t.Run(GetTestName("Invariant", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
+
+				polyEval := NewBGVPolynomialEvaluator(tc.params, tc.evaluator)
+
+				res, err := polyEval.Polynomial(ciphertext, polyVector, true, tc.params.DefaultScale())
+				require.NoError(t, err)
+
+				require.True(t, res.Scale.Cmp(tc.params.DefaultScale()) == 0)
+
+				verifyBGVTestVectors(tc, tc.decryptor, values, res, t)
+			})
+		})
+	})
+
 }

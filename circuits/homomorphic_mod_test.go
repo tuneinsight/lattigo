@@ -1,4 +1,4 @@
-package ckks
+package circuits
 
 import (
 	"math"
@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -19,7 +20,7 @@ func TestHomomorphicMod(t *testing.T) {
 		t.Skip("skipping homomorphic mod tests for GOARCH=wasm")
 	}
 
-	ParametersLiteral := ParametersLiteral{
+	ParametersLiteral := ckks.ParametersLiteral{
 		LogN:            10,
 		LogQ:            []int{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 53},
 		LogP:            []int{61, 61, 61, 61, 61},
@@ -29,12 +30,12 @@ func TestHomomorphicMod(t *testing.T) {
 
 	testEvalModMarshalling(t)
 
-	var params Parameters
-	if params, err = NewParametersFromLiteral(ParametersLiteral); err != nil {
+	var params ckks.Parameters
+	if params, err = ckks.NewParametersFromLiteral(ParametersLiteral); err != nil {
 		t.Fatal(err)
 	}
 
-	for _, testSet := range []func(params Parameters, t *testing.T){
+	for _, testSet := range []func(params ckks.Parameters, t *testing.T){
 		testEvalMod,
 	} {
 		testSet(params, t)
@@ -66,14 +67,14 @@ func testEvalModMarshalling(t *testing.T) {
 	})
 }
 
-func testEvalMod(params Parameters, t *testing.T) {
+func testEvalMod(params ckks.Parameters, t *testing.T) {
 
-	kgen := NewKeyGenerator(params)
+	kgen := ckks.NewKeyGenerator(params)
 	sk := kgen.GenSecretKeyNew()
-	encoder := NewEncoder(params)
-	encryptor, err := NewEncryptor(params, sk)
+	encoder := ckks.NewEncoder(params)
+	encryptor, err := ckks.NewEncryptor(params, sk)
 	require.NoError(t, err)
-	decryptor, err := NewDecryptor(params, sk)
+	decryptor, err := ckks.NewDecryptor(params, sk)
 	require.NoError(t, err)
 
 	rlk, err := kgen.GenRelinearizationKeyNew(sk)
@@ -81,7 +82,9 @@ func testEvalMod(params Parameters, t *testing.T) {
 
 	evk := rlwe.NewMemEvaluationKeySet(rlk)
 
-	eval := NewEvaluator(params, evk)
+	eval := ckks.NewEvaluator(params, evk)
+
+	modEval := NewHModEvaluator(eval)
 
 	t.Run("SineContinuousWithArcSine", func(t *testing.T) {
 
@@ -117,7 +120,7 @@ func testEvalMod(params Parameters, t *testing.T) {
 		}
 
 		// EvalMod
-		ciphertext, err = eval.EvalModNew(ciphertext, EvalModPoly)
+		ciphertext, err = modEval.EvalModNew(ciphertext, EvalModPoly)
 		require.NoError(t, err)
 
 		// PlaintextCircuit
@@ -135,7 +138,7 @@ func testEvalMod(params Parameters, t *testing.T) {
 			values[i] = x
 		}
 
-		VerifyTestVectors(params, encoder, decryptor, values, ciphertext, nil, *printPrecisionStats, t)
+		VerifyCKKSTestVectors(params, encoder, decryptor, values, ciphertext, nil, *printPrecisionStats, t)
 	})
 
 	t.Run("CosDiscrete", func(t *testing.T) {
@@ -172,7 +175,7 @@ func testEvalMod(params Parameters, t *testing.T) {
 		}
 
 		// EvalMod
-		ciphertext, err = eval.EvalModNew(ciphertext, EvalModPoly)
+		ciphertext, err = modEval.EvalModNew(ciphertext, EvalModPoly)
 		require.NoError(t, err)
 
 		// PlaintextCircuit
@@ -191,7 +194,7 @@ func testEvalMod(params Parameters, t *testing.T) {
 			values[i] = x
 		}
 
-		VerifyTestVectors(params, encoder, decryptor, values, ciphertext, nil, *printPrecisionStats, t)
+		VerifyCKKSTestVectors(params, encoder, decryptor, values, ciphertext, nil, *printPrecisionStats, t)
 	})
 
 	t.Run("CosContinuous", func(t *testing.T) {
@@ -228,7 +231,7 @@ func testEvalMod(params Parameters, t *testing.T) {
 		}
 
 		// EvalMod
-		ciphertext, err = eval.EvalModNew(ciphertext, EvalModPoly)
+		ciphertext, err = modEval.EvalModNew(ciphertext, EvalModPoly)
 		require.NoError(t, err)
 
 		// PlaintextCircuit
@@ -246,11 +249,11 @@ func testEvalMod(params Parameters, t *testing.T) {
 			values[i] = x
 		}
 
-		VerifyTestVectors(params, encoder, decryptor, values, ciphertext, nil, *printPrecisionStats, t)
+		VerifyCKKSTestVectors(params, encoder, decryptor, values, ciphertext, nil, *printPrecisionStats, t)
 	})
 }
 
-func newTestVectorsEvalMod(params Parameters, encryptor *rlwe.Encryptor, encoder *Encoder, evm EvalModPoly, t *testing.T) (values []float64, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
+func newTestVectorsEvalMod(params ckks.Parameters, encryptor *rlwe.Encryptor, encoder *ckks.Encoder, evm EvalModPoly, t *testing.T) (values []float64, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
 
 	logSlots := params.LogMaxDimensions().Cols
 
@@ -265,7 +268,7 @@ func newTestVectorsEvalMod(params Parameters, encryptor *rlwe.Encryptor, encoder
 
 	values[0] = K*Q + 0.5
 
-	plaintext = NewPlaintext(params, params.MaxLevel())
+	plaintext = ckks.NewPlaintext(params, params.MaxLevel())
 
 	encoder.Encode(values, plaintext)
 

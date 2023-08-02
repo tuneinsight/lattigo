@@ -4,11 +4,17 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/tuneinsight/lattigo/v4/bgv"
+	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
+
+type Numeric interface {
+	ckks.Float | bgv.Integer
+}
 
 type EvaluatorForLinearTransform interface {
 	rlwe.ParameterProvider
@@ -30,10 +36,13 @@ type LinearTransformEvaluator struct {
 }
 
 // EncoderInterface defines a set of common and scheme agnostic method provided by an Encoder struct.
-type EncoderInterface[T any, U *ring.Poly | ringqp.Poly | *rlwe.Plaintext] interface {
+type EncoderInterface[T Numeric, U *ring.Poly | ringqp.Poly | *rlwe.Plaintext] interface {
 	Encode(values []T, metaData *rlwe.MetaData, output U) (err error)
 }
 
+// NewEvaluator instantiates a new LinearTransformEvaluator from an EvaluatorForLinearTransform.
+// The method is allocation free if the underlying EvaluatorForLinearTransform returns a non-nil
+// *rlwe.EvaluatorBuffers.
 func NewEvaluator(eval EvaluatorForLinearTransform) (linTransEval *LinearTransformEvaluator) {
 	linTransEval = new(LinearTransformEvaluator)
 	linTransEval.EvaluatorForLinearTransform = eval
@@ -44,8 +53,8 @@ func NewEvaluator(eval EvaluatorForLinearTransform) (linTransEval *LinearTransfo
 	return
 }
 
-// LinearTranfromationParameters is an interface defining a set of methods
-// for structs representing and parameterizing a linear transformation.
+// LinearTransformationParameters is a struct storing the parameterization of a
+// linear transformation.
 //
 // # A homomorphic linear transformations on a ciphertext acts as evaluating
 //
@@ -79,57 +88,38 @@ func NewEvaluator(eval EvaluatorForLinearTransform) (linTransEval *LinearTransfo
 // Finally, some metrics about the time and storage complexity of homomorphic linear transformations:
 //   - Storage: #diagonals polynomials mod Q_level * P
 //   - Evaluation: #diagonals multiplications and 2sqrt(#diagonals) ciphertexts rotations.
-// type LinearTranfromationParameters[T any] interface {
-
-// 	// DiagonalsList returns the list of the non-zero diagonals of the square matrix.
-// 	// A non zero diagonals is a diagonal with a least one non-zero element.
-// 	GetDiagonalsList() []int
-
-// 	// Diagonals returns all non-zero diagonals of the square matrix in a map indexed
-// 	// by their position.
-// 	GetDiagonals() map[int][]T
-
-// 	// At returns the i-th non-zero diagonal.
-// 	// Method must accept negative values with the equivalency -i = n - i.
-// 	At(i int) ([]T, error)
-
-// 	// Level returns level at which to encode the linear transformation.
-// 	GetLevel() int
-
-// 	// DefaultScale returns the plaintext scale at which to encode the linear transformation.
-// 	GetScale() rlwe.Scale
-
-// 	// GetLogDimensions returns log2 dimensions of the matrix that can be SIMD packed
-// 	// in a single plaintext polynomial.
-// 	// This method is equivalent to params.PlaintextDimensions().
-// 	// Note that the linear transformation is evaluated independently on each rows of
-// 	// the SIMD packed matrix.
-// 	GetLogDimensions() ring.Dimensions
-
-// 	// LogBabyStepGianStepRatio return the log2 of the ratio n1/n2 for n = n1 * n2 and
-// 	// n is the dimension of the linear transformation. The number of Galois keys required
-// 	// is minimized when this value is 0 but the overall complexity of the homomorphic evaluation
-// 	// can be reduced by increasing the ratio (at the expanse of increasing the number of keys required).
-// 	// If the value returned is negative, then the baby-step giant-step algorithm is not used
-// 	// and the evaluation complexity (as well as the number of keys) becomes O(n) instead of O(sqrt(n)).
-// 	GetLogBabyStepGianStepRatio() int
-// }
-
 type LinearTransformationParameters struct {
-	DiagonalsIndexList       []int
-	Level                    int
-	Scale                    rlwe.Scale
-	LogDimensions            ring.Dimensions
+	// DiagonalsIndexList is the list of the non-zero diagonals of the square matrix.
+	// A non zero diagonals is a diagonal with a least one non-zero element.
+	DiagonalsIndexList []int
+
+	// Level is the level at which to encode the linear transformation.
+	Level int
+
+	// Scale is the plaintext scale at which to encode the linear transformation.
+	Scale rlwe.Scale
+
+	// LogDimensions is the log2 dimensions of the matrix that can be SIMD packed
+	// in a single plaintext polynomial.
+	// This method is equivalent to params.PlaintextDimensions().
+	// Note that the linear transformation is evaluated independently on each rows of
+	// the SIMD packed matrix.
+	LogDimensions ring.Dimensions
+
+	// LogBabyStepGianStepRatio is the log2 of the ratio n1/n2 for n = n1 * n2 and
+	// n is the dimension of the linear transformation. The number of Galois keys required
+	// is minimized when this value is 0 but the overall complexity of the homomorphic evaluation
+	// can be reduced by increasing the ratio (at the expanse of increasing the number of keys required).
+	// If the value returned is negative, then the baby-step giant-step algorithm is not used
+	// and the evaluation complexity (as well as the number of keys) becomes O(n) instead of O(sqrt(n)).
 	LogBabyStepGianStepRatio int
 }
 
-type Diagonals[T any] map[int][]T // TODO restrict to numeric
+type Diagonals[T Numeric] map[int][]T
 
-// func (m LinearTransformationParameters[T]) GetDiagonalsList() []int {
-// 	return utils.GetKeys(m.Diagonals)
-// }
-
-func (m Diagonals[T]) NonZeroIndexList() (indexes []int) {
+// DiagonalsIndexList returns the list of the non-zero diagonals of the square matrix.
+// A non zero diagonals is a diagonal with a least one non-zero element.
+func (m Diagonals[T]) DiagonalsIndexList() (indexes []int) {
 	indexes = make([]int, 0, len(m))
 	for k := range m {
 		indexes = append(indexes, k)
@@ -137,6 +127,8 @@ func (m Diagonals[T]) NonZeroIndexList() (indexes []int) {
 	return indexes
 }
 
+// At returns the i-th non-zero diagonal.
+// Method accepts negative values with the equivalency -i = n - i.
 func (m Diagonals[T]) At(i, slots int) ([]T, error) {
 
 	v, ok := m[i]
@@ -164,22 +156,6 @@ func (m Diagonals[T]) At(i, slots int) ([]T, error) {
 	return v, nil
 }
 
-func (m LinearTransformationParameters) GetLevel() int {
-	return m.Level
-}
-
-func (m LinearTransformationParameters) GetScale() rlwe.Scale {
-	return m.Scale
-}
-
-func (m LinearTransformationParameters) GetLogDimensions() ring.Dimensions {
-	return m.LogDimensions
-}
-
-func (m LinearTransformationParameters) GetLogBabyStepGianStepRatio() int {
-	return m.LogBabyStepGianStepRatio
-}
-
 // LinearTransformation is a type for linear transformations on ciphertexts.
 // It stores a plaintext matrix in diagonal form and
 // can be evaluated on a ciphertext by using the evaluator.LinearTransformation method.
@@ -198,7 +174,7 @@ func (LT LinearTransformation) GaloisElements(params rlwe.ParameterProvider) (ga
 
 // GaloisElementsForLinearTransformation returns the list of Galois elements required to evaluate the linear transformation.
 func GaloisElementsForLinearTransformation(params rlwe.ParameterProvider, lt LinearTransformationParameters) (galEls []uint64) {
-	return galoisElementsForLinearTransformation(params, lt.DiagonalsIndexList, 1<<lt.GetLogDimensions().Cols, lt.GetLogBabyStepGianStepRatio())
+	return galoisElementsForLinearTransformation(params, lt.DiagonalsIndexList, 1<<lt.LogDimensions.Cols, lt.LogBabyStepGianStepRatio)
 }
 
 func galoisElementsForLinearTransformation(params rlwe.ParameterProvider, diags []int, slots, logbsgs int) (galEls []uint64) {
@@ -230,9 +206,9 @@ func NewLinearTransformation(params rlwe.ParameterProvider, lt LinearTransformat
 	p := params.GetRLWEParameters()
 
 	vec := make(map[int]ringqp.Poly)
-	cols := 1 << lt.GetLogDimensions().Cols
-	logBSGS := lt.GetLogBabyStepGianStepRatio()
-	levelQ := lt.GetLevel()
+	cols := 1 << lt.LogDimensions.Cols
+	logBSGS := lt.LogBabyStepGianStepRatio
+	levelQ := lt.Level
 	levelP := p.MaxLevelP()
 	ringQP := p.RingQP().AtLevel(levelQ, levelP)
 
@@ -260,8 +236,8 @@ func NewLinearTransformation(params rlwe.ParameterProvider, lt LinearTransformat
 
 	metadata := &rlwe.MetaData{
 		PlaintextMetaData: rlwe.PlaintextMetaData{
-			LogDimensions: lt.GetLogDimensions(),
-			Scale:         lt.GetScale(),
+			LogDimensions: lt.LogDimensions,
+			Scale:         lt.Scale,
 			IsBatched:     true,
 		},
 		CiphertextMetaData: rlwe.CiphertextMetaData{
@@ -279,14 +255,14 @@ func NewLinearTransformation(params rlwe.ParameterProvider, lt LinearTransformat
 //   - allocated: a pre-allocated LinearTransformation using `NewLinearTransformation`
 //   - diagonals: linear transformation parameters
 //   - encoder: an struct complying to the EncoderInterface
-func EncodeLinearTransformation[T any](params LinearTransformationParameters, encoder EncoderInterface[T, ringqp.Poly], diagonals Diagonals[T], allocated LinearTransformation) (err error) {
+func EncodeLinearTransformation[T Numeric](params LinearTransformationParameters, encoder EncoderInterface[T, ringqp.Poly], diagonals Diagonals[T], allocated LinearTransformation) (err error) {
 
-	if allocated.LogDimensions != params.GetLogDimensions() {
-		return fmt.Errorf("cannot EncodeLinearTransformation: LogDimensions between allocated and parameters do not match (%v != %v)", allocated.LogDimensions, params.GetLogDimensions())
+	if allocated.LogDimensions != params.LogDimensions {
+		return fmt.Errorf("cannot EncodeLinearTransformation: LogDimensions between allocated and parameters do not match (%v != %v)", allocated.LogDimensions, params.LogDimensions)
 	}
 
-	rows := 1 << params.GetLogDimensions().Rows
-	cols := 1 << params.GetLogDimensions().Cols
+	rows := 1 << params.LogDimensions.Rows
+	cols := 1 << params.LogDimensions.Cols
 	N1 := allocated.N1
 
 	diags := params.DiagonalsIndexList
@@ -295,7 +271,7 @@ func EncodeLinearTransformation[T any](params LinearTransformationParameters, en
 
 	metaData := allocated.MetaData
 
-	metaData.Scale = params.GetScale()
+	metaData.Scale = params.Scale
 
 	var v []T
 
@@ -349,7 +325,7 @@ func EncodeLinearTransformation[T any](params LinearTransformationParameters, en
 	return
 }
 
-func rotateAndEncodeDiagonal[T any](v []T, encoder EncoderInterface[T, ringqp.Poly], rot int, metaData *rlwe.MetaData, buf []T, poly ringqp.Poly) (err error) {
+func rotateAndEncodeDiagonal[T Numeric](v []T, encoder EncoderInterface[T, ringqp.Poly], rot int, metaData *rlwe.MetaData, buf []T, poly ringqp.Poly) (err error) {
 
 	rows := 1 << metaData.LogDimensions.Rows
 	cols := 1 << metaData.LogDimensions.Cols
@@ -372,41 +348,52 @@ func rotateAndEncodeDiagonal[T any](v []T, encoder EncoderInterface[T, ringqp.Po
 	return encoder.Encode(values, metaData, poly)
 }
 
-// LinearTransformationNew evaluates a linear transform on the pre-allocated Ciphertexts.
-// The LinearTransformation can either be an (ordered) list of LinearTransformation or a single LinearTransformation.
-// In either case a list of Ciphertext is returned (the second case returning a list containing a single Ciphertext).
-func (eval LinearTransformEvaluator) LinearTransformationNew(ctIn *rlwe.Ciphertext, linearTransformations ...LinearTransformation) (opOut []*rlwe.Ciphertext, err error) {
+// LinearTransformationsNew takes as input a ciphertext ctIn and a list of linear transformations [M0, M1, M2, ...] and returns opOut:[M0(ctIn), M1(ctIn), M2(ctInt), ...].
+func (eval LinearTransformEvaluator) LinearTransformationsNew(ctIn *rlwe.Ciphertext, linearTransformations []LinearTransformation) (opOut []*rlwe.Ciphertext, err error) {
 
 	params := eval.GetRLWEParameters()
-	level := getOutputLevel(ctIn, linearTransformations...)
 	opOut = make([]*rlwe.Ciphertext, len(linearTransformations))
 	for i := range opOut {
-		opOut[i] = rlwe.NewCiphertext(params, 1, level)
+		opOut[i] = rlwe.NewCiphertext(params, 1, linearTransformations[i].Level)
 	}
 
-	err = eval.LinearTransformation(ctIn, opOut, linearTransformations...)
-	return
+	return opOut, eval.LinearTransformations(ctIn, linearTransformations, opOut)
 }
 
-// LinearTransformation evaluates a linear transform on the pre-allocated Ciphertexts.
-// The LinearTransformation can either be an (ordered) list of LinearTransformation or a single LinearTransformation.
-// In either case a list of Ciphertext is returned (the second case returning a list containing a single Ciphertext).
-func (eval LinearTransformEvaluator) LinearTransformation(ctIn *rlwe.Ciphertext, opOut []*rlwe.Ciphertext, linearTransformation ...LinearTransformation) (err error) {
+// LinearTransformationNew takes as input a ciphertext ctIn and a linear transformation M and evaluate and returns opOut: M(ctIn).
+func (eval LinearTransformEvaluator) LinearTransformationNew(ctIn *rlwe.Ciphertext, linearTransformation LinearTransformation) (opOut *rlwe.Ciphertext, err error) {
+	cts, err := eval.LinearTransformationsNew(ctIn, []LinearTransformation{linearTransformation})
+	return cts[0], err
+}
+
+// LinearTransformation takes as input a ciphertext ctIn, a linear transformation M and evaluates opOut: M(ctIn).
+func (eval LinearTransformEvaluator) LinearTransformation(ctIn *rlwe.Ciphertext, linearTransformation LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
+	return eval.LinearTransformations(ctIn, []LinearTransformation{linearTransformation}, []*rlwe.Ciphertext{opOut})
+}
+
+// LinearTransformations takes as input a ciphertext ctIn, a list of linear transformations [M0, M1, M2, ...] and a list of pre-allocated receiver opOut
+// and evaluates opOut: [M0(ctIn), M1(ctIn), M2(ctIn), ...]
+func (eval LinearTransformEvaluator) LinearTransformations(ctIn *rlwe.Ciphertext, linearTransformations []LinearTransformation, opOut []*rlwe.Ciphertext) (err error) {
 
 	params := eval.GetRLWEParameters()
 
-	if len(opOut) < len(linearTransformation) {
+	if len(opOut) < len(linearTransformations) {
 		return fmt.Errorf("output *rlwe.Ciphertext slice is too small")
 	}
-	for i := range linearTransformation {
+	for i := range linearTransformations {
 		if opOut[i] == nil {
 			return fmt.Errorf("output slice contains unallocated ciphertext")
 		}
 	}
-	level := getOutputLevel(ctIn, linearTransformation...)
+
+	var level int
+	for _, lt := range linearTransformations {
+		level = utils.Max(level, lt.Level)
+	}
+	level = utils.Min(level, ctIn.Level())
 
 	eval.DecomposeNTT(level, params.MaxLevelP(), params.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
-	for i, lt := range linearTransformation {
+	for i, lt := range linearTransformations {
 		if lt.N1 == 0 {
 			if err = eval.MultiplyByDiagMatrix(ctIn, lt, eval.BuffDecompQP, opOut[i]); err != nil {
 				return
@@ -716,15 +703,6 @@ func (eval LinearTransformEvaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphert
 	eval.ModDownQPtoQNTT(levelQ, levelP, opOut.Value[0], c0OutQP.P, opOut.Value[0]) // sum(phi(c0 * P + d0_QP))/P
 	eval.ModDownQPtoQNTT(levelQ, levelP, opOut.Value[1], c1OutQP.P, opOut.Value[1]) // sum(phi(d1_QP))/P
 
-	return
-}
-
-func getOutputLevel(ctIn *rlwe.Ciphertext, linearTransformations ...LinearTransformation) (level int) {
-	var maxLevel int
-	for _, lt := range linearTransformations {
-		maxLevel = utils.Max(maxLevel, lt.Level)
-	}
-	level = utils.Min(maxLevel, ctIn.Level())
 	return
 }
 

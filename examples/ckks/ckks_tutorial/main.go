@@ -695,7 +695,7 @@ func main() {
 	// But a user is free to use any struct compliant to this interface.
 	// See the definition of the interface for more information about the parameters.
 	ltparams := circuits.LinearTransformationParameters{
-		DiagonalsIndexList:       diagonals.NonZeroIndexList(),
+		DiagonalsIndexList:       diagonals.DiagonalsIndexList(),
 		Level:                    ct1.Level(),
 		Scale:                    rlwe.NewScale(params.Q()[ct1.Level()]),
 		LogDimensions:            ct1.LogDimensions,
@@ -725,7 +725,7 @@ func main() {
 	ltEval := circuits.NewEvaluator(eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, gks...)))
 
 	// And we valuate the linear transform
-	if err := ltEval.LinearTransformation(ct1, []*rlwe.Ciphertext{res}, lt); err != nil {
+	if err := ltEval.LinearTransformation(ct1, lt, res); err != nil {
 		panic(err)
 	}
 

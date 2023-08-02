@@ -11,6 +11,10 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
+type Integer interface {
+	int64 | uint64
+}
+
 // GaloisGen is an integer of order N=2^d modulo M=2N and that spans Z_M with the integer -1.
 // The j-th ring automorphism takes the root zeta to zeta^(5j).
 const GaloisGen uint64 = ring.GaloisGen

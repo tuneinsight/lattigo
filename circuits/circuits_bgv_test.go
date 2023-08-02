@@ -233,7 +233,7 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 		eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, gks...))
 		ltEval := NewEvaluator(eval)
 
-		require.NoError(t, ltEval.LinearTransformation(ciphertext, []*rlwe.Ciphertext{ciphertext}, linTransf))
+		require.NoError(t, ltEval.LinearTransformation(ciphertext, linTransf, ciphertext))
 
 		tmp := make([]uint64, totSlots)
 		copy(tmp, values.Coeffs[0])
@@ -305,7 +305,7 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 		eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, gks...))
 		ltEval := NewEvaluator(eval)
 
-		require.NoError(t, ltEval.LinearTransformation(ciphertext, []*rlwe.Ciphertext{ciphertext}, linTransf))
+		require.NoError(t, ltEval.LinearTransformation(ciphertext, linTransf, ciphertext))
 
 		tmp := make([]uint64, totSlots)
 		copy(tmp, values.Coeffs[0])

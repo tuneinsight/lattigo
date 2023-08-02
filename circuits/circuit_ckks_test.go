@@ -284,7 +284,7 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 
 		ltEval := NewEvaluator(tc.evaluator.WithKey(evk))
 
-		require.NoError(t, ltEval.LinearTransformation(ciphertext, []*rlwe.Ciphertext{ciphertext}, linTransf))
+		require.NoError(t, ltEval.LinearTransformation(ciphertext, linTransf, ciphertext))
 
 		tmp := make([]*bignum.Complex, len(values))
 		for i := range tmp {
@@ -349,7 +349,7 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 
 		ltEval := NewEvaluator(tc.evaluator.WithKey(evk))
 
-		require.NoError(t, ltEval.LinearTransformation(ciphertext, []*rlwe.Ciphertext{ciphertext}, linTransf))
+		require.NoError(t, ltEval.LinearTransformation(ciphertext, linTransf, ciphertext))
 
 		tmp := make([]*bignum.Complex, len(values))
 		for i := range tmp {

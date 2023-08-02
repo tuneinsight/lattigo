@@ -169,7 +169,7 @@ func NewHomomorphicDFTMatrixFromLiteral(params ckks.Parameters, d HomomorphicDFT
 		for j := 0; j < d.Levels[i]; j++ {
 
 			ltparams := LinearTransformationParameters{
-				DiagonalsIndexList:       pVecDFT[idx].NonZeroIndexList(),
+				DiagonalsIndexList:       pVecDFT[idx].DiagonalsIndexList(),
 				Level:                    level,
 				Scale:                    scale,
 				LogDimensions:            ring.Dimensions{Rows: 0, Cols: logdSlots},
@@ -328,7 +328,7 @@ func (eval *HDFTEvaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []LinearTrans
 			in, out = ctIn, opOut
 		}
 
-		if err = eval.LinearTransformation(in, []*rlwe.Ciphertext{out}, plainVector); err != nil {
+		if err = eval.LinearTransformation(in, plainVector, out); err != nil {
 			return
 		}
 

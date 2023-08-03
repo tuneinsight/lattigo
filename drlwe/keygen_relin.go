@@ -142,12 +142,12 @@ func (ekg RelinearizationKeyGenProtocol) GenShareRoundOne(sk *rlwe.SecretKey, cr
 	ringQ.IMForm(ekg.buf[0].Q, ekg.buf[0].Q)
 
 	// u
-	ekg.ternarySamplerQ.Read(ephSkOut.Value.Q)
-	if hasModulusP {
-		ringQP.ExtendBasisSmallNormAndCenter(ephSkOut.Value.Q, levelP, ephSkOut.Value.Q, ephSkOut.Value.P)
-	}
-	ringQP.NTT(ephSkOut.Value, ephSkOut.Value)
-	ringQP.MForm(ephSkOut.Value, ephSkOut.Value)
+	// ekg.ternarySamplerQ.Read(ephSkOut.Value.Q)
+	// if hasModulusP {
+	// 	ringQP.ExtendBasisSmallNormAndCenter(ephSkOut.Value.Q, levelP, ephSkOut.Value.Q, ephSkOut.Value.P)
+	// }
+	// ringQP.NTT(ephSkOut.Value, ephSkOut.Value)
+	// ringQP.MForm(ephSkOut.Value, ephSkOut.Value)
 
 	c := crp.Value
 

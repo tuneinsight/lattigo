@@ -43,7 +43,7 @@ func (pt Plaintext) Copy(other *Plaintext) {
 func (pt Plaintext) CopyNew() (ptCpy *Plaintext) {
 	ptCpy = new(Plaintext)
 	ptCpy.Operand = *pt.Operand.CopyNew()
-	ptCpy.Value = pt.Operand.Value[0]
+	ptCpy.Value = ptCpy.Operand.Value[0]
 	return
 }
 

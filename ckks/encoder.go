@@ -642,7 +642,7 @@ func (ecd Encoder) IFFT(values interface{}, logN int) (err error) {
 	case []complex128:
 		switch roots := ecd.roots.(type) {
 		case []complex128:
-			if true {
+			if logN < 4 {
 				SpecialIFFTDouble(values, 1<<logN, ecd.m, ecd.rotGroup, ecd.roots.([]complex128))
 			} else {
 				SpecialiFFTDoubleUnrolled8(values, 1<<logN, ecd.m, ecd.rotGroup, ecd.roots.([]complex128))
@@ -670,7 +670,7 @@ func (ecd Encoder) FFT(values interface{}, logN int) (err error) {
 	case []complex128:
 		switch roots := ecd.roots.(type) {
 		case []complex128:
-			if logN < 3 {
+			if logN < 4 {
 				SpecialFFTDouble(values, 1<<logN, ecd.m, ecd.rotGroup, roots)
 			} else {
 				SpecialFFTDoubleUL8(values, 1<<logN, ecd.m, ecd.rotGroup, roots)

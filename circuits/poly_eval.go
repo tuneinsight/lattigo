@@ -9,19 +9,9 @@ import (
 
 type EvaluatorForPolyEval interface {
 	rlwe.ParameterProvider
-	PowerBasisEvaluator
-	Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
-
+	Evaluator
+	Encode(values interface{}, pt *rlwe.Plaintext) (err error)
 	GetEvaluatorBuffer() *rlwe.EvaluatorBuffers // TODO extract
-}
-
-type PowerBasisEvaluator interface {
-	Add(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
-	Sub(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
-	MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error)
-	MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error)
-	Relinearize(op0, op1 *rlwe.Ciphertext) (err error)
-	Rescale(op0, op1 *rlwe.Ciphertext) (err error)
 }
 
 type PolynomialVectorEvaluator interface {
@@ -33,7 +23,7 @@ type PolynomialEvaluator struct {
 	*rlwe.EvaluatorBuffers
 }
 
-func (eval *PolynomialEvaluator) EvaluatePatersonStockmeyerPolynomialVector(pvEval PolynomialVectorEvaluator, poly PatersonStockmeyerPolynomialVector, pb PowerBasis) (res *rlwe.Ciphertext, err error) {
+func (eval PolynomialEvaluator) EvaluatePatersonStockmeyerPolynomialVector(pvEval PolynomialVectorEvaluator, poly PatersonStockmeyerPolynomialVector, pb PowerBasis) (res *rlwe.Ciphertext, err error) {
 
 	type Poly struct {
 		Degree int

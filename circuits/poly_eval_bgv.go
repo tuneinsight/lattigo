@@ -6,23 +6,15 @@ import (
 	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v4/bgv"
-	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
-type BGVEvaluatorForPolyEval interface {
-	EvaluatorForPolyEval
-	MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
-	Encode(values interface{}, pt *rlwe.Plaintext) (err error)
-	BuffQ() [3]ring.Poly
-}
-
 type BGVPolyEvaluator struct {
-	*bgv.Evaluator
 	*PolynomialEvaluator
 	bgv.Parameters
+	InvariantTensoring bool
 }
 
 // NewBGVPowerBasis is a wrapper of NewPolynomialBasis.
@@ -47,15 +39,21 @@ func NewBGVPolynomialVector(polys []Polynomial, mapping map[int][]int) (Polynomi
 	return NewPolynomialVector(polys, mapping)
 }
 
-func NewBGVPolynomialEvaluator(params bgv.Parameters, eval *bgv.Evaluator) *BGVPolyEvaluator {
+func NewBGVPolynomialEvaluator(params bgv.Parameters, eval *bgv.Evaluator, InvariantTensoring bool) *BGVPolyEvaluator {
 	e := new(BGVPolyEvaluator)
-	e.Evaluator = eval
-	e.PolynomialEvaluator = &PolynomialEvaluator{eval, eval.GetEvaluatorBuffer()}
+
+	if InvariantTensoring {
+		e.PolynomialEvaluator = &PolynomialEvaluator{BGVScaleInvariantEvaluator{eval}, eval.GetEvaluatorBuffer()}
+	} else {
+		e.PolynomialEvaluator = &PolynomialEvaluator{eval, eval.GetEvaluatorBuffer()}
+	}
+
+	e.InvariantTensoring = InvariantTensoring
 	e.Parameters = params
 	return e
 }
 
-func (eval *BGVPolyEvaluator) Polynomial(input interface{}, p interface{}, InvariantTensoring bool, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
+func (eval *BGVPolyEvaluator) Polynomial(input interface{}, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 
 	var polyVec PolynomialVector
 	switch p := p.(type) {
@@ -93,36 +91,25 @@ func (eval *BGVPolyEvaluator) Polynomial(input interface{}, p interface{}, Invar
 		odd, even = odd || p.IsOdd, even || p.IsEven
 	}
 
-	var pbe PowerBasisEvaluator = eval.Evaluator
-	if InvariantTensoring {
-		scaleInvEval := &BGVScaleInvariantEvaluator{Evaluator: eval.Evaluator}
-		pbe = scaleInvEval
-		eval.PolynomialEvaluator.EvaluatorForPolyEval = scaleInvEval
-	}
-
 	// Computes all the powers of two with relinearization
 	// This will recursively compute and store all powers of two up to 2^logDegree
-	if err = powerbasis.GenPower(1<<(logDegree-1), false, pbe); err != nil {
+	if err = powerbasis.GenPower(1<<(logDegree-1), false, eval); err != nil {
 		return nil, err
 	}
 
 	// Computes the intermediate powers, starting from the largest, without relinearization if possible
 	for i := (1 << logSplit) - 1; i > 2; i-- {
 		if !(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd) {
-			if err = powerbasis.GenPower(i, polyVec.Value[0].Lazy, pbe); err != nil {
+			if err = powerbasis.GenPower(i, polyVec.Value[0].Lazy, eval); err != nil {
 				return nil, err
 			}
 		}
 	}
 
-	PS := polyVec.GetPatersonStockmeyerPolynomial(eval.Parameters.Parameters, powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, &dummyBGVPolyEvaluator{eval.Parameters, InvariantTensoring})
+	PS := polyVec.GetPatersonStockmeyerPolynomial(eval.Parameters.Parameters, powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, &dummyBGVPolyEvaluator{eval.Parameters, eval.InvariantTensoring})
 
 	if opOut, err = eval.EvaluatePatersonStockmeyerPolynomialVector(eval, PS, powerbasis); err != nil {
 		return nil, err
-	}
-
-	if InvariantTensoring {
-		eval.PolynomialEvaluator.EvaluatorForPolyEval = eval.Evaluator
 	}
 
 	return opOut, err
@@ -301,16 +288,6 @@ func (eval BGVPolyEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel 
 		// Allocates the output ciphertext
 		res = bgv.NewCiphertext(params, maximumCiphertextDegree, targetLevel)
 		res.Scale = targetScale
-
-		// Allocates a temporary plaintext to encode the values
-		buffq := eval.Evaluator.BuffQ()
-		pt, err := rlwe.NewPlaintextAtLevelFromPoly(targetLevel, buffq[0]) // buffQ[0] is safe in this case
-		if err != nil {
-			panic(err)
-		}
-		pt.IsBatched = true
-		pt.Scale = targetScale
-		pt.IsNTT = bgv.NTTFlag
 
 		// Looks for a non-zero coefficient among the degree zero coefficient of the polynomials
 		for i, p := range pol.Value {

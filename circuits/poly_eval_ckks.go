@@ -11,16 +11,8 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
-type CKKSEvaluatorForPolyEval interface {
-	EvaluatorForPolyEval
-	MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
-	Encode(values interface{}, pt *rlwe.Plaintext) (err error)
-	// BuffQ() [3]ring.Poly
-}
-
 type CKKSPolyEvaluator struct {
 	PolynomialEvaluator
-	CKKSEvaluatorForPolyEval
 	Parameters ckks.Parameters
 }
 
@@ -46,11 +38,9 @@ func NewCKKSPolynomialVector(polys []Polynomial, mapping map[int][]int) (Polynom
 	return NewPolynomialVector(polys, mapping)
 }
 
-func NewCKKSPolynomialEvaluator(params ckks.Parameters, eval CKKSEvaluatorForPolyEval) *CKKSPolyEvaluator {
+func NewCKKSPolynomialEvaluator(params ckks.Parameters, eval EvaluatorForPolyEval) *CKKSPolyEvaluator {
 	e := new(CKKSPolyEvaluator)
-	e.EvaluatorForPolyEval = eval
-	e.CKKSEvaluatorForPolyEval = eval
-	e.EvaluatorBuffers = e.GetEvaluatorBuffer()
+	e.PolynomialEvaluator = PolynomialEvaluator{eval, eval.GetEvaluatorBuffer()}
 	e.Parameters = params
 	return e
 }

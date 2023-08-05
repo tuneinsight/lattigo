@@ -138,7 +138,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 			values[i] = x
 		}
 
-		VerifyCKKSTestVectors(params, encoder, decryptor, values, ciphertext, nil, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, encoder, decryptor, values, ciphertext, nil, *printPrecisionStats, t)
 	})
 
 	t.Run("CosDiscrete", func(t *testing.T) {
@@ -194,7 +194,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 			values[i] = x
 		}
 
-		VerifyCKKSTestVectors(params, encoder, decryptor, values, ciphertext, nil, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, encoder, decryptor, values, ciphertext, nil, *printPrecisionStats, t)
 	})
 
 	t.Run("CosContinuous", func(t *testing.T) {
@@ -249,7 +249,7 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 			values[i] = x
 		}
 
-		VerifyCKKSTestVectors(params, encoder, decryptor, values, ciphertext, nil, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, encoder, decryptor, values, ciphertext, nil, *printPrecisionStats, t)
 	})
 }
 

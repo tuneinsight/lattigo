@@ -64,13 +64,13 @@ type PatersonStockmeyerPolynomial struct {
 	Value  []Polynomial
 }
 
-func (p Polynomial) GetPatersonStockmeyerPolynomial(params rlwe.ParameterProvider, inputLevel int, inputScale, outputScale rlwe.Scale, eval DummyEvaluator) PatersonStockmeyerPolynomial {
+func (p Polynomial) GetPatersonStockmeyerPolynomial(params rlwe.ParameterProvider, inputLevel int, inputScale, outputScale rlwe.Scale, eval SimEvaluator) PatersonStockmeyerPolynomial {
 
 	logDegree := bits.Len64(uint64(p.Degree()))
 	logSplit := bignum.OptimalSplit(logDegree)
 
-	pb := DummyPowerBasis{}
-	pb[1] = &DummyOperand{
+	pb := SimPowerBasis{}
+	pb[1] = &SimOperand{
 		Level: inputLevel,
 		Scale: inputScale,
 	}
@@ -91,7 +91,7 @@ func (p Polynomial) GetPatersonStockmeyerPolynomial(params rlwe.ParameterProvide
 	}
 }
 
-func recursePS(params rlwe.ParameterProvider, logSplit, targetLevel int, p Polynomial, pb DummyPowerBasis, outputScale rlwe.Scale, eval DummyEvaluator) ([]Polynomial, *DummyOperand) {
+func recursePS(params rlwe.ParameterProvider, logSplit, targetLevel int, p Polynomial, pb SimPowerBasis, outputScale rlwe.Scale, eval SimEvaluator) ([]Polynomial, *SimOperand) {
 
 	if p.Degree() < (1 << logSplit) {
 
@@ -105,7 +105,7 @@ func recursePS(params rlwe.ParameterProvider, logSplit, targetLevel int, p Polyn
 
 		p.Level, p.Scale = eval.UpdateLevelAndScaleBabyStep(p.Lead, targetLevel, outputScale)
 
-		return []Polynomial{p}, &DummyOperand{Level: p.Level, Scale: p.Scale}
+		return []Polynomial{p}, &SimOperand{Level: p.Level, Scale: p.Scale}
 	}
 
 	var nextPower = 1 << logSplit
@@ -200,7 +200,7 @@ type PatersonStockmeyerPolynomialVector struct {
 }
 
 // GetPatersonStockmeyerPolynomial returns
-func (p PolynomialVector) GetPatersonStockmeyerPolynomial(params rlwe.Parameters, inputLevel int, inputScale, outputScale rlwe.Scale, eval DummyEvaluator) PatersonStockmeyerPolynomialVector {
+func (p PolynomialVector) GetPatersonStockmeyerPolynomial(params rlwe.Parameters, inputLevel int, inputScale, outputScale rlwe.Scale, eval SimEvaluator) PatersonStockmeyerPolynomialVector {
 	Value := make([]PatersonStockmeyerPolynomial, len(p.Value))
 	for i := range Value {
 		Value[i] = p.Value[i].GetPatersonStockmeyerPolynomial(params, inputLevel, inputScale, outputScale, eval)

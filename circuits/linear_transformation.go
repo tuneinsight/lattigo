@@ -4,17 +4,11 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/tuneinsight/lattigo/v4/bgv"
-	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
-
-type Numeric interface {
-	ckks.Float | bgv.Integer
-}
 
 type EvaluatorForLinearTransform interface {
 	rlwe.ParameterProvider
@@ -33,11 +27,6 @@ type EvaluatorForLinearTransform interface {
 type LinearTransformEvaluator struct {
 	EvaluatorForLinearTransform
 	*rlwe.EvaluatorBuffers
-}
-
-// EncoderInterface defines a set of common and scheme agnostic method provided by an Encoder struct.
-type EncoderInterface[T Numeric, U *ring.Poly | ringqp.Poly | *rlwe.Plaintext] interface {
-	Encode(values []T, metaData *rlwe.MetaData, output U) (err error)
 }
 
 // NewEvaluator instantiates a new LinearTransformEvaluator from an EvaluatorForLinearTransform.

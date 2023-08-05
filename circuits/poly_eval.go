@@ -5,6 +5,7 @@ import (
 	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 type EvaluatorForPolyEval interface {
@@ -21,6 +22,69 @@ type PolynomialVectorEvaluator interface {
 type PolynomialEvaluator struct {
 	EvaluatorForPolyEval
 	*rlwe.EvaluatorBuffers
+}
+
+func polynomial(eval PolynomialEvaluator, evalp PolynomialVectorEvaluator, input interface{}, p interface{}, targetScale rlwe.Scale, levelsConsummedPerRescaling int, SimEval SimEvaluator) (opOut *rlwe.Ciphertext, err error) {
+
+	var polyVec PolynomialVector
+	switch p := p.(type) {
+	case bignum.Polynomial:
+		polyVec = PolynomialVector{Value: []Polynomial{{Polynomial: p, MaxDeg: p.Degree(), Lead: true, Lazy: false}}}
+	case Polynomial:
+		polyVec = PolynomialVector{Value: []Polynomial{p}}
+	case PolynomialVector:
+		polyVec = p
+	default:
+		return nil, fmt.Errorf("cannot Polynomial: invalid polynomial type: %T", p)
+	}
+
+	var powerbasis PowerBasis
+	switch input := input.(type) {
+	case *rlwe.Ciphertext:
+		powerbasis = NewPowerBasis(input, polyVec.Value[0].Basis)
+	case PowerBasis:
+		if input.Value[1] == nil {
+			return nil, fmt.Errorf("cannot evaluatePolyVector: given PowerBasis.Value[1] is empty")
+		}
+		powerbasis = input
+	default:
+		return nil, fmt.Errorf("cannot evaluatePolyVector: invalid input, must be either *rlwe.Ciphertext or *PowerBasis")
+	}
+
+	if level, depth := powerbasis.Value[1].Level(), levelsConsummedPerRescaling*polyVec.Value[0].Depth(); level < depth {
+		return nil, fmt.Errorf("%d levels < %d log(d) -> cannot evaluate poly", level, depth)
+	}
+
+	logDegree := bits.Len64(uint64(polyVec.Value[0].Degree()))
+	logSplit := bignum.OptimalSplit(logDegree)
+
+	var odd, even = false, false
+	for _, p := range polyVec.Value {
+		odd, even = odd || p.IsOdd, even || p.IsEven
+	}
+
+	// Computes all the powers of two with relinearization
+	// This will recursively compute and store all powers of two up to 2^logDegree
+	if err = powerbasis.GenPower(1<<(logDegree-1), false, eval); err != nil {
+		return nil, err
+	}
+
+	// Computes the intermediate powers, starting from the largest, without relinearization if possible
+	for i := (1 << logSplit) - 1; i > 2; i-- {
+		if !(even || odd) || (i&1 == 0 && even) || (i&1 == 1 && odd) {
+			if err = powerbasis.GenPower(i, polyVec.Value[0].Lazy, eval); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	PS := polyVec.GetPatersonStockmeyerPolynomial(*eval.GetRLWEParameters(), powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, SimEval)
+
+	if opOut, err = eval.EvaluatePatersonStockmeyerPolynomialVector(evalp, PS, powerbasis); err != nil {
+		return nil, err
+	}
+
+	return opOut, err
 }
 
 func (eval PolynomialEvaluator) EvaluatePatersonStockmeyerPolynomialVector(pvEval PolynomialVectorEvaluator, poly PatersonStockmeyerPolynomialVector, pb PowerBasis) (res *rlwe.Ciphertext, err error) {

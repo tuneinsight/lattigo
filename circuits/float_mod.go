@@ -248,11 +248,11 @@ func (evm EvalModLiteral) Depth() (depth int) {
 
 type HModEvaluator struct {
 	*ckks.Evaluator
-	CKKSPolyEvaluator
+	FloatPolynomialEvaluator
 }
 
 func NewHModEvaluator(eval *ckks.Evaluator) *HModEvaluator {
-	return &HModEvaluator{Evaluator: eval, CKKSPolyEvaluator: *NewCKKSPolynomialEvaluator(*eval.GetParameters(), eval)}
+	return &HModEvaluator{Evaluator: eval, FloatPolynomialEvaluator: *NewFloatPolynomialEvaluator(*eval.GetParameters(), eval)}
 }
 
 // EvalModNew applies a homomorphic mod Q on a vector scaled by Delta, scaled down to mod 1 :

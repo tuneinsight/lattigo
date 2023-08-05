@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"math/bits"
 	"runtime"
 	"testing"
 
@@ -60,7 +59,7 @@ func TestCKKS(t *testing.T) {
 			t.Fatal(err)
 		}
 	default:
-		testParams = testParamsLiteral
+		testParams = testParametersLiteralFloat
 	}
 
 	for _, ringType := range []ring.Type{ring.Standard, ring.ConjugateInvariant} {
@@ -85,16 +84,13 @@ func TestCKKS(t *testing.T) {
 
 			for _, testSet := range []func(tc *ckksTestContext, t *testing.T){
 				testCKKSLinearTransformation,
-				testDecryptPublic,
-				testEvaluatePoly,
-				testChebyshevInterpolator,
+				testEvaluatePolynomial,
 			} {
 				testSet(tc, t)
 				runtime.GC()
 			}
 		}
 	}
-
 }
 
 func genCKKSTestParams(defaultParam ckks.Parameters) (tc *ckksTestContext, err error) {
@@ -180,53 +176,6 @@ func newCKKSTestVectors(tc *ckksTestContext, encryptor *rlwe.Encryptor, a, b com
 	return values, pt, ct
 }
 
-func verifyCKKSTestVectors(params ckks.Parameters, encoder *ckks.Encoder, decryptor *rlwe.Decryptor, valuesWant, valuesHave interface{}, noise ring.DistributionParameters, t *testing.T) {
-
-	precStats := ckks.GetPrecisionStats(params, encoder, decryptor, valuesWant, valuesHave, noise, false)
-
-	if *printPrecisionStats {
-		t.Log(precStats.String())
-	}
-
-	rf64, _ := precStats.MeanPrecision.Real.Float64()
-	if64, _ := precStats.MeanPrecision.Imag.Float64()
-
-	minPrec := math.Log2(params.DefaultScale().Float64()) - float64(params.LogN()+2)
-	if minPrec < 0 {
-		minPrec = 0
-	}
-
-	require.GreaterOrEqual(t, rf64, minPrec)
-	require.GreaterOrEqual(t, if64, minPrec)
-}
-
-func VerifyCKKSTestVectors(params ckks.Parameters, encoder *ckks.Encoder, decryptor *rlwe.Decryptor, valuesWant, valuesHave interface{}, noise ring.DistributionParameters, printPrecisionStats bool, t *testing.T) {
-
-	precStats := ckks.GetPrecisionStats(params, encoder, decryptor, valuesWant, valuesHave, noise, false)
-
-	if printPrecisionStats {
-		t.Log(precStats.String())
-	}
-
-	rf64, _ := precStats.MeanPrecision.Real.Float64()
-	if64, _ := precStats.MeanPrecision.Imag.Float64()
-
-	minPrec := math.Log2(params.DefaultScale().Float64())
-
-	switch params.RingType() {
-	case ring.Standard:
-		minPrec -= float64(params.LogN()) + 2 // Z[X]/(X^{N} + 1)
-	case ring.ConjugateInvariant:
-		minPrec -= float64(params.LogN()) + 2.5 // Z[X + X^1]/(X^{2N} + 1)
-	}
-	if minPrec < 0 {
-		minPrec = 0
-	}
-
-	require.GreaterOrEqual(t, rf64, minPrec)
-	require.GreaterOrEqual(t, if64, minPrec)
-}
-
 func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 
 	t.Run(GetCKKSTestName(tc.params, "Average"), func(t *testing.T) {
@@ -268,7 +217,7 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 			values[i][1].Quo(values[i][1], nB)
 		}
 
-		verifyCKKSTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, t)
+		ckks.VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, *printPrecisionStats, t)
 	})
 
 	t.Run(GetCKKSTestName(tc.params, "LinearTransform/BSGS=True"), func(t *testing.T) {
@@ -333,7 +282,7 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 			values[i].Add(values[i], tmp[(i+15)%slots])
 		}
 
-		verifyCKKSTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, t)
+		ckks.VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, *printPrecisionStats, t)
 	})
 
 	t.Run(GetCKKSTestName(tc.params, "LinearTransform/BSGS=False"), func(t *testing.T) {
@@ -398,15 +347,15 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 			values[i].Add(values[i], tmp[(i+15)%slots])
 		}
 
-		verifyCKKSTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, t)
+		ckks.VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, *printPrecisionStats, t)
 	})
 }
 
-func testEvaluatePoly(tc *ckksTestContext, t *testing.T) {
+func testEvaluatePolynomial(tc *ckksTestContext, t *testing.T) {
 
 	var err error
 
-	polyEval := NewCKKSPolynomialEvaluator(tc.params, tc.evaluator)
+	polyEval := NewFloatPolynomialEvaluator(tc.params, tc.evaluator)
 
 	t.Run(GetCKKSTestName(tc.params, "EvaluatePoly/PolySingle/Exp"), func(t *testing.T) {
 
@@ -439,7 +388,7 @@ func testEvaluatePoly(tc *ckksTestContext, t *testing.T) {
 			t.Fatal(err)
 		}
 
-		VerifyCKKSTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, *printPrecisionStats, t)
 	})
 
 	t.Run(GetCKKSTestName(tc.params, "Polynomial/PolyVector/Exp"), func(t *testing.T) {
@@ -487,172 +436,6 @@ func testEvaluatePoly(tc *ckksTestContext, t *testing.T) {
 			t.Fatal(err)
 		}
 
-		VerifyCKKSTestVectors(tc.params, tc.encoder, tc.decryptor, valuesWant, ciphertext, nil, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, valuesWant, ciphertext, nil, *printPrecisionStats, t)
 	})
 }
-
-func testChebyshevInterpolator(tc *ckksTestContext, t *testing.T) {
-
-	var err error
-
-	polyEval := NewCKKSPolynomialEvaluator(tc.params, tc.evaluator)
-
-	t.Run(GetCKKSTestName(tc.params, "ChebyshevInterpolator/Sin"), func(t *testing.T) {
-
-		degree := 13
-
-		if tc.params.MaxDepth() < bits.Len64(uint64(degree)) {
-			t.Skip("skipping test: not enough levels")
-		}
-
-		eval := tc.evaluator
-
-		values, _, ciphertext := newCKKSTestVectors(tc, tc.encryptorSk, -1, 1, t)
-
-		prec := tc.params.EncodingPrecision()
-
-		interval := bignum.Interval{
-			Nodes: degree,
-			A:     *new(big.Float).SetPrec(prec).SetFloat64(-8),
-			B:     *new(big.Float).SetPrec(prec).SetFloat64(8),
-		}
-
-		poly := NewPolynomial(bignum.ChebyshevApproximation(math.Sin, interval))
-
-		scalar, constant := poly.ChangeOfBasis()
-		eval.Mul(ciphertext, scalar, ciphertext)
-		eval.Add(ciphertext, constant, ciphertext)
-		if err = eval.RescaleTo(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
-			t.Fatal(err)
-		}
-
-		if ciphertext, err = polyEval.Polynomial(ciphertext, poly, ciphertext.Scale); err != nil {
-			t.Fatal(err)
-		}
-
-		for i := range values {
-			values[i] = poly.Evaluate(values[i])
-		}
-
-		VerifyCKKSTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, *printPrecisionStats, t)
-	})
-}
-
-func testDecryptPublic(tc *ckksTestContext, t *testing.T) {
-
-	var err error
-
-	t.Run(GetCKKSTestName(tc.params, "DecryptPublic/Sin"), func(t *testing.T) {
-
-		degree := 7
-		a, b := -1.5, 1.5
-
-		if tc.params.MaxDepth() < bits.Len64(uint64(degree)) {
-			t.Skip("skipping test: not enough levels")
-		}
-
-		eval := tc.evaluator
-
-		values, _, ciphertext := newCKKSTestVectors(tc, tc.encryptorSk, complex(a, 0), complex(b, 0), t)
-
-		prec := tc.params.EncodingPrecision()
-
-		sin := func(x *bignum.Complex) (y *bignum.Complex) {
-			xf64, _ := x[0].Float64()
-			y = bignum.NewComplex()
-			y.SetPrec(prec)
-			y[0].SetFloat64(math.Sin(xf64))
-			return
-		}
-
-		interval := bignum.Interval{
-			Nodes: degree,
-			A:     *new(big.Float).SetPrec(prec).SetFloat64(a),
-			B:     *new(big.Float).SetPrec(prec).SetFloat64(b),
-		}
-
-		poly := bignum.ChebyshevApproximation(sin, interval)
-
-		for i := range values {
-			values[i] = poly.Evaluate(values[i])
-		}
-
-		scalar, constant := poly.ChangeOfBasis()
-
-		require.NoError(t, eval.Mul(ciphertext, scalar, ciphertext))
-		require.NoError(t, eval.Add(ciphertext, constant, ciphertext))
-		if err := eval.RescaleTo(ciphertext, tc.params.DefaultScale(), ciphertext); err != nil {
-			t.Fatal(err)
-		}
-
-		polyEval := NewCKKSPolynomialEvaluator(tc.params, tc.evaluator)
-
-		if ciphertext, err = polyEval.Polynomial(ciphertext, poly, ciphertext.Scale); err != nil {
-			t.Fatal(err)
-		}
-
-		plaintext := tc.decryptor.DecryptNew(ciphertext)
-
-		valuesHave := make([]*big.Float, plaintext.Slots())
-
-		require.NoError(t, tc.encoder.Decode(plaintext, valuesHave))
-
-		VerifyCKKSTestVectors(tc.params, tc.encoder, nil, values, valuesHave, nil, *printPrecisionStats, t)
-
-		for i := range valuesHave {
-			valuesHave[i].Sub(valuesHave[i], values[i][0])
-		}
-
-		// This should make it lose at most ~0.5 bit or precision.
-		sigma := ckks.StandardDeviation(valuesHave, rlwe.NewScale(plaintext.Scale.Float64()/math.Sqrt(float64(len(values)))))
-
-		tc.encoder.DecodePublic(plaintext, valuesHave, ring.DiscreteGaussian{Sigma: sigma, Bound: 2.5066282746310002 * sigma})
-
-		VerifyCKKSTestVectors(tc.params, tc.encoder, nil, values, valuesHave, nil, *printPrecisionStats, t)
-	})
-}
-
-var (
-	testPrec45 = ckks.ParametersLiteral{
-		LogN: 10,
-		Q: []uint64{
-			0x80000000080001,
-			0x2000000a0001,
-			0x2000000e0001,
-			0x2000001d0001,
-			0x1fffffcf0001,
-			0x1fffffc20001,
-			0x200000440001,
-		},
-		P: []uint64{
-			0x80000000130001,
-			0x7fffffffe90001,
-		},
-		LogDefaultScale: 45,
-	}
-
-	testPrec90 = ckks.ParametersLiteral{
-		LogN: 10,
-		Q: []uint64{
-			0x80000000080001,
-			0x80000000440001,
-			0x2000000a0001,
-			0x2000000e0001,
-			0x1fffffc20001,
-			0x200000440001,
-			0x200000500001,
-			0x200000620001,
-			0x1fffff980001,
-			0x2000006a0001,
-			0x1fffff7e0001,
-			0x200000860001,
-		},
-		P: []uint64{
-			0xffffffffffc0001,
-			0x10000000006e0001,
-		},
-		LogDefaultScale: 90,
-	}
-
-	testParamsLiteral = []ckks.ParametersLiteral{testPrec45, testPrec90}
-)

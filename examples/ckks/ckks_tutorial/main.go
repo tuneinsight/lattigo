@@ -576,7 +576,7 @@ func main() {
 		panic(err)
 	}
 
-	polyEval := circuits.NewCKKSPolynomialEvaluator(params, eval)
+	polyEval := circuits.NewFloatPolynomialEvaluator(params, eval)
 
 	// And we evaluate this polynomial on the ciphertext
 	// The last argument, `params.DefaultScale()` is the scale that we want the ciphertext

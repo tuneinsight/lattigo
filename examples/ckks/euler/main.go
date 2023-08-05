@@ -171,7 +171,7 @@ func example() {
 	// We create a new polynomial, with the standard basis [1, x, x^2, ...], with no interval.
 	poly := bignum.NewPolynomial(bignum.Monomial, coeffs, nil)
 
-	polyEval := circuits.NewCKKSPolynomialEvaluator(params, evaluator)
+	polyEval := circuits.NewFloatPolynomialEvaluator(params, evaluator)
 
 	if ciphertext, err = polyEval.Polynomial(ciphertext, poly, ciphertext.Scale); err != nil {
 		panic(err)

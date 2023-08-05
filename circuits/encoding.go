@@ -11,6 +11,11 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
+// EncoderInterface defines a set of common and scheme agnostic method provided by an Encoder struct.
+type EncoderInterface[T Numeric, U *ring.Poly | ringqp.Poly | *rlwe.Plaintext] interface {
+	Encode(values []T, metaData *rlwe.MetaData, output U) (err error)
+}
+
 // EncodeIntegerLinearTransformation encodes a linear transformation on a pre-allocated linear transformation.
 // The method will return an error if the non-zero diagonals between the pre-allocated linear transformation and the parameters of the linear transformation to encode do not match.
 func EncodeIntegerLinearTransformation[T int64 | uint64](params LinearTransformationParameters, ecd *bgv.Encoder, diagonals Diagonals[T], allocated LinearTransformation) (err error) {
@@ -23,10 +28,6 @@ type intEncoder[T int64 | uint64, U ring.Poly | ringqp.Poly | *rlwe.Plaintext] s
 
 func (e intEncoder[T, U]) Encode(values []T, metadata *rlwe.MetaData, output U) (err error) {
 	return e.Embed(values, false, metadata, output)
-}
-
-type Float interface {
-	float64 | complex128 | *big.Float | *bignum.Complex
 }
 
 // EncodeFloatLinearTransformation encodes a linear transformation on a pre-allocated linear transformation.

@@ -22,28 +22,23 @@ func TestHomomorphicDFT(t *testing.T) {
 		t.Skip("skipping homomorphic DFT tests for GOARCH=wasm")
 	}
 
-	ParametersLiteral := ckks.ParametersLiteral{
-		LogN:            10,
-		LogQ:            []int{60, 45, 45, 45, 45, 45, 45, 45},
-		LogP:            []int{61, 61},
-		Xs:              ring.Ternary{H: 192},
-		LogDefaultScale: 90,
-	}
-
 	testHomomorphicDFTMatrixLiteralMarshalling(t)
 
-	var params ckks.Parameters
-	if params, err = ckks.NewParametersFromLiteral(ParametersLiteral); err != nil {
-		t.Fatal(err)
-	}
+	for _, paramsLiteral := range testParametersLiteralFloat {
 
-	for _, logSlots := range []int{params.LogMaxDimensions().Cols - 1, params.LogMaxDimensions().Cols} {
-		for _, testSet := range []func(params ckks.Parameters, logSlots int, t *testing.T){
-			testHomomorphicEncoding,
-			testHomomorphicDecoding,
-		} {
-			testSet(params, logSlots, t)
-			runtime.GC()
+		var params ckks.Parameters
+		if params, err = ckks.NewParametersFromLiteral(paramsLiteral); err != nil {
+			t.Fatal(err)
+		}
+
+		for _, logSlots := range []int{params.LogMaxDimensions().Cols - 1, params.LogMaxDimensions().Cols} {
+			for _, testSet := range []func(params ckks.Parameters, logSlots int, t *testing.T){
+				testHomomorphicEncoding,
+				testHomomorphicDecoding,
+			} {
+				testSet(params, logSlots, t)
+				runtime.GC()
+			}
 		}
 	}
 }
@@ -131,7 +126,7 @@ func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T)
 
 		kgen := ckks.NewKeyGenerator(params)
 		sk := kgen.GenSecretKeyNew()
-		encoder := ckks.NewEncoder(params)
+		encoder := ckks.NewEncoder(params, 90) // Required to force roots.(type) to be []*bignum.Complex instead of []complex128
 		encryptor, err := ckks.NewEncryptor(params, sk)
 		require.NoError(t, err)
 		decryptor, err := ckks.NewDecryptor(params, sk)
@@ -241,7 +236,7 @@ func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T)
 			}
 
 			// Compares
-			verifyCKKSTestVectors(params, ecd2N, nil, want, have, nil, t)
+			ckks.VerifyTestVectors(params, ecd2N, nil, want, have, nil, *printPrecisionStats, t)
 
 		} else {
 
@@ -285,8 +280,8 @@ func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T)
 				wantImag[i], wantImag[j] = vec1[i][0], vec1[i][1]
 			}
 
-			verifyCKKSTestVectors(params, ecd2N, nil, wantReal, haveReal, nil, t)
-			verifyCKKSTestVectors(params, ecd2N, nil, wantImag, haveImag, nil, t)
+			ckks.VerifyTestVectors(params, ecd2N, nil, wantReal, haveReal, nil, *printPrecisionStats, t)
+			ckks.VerifyTestVectors(params, ecd2N, nil, wantImag, haveImag, nil, *printPrecisionStats, t)
 		}
 	})
 }
@@ -438,6 +433,6 @@ func testHomomorphicDecoding(params ckks.Parameters, LogSlots int, t *testing.T)
 		// Result is bit-reversed, so applies the bit-reverse permutation on the reference vector
 		utils.BitReverseInPlaceSlice(valuesReal, slots)
 
-		verifyCKKSTestVectors(params, encoder, decryptor, valuesReal, valuesTest, nil, t)
+		ckks.VerifyTestVectors(params, encoder, decryptor, valuesReal, valuesTest, nil, *printPrecisionStats, t)
 	})
 }

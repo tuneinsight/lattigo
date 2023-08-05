@@ -139,7 +139,7 @@ func chebyshevinterpolation() {
 		panic(err)
 	}
 
-	polyEval := circuits.NewCKKSPolynomialEvaluator(params, evaluator)
+	polyEval := circuits.NewFloatPolynomialEvaluator(params, evaluator)
 
 	// We evaluate the interpolated Chebyshev interpolant on the ciphertext
 	if ciphertext, err = polyEval.Polynomial(ciphertext, polyVec, ciphertext.Scale); err != nil {

@@ -233,7 +233,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 	t.Run("PolyEval", func(t *testing.T) {
 
-		polyEval := NewBGVPolynomialEvaluator(tc.params.Parameters, tc.evaluator.Evaluator, true)
+		polyEval := NewIntegerPolynomialEvaluator(tc.params.Parameters, tc.evaluator.Evaluator, true)
 
 		t.Run("Single", func(t *testing.T) {
 
@@ -286,8 +286,8 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 			slotIndex[1] = idx1
 
 			polyVector, err := NewPolynomialVector([]Polynomial{
-				NewBGVPolynomial(coeffs0),
-				NewBGVPolynomial(coeffs1),
+				NewIntegerPolynomial(coeffs0),
+				NewIntegerPolynomial(coeffs1),
 			}, slotIndex)
 			require.NoError(t, err)
 

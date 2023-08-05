@@ -347,7 +347,7 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 
 			t.Run(GetTestName("Standard", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 
-				polyEval := NewBGVPolynomialEvaluator(tc.params, tc.evaluator, false)
+				polyEval := NewIntegerPolynomialEvaluator(tc.params, tc.evaluator, false)
 
 				res, err := polyEval.Polynomial(ciphertext, poly, tc.params.DefaultScale())
 				require.NoError(t, err)
@@ -359,7 +359,7 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 
 			t.Run(GetTestName("Invariant", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 
-				polyEval := NewBGVPolynomialEvaluator(tc.params, tc.evaluator, true)
+				polyEval := NewIntegerPolynomialEvaluator(tc.params, tc.evaluator, true)
 
 				res, err := polyEval.Polynomial(ciphertext, poly, tc.params.DefaultScale())
 				require.NoError(t, err)
@@ -395,8 +395,8 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 			slotIndex[1] = idx1
 
 			polyVector, err := NewPolynomialVector([]Polynomial{
-				NewBGVPolynomial(coeffs0),
-				NewBGVPolynomial(coeffs1),
+				NewIntegerPolynomial(coeffs0),
+				NewIntegerPolynomial(coeffs1),
 			}, slotIndex)
 			require.NoError(t, err)
 
@@ -409,7 +409,7 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 
 			t.Run(GetTestName("Standard", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 
-				polyEval := NewBGVPolynomialEvaluator(tc.params, tc.evaluator, false)
+				polyEval := NewIntegerPolynomialEvaluator(tc.params, tc.evaluator, false)
 
 				res, err := polyEval.Polynomial(ciphertext, polyVector, tc.params.DefaultScale())
 				require.NoError(t, err)
@@ -421,7 +421,7 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 
 			t.Run(GetTestName("Invariant", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 
-				polyEval := NewBGVPolynomialEvaluator(tc.params, tc.evaluator, true)
+				polyEval := NewIntegerPolynomialEvaluator(tc.params, tc.evaluator, true)
 
 				res, err := polyEval.Polynomial(ciphertext, polyVector, tc.params.DefaultScale())
 				require.NoError(t, err)

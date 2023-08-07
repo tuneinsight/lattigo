@@ -216,7 +216,7 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 		one := new(big.Float).SetInt64(1)
 		zero := new(big.Float)
 
-		diagonals := make(circuits.Diagonals[*bignum.Complex])
+		diagonals := make(Diagonals[*bignum.Complex])
 		for _, i := range nonZeroDiags {
 			diagonals[i] = make([]*bignum.Complex, slots)
 
@@ -225,7 +225,7 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 			}
 		}
 
-		ltparams := circuits.LinearTransformationParameters{
+		ltparams := LinearTransformationParameters{
 			DiagonalsIndexList:       nonZeroDiags,
 			Level:                    ciphertext.Level(),
 			Scale:                    rlwe.NewScale(params.Q()[ciphertext.Level()]),
@@ -234,16 +234,16 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 		}
 
 		// Allocate the linear transformation
-		linTransf := circuits.NewLinearTransformation(params, ltparams)
+		linTransf := NewLinearTransformation(params, ltparams)
 
 		// Encode on the linear transformation
-		require.NoError(t, circuits.EncodeFloatLinearTransformation[*bignum.Complex](ltparams, tc.encoder, diagonals, linTransf))
+		require.NoError(t, EncodeLinearTransformation[*bignum.Complex](ltparams, tc.encoder, diagonals, linTransf))
 
-		galEls := circuits.GaloisElementsForLinearTransformation(params, ltparams)
+		galEls := GaloisElementsForLinearTransformation(params, ltparams)
 
 		evk := rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)
 
-		ltEval := circuits.NewEvaluator(tc.evaluator.WithKey(evk))
+		ltEval := NewLinearTransformationEvaluator(tc.evaluator.WithKey(evk))
 
 		require.NoError(t, ltEval.LinearTransformation(ciphertext, linTransf, ciphertext))
 
@@ -279,7 +279,7 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 		one := new(big.Float).SetInt64(1)
 		zero := new(big.Float)
 
-		diagonals := make(circuits.Diagonals[*bignum.Complex])
+		diagonals := make(Diagonals[*bignum.Complex])
 		for _, i := range nonZeroDiags {
 			diagonals[i] = make([]*bignum.Complex, slots)
 
@@ -288,7 +288,7 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 			}
 		}
 
-		ltparams := circuits.LinearTransformationParameters{
+		ltparams := LinearTransformationParameters{
 			DiagonalsIndexList:       nonZeroDiags,
 			Level:                    ciphertext.Level(),
 			Scale:                    rlwe.NewScale(params.Q()[ciphertext.Level()]),
@@ -297,16 +297,16 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 		}
 
 		// Allocate the linear transformation
-		linTransf := circuits.NewLinearTransformation(params, ltparams)
+		linTransf := NewLinearTransformation(params, ltparams)
 
 		// Encode on the linear transformation
-		require.NoError(t, circuits.EncodeFloatLinearTransformation[*bignum.Complex](ltparams, tc.encoder, diagonals, linTransf))
+		require.NoError(t, EncodeLinearTransformation[*bignum.Complex](ltparams, tc.encoder, diagonals, linTransf))
 
-		galEls := circuits.GaloisElementsForLinearTransformation(params, ltparams)
+		galEls := GaloisElementsForLinearTransformation(params, ltparams)
 
 		evk := rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)
 
-		ltEval := circuits.NewEvaluator(tc.evaluator.WithKey(evk))
+		ltEval := NewLinearTransformationEvaluator(tc.evaluator.WithKey(evk))
 
 		require.NoError(t, ltEval.LinearTransformation(ciphertext, linTransf, ciphertext))
 

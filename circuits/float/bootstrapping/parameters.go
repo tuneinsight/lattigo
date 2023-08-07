@@ -12,9 +12,9 @@ import (
 
 // Parameters is a struct for the default bootstrapping parameters
 type Parameters struct {
-	SlotsToCoeffsParameters float.HomomorphicDFTMatrixLiteral
+	SlotsToCoeffsParameters float.DFTMatrixLiteral
 	EvalModParameters       float.EvalModLiteral
-	CoeffsToSlotsParameters float.HomomorphicDFTMatrixLiteral
+	CoeffsToSlotsParameters float.DFTMatrixLiteral
 	Iterations              int
 	EphemeralSecretWeight   int // Hamming weight of the ephemeral secret. If 0, no ephemeral secret is used during the bootstrapping.
 }
@@ -56,7 +56,7 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 		return ckks.ParametersLiteral{}, Parameters{}, err
 	}
 
-	S2CParams := float.HomomorphicDFTMatrixLiteral{
+	S2CParams := float.DFTMatrixLiteral{
 		Type:            float.HomomorphicDecode,
 		LogSlots:        LogSlots,
 		RepackImag2Real: true,
@@ -120,7 +120,7 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 		CoeffsToSlotsLevels[i] = len(CoeffsToSlotsFactorizationDepthAndLogScales[i])
 	}
 
-	C2SParams := float.HomomorphicDFTMatrixLiteral{
+	C2SParams := float.DFTMatrixLiteral{
 		Type:            float.HomomorphicEncode,
 		LogSlots:        LogSlots,
 		RepackImag2Real: true,

@@ -94,7 +94,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 		values, _, ciphertext := newBFVTestVectorsLvl(level, tc.params.DefaultScale(), tc, tc.encryptorSk)
 
-		diagonals := make(circuits.Diagonals[uint64])
+		diagonals := make(Diagonals[uint64])
 
 		totSlots := values.N()
 
@@ -120,7 +120,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 			diagonals[15][i] = 1
 		}
 
-		ltparams := circuits.LinearTransformationParameters{
+		ltparams := LinearTransformationParameters{
 			DiagonalsIndexList:       []int{-15, -4, -1, 0, 1, 2, 3, 4, 15},
 			Level:                    ciphertext.Level(),
 			Scale:                    tc.params.DefaultScale(),
@@ -129,14 +129,14 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		}
 
 		// Allocate the linear transformation
-		linTransf := circuits.NewLinearTransformation(params, ltparams)
+		linTransf := NewLinearTransformation(params, ltparams)
 
 		// Encode on the linear transformation
-		require.NoError(t, circuits.EncodeIntegerLinearTransformation[uint64](ltparams, tc.encoder, diagonals, linTransf))
+		require.NoError(t, EncodeLinearTransformation[uint64](ltparams, tc.encoder, diagonals, linTransf))
 
-		galEls := circuits.GaloisElementsForLinearTransformation(params, ltparams)
+		galEls := GaloisElementsForLinearTransformation(params, ltparams)
 
-		ltEval := circuits.NewEvaluator(tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)))
+		ltEval := NewLinearTransformationEvaluator(tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)))
 
 		require.NoError(t, ltEval.LinearTransformation(ciphertext, linTransf, ciphertext))
 
@@ -163,7 +163,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 		values, _, ciphertext := newBFVTestVectorsLvl(level, tc.params.DefaultScale(), tc, tc.encryptorSk)
 
-		diagonals := make(circuits.Diagonals[uint64])
+		diagonals := make(Diagonals[uint64])
 
 		totSlots := values.N()
 
@@ -189,7 +189,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 			diagonals[15][i] = 1
 		}
 
-		ltparams := circuits.LinearTransformationParameters{
+		ltparams := LinearTransformationParameters{
 			DiagonalsIndexList:       []int{-15, -4, -1, 0, 1, 2, 3, 4, 15},
 			Level:                    ciphertext.Level(),
 			Scale:                    tc.params.DefaultScale(),
@@ -198,14 +198,14 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		}
 
 		// Allocate the linear transformation
-		linTransf := circuits.NewLinearTransformation(params, ltparams)
+		linTransf := NewLinearTransformation(params, ltparams)
 
 		// Encode on the linear transformation
-		require.NoError(t, circuits.EncodeIntegerLinearTransformation[uint64](ltparams, tc.encoder, diagonals, linTransf))
+		require.NoError(t, EncodeLinearTransformation[uint64](ltparams, tc.encoder, diagonals, linTransf))
 
-		galEls := circuits.GaloisElementsForLinearTransformation(params, ltparams)
+		galEls := GaloisElementsForLinearTransformation(params, ltparams)
 
-		ltEval := circuits.NewEvaluator(tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)))
+		ltEval := NewLinearTransformationEvaluator(tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)))
 
 		require.NoError(t, ltEval.LinearTransformation(ciphertext, linTransf, ciphertext))
 

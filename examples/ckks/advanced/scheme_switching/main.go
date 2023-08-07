@@ -96,7 +96,7 @@ func main() {
 	normalization := 2.0 / (b - a) // all inputs are normalized before the BlindRotation evaluation.
 
 	// SlotsToCoeffsParameters homomorphic encoding parameters
-	var SlotsToCoeffsParameters = float.HomomorphicDFTMatrixLiteral{
+	var SlotsToCoeffsParameters = float.DFTMatrixLiteral{
 		Type:       float.HomomorphicDecode,
 		LogSlots:   LogSlots,
 		Scaling:    new(big.Float).SetFloat64(normalization * diffScale),
@@ -105,7 +105,7 @@ func main() {
 	}
 
 	// CoeffsToSlotsParameters homomorphic decoding parameters
-	var CoeffsToSlotsParameters = float.HomomorphicDFTMatrixLiteral{
+	var CoeffsToSlotsParameters = float.DFTMatrixLiteral{
 		Type:       float.HomomorphicEncode,
 		LogSlots:   LogSlots,
 		LevelStart: 1,        // starting level
@@ -143,11 +143,11 @@ func main() {
 
 	fmt.Printf("Gen SlotsToCoeffs Matrices... ")
 	now = time.Now()
-	SlotsToCoeffsMatrix, err := float.NewHomomorphicDFTMatrixFromLiteral(paramsN12, SlotsToCoeffsParameters, encoderN12)
+	SlotsToCoeffsMatrix, err := float.NewDFTMatrixFromLiteral(paramsN12, SlotsToCoeffsParameters, encoderN12)
 	if err != nil {
 		panic(err)
 	}
-	CoeffsToSlotsMatrix, err := float.NewHomomorphicDFTMatrixFromLiteral(paramsN12, CoeffsToSlotsParameters, encoderN12)
+	CoeffsToSlotsMatrix, err := float.NewDFTMatrixFromLiteral(paramsN12, CoeffsToSlotsParameters, encoderN12)
 	if err != nil {
 		panic(err)
 	}
@@ -166,7 +166,7 @@ func main() {
 
 	// CKKS Evaluator
 	evalCKKS := ckks.NewEvaluator(paramsN12, evk)
-	evalHDFT := float.NewHDFTEvaluator(paramsN12, evalCKKS)
+	evalHDFT := float.NewDFTEvaluator(paramsN12, evalCKKS)
 
 	fmt.Printf("Encrypting bits of skLWE in RGSW... ")
 	now = time.Now()

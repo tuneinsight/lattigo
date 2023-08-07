@@ -10,7 +10,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
-type EvaluatorForLinearTransform interface {
+type EvaluatorForLinearTransformation interface {
 	rlwe.ParameterProvider
 	// TODO: separated int
 	DecomposeNTT(levelQ, levelP, nbPi int, c2 ring.Poly, c2IsNTT bool, decompQP []ringqp.Poly)
@@ -24,17 +24,17 @@ type EvaluatorForLinearTransform interface {
 	GetEvaluatorBuffer() *rlwe.EvaluatorBuffers // TODO extract
 }
 
-type LinearTransformEvaluator struct {
-	EvaluatorForLinearTransform
+type LinearTransformationEvaluator struct {
+	EvaluatorForLinearTransformation
 	*rlwe.EvaluatorBuffers
 }
 
-// NewEvaluator instantiates a new LinearTransformEvaluator from an EvaluatorForLinearTransform.
-// The method is allocation free if the underlying EvaluatorForLinearTransform returns a non-nil
+// NewLinearTransformationEvaluator instantiates a new LinearTransformationEvaluator from an EvaluatorForLinearTransformation.
+// The method is allocation free if the underlying EvaluatorForLinearTransformation returns a non-nil
 // *rlwe.EvaluatorBuffers.
-func NewEvaluator(eval EvaluatorForLinearTransform) (linTransEval *LinearTransformEvaluator) {
-	linTransEval = new(LinearTransformEvaluator)
-	linTransEval.EvaluatorForLinearTransform = eval
+func NewLinearTransformationEvaluator(eval EvaluatorForLinearTransformation) (linTransEval *LinearTransformationEvaluator) {
+	linTransEval = new(LinearTransformationEvaluator)
+	linTransEval.EvaluatorForLinearTransformation = eval
 	linTransEval.EvaluatorBuffers = eval.GetEvaluatorBuffer()
 	if linTransEval.EvaluatorBuffers == nil {
 		linTransEval.EvaluatorBuffers = rlwe.NewEvaluatorBuffers(*eval.GetRLWEParameters())
@@ -104,7 +104,7 @@ type LinearTransformationParameters struct {
 	LogBabyStepGianStepRatio int
 }
 
-type Diagonals[T Numeric] map[int][]T
+type Diagonals[T any] map[int][]T
 
 // DiagonalsIndexList returns the list of the non-zero diagonals of the square matrix.
 // A non zero diagonals is a diagonal with a least one non-zero element.
@@ -158,15 +158,10 @@ type LinearTransformation struct {
 
 // GaloisElements returns the list of Galois elements needed for the evaluation of the linear transformation.
 func (LT LinearTransformation) GaloisElements(params rlwe.ParameterProvider) (galEls []uint64) {
-	return galoisElementsForLinearTransformation(params, utils.GetKeys(LT.Vec), LT.LogDimensions.Cols, LT.LogBSGSRatio)
+	return GaloisElementsForLinearTransformation(params, utils.GetKeys(LT.Vec), LT.LogDimensions.Cols, LT.LogBSGSRatio)
 }
 
-// GaloisElementsForLinearTransformation returns the list of Galois elements required to evaluate the linear transformation.
-func GaloisElementsForLinearTransformation(params rlwe.ParameterProvider, lt LinearTransformationParameters) (galEls []uint64) {
-	return galoisElementsForLinearTransformation(params, lt.DiagonalsIndexList, 1<<lt.LogDimensions.Cols, lt.LogBabyStepGianStepRatio)
-}
-
-func galoisElementsForLinearTransformation(params rlwe.ParameterProvider, diags []int, slots, logbsgs int) (galEls []uint64) {
+func GaloisElementsForLinearTransformation(params rlwe.ParameterProvider, diags []int, slots, logbsgs int) (galEls []uint64) {
 
 	p := params.GetRLWEParameters()
 
@@ -244,7 +239,7 @@ func NewLinearTransformation(params rlwe.ParameterProvider, lt LinearTransformat
 //   - allocated: a pre-allocated LinearTransformation using `NewLinearTransformation`
 //   - diagonals: linear transformation parameters
 //   - encoder: an struct complying to the EncoderInterface
-func EncodeLinearTransformation[T Numeric](params LinearTransformationParameters, encoder EncoderInterface[T, ringqp.Poly], diagonals Diagonals[T], allocated LinearTransformation) (err error) {
+func EncodeLinearTransformation[T any](params LinearTransformationParameters, encoder EncoderInterface[T, ringqp.Poly], diagonals Diagonals[T], allocated LinearTransformation) (err error) {
 
 	if allocated.LogDimensions != params.LogDimensions {
 		return fmt.Errorf("cannot EncodeLinearTransformation: LogDimensions between allocated and parameters do not match (%v != %v)", allocated.LogDimensions, params.LogDimensions)
@@ -314,7 +309,7 @@ func EncodeLinearTransformation[T Numeric](params LinearTransformationParameters
 	return
 }
 
-func rotateAndEncodeDiagonal[T Numeric](v []T, encoder EncoderInterface[T, ringqp.Poly], rot int, metaData *rlwe.MetaData, buf []T, poly ringqp.Poly) (err error) {
+func rotateAndEncodeDiagonal[T any](v []T, encoder EncoderInterface[T, ringqp.Poly], rot int, metaData *rlwe.MetaData, buf []T, poly ringqp.Poly) (err error) {
 
 	rows := 1 << metaData.LogDimensions.Rows
 	cols := 1 << metaData.LogDimensions.Cols
@@ -338,7 +333,7 @@ func rotateAndEncodeDiagonal[T Numeric](v []T, encoder EncoderInterface[T, ringq
 }
 
 // LinearTransformationsNew takes as input a ciphertext ctIn and a list of linear transformations [M0, M1, M2, ...] and returns opOut:[M0(ctIn), M1(ctIn), M2(ctInt), ...].
-func (eval LinearTransformEvaluator) LinearTransformationsNew(ctIn *rlwe.Ciphertext, linearTransformations []LinearTransformation) (opOut []*rlwe.Ciphertext, err error) {
+func (eval LinearTransformationEvaluator) LinearTransformationsNew(ctIn *rlwe.Ciphertext, linearTransformations []LinearTransformation) (opOut []*rlwe.Ciphertext, err error) {
 
 	params := eval.GetRLWEParameters()
 	opOut = make([]*rlwe.Ciphertext, len(linearTransformations))
@@ -350,19 +345,19 @@ func (eval LinearTransformEvaluator) LinearTransformationsNew(ctIn *rlwe.Ciphert
 }
 
 // LinearTransformationNew takes as input a ciphertext ctIn and a linear transformation M and evaluate and returns opOut: M(ctIn).
-func (eval LinearTransformEvaluator) LinearTransformationNew(ctIn *rlwe.Ciphertext, linearTransformation LinearTransformation) (opOut *rlwe.Ciphertext, err error) {
+func (eval LinearTransformationEvaluator) LinearTransformationNew(ctIn *rlwe.Ciphertext, linearTransformation LinearTransformation) (opOut *rlwe.Ciphertext, err error) {
 	cts, err := eval.LinearTransformationsNew(ctIn, []LinearTransformation{linearTransformation})
 	return cts[0], err
 }
 
 // LinearTransformation takes as input a ciphertext ctIn, a linear transformation M and evaluates opOut: M(ctIn).
-func (eval LinearTransformEvaluator) LinearTransformation(ctIn *rlwe.Ciphertext, linearTransformation LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
+func (eval LinearTransformationEvaluator) LinearTransformation(ctIn *rlwe.Ciphertext, linearTransformation LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
 	return eval.LinearTransformations(ctIn, []LinearTransformation{linearTransformation}, []*rlwe.Ciphertext{opOut})
 }
 
 // LinearTransformations takes as input a ciphertext ctIn, a list of linear transformations [M0, M1, M2, ...] and a list of pre-allocated receiver opOut
 // and evaluates opOut: [M0(ctIn), M1(ctIn), M2(ctIn), ...]
-func (eval LinearTransformEvaluator) LinearTransformations(ctIn *rlwe.Ciphertext, linearTransformations []LinearTransformation, opOut []*rlwe.Ciphertext) (err error) {
+func (eval LinearTransformationEvaluator) LinearTransformations(ctIn *rlwe.Ciphertext, linearTransformations []LinearTransformation, opOut []*rlwe.Ciphertext) (err error) {
 
 	params := eval.GetRLWEParameters()
 
@@ -401,7 +396,7 @@ func (eval LinearTransformEvaluator) LinearTransformations(ctIn *rlwe.Ciphertext
 // respectively, each of size params.Beta().
 // The naive approach is used (single hoisting and no baby-step giant-step), which is faster than MultiplyByDiagMatrixBSGS
 // for matrix of only a few non-zero diagonals but uses more keys.
-func (eval LinearTransformEvaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error) {
+func (eval LinearTransformationEvaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error) {
 
 	*opOut.MetaData = *ctIn.MetaData
 	opOut.Scale = opOut.Scale.Mul(matrix.Scale)
@@ -516,7 +511,7 @@ func (eval LinearTransformEvaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext,
 // respectively, each of size params.Beta().
 // The BSGS approach is used (double hoisting with baby-step giant-step), which is faster than MultiplyByDiagMatrix
 // for matrix with more than a few non-zero diagonals and uses significantly less keys.
-func (eval LinearTransformEvaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error) {
+func (eval LinearTransformationEvaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error) {
 
 	params := eval.GetRLWEParameters()
 

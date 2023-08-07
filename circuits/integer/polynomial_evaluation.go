@@ -25,7 +25,7 @@ func NewIntegerPowerBasis(ct *rlwe.Ciphertext) circuits.PowerBasis {
 // NewIntegerPolynomial is a wrapper of NewPolynomial.
 // This function creates a new polynomial from the input coefficients.
 // This polynomial can be evaluated on a ciphertext.
-func NewIntegerPolynomial[T circuits.Integer](coeffs []T) circuits.Polynomial {
+func NewIntegerPolynomial[T Integer](coeffs []T) circuits.Polynomial {
 	return circuits.NewPolynomial(bignum.NewPolynomial(bignum.Monomial, coeffs, nil))
 }
 

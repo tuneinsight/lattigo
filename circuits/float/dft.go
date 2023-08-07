@@ -14,9 +14,9 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
-type ComplexDFTEvaluator interface {
+type DFTEvaluatorInterface interface {
 	rlwe.ParameterProvider
-	circuits.EvaluatorForLinearTransform
+	circuits.EvaluatorForLinearTransformation
 	Add(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
 	Sub(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
 	Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
@@ -34,14 +34,14 @@ const (
 	HomomorphicDecode = DFTType(1) // Homomorphic Decoding (DFT)
 )
 
-// HomomorphicDFTMatrix is a struct storing the factorized IDFT, DFT matrices, which are
+// DFTMatrix is a struct storing the factorized IDFT, DFT matrices, which are
 // used to hommorphically encode and decode a ciphertext respectively.
-type HomomorphicDFTMatrix struct {
-	HomomorphicDFTMatrixLiteral
-	Matrices []circuits.LinearTransformation
+type DFTMatrix struct {
+	DFTMatrixLiteral
+	Matrices []LinearTransformation
 }
 
-// HomomorphicDFTMatrixLiteral is a struct storing the parameters to generate the factorized DFT/IDFT matrices.
+// DFTMatrixLiteral is a struct storing the parameters to generate the factorized DFT/IDFT matrices.
 // This struct has mandatory and optional fields.
 //
 // Mandatory:
@@ -56,7 +56,7 @@ type HomomorphicDFTMatrix struct {
 //   - Scaling: constant by which the matrix is multiplied
 //   - BitReversed: if true, then applies the transformation bit-reversed and expects bit-reversed inputs
 //   - LogBSGSRatio: log2 of the ratio between the inner and outer loop of the baby-step giant-step algorithm
-type HomomorphicDFTMatrixLiteral struct {
+type DFTMatrixLiteral struct {
 	// Mandatory
 	Type       DFTType
 	LogSlots   int
@@ -72,7 +72,7 @@ type HomomorphicDFTMatrixLiteral struct {
 // Depth returns the number of levels allocated to the linear transform.
 // If actual == true then returns the number of moduli consumed, else
 // returns the factorization depth.
-func (d HomomorphicDFTMatrixLiteral) Depth(actual bool) (depth int) {
+func (d DFTMatrixLiteral) Depth(actual bool) (depth int) {
 	if actual {
 		depth = len(d.Levels)
 	} else {
@@ -84,7 +84,7 @@ func (d HomomorphicDFTMatrixLiteral) Depth(actual bool) (depth int) {
 }
 
 // GaloisElements returns the list of rotations performed during the CoeffsToSlot operation.
-func (d HomomorphicDFTMatrixLiteral) GaloisElements(params ckks.Parameters) (galEls []uint64) {
+func (d DFTMatrixLiteral) GaloisElements(params ckks.Parameters) (galEls []uint64) {
 	rotations := []int{}
 
 	logSlots := d.LogSlots
@@ -109,34 +109,34 @@ func (d HomomorphicDFTMatrixLiteral) GaloisElements(params ckks.Parameters) (gal
 	return params.GaloisElements(rotations)
 }
 
-// MarshalBinary returns a JSON representation of the the target HomomorphicDFTMatrixLiteral on a slice of bytes.
+// MarshalBinary returns a JSON representation of the the target DFTMatrixLiteral on a slice of bytes.
 // See `Marshal` from the `encoding/json` package.
-func (d HomomorphicDFTMatrixLiteral) MarshalBinary() (data []byte, err error) {
+func (d DFTMatrixLiteral) MarshalBinary() (data []byte, err error) {
 	return json.Marshal(d)
 }
 
-// UnmarshalBinary reads a JSON representation on the target HomomorphicDFTMatrixLiteral struct.
+// UnmarshalBinary reads a JSON representation on the target DFTMatrixLiteral struct.
 // See `Unmarshal` from the `encoding/json` package.
-func (d *HomomorphicDFTMatrixLiteral) UnmarshalBinary(data []byte) error {
+func (d *DFTMatrixLiteral) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, d)
 }
 
-type HDFTEvaluator struct {
-	ComplexDFTEvaluator
-	*circuits.LinearTransformEvaluator
+type DFTEvaluator struct {
+	DFTEvaluatorInterface
+	*LinearTransformationEvaluator
 	parameters ckks.Parameters
 }
 
-func NewHDFTEvaluator(params ckks.Parameters, eval ComplexDFTEvaluator) *HDFTEvaluator {
-	hdfteval := new(HDFTEvaluator)
-	hdfteval.ComplexDFTEvaluator = eval
-	hdfteval.LinearTransformEvaluator = circuits.NewEvaluator(eval)
-	hdfteval.parameters = params
-	return hdfteval
+func NewDFTEvaluator(params ckks.Parameters, eval DFTEvaluatorInterface) *DFTEvaluator {
+	dfteval := new(DFTEvaluator)
+	dfteval.DFTEvaluatorInterface = eval
+	dfteval.LinearTransformationEvaluator = NewLinearTransformationEvaluator(eval)
+	dfteval.parameters = params
+	return dfteval
 }
 
-// NewHomomorphicDFTMatrixFromLiteral generates the factorized DFT/IDFT matrices for the homomorphic encoding/decoding.
-func NewHomomorphicDFTMatrixFromLiteral(params ckks.Parameters, d HomomorphicDFTMatrixLiteral, encoder *ckks.Encoder) (HomomorphicDFTMatrix, error) {
+// NewDFTMatrixFromLiteral generates the factorized DFT/IDFT matrices for the homomorphic encoding/decoding.
+func NewDFTMatrixFromLiteral(params ckks.Parameters, d DFTMatrixLiteral, encoder *ckks.Encoder) (DFTMatrix, error) {
 
 	logSlots := d.LogSlots
 	logdSlots := logSlots
@@ -145,7 +145,7 @@ func NewHomomorphicDFTMatrixFromLiteral(params ckks.Parameters, d HomomorphicDFT
 	}
 
 	// CoeffsToSlots vectors
-	matrices := []circuits.LinearTransformation{}
+	matrices := []LinearTransformation{}
 	pVecDFT := d.GenMatrices(params.LogN(), params.EncodingPrecision())
 
 	nbModuliPerRescale := params.LevelsConsummedPerRescaling()
@@ -169,7 +169,7 @@ func NewHomomorphicDFTMatrixFromLiteral(params ckks.Parameters, d HomomorphicDFT
 
 		for j := 0; j < d.Levels[i]; j++ {
 
-			ltparams := circuits.LinearTransformationParameters{
+			ltparams := LinearTransformationParameters{
 				DiagonalsIndexList:       pVecDFT[idx].DiagonalsIndexList(),
 				Level:                    level,
 				Scale:                    scale,
@@ -177,10 +177,10 @@ func NewHomomorphicDFTMatrixFromLiteral(params ckks.Parameters, d HomomorphicDFT
 				LogBabyStepGianStepRatio: d.LogBSGSRatio,
 			}
 
-			mat := circuits.NewLinearTransformation(params, ltparams)
+			mat := NewLinearTransformation(params, ltparams)
 
-			if err := circuits.EncodeFloatLinearTransformation[*bignum.Complex](ltparams, encoder, pVecDFT[idx], mat); err != nil {
-				return HomomorphicDFTMatrix{}, fmt.Errorf("cannot NewHomomorphicDFTMatrixFromLiteral: %w", err)
+			if err := EncodeLinearTransformation[*bignum.Complex](ltparams, encoder, pVecDFT[idx], mat); err != nil {
+				return DFTMatrix{}, fmt.Errorf("cannot NewDFTMatrixFromLiteral: %w", err)
 			}
 
 			matrices = append(matrices, mat)
@@ -190,14 +190,14 @@ func NewHomomorphicDFTMatrixFromLiteral(params ckks.Parameters, d HomomorphicDFT
 		level -= nbModuliPerRescale
 	}
 
-	return HomomorphicDFTMatrix{HomomorphicDFTMatrixLiteral: d, Matrices: matrices}, nil
+	return DFTMatrix{DFTMatrixLiteral: d, Matrices: matrices}, nil
 }
 
 // CoeffsToSlotsNew applies the homomorphic encoding and returns the result on new ciphertexts.
 // Homomorphically encodes a complex vector vReal + i*vImag.
 // If the packing is sparse (n < N/2), then returns ctReal = Ecd(vReal || vImag) and ctImag = nil.
 // If the packing is dense (n == N/2), then returns ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
-func (eval *HDFTEvaluator) CoeffsToSlotsNew(ctIn *rlwe.Ciphertext, ctsMatrices HomomorphicDFTMatrix) (ctReal, ctImag *rlwe.Ciphertext, err error) {
+func (eval *DFTEvaluator) CoeffsToSlotsNew(ctIn *rlwe.Ciphertext, ctsMatrices DFTMatrix) (ctReal, ctImag *rlwe.Ciphertext, err error) {
 	ctReal = ckks.NewCiphertext(eval.parameters, 1, ctsMatrices.LevelStart)
 
 	if ctsMatrices.LogSlots == eval.parameters.LogMaxSlots() {
@@ -211,7 +211,7 @@ func (eval *HDFTEvaluator) CoeffsToSlotsNew(ctIn *rlwe.Ciphertext, ctsMatrices H
 // Homomorphically encodes a complex vector vReal + i*vImag of size n on a real vector of size 2n.
 // If the packing is sparse (n < N/2), then returns ctReal = Ecd(vReal || vImag) and ctImag = nil.
 // If the packing is dense (n == N/2), then returns ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
-func (eval *HDFTEvaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices HomomorphicDFTMatrix, ctReal, ctImag *rlwe.Ciphertext) (err error) {
+func (eval *DFTEvaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices DFTMatrix, ctReal, ctImag *rlwe.Ciphertext) (err error) {
 
 	if ctsMatrices.RepackImag2Real {
 
@@ -278,10 +278,10 @@ func (eval *HDFTEvaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices Homo
 // Homomorphically decodes a real vector of size 2n on a complex vector vReal + i*vImag of size n.
 // If the packing is sparse (n < N/2) then ctReal = Ecd(vReal || vImag) and ctImag = nil.
 // If the packing is dense (n == N/2), then ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
-func (eval *HDFTEvaluator) SlotsToCoeffsNew(ctReal, ctImag *rlwe.Ciphertext, stcMatrices HomomorphicDFTMatrix) (opOut *rlwe.Ciphertext, err error) {
+func (eval *DFTEvaluator) SlotsToCoeffsNew(ctReal, ctImag *rlwe.Ciphertext, stcMatrices DFTMatrix) (opOut *rlwe.Ciphertext, err error) {
 
 	if ctReal.Level() < stcMatrices.LevelStart || (ctImag != nil && ctImag.Level() < stcMatrices.LevelStart) {
-		return nil, fmt.Errorf("ctReal.Level() or ctImag.Level() < HomomorphicDFTMatrix.LevelStart")
+		return nil, fmt.Errorf("ctReal.Level() or ctImag.Level() < DFTMatrix.LevelStart")
 	}
 
 	opOut = ckks.NewCiphertext(eval.parameters, 1, stcMatrices.LevelStart)
@@ -293,7 +293,7 @@ func (eval *HDFTEvaluator) SlotsToCoeffsNew(ctReal, ctImag *rlwe.Ciphertext, stc
 // Homomorphically decodes a real vector of size 2n on a complex vector vReal + i*vImag of size n.
 // If the packing is sparse (n < N/2) then ctReal = Ecd(vReal || vImag) and ctImag = nil.
 // If the packing is dense (n == N/2), then ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
-func (eval *HDFTEvaluator) SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext, stcMatrices HomomorphicDFTMatrix, opOut *rlwe.Ciphertext) (err error) {
+func (eval *DFTEvaluator) SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext, stcMatrices DFTMatrix, opOut *rlwe.Ciphertext) (err error) {
 	// If full packing, the repacking can be done directly using ct0 and ct1.
 	if ctImag != nil {
 
@@ -317,7 +317,7 @@ func (eval *HDFTEvaluator) SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext, stcMat
 	return
 }
 
-func (eval *HDFTEvaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []circuits.LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
+func (eval *DFTEvaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
 
 	inputLogSlots := ctIn.LogDimensions
 
@@ -513,7 +513,7 @@ func addMatrixRotToList(pVec map[int]bool, rotations []int, N1, slots int, repac
 	return rotations
 }
 
-func (d HomomorphicDFTMatrixLiteral) computeBootstrappingDFTIndexMap(logN int) (rotationMap []map[int]bool) {
+func (d DFTMatrixLiteral) computeBootstrappingDFTIndexMap(logN int) (rotationMap []map[int]bool) {
 
 	logSlots := d.LogSlots
 	ltType := d.Type
@@ -629,7 +629,7 @@ func nextLevelfftIndexMap(vec map[int]bool, logL, N, nextLevel int, ltType DFTTy
 }
 
 // GenMatrices returns the ordered list of factors of the non-zero diagonales of the IDFT (encoding) or DFT (decoding) matrix.
-func (d HomomorphicDFTMatrixLiteral) GenMatrices(LogN int, prec uint) (plainVector []circuits.Diagonals[*bignum.Complex]) {
+func (d DFTMatrixLiteral) GenMatrices(LogN int, prec uint) (plainVector []Diagonals[*bignum.Complex]) {
 
 	logSlots := d.LogSlots
 	slots := 1 << logSlots
@@ -661,7 +661,7 @@ func (d HomomorphicDFTMatrixLiteral) GenMatrices(LogN int, prec uint) (plainVect
 		a, b, c = fftPlainVec(logSlots, 1<<logdSlots, roots, pow5)
 	}
 
-	plainVector = make([]circuits.Diagonals[*bignum.Complex], maxDepth)
+	plainVector = make([]Diagonals[*bignum.Complex], maxDepth)
 
 	// We compute the chain of merge in order or reverse order depending if its DFT or InvDFT because
 	// the way the levels are collapsed has an impact on the total number of rotations and keys to be

@@ -14,7 +14,7 @@ import (
 // the polynomial approximation, and the keys for the bootstrapping.
 type Bootstrapper struct {
 	*ckks.Evaluator
-	*float.HDFTEvaluator
+	*float.DFTEvaluator
 	*float.HModEvaluator
 	*bootstrapperBase
 }
@@ -28,8 +28,8 @@ type bootstrapperBase struct {
 	logdslots int
 
 	evalModPoly float.EvalModPoly
-	stcMatrices float.HomomorphicDFTMatrix
-	ctsMatrices float.HomomorphicDFTMatrix
+	stcMatrices float.DFTMatrix
+	ctsMatrices float.DFTMatrix
 
 	q0OverMessageRatio float64
 }
@@ -74,7 +74,7 @@ func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKeys *Eval
 
 	btp.Evaluator = ckks.NewEvaluator(params, btpKeys)
 
-	btp.HDFTEvaluator = float.NewHDFTEvaluator(params, btp.Evaluator)
+	btp.DFTEvaluator = float.NewDFTEvaluator(params, btp.Evaluator)
 
 	btp.HModEvaluator = float.NewHModEvaluator(btp.Evaluator)
 
@@ -205,7 +205,7 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey *E
 		bb.CoeffsToSlotsParameters.Scaling.Mul(bb.CoeffsToSlotsParameters.Scaling, new(big.Float).SetFloat64(qDiv/(K*scFac*qDiff)))
 	}
 
-	if bb.ctsMatrices, err = float.NewHomomorphicDFTMatrixFromLiteral(params, bb.CoeffsToSlotsParameters, encoder); err != nil {
+	if bb.ctsMatrices, err = float.NewDFTMatrixFromLiteral(params, bb.CoeffsToSlotsParameters, encoder); err != nil {
 		return
 	}
 
@@ -218,7 +218,7 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey *E
 		bb.SlotsToCoeffsParameters.Scaling.Mul(bb.SlotsToCoeffsParameters.Scaling, new(big.Float).SetFloat64(bb.params.DefaultScale().Float64()/(bb.evalModPoly.ScalingFactor().Float64()/bb.evalModPoly.MessageRatio())*qDiff))
 	}
 
-	if bb.stcMatrices, err = float.NewHomomorphicDFTMatrixFromLiteral(params, bb.SlotsToCoeffsParameters, encoder); err != nil {
+	if bb.stcMatrices, err = float.NewDFTMatrixFromLiteral(params, bb.SlotsToCoeffsParameters, encoder); err != nil {
 		return
 	}
 

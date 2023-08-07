@@ -655,7 +655,7 @@ func main() {
 	nonZeroDiagonales := []int{-15, -4, -1, 0, 1, 2, 3, 4, 15}
 
 	// We allocate the non-zero diagonales and populate them
-	diagonals := make(circuits.Diagonals[complex128])
+	diagonals := make(float.Diagonals[complex128])
 
 	for _, i := range nonZeroDiagonales {
 		tmp := make([]complex128, Slots)
@@ -671,7 +671,7 @@ func main() {
 	// Here we use the default structs of the rlwe package, which is compliant to the rlwe.LinearTransformationParameters interface
 	// But a user is free to use any struct compliant to this interface.
 	// See the definition of the interface for more information about the parameters.
-	ltparams := circuits.LinearTransformationParameters{
+	ltparams := float.LinearTransformationParameters{
 		DiagonalsIndexList:       diagonals.DiagonalsIndexList(),
 		Level:                    ct1.Level(),
 		Scale:                    rlwe.NewScale(params.Q()[ct1.Level()]),
@@ -681,22 +681,22 @@ func main() {
 
 	// We allocated the rlwe.LinearTransformation.
 	// The allocation takes into account the parameters of the linear transformation.
-	lt := circuits.NewLinearTransformation(params, ltparams)
+	lt := float.NewLinearTransformation(params, ltparams)
 
 	// We encode our linear transformation on the allocated rlwe.LinearTransformation.
 	// Not that trying to encode a linear transformation with different non-zero diagonals,
 	// plaintext dimensions or baby-step giant-step ratio than the one used to allocate the
 	// rlwe.LinearTransformation will return an error.
-	if err := circuits.EncodeFloatLinearTransformation[complex128](ltparams, ecd, diagonals, lt); err != nil {
+	if err := float.EncodeLinearTransformation[complex128](ltparams, ecd, diagonals, lt); err != nil {
 		panic(err)
 	}
 
 	// Then we generate the corresponding Galois keys.
 	// The list of Galois elements can also be obtained with `lt.GaloisElements`
 	// but this requires to have it pre-allocated, which is not always desirable.
-	galEls = circuits.GaloisElementsForLinearTransformation(params, ltparams)
+	galEls = float.GaloisElementsForLinearTransformation(params, ltparams)
 
-	ltEval := circuits.NewEvaluator(eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, kgen.GenGaloisKeysNew(galEls, sk)...)))
+	ltEval := float.NewLinearTransformationEvaluator(eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, kgen.GenGaloisKeysNew(galEls, sk)...)))
 
 	// And we valuate the linear transform
 	if err := ltEval.LinearTransformation(ct1, lt, res); err != nil {

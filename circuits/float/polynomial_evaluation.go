@@ -1,16 +1,17 @@
-package circuits
+package float
 
 import (
 	"math/big"
 
+	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
-type FloatPolynomialEvaluator struct {
-	PolynomialEvaluator
+type PolynomialEvaluator struct {
+	circuits.PolynomialEvaluator
 	Parameters ckks.Parameters
 }
 
@@ -18,13 +19,13 @@ type FloatPolynomialEvaluator struct {
 // This function creates a new powerBasis from the input ciphertext.
 // The input ciphertext is treated as the base monomial X used to
 // generate the other powers X^{n}.
-func NewFloatPowerBasis(ct *rlwe.Ciphertext, basis bignum.Basis) PowerBasis {
-	return NewPowerBasis(ct, basis)
+func NewFloatPowerBasis(ct *rlwe.Ciphertext, basis bignum.Basis) circuits.PowerBasis {
+	return circuits.NewPowerBasis(ct, basis)
 }
 
-func NewFloatPolynomialEvaluator(params ckks.Parameters, eval EvaluatorForPolyEval) *FloatPolynomialEvaluator {
-	e := new(FloatPolynomialEvaluator)
-	e.PolynomialEvaluator = PolynomialEvaluator{eval, eval.GetEvaluatorBuffer()}
+func NewPolynomialEvaluator(params ckks.Parameters, eval circuits.EvaluatorForPolyEval) *PolynomialEvaluator {
+	e := new(PolynomialEvaluator)
+	e.PolynomialEvaluator = circuits.PolynomialEvaluator{EvaluatorForPolyEval: eval, EvaluatorBuffers: eval.GetEvaluatorBuffer()}
 	e.Parameters = params
 	return e
 }
@@ -38,12 +39,12 @@ func NewFloatPolynomialEvaluator(params ckks.Parameters, eval EvaluatorForPolyEv
 // pol: a *bignum.Polynomial, *Polynomial or *PolynomialVector
 // targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
 // for example be used to correct small deviations in the ciphertext scale and reset it to the default scale.
-func (eval FloatPolynomialEvaluator) Polynomial(input interface{}, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
+func (eval PolynomialEvaluator) Polynomial(input interface{}, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 	levelsConsummedPerRescaling := eval.Parameters.LevelsConsummedPerRescaling()
-	return polynomial(eval.PolynomialEvaluator, eval, input, p, targetScale, levelsConsummedPerRescaling, &floatSimEvaluator{eval.Parameters, levelsConsummedPerRescaling})
+	return circuits.EvaluatePolynomial(eval.PolynomialEvaluator, eval, input, p, targetScale, levelsConsummedPerRescaling, &simEvaluator{eval.Parameters, levelsConsummedPerRescaling})
 }
 
-func (eval FloatPolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol PolynomialVector, pb PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
+func (eval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol circuits.PolynomialVector, pb circuits.PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
 
 	// Map[int] of the powers [X^{0}, X^{1}, X^{2}, ...]
 	X := pb.Value

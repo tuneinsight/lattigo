@@ -6,6 +6,7 @@ import (
 	"math/rand"
 
 	"github.com/tuneinsight/lattigo/v4/circuits"
+	"github.com/tuneinsight/lattigo/v4/circuits/float"
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -560,7 +561,7 @@ func main() {
 		panic(err)
 	}
 
-	polyEval := circuits.NewFloatPolynomialEvaluator(params, eval)
+	polyEval := float.NewPolynomialEvaluator(params, eval)
 
 	// And we evaluate this polynomial on the ciphertext
 	// The last argument, `params.DefaultScale()` is the scale that we want the ciphertext

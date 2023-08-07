@@ -1,4 +1,4 @@
-package circuits
+package integer
 
 import (
 	"encoding/json"
@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/tuneinsight/lattigo/v4/bgv"
+	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -173,7 +174,7 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 
 		values, _, ciphertext := newBGVTestVectorsLvl(level, tc.params.DefaultScale(), tc, tc.encryptorSk)
 
-		diagonals := make(Diagonals[uint64])
+		diagonals := make(circuits.Diagonals[uint64])
 
 		totSlots := values.N()
 
@@ -199,7 +200,7 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 			diagonals[15][i] = 1
 		}
 
-		ltparams := LinearTransformationParameters{
+		ltparams := circuits.LinearTransformationParameters{
 			DiagonalsIndexList:       []int{-15, -4, -1, 0, 1, 2, 3, 4, 15},
 			Level:                    ciphertext.Level(),
 			Scale:                    tc.params.DefaultScale(),
@@ -208,15 +209,15 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 		}
 
 		// Allocate the linear transformation
-		linTransf := NewLinearTransformation(params, ltparams)
+		linTransf := circuits.NewLinearTransformation(params, ltparams)
 
 		// Encode on the linear transformation
-		require.NoError(t, EncodeIntegerLinearTransformation[uint64](ltparams, tc.encoder, diagonals, linTransf))
+		require.NoError(t, circuits.EncodeIntegerLinearTransformation[uint64](ltparams, tc.encoder, diagonals, linTransf))
 
-		galEls := GaloisElementsForLinearTransformation(params, ltparams)
+		galEls := circuits.GaloisElementsForLinearTransformation(params, ltparams)
 
 		eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...))
-		ltEval := NewEvaluator(eval)
+		ltEval := circuits.NewEvaluator(eval)
 
 		require.NoError(t, ltEval.LinearTransformation(ciphertext, linTransf, ciphertext))
 
@@ -269,7 +270,7 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 			diagonals[15][i] = 1
 		}
 
-		ltparams := LinearTransformationParameters{
+		ltparams := circuits.LinearTransformationParameters{
 			DiagonalsIndexList:       []int{-15, -4, -1, 0, 1, 2, 3, 4, 15},
 			Level:                    ciphertext.Level(),
 			Scale:                    tc.params.DefaultScale(),
@@ -278,15 +279,15 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 		}
 
 		// Allocate the linear transformation
-		linTransf := NewLinearTransformation(params, ltparams)
+		linTransf := circuits.NewLinearTransformation(params, ltparams)
 
 		// Encode on the linear transformation
-		require.NoError(t, EncodeIntegerLinearTransformation[uint64](ltparams, tc.encoder, diagonals, linTransf))
+		require.NoError(t, circuits.EncodeIntegerLinearTransformation[uint64](ltparams, tc.encoder, diagonals, linTransf))
 
-		galEls := GaloisElementsForLinearTransformation(params, ltparams)
+		galEls := circuits.GaloisElementsForLinearTransformation(params, ltparams)
 
 		eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...))
-		ltEval := NewEvaluator(eval)
+		ltEval := circuits.NewEvaluator(eval)
 
 		require.NoError(t, ltEval.LinearTransformation(ciphertext, linTransf, ciphertext))
 
@@ -328,7 +329,7 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 
 			t.Run(GetTestName("Standard", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 
-				polyEval := NewIntegerPolynomialEvaluator(tc.params, tc.evaluator, false)
+				polyEval := NewPolynomialEvaluator(tc.params, tc.evaluator, false)
 
 				res, err := polyEval.Polynomial(ciphertext, poly, tc.params.DefaultScale())
 				require.NoError(t, err)
@@ -340,7 +341,7 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 
 			t.Run(GetTestName("Invariant", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 
-				polyEval := NewIntegerPolynomialEvaluator(tc.params, tc.evaluator, true)
+				polyEval := NewPolynomialEvaluator(tc.params, tc.evaluator, true)
 
 				res, err := polyEval.Polynomial(ciphertext, poly, tc.params.DefaultScale())
 				require.NoError(t, err)
@@ -375,7 +376,7 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 			slotIndex[0] = idx0
 			slotIndex[1] = idx1
 
-			polyVector, err := NewPolynomialVector([]Polynomial{
+			polyVector, err := circuits.NewPolynomialVector([]circuits.Polynomial{
 				NewIntegerPolynomial(coeffs0),
 				NewIntegerPolynomial(coeffs1),
 			}, slotIndex)
@@ -390,7 +391,7 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 
 			t.Run(GetTestName("Standard", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 
-				polyEval := NewIntegerPolynomialEvaluator(tc.params, tc.evaluator, false)
+				polyEval := NewPolynomialEvaluator(tc.params, tc.evaluator, false)
 
 				res, err := polyEval.Polynomial(ciphertext, polyVector, tc.params.DefaultScale())
 				require.NoError(t, err)
@@ -402,7 +403,7 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 
 			t.Run(GetTestName("Invariant", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 
-				polyEval := NewIntegerPolynomialEvaluator(tc.params, tc.evaluator, true)
+				polyEval := NewPolynomialEvaluator(tc.params, tc.evaluator, true)
 
 				res, err := polyEval.Polynomial(ciphertext, polyVector, tc.params.DefaultScale())
 				require.NoError(t, err)

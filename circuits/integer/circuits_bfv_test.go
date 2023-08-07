@@ -1,4 +1,4 @@
-package circuits
+package integer
 
 import (
 	"encoding/json"
@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/bfv"
 	"github.com/tuneinsight/lattigo/v4/bgv"
+	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -93,7 +94,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 		values, _, ciphertext := newBFVTestVectorsLvl(level, tc.params.DefaultScale(), tc, tc.encryptorSk)
 
-		diagonals := make(Diagonals[uint64])
+		diagonals := make(circuits.Diagonals[uint64])
 
 		totSlots := values.N()
 
@@ -119,7 +120,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 			diagonals[15][i] = 1
 		}
 
-		ltparams := LinearTransformationParameters{
+		ltparams := circuits.LinearTransformationParameters{
 			DiagonalsIndexList:       []int{-15, -4, -1, 0, 1, 2, 3, 4, 15},
 			Level:                    ciphertext.Level(),
 			Scale:                    tc.params.DefaultScale(),
@@ -128,14 +129,14 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		}
 
 		// Allocate the linear transformation
-		linTransf := NewLinearTransformation(params, ltparams)
+		linTransf := circuits.NewLinearTransformation(params, ltparams)
 
 		// Encode on the linear transformation
-		require.NoError(t, EncodeIntegerLinearTransformation[uint64](ltparams, tc.encoder, diagonals, linTransf))
+		require.NoError(t, circuits.EncodeIntegerLinearTransformation[uint64](ltparams, tc.encoder, diagonals, linTransf))
 
-		galEls := GaloisElementsForLinearTransformation(params, ltparams)
+		galEls := circuits.GaloisElementsForLinearTransformation(params, ltparams)
 
-		ltEval := NewEvaluator(tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)))
+		ltEval := circuits.NewEvaluator(tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)))
 
 		require.NoError(t, ltEval.LinearTransformation(ciphertext, linTransf, ciphertext))
 
@@ -162,7 +163,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 		values, _, ciphertext := newBFVTestVectorsLvl(level, tc.params.DefaultScale(), tc, tc.encryptorSk)
 
-		diagonals := make(Diagonals[uint64])
+		diagonals := make(circuits.Diagonals[uint64])
 
 		totSlots := values.N()
 
@@ -188,7 +189,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 			diagonals[15][i] = 1
 		}
 
-		ltparams := LinearTransformationParameters{
+		ltparams := circuits.LinearTransformationParameters{
 			DiagonalsIndexList:       []int{-15, -4, -1, 0, 1, 2, 3, 4, 15},
 			Level:                    ciphertext.Level(),
 			Scale:                    tc.params.DefaultScale(),
@@ -197,14 +198,14 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		}
 
 		// Allocate the linear transformation
-		linTransf := NewLinearTransformation(params, ltparams)
+		linTransf := circuits.NewLinearTransformation(params, ltparams)
 
 		// Encode on the linear transformation
-		require.NoError(t, EncodeIntegerLinearTransformation[uint64](ltparams, tc.encoder, diagonals, linTransf))
+		require.NoError(t, circuits.EncodeIntegerLinearTransformation[uint64](ltparams, tc.encoder, diagonals, linTransf))
 
-		galEls := GaloisElementsForLinearTransformation(params, ltparams)
+		galEls := circuits.GaloisElementsForLinearTransformation(params, ltparams)
 
-		ltEval := NewEvaluator(tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)))
+		ltEval := circuits.NewEvaluator(tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)))
 
 		require.NoError(t, ltEval.LinearTransformation(ciphertext, linTransf, ciphertext))
 
@@ -227,7 +228,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 	t.Run("PolyEval", func(t *testing.T) {
 
-		polyEval := NewIntegerPolynomialEvaluator(tc.params.Parameters, tc.evaluator.Evaluator, true)
+		polyEval := NewPolynomialEvaluator(tc.params.Parameters, tc.evaluator.Evaluator, true)
 
 		t.Run("Single", func(t *testing.T) {
 
@@ -279,7 +280,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 			slotIndex[0] = idx0
 			slotIndex[1] = idx1
 
-			polyVector, err := NewPolynomialVector([]Polynomial{
+			polyVector, err := circuits.NewPolynomialVector([]circuits.Polynomial{
 				NewIntegerPolynomial(coeffs0),
 				NewIntegerPolynomial(coeffs1),
 			}, slotIndex)

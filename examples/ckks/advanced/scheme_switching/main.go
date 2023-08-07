@@ -6,9 +6,9 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/tuneinsight/lattigo/v4/circuits"
+	"github.com/tuneinsight/lattigo/v4/circuits/blindrotation"
+	"github.com/tuneinsight/lattigo/v4/circuits/float"
 	"github.com/tuneinsight/lattigo/v4/ckks"
-	"github.com/tuneinsight/lattigo/v4/rgsw/lut"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -16,13 +16,13 @@ import (
 
 // This example showcases how lookup tables can complement the CKKS scheme to compute non-linear functions
 // such as sign. The example starts by homomorphically decoding the CKKS ciphertext from the canonical embeding
-// to the coefficient embeding. It then evaluates the Look-Up-Table (LUT) on each coefficient and repacks the
-// outputs of each LUT in a single RLWE ciphertext. Finally, it homomorphically encodes the RLWE ciphertext back
+// to the coefficient embeding. It then evaluates the Look-Up-Table (BlindRotation) on each coefficient and repacks the
+// outputs of each Blind Rotation in a single RLWE ciphertext. Finally, it homomorphically encodes the RLWE ciphertext back
 // to the canonical embeding of the CKKS scheme.
 
-// ==============================
-// Functions to evaluate with LUT
-// ==============================
+// ========================================
+// Functions to evaluate with BlindRotation
+// ========================================
 func sign(x float64) (y float64) {
 	if x > 0 {
 		return 1
@@ -57,8 +57,8 @@ func main() {
 	slots := 1 << LogSlots
 
 	// Starting RLWE params, size of these params
-	// determine the complexity of the LUT:
-	// each LUT takes N RGSW ciphertext-ciphetext mul.
+	// determine the complexity of the BlindRotation:
+	// each BlindRotation takes ~N RGSW ciphertext-ciphetext mul.
 	// LogN = 12 & LogQP = ~103 -> >128-bit secure.
 	var paramsN12 ckks.Parameters
 	if paramsN12, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
@@ -70,8 +70,8 @@ func main() {
 		panic(err)
 	}
 
-	// LUT RLWE params, N of these params determine
-	// the LUT poly and therefore precision.
+	// BlindRotation RLWE params, N of these params determine
+	// the test poly degree and therefore precision.
 	// LogN = 11 & LogQP = ~54 -> 128-bit secure.
 	var paramsN11 ckks.Parameters
 	if paramsN11, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
@@ -85,19 +85,19 @@ func main() {
 	// Set the parameters for the blind rotation keys
 	evkParams := rlwe.EvaluationKeyParameters{BaseTwoDecomposition: utils.Pointy(12)}
 
-	// LUT interval
+	// function interval
 	a, b := -8.0, 8.0
 
 	// Rescale inputs during Homomorphic Decoding by the normalization of the
-	// LUT inputs and change of scale to ensure that upperbound on the homomorphic
-	// decryption of LWE during the LUT evaluation X^{dec(lwe)} is smaller than N
+	// test poly inputs and change of scale to ensure that upperbound on the homomorphic
+	// decryption of LWE during the BlindRotation evaluation X^{dec(lwe)} is smaller than N
 	// to avoid negacyclic wrapping of X^{dec(lwe)}.
 	diffScale := float64(paramsN11.Q()[0]) / (4.0 * paramsN12.DefaultScale().Float64())
-	normalization := 2.0 / (b - a) // all inputs are normalized before the LUT evaluation.
+	normalization := 2.0 / (b - a) // all inputs are normalized before the BlindRotation evaluation.
 
 	// SlotsToCoeffsParameters homomorphic encoding parameters
-	var SlotsToCoeffsParameters = circuits.HomomorphicDFTMatrixLiteral{
-		Type:       circuits.HomomorphicDecode,
+	var SlotsToCoeffsParameters = float.HomomorphicDFTMatrixLiteral{
+		Type:       float.HomomorphicDecode,
 		LogSlots:   LogSlots,
 		Scaling:    new(big.Float).SetFloat64(normalization * diffScale),
 		LevelStart: 1,        // starting level
@@ -105,27 +105,27 @@ func main() {
 	}
 
 	// CoeffsToSlotsParameters homomorphic decoding parameters
-	var CoeffsToSlotsParameters = circuits.HomomorphicDFTMatrixLiteral{
-		Type:       circuits.HomomorphicEncode,
+	var CoeffsToSlotsParameters = float.HomomorphicDFTMatrixLiteral{
+		Type:       float.HomomorphicEncode,
 		LogSlots:   LogSlots,
 		LevelStart: 1,        // starting level
 		Levels:     []int{1}, // Decomposition levels of the encoding matrix (this will use one one matrix in one level)
 	}
 
-	fmt.Printf("Generating LUT... ")
+	fmt.Printf("Generating Test Poly... ")
 	now := time.Now()
-	// Generate LUT, provide function, outputscale, ring and interval.
-	LUTPoly := lut.InitLUT(sign, paramsN12.DefaultScale(), paramsN12.RingQ(), a, b)
+	// Generate test polynomial, provide function, outputscale, ring and interval.
+	testPoly := blindrotation.InitTestPolynomial(sign, paramsN12.DefaultScale(), paramsN12.RingQ(), a, b)
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
-	// Index of the LUT poly and repacking after evaluating the LUT.
-	lutPolyMap := make(map[int]*ring.Poly) // Which slot to evaluate on the LUT
-	repackIndex := make(map[int]int)       // Where to repack slots after the LUT
+	// Index of the test poly and repacking after evaluating the BlindRotation.
+	testPolyMap := make(map[int]*ring.Poly) // Which slot to evaluate on the BlindRotation
+	repackIndex := make(map[int]int)        // Where to repack slots after the BlindRotation
 	gapN11 := paramsN11.N() / (2 * slots)
 	gapN12 := paramsN12.N() / (2 * slots)
 
 	for i := 0; i < slots; i++ {
-		lutPolyMap[i*gapN11] = &LUTPoly
+		testPolyMap[i*gapN11] = &testPoly
 		repackIndex[i*gapN11] = i * gapN12
 	}
 
@@ -143,11 +143,11 @@ func main() {
 
 	fmt.Printf("Gen SlotsToCoeffs Matrices... ")
 	now = time.Now()
-	SlotsToCoeffsMatrix, err := circuits.NewHomomorphicDFTMatrixFromLiteral(paramsN12, SlotsToCoeffsParameters, encoderN12)
+	SlotsToCoeffsMatrix, err := float.NewHomomorphicDFTMatrixFromLiteral(paramsN12, SlotsToCoeffsParameters, encoderN12)
 	if err != nil {
 		panic(err)
 	}
-	CoeffsToSlotsMatrix, err := circuits.NewHomomorphicDFTMatrixFromLiteral(paramsN12, CoeffsToSlotsParameters, encoderN12)
+	CoeffsToSlotsMatrix, err := float.NewHomomorphicDFTMatrixFromLiteral(paramsN12, CoeffsToSlotsParameters, encoderN12)
 	if err != nil {
 		panic(err)
 	}
@@ -161,16 +161,16 @@ func main() {
 
 	evk := rlwe.NewMemEvaluationKeySet(nil, kgenN12.GenGaloisKeysNew(galEls, skN12)...)
 
-	// LUT Evaluator
-	evalLUT := lut.NewEvaluator(paramsN12.Parameters, paramsN11.Parameters)
+	// BlindRotation Evaluator
+	evalBR := blindrotation.NewEvaluator(paramsN12.Parameters, paramsN11.Parameters)
 
 	// CKKS Evaluator
 	evalCKKS := ckks.NewEvaluator(paramsN12, evk)
-	evalHDFT := circuits.NewHDFTEvaluator(paramsN12, evalCKKS)
+	evalHDFT := float.NewHDFTEvaluator(paramsN12, evalCKKS)
 
 	fmt.Printf("Encrypting bits of skLWE in RGSW... ")
 	now = time.Now()
-	blindRotateKey := lut.GenEvaluationKeyNew(paramsN12.Parameters, skN12, paramsN11.Parameters, skN11, evkParams) // Generate RGSW(sk_i) for all coefficients of sk
+	blindRotateKey := blindrotation.GenEvaluationKeyNew(paramsN12.Parameters, skN12, paramsN11.Parameters, skN11, evkParams) // Generate RGSW(sk_i) for all coefficients of sk
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	// Generates the starting plaintext values.
@@ -209,10 +209,10 @@ func main() {
 	}
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
-	fmt.Printf("Evaluating LUT... ")
+	fmt.Printf("Evaluating BlindRotations... ")
 	now = time.Now()
-	// Extracts & EvalLUT(LWEs, indexLUT) on the fly -> Repack(LWEs, indexRepack) -> RLWE
-	ctN12, err = evalLUT.EvaluateAndRepack(ctN11, lutPolyMap, repackIndex, blindRotateKey, evk)
+	// Extracts & EvalBR(LWEs, indexTestPoly) on the fly -> Repack(LWEs, indexRepack) -> RLWE
+	ctN12, err = evalBR.EvaluateAndRepack(ctN11, testPolyMap, repackIndex, blindRotateKey, evk)
 	if err != nil {
 		panic(err)
 	}
@@ -225,7 +225,7 @@ func main() {
 
 	fmt.Printf("Homomorphic Encoding... ")
 	now = time.Now()
-	// Homomorphic Encoding: [LUT(a), LUT(c), LUT(b), LUT(d)] -> [(LUT(a)+LUT(b)i), (LUT(c)+LUT(d)i)]
+	// Homomorphic Encoding: [BR(a), BR(c), BR(b), BR(d)] -> [(BR(a)+BR(b)i), (BR(c)+BR(d)i)]
 	ctN12, _, err = evalHDFT.CoeffsToSlotsNew(ctN12, CoeffsToSlotsMatrix)
 	if err != nil {
 		panic(err)

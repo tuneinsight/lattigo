@@ -1,4 +1,4 @@
-package circuits
+package float
 
 import (
 	"encoding/json"
@@ -10,15 +10,16 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/ring"
-
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
+var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short.")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 
 func GetCKKSTestName(params ckks.Parameters, opname string) string {
@@ -215,7 +216,7 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 		one := new(big.Float).SetInt64(1)
 		zero := new(big.Float)
 
-		diagonals := make(Diagonals[*bignum.Complex])
+		diagonals := make(circuits.Diagonals[*bignum.Complex])
 		for _, i := range nonZeroDiags {
 			diagonals[i] = make([]*bignum.Complex, slots)
 
@@ -224,7 +225,7 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 			}
 		}
 
-		ltparams := LinearTransformationParameters{
+		ltparams := circuits.LinearTransformationParameters{
 			DiagonalsIndexList:       nonZeroDiags,
 			Level:                    ciphertext.Level(),
 			Scale:                    rlwe.NewScale(params.Q()[ciphertext.Level()]),
@@ -233,16 +234,16 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 		}
 
 		// Allocate the linear transformation
-		linTransf := NewLinearTransformation(params, ltparams)
+		linTransf := circuits.NewLinearTransformation(params, ltparams)
 
 		// Encode on the linear transformation
-		require.NoError(t, EncodeFloatLinearTransformation[*bignum.Complex](ltparams, tc.encoder, diagonals, linTransf))
+		require.NoError(t, circuits.EncodeFloatLinearTransformation[*bignum.Complex](ltparams, tc.encoder, diagonals, linTransf))
 
-		galEls := GaloisElementsForLinearTransformation(params, ltparams)
+		galEls := circuits.GaloisElementsForLinearTransformation(params, ltparams)
 
 		evk := rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)
 
-		ltEval := NewEvaluator(tc.evaluator.WithKey(evk))
+		ltEval := circuits.NewEvaluator(tc.evaluator.WithKey(evk))
 
 		require.NoError(t, ltEval.LinearTransformation(ciphertext, linTransf, ciphertext))
 
@@ -278,7 +279,7 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 		one := new(big.Float).SetInt64(1)
 		zero := new(big.Float)
 
-		diagonals := make(Diagonals[*bignum.Complex])
+		diagonals := make(circuits.Diagonals[*bignum.Complex])
 		for _, i := range nonZeroDiags {
 			diagonals[i] = make([]*bignum.Complex, slots)
 
@@ -287,7 +288,7 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 			}
 		}
 
-		ltparams := LinearTransformationParameters{
+		ltparams := circuits.LinearTransformationParameters{
 			DiagonalsIndexList:       nonZeroDiags,
 			Level:                    ciphertext.Level(),
 			Scale:                    rlwe.NewScale(params.Q()[ciphertext.Level()]),
@@ -296,16 +297,16 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 		}
 
 		// Allocate the linear transformation
-		linTransf := NewLinearTransformation(params, ltparams)
+		linTransf := circuits.NewLinearTransformation(params, ltparams)
 
 		// Encode on the linear transformation
-		require.NoError(t, EncodeFloatLinearTransformation[*bignum.Complex](ltparams, tc.encoder, diagonals, linTransf))
+		require.NoError(t, circuits.EncodeFloatLinearTransformation[*bignum.Complex](ltparams, tc.encoder, diagonals, linTransf))
 
-		galEls := GaloisElementsForLinearTransformation(params, ltparams)
+		galEls := circuits.GaloisElementsForLinearTransformation(params, ltparams)
 
 		evk := rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)
 
-		ltEval := NewEvaluator(tc.evaluator.WithKey(evk))
+		ltEval := circuits.NewEvaluator(tc.evaluator.WithKey(evk))
 
 		require.NoError(t, ltEval.LinearTransformation(ciphertext, linTransf, ciphertext))
 
@@ -333,7 +334,7 @@ func testEvaluatePolynomial(tc *ckksTestContext, t *testing.T) {
 
 	var err error
 
-	polyEval := NewFloatPolynomialEvaluator(tc.params, tc.evaluator)
+	polyEval := NewPolynomialEvaluator(tc.params, tc.evaluator)
 
 	t.Run(GetCKKSTestName(tc.params, "EvaluatePoly/PolySingle/Exp"), func(t *testing.T) {
 
@@ -407,7 +408,7 @@ func testEvaluatePolynomial(tc *ckksTestContext, t *testing.T) {
 			valuesWant[j] = poly.Evaluate(values[j])
 		}
 
-		polyVector, err := NewPolynomialVector([]Polynomial{NewPolynomial(poly)}, slotIndex)
+		polyVector, err := circuits.NewPolynomialVector([]circuits.Polynomial{circuits.NewPolynomial(poly)}, slotIndex)
 		require.NoError(t, err)
 
 		if ciphertext, err = polyEval.Polynomial(ciphertext, polyVector, ciphertext.Scale); err != nil {

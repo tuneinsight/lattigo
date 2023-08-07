@@ -1,4 +1,4 @@
-package lut
+package blindrotation
 
 import (
 	"math/big"

@@ -24,7 +24,7 @@ type PolynomialEvaluator struct {
 	*rlwe.EvaluatorBuffers
 }
 
-func polynomial(eval PolynomialEvaluator, evalp PolynomialVectorEvaluator, input interface{}, p interface{}, targetScale rlwe.Scale, levelsConsummedPerRescaling int, SimEval SimEvaluator) (opOut *rlwe.Ciphertext, err error) {
+func EvaluatePolynomial(eval PolynomialEvaluator, evalp PolynomialVectorEvaluator, input interface{}, p interface{}, targetScale rlwe.Scale, levelsConsummedPerRescaling int, SimEval SimEvaluator) (opOut *rlwe.Ciphertext, err error) {
 
 	var polyVec PolynomialVector
 	switch p := p.(type) {

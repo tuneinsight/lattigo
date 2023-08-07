@@ -1,4 +1,4 @@
-package circuits
+package float
 
 import (
 	"encoding/json"
@@ -7,8 +7,8 @@ import (
 	"math/big"
 	"math/bits"
 
+	"github.com/tuneinsight/lattigo/v4/circuits/float/cosine"
 	"github.com/tuneinsight/lattigo/v4/ckks"
-	"github.com/tuneinsight/lattigo/v4/ckks/cosine"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
@@ -248,11 +248,11 @@ func (evm EvalModLiteral) Depth() (depth int) {
 
 type HModEvaluator struct {
 	*ckks.Evaluator
-	FloatPolynomialEvaluator
+	PolynomialEvaluator
 }
 
 func NewHModEvaluator(eval *ckks.Evaluator) *HModEvaluator {
-	return &HModEvaluator{Evaluator: eval, FloatPolynomialEvaluator: *NewFloatPolynomialEvaluator(*eval.GetParameters(), eval)}
+	return &HModEvaluator{Evaluator: eval, PolynomialEvaluator: *NewPolynomialEvaluator(*eval.GetParameters(), eval)}
 }
 
 // EvalModNew applies a homomorphic mod Q on a vector scaled by Delta, scaled down to mod 1 :

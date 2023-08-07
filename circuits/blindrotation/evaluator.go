@@ -1,4 +1,4 @@
-package lut
+package blindrotation
 
 import (
 	"math/big"
@@ -14,7 +14,7 @@ import (
 // blind rotations.
 type Evaluator struct {
 	*rgsw.Evaluator
-	paramsLUT rlwe.Parameters
+	paramsBR  rlwe.Parameters
 	paramsLWE rlwe.Parameters
 
 	poolMod2N [2]ring.Poly
@@ -25,28 +25,28 @@ type Evaluator struct {
 }
 
 // NewEvaluator instaniates a new Evaluator.
-func NewEvaluator(paramsLUT, paramsLWE rlwe.Parameters) (eval *Evaluator) {
+func NewEvaluator(paramsBR, paramsLWE rlwe.Parameters) (eval *Evaluator) {
 	eval = new(Evaluator)
-	eval.Evaluator = rgsw.NewEvaluator(paramsLUT, nil)
-	eval.paramsLUT = paramsLUT
+	eval.Evaluator = rgsw.NewEvaluator(paramsBR, nil)
+	eval.paramsBR = paramsBR
 	eval.paramsLWE = paramsLWE
 
 	eval.poolMod2N = [2]ring.Poly{paramsLWE.RingQ().NewPoly(), paramsLWE.RingQ().NewPoly()}
-	eval.accumulator = rlwe.NewCiphertext(paramsLUT, 1, paramsLUT.MaxLevel())
+	eval.accumulator = rlwe.NewCiphertext(paramsBR, 1, paramsBR.MaxLevel())
 	eval.accumulator.IsNTT = true // This flag is always true
 
 	// Generates a map for the discret log of (+/- 1) * GaloisGen^k for 0 <= k < N-1.
 	// galoisGenDiscretLog: map[+/-G^{k} mod 2N] = k
-	eval.galoisGenDiscretLog = getGaloisElementInverseMap(ring.GaloisGen, paramsLUT.N())
+	eval.galoisGenDiscretLog = getGaloisElementInverseMap(ring.GaloisGen, paramsBR.N())
 
 	return
 }
 
-// EvaluateAndRepack extracts on the fly LWE samples, evaluates the provided LUT on the LWE and repacks everything into a single rlwe.Ciphertext.
-// lutPolyWithSlotIndex : a map with [slot_index] -> LUT
+// EvaluateAndRepack extracts on the fly LWE samples, evaluates the provided blind rotations on the LWE and repacks everything into a single rlwe.Ciphertext.
+// testPolyWithSlotIndex : a map with [slot_index] -> blind rotation
 // repackIndex : a map with [slot_index_have] -> slot_index_want
-func (eval *Evaluator) EvaluateAndRepack(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[int]*ring.Poly, repackIndex map[int]int, key BlindRotatationEvaluationKeySet, repackKey rlwe.EvaluationKeySet) (res *rlwe.Ciphertext, err error) {
-	cts, err := eval.Evaluate(ct, lutPolyWithSlotIndex, key)
+func (eval *Evaluator) EvaluateAndRepack(ct *rlwe.Ciphertext, testPolyWithSlotIndex map[int]*ring.Poly, repackIndex map[int]int, key BlindRotatationEvaluationKeySet, repackKey rlwe.EvaluationKeySet) (res *rlwe.Ciphertext, err error) {
+	cts, err := eval.Evaluate(ct, testPolyWithSlotIndex, key)
 
 	if err != nil {
 		return nil, err
@@ -60,13 +60,13 @@ func (eval *Evaluator) EvaluateAndRepack(ct *rlwe.Ciphertext, lutPolyWithSlotInd
 
 	eval.Evaluator = eval.Evaluator.WithKey(repackKey)
 
-	return eval.Pack(ciphertexts, eval.paramsLUT.LogN(), true)
+	return eval.Pack(ciphertexts, eval.paramsBR.LogN(), true)
 }
 
-// Evaluate extracts on the fly LWE samples and evaluates the provided LUT on the LWE.
-// lutPolyWithSlotIndex : a map with [slot_index] -> LUT
-// Returns a map[slot_index] -> LUT(ct[slot_index])
-func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[int]*ring.Poly, key BlindRotatationEvaluationKeySet) (res map[int]*rlwe.Ciphertext, err error) {
+// Evaluate extracts on the fly LWE samples and evaluates the provided blind rotation on the LWE.
+// testPolyWithSlotIndex : a map with [slot_index] -> blind rotation
+// Returns a map[slot_index] -> BlindRotate(ct[slot_index])
+func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, testPolyWithSlotIndex map[int]*ring.Poly, key BlindRotatationEvaluationKeySet) (res map[int]*rlwe.Ciphertext, err error) {
 
 	evk, err := key.GetEvaluationKeySet()
 
@@ -87,7 +87,7 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[in
 		return nil, err
 	}
 
-	ringQLUT := eval.paramsLUT.RingQ().AtLevel(brk.LevelQ())
+	ringQBR := eval.paramsBR.RingQ().AtLevel(brk.LevelQ())
 	ringQLWE := eval.paramsLWE.RingQ().AtLevel(ct.Level())
 
 	if ct.IsNTT {
@@ -108,7 +108,7 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[in
 	tmp1 := acc.Value[1].Coeffs[0]
 	tmp0[0] = tmp1[0]
 	NLWE := ringQLWE.N()
-	mask := uint64(ringQLUT.N()<<1) - 1
+	mask := uint64(ringQBR.N()<<1) - 1
 	for j := 1; j < NLWE; j++ {
 		tmp0[j] = -tmp1[ringQLWE.N()-j] & mask
 	}
@@ -121,7 +121,7 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[in
 	var prevIndex int
 	for index := 0; index < NLWE; index++ {
 
-		if lutpoly, ok := lutPolyWithSlotIndex[index]; ok {
+		if testPoly, ok := testPolyWithSlotIndex[index]; ok {
 
 			mulBySmallMonomialMod2N(mask, aRLWEMod2N, index-prevIndex)
 			prevIndex = index
@@ -131,11 +131,11 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[in
 
 			// Line 2 of Algorithm 7 of https://eprint.iacr.org/2022/198
 			// Acc = (f(X^{-g}) * X^{-g * b}, 0)
-			Xb := ringQLUT.NewMonomialXi(int(b))
-			ringQLUT.NTT(Xb, Xb)
-			ringQLUT.MForm(Xb, Xb)
-			ringQLUT.MulCoeffsMontgomery(*lutpoly, Xb, acc.Value[1]) // use unused buffer because AutomorphismNTT is not in place
-			ringQLUT.AutomorphismNTT(acc.Value[1], ringQLUT.NthRoot()-ring.GaloisGen, acc.Value[0])
+			Xb := ringQBR.NewMonomialXi(int(b))
+			ringQBR.NTT(Xb, Xb)
+			ringQBR.MForm(Xb, Xb)
+			ringQBR.MulCoeffsMontgomery(*testPoly, Xb, acc.Value[1]) // use unused buffer because AutomorphismNTT is not in place
+			ringQBR.AutomorphismNTT(acc.Value[1], ringQBR.NthRoot()-ring.GaloisGen, acc.Value[0])
 			acc.Value[1].Zero()
 
 			// Line 3 of Algorithm 7 https://eprint.iacr.org/2022/198 (Algorithm 3 of https://eprint.iacr.org/2022/198)
@@ -146,9 +146,9 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[in
 			// f(X) * X^{b + <a, s>}
 			res[index] = acc.CopyNew()
 
-			if !eval.paramsLUT.NTTFlag() {
-				ringQLUT.INTT(res[index].Value[0], res[index].Value[0])
-				ringQLUT.INTT(res[index].Value[1], res[index].Value[1])
+			if !eval.paramsBR.NTTFlag() {
+				ringQBR.INTT(res[index].Value[0], res[index].Value[0])
+				ringQBR.INTT(res[index].Value[1], res[index].Value[1])
 				res[index].IsNTT = false
 			}
 		}
@@ -161,12 +161,12 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, lutPolyWithSlotIndex map[in
 func (eval *Evaluator) BlindRotateCore(a []uint64, acc *rlwe.Ciphertext, evk BlindRotatationEvaluationKeySet) (err error) {
 
 	// GaloisElement(k) = GaloisGen^{k} mod 2N
-	GaloisElement := eval.paramsLUT.GaloisElement
+	GaloisElement := eval.paramsBR.GaloisElement
 
 	// Maps a[i] to (+/-) g^{k} mod 2N
 	discretLogSets := eval.getDiscretLogSets(a)
 
-	Nhalf := eval.paramsLUT.N() >> 1
+	Nhalf := eval.paramsBR.N() >> 1
 
 	// Algorithm 3 of https://eprint.iacr.org/2022/198
 	var v int
@@ -178,13 +178,13 @@ func (eval *Evaluator) BlindRotateCore(a []uint64, acc *rlwe.Ciphertext, evk Bli
 	}
 
 	// Line 10 (0 in the negative set is 2N)
-	if _, err = eval.evaluateFromDiscretLogSets(GaloisElement, discretLogSets, eval.paramsLUT.N()<<1, 0, acc, evk); err != nil {
+	if _, err = eval.evaluateFromDiscretLogSets(GaloisElement, discretLogSets, eval.paramsBR.N()<<1, 0, acc, evk); err != nil {
 		return
 	}
 
 	// Line 12
 	// acc = acc(X^{-g})
-	if err = eval.Automorphism(acc, eval.paramsLUT.RingQ().NthRoot()-ring.GaloisGen, acc); err != nil {
+	if err = eval.Automorphism(acc, eval.paramsBR.RingQ().NthRoot()-ring.GaloisGen, acc); err != nil {
 		return
 	}
 
@@ -298,7 +298,7 @@ func (eval *Evaluator) modSwitchRLWETo2NLvl(level int, polQ, pol2N ring.Poly, ma
 
 	QBig := ringQ.ModulusAtLevel[level]
 
-	twoN := uint64(eval.paramsLUT.N() << 1)
+	twoN := uint64(eval.paramsBR.N() << 1)
 	twoNBig := bignum.NewInt(twoN)
 	tmp := pol2N.Coeffs[0]
 	N := ringQ.N()

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/tuneinsight/lattigo/v4/circuits"
+	"github.com/tuneinsight/lattigo/v4/circuits/float"
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
@@ -157,7 +158,7 @@ func example() {
 	// We create a new polynomial, with the standard basis [1, x, x^2, ...], with no interval.
 	poly := bignum.NewPolynomial(bignum.Monomial, coeffs, nil)
 
-	polyEval := circuits.NewFloatPolynomialEvaluator(params, evaluator)
+	polyEval := float.NewPolynomialEvaluator(params, evaluator)
 
 	if ciphertext, err = polyEval.Polynomial(ciphertext, poly, ciphertext.Scale); err != nil {
 		panic(err)

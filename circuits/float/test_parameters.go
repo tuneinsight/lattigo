@@ -1,4 +1,4 @@
-package circuits
+package float
 
 import (
 	"github.com/tuneinsight/lattigo/v4/ckks"

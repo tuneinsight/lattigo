@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/tuneinsight/lattigo/v4/circuits"
+	"github.com/tuneinsight/lattigo/v4/circuits/float"
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -12,9 +12,9 @@ import (
 
 // Parameters is a struct for the default bootstrapping parameters
 type Parameters struct {
-	SlotsToCoeffsParameters circuits.HomomorphicDFTMatrixLiteral
-	EvalModParameters       circuits.EvalModLiteral
-	CoeffsToSlotsParameters circuits.HomomorphicDFTMatrixLiteral
+	SlotsToCoeffsParameters float.HomomorphicDFTMatrixLiteral
+	EvalModParameters       float.EvalModLiteral
+	CoeffsToSlotsParameters float.HomomorphicDFTMatrixLiteral
 	Iterations              int
 	EphemeralSecretWeight   int // Hamming weight of the ephemeral secret. If 0, no ephemeral secret is used during the bootstrapping.
 }
@@ -56,8 +56,8 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 		return ckks.ParametersLiteral{}, Parameters{}, err
 	}
 
-	S2CParams := circuits.HomomorphicDFTMatrixLiteral{
-		Type:            circuits.HomomorphicDecode,
+	S2CParams := float.HomomorphicDFTMatrixLiteral{
+		Type:            float.HomomorphicDecode,
 		LogSlots:        LogSlots,
 		RepackImag2Real: true,
 		LevelStart:      len(ckksLit.LogQ) - 1 + len(SlotsToCoeffsFactorizationDepthAndLogScales) + Iterations - 1,
@@ -97,7 +97,7 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 		return ckks.ParametersLiteral{}, Parameters{}, err
 	}
 
-	EvalModParams := circuits.EvalModLiteral{
+	EvalModParams := float.EvalModLiteral{
 		LogScale:        EvalModLogScale,
 		SineType:        SineType,
 		SineDegree:      SineDegree,
@@ -120,8 +120,8 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 		CoeffsToSlotsLevels[i] = len(CoeffsToSlotsFactorizationDepthAndLogScales[i])
 	}
 
-	C2SParams := circuits.HomomorphicDFTMatrixLiteral{
-		Type:            circuits.HomomorphicEncode,
+	C2SParams := float.HomomorphicDFTMatrixLiteral{
+		Type:            float.HomomorphicEncode,
 		LogSlots:        LogSlots,
 		RepackImag2Real: true,
 		LevelStart:      EvalModParams.LevelStart + len(CoeffsToSlotsFactorizationDepthAndLogScales),

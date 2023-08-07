@@ -1,4 +1,4 @@
-package circuits
+package float
 
 import (
 	"encoding/json"
@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -15,7 +16,7 @@ import (
 
 type ComplexDFTEvaluator interface {
 	rlwe.ParameterProvider
-	EvaluatorForLinearTransform
+	circuits.EvaluatorForLinearTransform
 	Add(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
 	Sub(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
 	Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
@@ -37,7 +38,7 @@ const (
 // used to hommorphically encode and decode a ciphertext respectively.
 type HomomorphicDFTMatrix struct {
 	HomomorphicDFTMatrixLiteral
-	Matrices []LinearTransformation
+	Matrices []circuits.LinearTransformation
 }
 
 // HomomorphicDFTMatrixLiteral is a struct storing the parameters to generate the factorized DFT/IDFT matrices.
@@ -101,7 +102,7 @@ func (d HomomorphicDFTMatrixLiteral) GaloisElements(params ckks.Parameters) (gal
 
 	// Coeffs to Slots rotations
 	for i, pVec := range indexCtS {
-		N1 := FindBestBSGSRatio(utils.GetKeys(pVec), dslots, d.LogBSGSRatio)
+		N1 := circuits.FindBestBSGSRatio(utils.GetKeys(pVec), dslots, d.LogBSGSRatio)
 		rotations = addMatrixRotToList(pVec, rotations, N1, slots, d.Type == HomomorphicDecode && logSlots < logN-1 && i == 0 && d.RepackImag2Real)
 	}
 
@@ -122,14 +123,14 @@ func (d *HomomorphicDFTMatrixLiteral) UnmarshalBinary(data []byte) error {
 
 type HDFTEvaluator struct {
 	ComplexDFTEvaluator
-	*LinearTransformEvaluator
+	*circuits.LinearTransformEvaluator
 	parameters ckks.Parameters
 }
 
 func NewHDFTEvaluator(params ckks.Parameters, eval ComplexDFTEvaluator) *HDFTEvaluator {
 	hdfteval := new(HDFTEvaluator)
 	hdfteval.ComplexDFTEvaluator = eval
-	hdfteval.LinearTransformEvaluator = NewEvaluator(eval)
+	hdfteval.LinearTransformEvaluator = circuits.NewEvaluator(eval)
 	hdfteval.parameters = params
 	return hdfteval
 }
@@ -144,7 +145,7 @@ func NewHomomorphicDFTMatrixFromLiteral(params ckks.Parameters, d HomomorphicDFT
 	}
 
 	// CoeffsToSlots vectors
-	matrices := []LinearTransformation{}
+	matrices := []circuits.LinearTransformation{}
 	pVecDFT := d.GenMatrices(params.LogN(), params.EncodingPrecision())
 
 	nbModuliPerRescale := params.LevelsConsummedPerRescaling()
@@ -168,7 +169,7 @@ func NewHomomorphicDFTMatrixFromLiteral(params ckks.Parameters, d HomomorphicDFT
 
 		for j := 0; j < d.Levels[i]; j++ {
 
-			ltparams := LinearTransformationParameters{
+			ltparams := circuits.LinearTransformationParameters{
 				DiagonalsIndexList:       pVecDFT[idx].DiagonalsIndexList(),
 				Level:                    level,
 				Scale:                    scale,
@@ -176,9 +177,9 @@ func NewHomomorphicDFTMatrixFromLiteral(params ckks.Parameters, d HomomorphicDFT
 				LogBabyStepGianStepRatio: d.LogBSGSRatio,
 			}
 
-			mat := NewLinearTransformation(params, ltparams)
+			mat := circuits.NewLinearTransformation(params, ltparams)
 
-			if err := EncodeFloatLinearTransformation[*bignum.Complex](ltparams, encoder, pVecDFT[idx], mat); err != nil {
+			if err := circuits.EncodeFloatLinearTransformation[*bignum.Complex](ltparams, encoder, pVecDFT[idx], mat); err != nil {
 				return HomomorphicDFTMatrix{}, fmt.Errorf("cannot NewHomomorphicDFTMatrixFromLiteral: %w", err)
 			}
 
@@ -316,7 +317,7 @@ func (eval *HDFTEvaluator) SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext, stcMat
 	return
 }
 
-func (eval *HDFTEvaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
+func (eval *HDFTEvaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []circuits.LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
 
 	inputLogSlots := ctIn.LogDimensions
 
@@ -628,7 +629,7 @@ func nextLevelfftIndexMap(vec map[int]bool, logL, N, nextLevel int, ltType DFTTy
 }
 
 // GenMatrices returns the ordered list of factors of the non-zero diagonales of the IDFT (encoding) or DFT (decoding) matrix.
-func (d HomomorphicDFTMatrixLiteral) GenMatrices(LogN int, prec uint) (plainVector []Diagonals[*bignum.Complex]) {
+func (d HomomorphicDFTMatrixLiteral) GenMatrices(LogN int, prec uint) (plainVector []circuits.Diagonals[*bignum.Complex]) {
 
 	logSlots := d.LogSlots
 	slots := 1 << logSlots
@@ -660,7 +661,7 @@ func (d HomomorphicDFTMatrixLiteral) GenMatrices(LogN int, prec uint) (plainVect
 		a, b, c = fftPlainVec(logSlots, 1<<logdSlots, roots, pow5)
 	}
 
-	plainVector = make([]Diagonals[*bignum.Complex], maxDepth)
+	plainVector = make([]circuits.Diagonals[*bignum.Complex], maxDepth)
 
 	// We compute the chain of merge in order or reverse order depending if its DFT or InvDFT because
 	// the way the levels are collapsed has an impact on the total number of rotations and keys to be

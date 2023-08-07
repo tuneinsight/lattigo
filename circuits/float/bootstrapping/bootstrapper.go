@@ -5,7 +5,7 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v4/circuits"
+	"github.com/tuneinsight/lattigo/v4/circuits/float"
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
@@ -14,8 +14,8 @@ import (
 // the polynomial approximation, and the keys for the bootstrapping.
 type Bootstrapper struct {
 	*ckks.Evaluator
-	*circuits.HDFTEvaluator
-	*circuits.HModEvaluator
+	*float.HDFTEvaluator
+	*float.HModEvaluator
 	*bootstrapperBase
 }
 
@@ -27,9 +27,9 @@ type bootstrapperBase struct {
 	dslots    int // Number of plaintext slots after the re-encoding
 	logdslots int
 
-	evalModPoly circuits.EvalModPoly
-	stcMatrices circuits.HomomorphicDFTMatrix
-	ctsMatrices circuits.HomomorphicDFTMatrix
+	evalModPoly float.EvalModPoly
+	stcMatrices float.HomomorphicDFTMatrix
+	ctsMatrices float.HomomorphicDFTMatrix
 
 	q0OverMessageRatio float64
 }
@@ -45,11 +45,11 @@ type EvaluationKeySet struct {
 // NewBootstrapper creates a new Bootstrapper.
 func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKeys *EvaluationKeySet) (btp *Bootstrapper, err error) {
 
-	if btpParams.EvalModParameters.SineType == circuits.SinContinuous && btpParams.EvalModParameters.DoubleAngle != 0 {
+	if btpParams.EvalModParameters.SineType == float.SinContinuous && btpParams.EvalModParameters.DoubleAngle != 0 {
 		return nil, fmt.Errorf("cannot use double angle formul for SineType = Sin -> must use SineType = Cos")
 	}
 
-	if btpParams.EvalModParameters.SineType == circuits.CosDiscrete && btpParams.EvalModParameters.SineDegree < 2*(btpParams.EvalModParameters.K-1) {
+	if btpParams.EvalModParameters.SineType == float.CosDiscrete && btpParams.EvalModParameters.SineDegree < 2*(btpParams.EvalModParameters.K-1) {
 		return nil, fmt.Errorf("SineType 'ckks.CosDiscrete' uses a minimum degree of 2*(K-1) but EvalMod degree is smaller")
 	}
 
@@ -74,9 +74,9 @@ func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKeys *Eval
 
 	btp.Evaluator = ckks.NewEvaluator(params, btpKeys)
 
-	btp.HDFTEvaluator = circuits.NewHDFTEvaluator(params, btp.Evaluator)
+	btp.HDFTEvaluator = float.NewHDFTEvaluator(params, btp.Evaluator)
 
-	btp.HModEvaluator = circuits.NewHModEvaluator(btp.Evaluator)
+	btp.HModEvaluator = float.NewHModEvaluator(btp.Evaluator)
 
 	return
 }
@@ -168,7 +168,7 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey *E
 		bb.logdslots++
 	}
 
-	if bb.evalModPoly, err = circuits.NewEvalModPolyFromLiteral(params, btpParams.EvalModParameters); err != nil {
+	if bb.evalModPoly, err = float.NewEvalModPolyFromLiteral(params, btpParams.EvalModParameters); err != nil {
 		return nil, err
 	}
 
@@ -205,7 +205,7 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey *E
 		bb.CoeffsToSlotsParameters.Scaling.Mul(bb.CoeffsToSlotsParameters.Scaling, new(big.Float).SetFloat64(qDiv/(K*scFac*qDiff)))
 	}
 
-	if bb.ctsMatrices, err = circuits.NewHomomorphicDFTMatrixFromLiteral(params, bb.CoeffsToSlotsParameters, encoder); err != nil {
+	if bb.ctsMatrices, err = float.NewHomomorphicDFTMatrixFromLiteral(params, bb.CoeffsToSlotsParameters, encoder); err != nil {
 		return
 	}
 
@@ -218,7 +218,7 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey *E
 		bb.SlotsToCoeffsParameters.Scaling.Mul(bb.SlotsToCoeffsParameters.Scaling, new(big.Float).SetFloat64(bb.params.DefaultScale().Float64()/(bb.evalModPoly.ScalingFactor().Float64()/bb.evalModPoly.MessageRatio())*qDiff))
 	}
 
-	if bb.stcMatrices, err = circuits.NewHomomorphicDFTMatrixFromLiteral(params, bb.SlotsToCoeffsParameters, encoder); err != nil {
+	if bb.stcMatrices, err = float.NewHomomorphicDFTMatrixFromLiteral(params, bb.SlotsToCoeffsParameters, encoder); err != nil {
 		return
 	}
 

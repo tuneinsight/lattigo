@@ -1,4 +1,4 @@
-package lut
+package blindrotation
 
 import (
 	"math/big"
@@ -42,7 +42,7 @@ func (evk MemBlindRotatationEvaluationKeySet) GetEvaluationKeySet() (rlwe.Evalua
 	return rlwe.NewMemEvaluationKeySet(nil, evk.AutomorphismKeys...), nil
 }
 
-// GenEvaluationKeyNew generates a new LUT evaluation key
+// GenEvaluationKeyNew generates a new Blind Rotation evaluation key
 func GenEvaluationKeyNew(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, paramsLWE rlwe.Parameters, skLWE *rlwe.SecretKey, evkParams ...rlwe.EvaluationKeyParameters) (key MemBlindRotatationEvaluationKeySet) {
 
 	skLWECopy := skLWE.CopyNew()

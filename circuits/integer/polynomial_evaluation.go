@@ -1,14 +1,15 @@
-package circuits
+package integer
 
 import (
 	"github.com/tuneinsight/lattigo/v4/bgv"
+	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
-type IntegerPolynomialEvaluator struct {
-	PolynomialEvaluator
+type PolynomialEvaluator struct {
+	circuits.PolynomialEvaluator
 	bgv.Parameters
 	InvariantTensoring bool
 }
@@ -17,24 +18,24 @@ type IntegerPolynomialEvaluator struct {
 // This function creates a new powerBasis from the input ciphertext.
 // The input ciphertext is treated as the base monomial X used to
 // generate the other powers X^{n}.
-func NewIntegerPowerBasis(ct *rlwe.Ciphertext) PowerBasis {
-	return NewPowerBasis(ct, bignum.Monomial)
+func NewIntegerPowerBasis(ct *rlwe.Ciphertext) circuits.PowerBasis {
+	return circuits.NewPowerBasis(ct, bignum.Monomial)
 }
 
 // NewIntegerPolynomial is a wrapper of NewPolynomial.
 // This function creates a new polynomial from the input coefficients.
 // This polynomial can be evaluated on a ciphertext.
-func NewIntegerPolynomial[T Integer](coeffs []T) Polynomial {
-	return NewPolynomial(bignum.NewPolynomial(bignum.Monomial, coeffs, nil))
+func NewIntegerPolynomial[T circuits.Integer](coeffs []T) circuits.Polynomial {
+	return circuits.NewPolynomial(bignum.NewPolynomial(bignum.Monomial, coeffs, nil))
 }
 
-func NewIntegerPolynomialEvaluator(params bgv.Parameters, eval *bgv.Evaluator, InvariantTensoring bool) *IntegerPolynomialEvaluator {
-	e := new(IntegerPolynomialEvaluator)
+func NewPolynomialEvaluator(params bgv.Parameters, eval *bgv.Evaluator, InvariantTensoring bool) *PolynomialEvaluator {
+	e := new(PolynomialEvaluator)
 
 	if InvariantTensoring {
-		e.PolynomialEvaluator = PolynomialEvaluator{integerScaleInvariantEvaluator{eval}, eval.GetEvaluatorBuffer()}
+		e.PolynomialEvaluator = circuits.PolynomialEvaluator{EvaluatorForPolyEval: scaleInvariantEvaluator{eval}, EvaluatorBuffers: eval.GetEvaluatorBuffer()}
 	} else {
-		e.PolynomialEvaluator = PolynomialEvaluator{eval, eval.GetEvaluatorBuffer()}
+		e.PolynomialEvaluator = circuits.PolynomialEvaluator{EvaluatorForPolyEval: eval, EvaluatorBuffers: eval.GetEvaluatorBuffer()}
 	}
 
 	e.InvariantTensoring = InvariantTensoring
@@ -42,35 +43,35 @@ func NewIntegerPolynomialEvaluator(params bgv.Parameters, eval *bgv.Evaluator, I
 	return e
 }
 
-func (eval IntegerPolynomialEvaluator) Polynomial(input interface{}, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
-	return polynomial(eval.PolynomialEvaluator, eval, input, p, targetScale, 1, &simIntegerPolynomialEvaluator{eval.Parameters, eval.InvariantTensoring})
+func (eval PolynomialEvaluator) Polynomial(input interface{}, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
+	return circuits.EvaluatePolynomial(eval.PolynomialEvaluator, eval, input, p, targetScale, 1, &simIntegerPolynomialEvaluator{eval.Parameters, eval.InvariantTensoring})
 }
 
-type integerScaleInvariantEvaluator struct {
+type scaleInvariantEvaluator struct {
 	*bgv.Evaluator
 }
 
-func (polyEval integerScaleInvariantEvaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
+func (polyEval scaleInvariantEvaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
 	return polyEval.MulScaleInvariant(op0, op1, opOut)
 }
 
-func (polyEval integerScaleInvariantEvaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
+func (polyEval scaleInvariantEvaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
 	return polyEval.Evaluator.MulRelinScaleInvariant(op0, op1, opOut)
 }
 
-func (polyEval integerScaleInvariantEvaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
+func (polyEval scaleInvariantEvaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
 	return polyEval.Evaluator.MulScaleInvariantNew(op0, op1)
 }
 
-func (polyEval integerScaleInvariantEvaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
+func (polyEval scaleInvariantEvaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
 	return polyEval.Evaluator.MulRelinScaleInvariantNew(op0, op1)
 }
 
-func (polyEval integerScaleInvariantEvaluator) Rescale(op0, op1 *rlwe.Ciphertext) (err error) {
+func (polyEval scaleInvariantEvaluator) Rescale(op0, op1 *rlwe.Ciphertext) (err error) {
 	return nil
 }
 
-func (eval IntegerPolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol PolynomialVector, pb PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
+func (eval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol circuits.PolynomialVector, pb circuits.PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
 
 	X := pb.Value
 

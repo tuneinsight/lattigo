@@ -1,4 +1,4 @@
-package circuits
+package float
 
 import (
 	"math"

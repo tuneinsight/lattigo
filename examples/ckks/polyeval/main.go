@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/tuneinsight/lattigo/v4/circuits"
+	"github.com/tuneinsight/lattigo/v4/circuits/float"
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
@@ -125,7 +126,7 @@ func chebyshevinterpolation() {
 		panic(err)
 	}
 
-	polyEval := circuits.NewFloatPolynomialEvaluator(params, evaluator)
+	polyEval := float.NewPolynomialEvaluator(params, evaluator)
 
 	// We evaluate the interpolated Chebyshev interpolant on the ciphertext
 	if ciphertext, err = polyEval.Polynomial(ciphertext, polyVec, ciphertext.Scale); err != nil {

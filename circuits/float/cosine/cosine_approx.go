@@ -1,4 +1,4 @@
-// Package cosine is the Go implementation of the polynomial-approximation algorithm by Han and Ki in
+// Package cosine method is the Go implementation of the polynomial-approximation algorithm by Han and Ki in
 //
 //	"Better Bootstrapping for Approximate Homomorphic Encryption", <https://epring.iacr.org/2019/688O>.
 //
@@ -232,19 +232,6 @@ func genDegrees(degree, K int, dev float64) ([]int, int) {
 
 		deg[maxi]++
 	}
-
-	/*
-		fmt.Println("==============================================")
-		fmt.Println("==Degree Searching Result=====================")
-		fmt.Println("==============================================")
-		if iter == maxiter{
-			fmt.Println("More Iterations Needed")
-		}else{
-			fmt.Println("Degree of Polynomial :", totdeg-1)
-			fmt.Println("Degree :", deg)
-		}
-		fmt.Println("==============================================")
-	*/
 
 	return deg, totdeg
 }

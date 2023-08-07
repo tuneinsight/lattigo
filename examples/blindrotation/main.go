@@ -1,4 +1,4 @@
-// Package main implements an example of homomorphic LUT (Lookup Table) evaluation of the sign function using blind rotations implemented with the `rgsw` and `rgsw/lut` packages.
+// Package main implements an example of Blind Rotation (a.k.a. Lookup Table) evaluation.
 // These packages can be used to implement all the functionalities of the TFHE scheme.
 package main
 
@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/tuneinsight/lattigo/v4/rgsw/lut"
+	"github.com/tuneinsight/lattigo/v4/circuits/blindrotation"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -22,9 +22,9 @@ func sign(x float64) float64 {
 }
 
 func main() {
-	// RLWE parameters of the LUT
+	// RLWE parameters of the Blind Rotation
 	// N=1024, Q=0x7fff801 -> ~2^128 ROP-security
-	paramsLUT, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
+	paramsBR, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
 		LogN:    10,
 		Q:       []uint64{0x7fff801},
 		NTTFlag: true,
@@ -53,18 +53,18 @@ func main() {
 	scaleLWE := float64(paramsLWE.Q()[0]) / 4.0
 
 	// Scale of the test poly
-	scaleLUT := float64(paramsLUT.Q()[0]) / 4.0
+	scaleBR := float64(paramsBR.Q()[0]) / 4.0
 
 	// Number of values samples stored in the RLWE sample
 	slots := 32
 
 	// Test poly
-	LUTPoly := lut.InitLUT(sign, rlwe.NewScale(scaleLUT), paramsLUT.RingQ(), -1, 1)
+	testPoly := blindrotation.InitTestPolynomial(sign, rlwe.NewScale(scaleBR), paramsBR.RingQ(), -1, 1)
 
 	// Index map of which test poly to evaluate on which slot
-	lutPolyMap := make(map[int]*ring.Poly)
+	testPolyMap := make(map[int]*ring.Poly)
 	for i := 0; i < slots; i++ {
-		lutPolyMap[i] = &LUTPoly
+		testPolyMap[i] = &testPoly
 	}
 
 	// RLWE secret for the samples
@@ -97,45 +97,45 @@ func main() {
 		panic(err)
 	}
 
-	// Evaluator for the LUT evaluation
-	eval := lut.NewEvaluator(paramsLUT, paramsLWE)
+	// Evaluator for the Blind Rotations
+	eval := blindrotation.NewEvaluator(paramsBR, paramsLWE)
 
 	// Secret of the RGSW ciphertexts encrypting the bits of skLWE
-	skLUT := rlwe.NewKeyGenerator(paramsLUT).GenSecretKeyNew()
+	skBR := rlwe.NewKeyGenerator(paramsBR).GenSecretKeyNew()
 
-	// Collection of RGSW ciphertexts encrypting the bits of skLWE under skLUT
-	blindeRotateKey := lut.GenEvaluationKeyNew(paramsLUT, skLUT, paramsLWE, skLWE, evkParams)
+	// Collection of RGSW ciphertexts encrypting the bits of skLWE under skBR
+	blindeRotateKey := blindrotation.GenEvaluationKeyNew(paramsBR, skBR, paramsLWE, skLWE, evkParams)
 
-	// Evaluation of LUT(ctLWE)
+	// Evaluation of BlindRotate(ctLWE) = testPoly(X) * X^{dec{ctLWE}}
 	// Returns one RLWE sample per slot in ctLWE
 
 	now := time.Now()
-	ctsLUT, err := eval.Evaluate(ctLWE, lutPolyMap, blindeRotateKey)
+	ctsBR, err := eval.Evaluate(ctLWE, testPolyMap, blindeRotateKey)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Done: %s (avg/LUT %3.1f [ms])\n", time.Since(now), float64(time.Since(now).Milliseconds())/float64(slots))
+	fmt.Printf("Done: %s (avg/BlindRotation %3.1f [ms])\n", time.Since(now), float64(time.Since(now).Milliseconds())/float64(slots))
 
 	// Decrypts, decodes and compares
-	q := paramsLUT.Q()[0]
+	q := paramsBR.Q()[0]
 	qHalf := q >> 1
-	decryptorLUT := rlwe.NewDecryptor(paramsLUT, skLUT)
-	ptLUT := rlwe.NewPlaintext(paramsLUT, paramsLUT.MaxLevel())
+	decryptorBR := rlwe.NewDecryptor(paramsBR, skBR)
+	ptBR := rlwe.NewPlaintext(paramsBR, paramsBR.MaxLevel())
 	for i := 0; i < slots; i++ {
 
-		decryptorLUT.Decrypt(ctsLUT[i], ptLUT)
+		decryptorBR.Decrypt(ctsBR[i], ptBR)
 
-		if ptLUT.IsNTT {
-			paramsLUT.RingQ().INTT(ptLUT.Value, ptLUT.Value)
+		if ptBR.IsNTT {
+			paramsBR.RingQ().INTT(ptBR.Value, ptBR.Value)
 		}
 
-		c := ptLUT.Value.Coeffs[0][0]
+		c := ptBR.Value.Coeffs[0][0]
 
 		var a float64
 		if c >= qHalf {
-			a = -float64(q-c) / scaleLUT
+			a = -float64(q-c) / scaleBR
 		} else {
-			a = float64(c) / scaleLUT
+			a = float64(c) / scaleBR
 		}
 
 		fmt.Printf("%7.4f - %7.4f\n", a, values[i])

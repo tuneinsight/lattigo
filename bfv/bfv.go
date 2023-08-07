@@ -42,13 +42,13 @@ func NewCiphertext(params Parameters, degree int, level ...int) (ct *rlwe.Cipher
 
 // NewEncryptor instantiates a new rlwe.Encryptor from the given BFV parameters and
 // encryption key. This key can be either a *rlwe.SecretKey or a *rlwe.PublicKey.
-func NewEncryptor(params Parameters, key rlwe.EncryptionKey) (*rlwe.Encryptor, error) {
+func NewEncryptor(params Parameters, key rlwe.EncryptionKey) *rlwe.Encryptor {
 	return rlwe.NewEncryptor(params, key)
 }
 
 // NewDecryptor instantiates a new rlwe.Decryptor from the given BFV parameters and
 // secret decryption key.
-func NewDecryptor(params Parameters, key *rlwe.SecretKey) (*rlwe.Decryptor, error) {
+func NewDecryptor(params Parameters, key *rlwe.SecretKey) *rlwe.Decryptor {
 	return rlwe.NewDecryptor(params, key)
 }
 

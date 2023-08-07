@@ -159,14 +159,8 @@ func main() {
 	//   - PublicKey: an encryption of zero, which can be shared and enable anyone to encrypt plaintexts.
 	//   - RelinearizationKey: an evaluation key which is used during ciphertext x ciphertext multiplication to ensure ciphertext compactness.
 	sk := kgen.GenSecretKeyNew()
-	pk, err := kgen.GenPublicKeyNew(sk) // Note that we can generate any number of public keys associated to the same Secret Key.
-	if err != nil {
-		panic(err)
-	}
-	rlk, err := kgen.GenRelinearizationKeyNew(sk)
-	if err != nil {
-		panic(err)
-	}
+	pk := kgen.GenPublicKeyNew(sk) // Note that we can generate any number of public keys associated to the same Secret Key.
+	rlk := kgen.GenRelinearizationKeyNew(sk)
 
 	// To store and manage the loading of evaluation keys, we instantiate a struct that complies to the `rlwe.EvaluationKeySetInterface` Interface.
 	// The package `rlwe` provides a simple struct that complies to this interface, but a user can design its own struct compliant to the `rlwe.EvaluationKeySetInterface`
@@ -218,10 +212,7 @@ func main() {
 	// To generate ciphertexts we need an encryptor.
 	// An encryptor will accept both a secret key or a public key,
 	// in this example we will use the public key.
-	enc, err := ckks.NewEncryptor(params, pk)
-	if err != nil {
-		panic(err)
-	}
+	enc := ckks.NewEncryptor(params, pk)
 
 	// And we create the ciphertext.
 	// Note that the metadata of the plaintext will be copied on the resulting ciphertext.
@@ -229,6 +220,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
 	// It is also possible to first allocate the ciphertext the same way it was done
 	// for the plaintext with with `ct := ckks.NewCiphertext(params, 1, pt.Level())`.
 
@@ -239,10 +231,7 @@ func main() {
 	// We are able to generate ciphertext from plaintext using the encryptor.
 	// To do the converse, generate plaintexts from ciphertexts, we need to instantiate a decryptor.
 	// Obviously, the decryptor will only accept the secret key.
-	dec, err := ckks.NewDecryptor(params, sk)
-	if err != nil {
-		panic(err)
-	}
+	dec := ckks.NewDecryptor(params, sk)
 
 	// ================
 	// Evaluator Basics
@@ -484,13 +473,8 @@ func main() {
 	}
 
 	// We then generate the `rlwe.GaloisKey`s element that corresponds to these galois elements.
-	gks, err := kgen.GenGaloisKeysNew(galEls, sk)
-	if err != nil {
-		panic(err)
-	}
-
-	// Then we update the evaluator's `rlwe.EvaluationKeySet` with the new keys.
-	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, gks...))
+	// And we update the evaluator's `rlwe.EvaluationKeySet` with the new keys.
+	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, kgen.GenGaloisKeysNew(galEls, sk)...))
 
 	// Rotation by 5 positions to the left
 	for i := 0; i < Slots; i++ {
@@ -612,12 +596,7 @@ func main() {
 
 	// The innersum operations is carried out with log2(n) + HW(n) automorphisms and we need to
 	// generate the corresponding Galois keys and provide them to the `Evaluator`.
-	gks, err = kgen.GenGaloisKeysNew(params.GaloisElementsForInnerSum(batch, n), sk)
-	if err != nil {
-		panic(err)
-	}
-
-	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, gks...))
+	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, kgen.GenGaloisKeysNew(params.GaloisElementsForInnerSum(batch, n), sk)...))
 
 	// Plaintext circuit
 	copy(want, values1)
@@ -637,12 +616,7 @@ func main() {
 	fmt.Printf("Innersum %s", ckks.GetPrecisionStats(params, ecd, dec, want, res, nil, false).String())
 
 	// The replicate operation is exactly the same as the innersum operation, but in reverse
-	gks, err = kgen.GenGaloisKeysNew(params.GaloisElementsForReplicate(batch, n), sk)
-	if err != nil {
-		panic(err)
-	}
-
-	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, gks...))
+	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, kgen.GenGaloisKeysNew(params.GaloisElementsForReplicate(batch, n), sk)...))
 
 	// Plaintext circuit
 	copy(want, values1)
@@ -720,11 +694,8 @@ func main() {
 	// The list of Galois elements can also be obtained with `lt.GaloisElements`
 	// but this requires to have it pre-allocated, which is not always desirable.
 	galEls = circuits.GaloisElementsForLinearTransformation(params, ltparams)
-	gks, err = kgen.GenGaloisKeysNew(galEls, sk)
-	if err != nil {
-		panic(err)
-	}
-	ltEval := circuits.NewEvaluator(eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, gks...)))
+
+	ltEval := circuits.NewEvaluator(eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, kgen.GenGaloisKeysNew(galEls, sk)...)))
 
 	// And we valuate the linear transform
 	if err := ltEval.LinearTransformation(ct1, lt, res); err != nil {

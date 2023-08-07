@@ -355,10 +355,7 @@ func testKeySwitchProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *testing
 		}
 
 		ct := rlwe.NewCiphertext(params, 1, levelQ)
-		enc2, err := rlwe.NewEncryptor(params, tc.skIdeal)
-		require.NoError(t, err)
-
-		require.NoError(t, enc2.EncryptZero(ct))
+		rlwe.NewEncryptor(params, tc.skIdeal).EncryptZero(ct)
 
 		shares := make([]KeySwitchShare, nbParties)
 		for i := range shares {
@@ -377,8 +374,7 @@ func testKeySwitchProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *testing
 
 		ksCt := rlwe.NewCiphertext(params, 1, ct.Level())
 
-		dec, err := rlwe.NewDecryptor(params, skOutIdeal)
-		require.NoError(t, err)
+		dec := rlwe.NewDecryptor(params, skOutIdeal)
 
 		cks[0].KeySwitch(ct, shares[0], ksCt)
 
@@ -429,10 +425,7 @@ func testPublicKeySwitchProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *t
 
 		ct := rlwe.NewCiphertext(params, 1, levelQ)
 
-		enc2, err := rlwe.NewEncryptor(params, tc.skIdeal)
-		require.NoError(t, err)
-
-		require.NoError(t, enc2.EncryptZero(ct))
+		rlwe.NewEncryptor(params, tc.skIdeal).EncryptZero(ct)
 
 		shares := make([]PublicKeySwitchShare, nbParties)
 		for i := range shares {
@@ -451,8 +444,7 @@ func testPublicKeySwitchProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *t
 		buffer.RequireSerializerCorrect(t, &shares[0])
 
 		ksCt := rlwe.NewCiphertext(params, 1, levelQ)
-		dec, err := rlwe.NewDecryptor(params, skOut)
-		require.NoError(t, err)
+		dec := rlwe.NewDecryptor(params, skOut)
 
 		pcks[0].KeySwitch(ct, shares[0], ksCt)
 

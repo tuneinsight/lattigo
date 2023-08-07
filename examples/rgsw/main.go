@@ -71,10 +71,7 @@ func main() {
 	skLWE := rlwe.NewKeyGenerator(paramsLWE).GenSecretKeyNew()
 
 	// RLWE encryptor for the samples
-	encryptorLWE, err := rlwe.NewEncryptor(paramsLWE, skLWE)
-	if err != nil {
-		panic(err)
-	}
+	encryptorLWE := rlwe.NewEncryptor(paramsLWE, skLWE)
 
 	// Values to encrypt in the RLWE sample
 	values := make([]float64, slots)
@@ -107,10 +104,7 @@ func main() {
 	skLUT := rlwe.NewKeyGenerator(paramsLUT).GenSecretKeyNew()
 
 	// Collection of RGSW ciphertexts encrypting the bits of skLWE under skLUT
-	blindeRotateKey, err := lut.GenEvaluationKeyNew(paramsLUT, skLUT, paramsLWE, skLWE, evkParams)
-	if err != nil {
-		panic(err)
-	}
+	blindeRotateKey := lut.GenEvaluationKeyNew(paramsLUT, skLUT, paramsLWE, skLWE, evkParams)
 
 	// Evaluation of LUT(ctLWE)
 	// Returns one RLWE sample per slot in ctLWE
@@ -125,10 +119,7 @@ func main() {
 	// Decrypts, decodes and compares
 	q := paramsLUT.Q()[0]
 	qHalf := q >> 1
-	decryptorLUT, err := rlwe.NewDecryptor(paramsLUT, skLUT)
-	if err != nil {
-		panic(err)
-	}
+	decryptorLUT := rlwe.NewDecryptor(paramsLUT, skLUT)
 	ptLUT := rlwe.NewPlaintext(paramsLUT, paramsLUT.MaxLevel())
 	for i := 0; i < slots; i++ {
 

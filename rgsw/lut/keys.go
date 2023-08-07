@@ -43,7 +43,7 @@ func (evk MemBlindRotatationEvaluationKeySet) GetEvaluationKeySet() (rlwe.Evalua
 }
 
 // GenEvaluationKeyNew generates a new LUT evaluation key
-func GenEvaluationKeyNew(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, paramsLWE rlwe.Parameters, skLWE *rlwe.SecretKey, evkParams ...rlwe.EvaluationKeyParameters) (key MemBlindRotatationEvaluationKeySet, err error) {
+func GenEvaluationKeyNew(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, paramsLWE rlwe.Parameters, skLWE *rlwe.SecretKey, evkParams ...rlwe.EvaluationKeyParameters) (key MemBlindRotatationEvaluationKeySet) {
 
 	skLWECopy := skLWE.CopyNew()
 	paramsLWE.RingQ().AtLevel(0).INTT(skLWECopy.Value.Q, skLWECopy.Value.Q)
@@ -54,10 +54,7 @@ func GenEvaluationKeyNew(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, par
 	}
 	paramsLWE.RingQ().AtLevel(0).PolyToBigintCentered(skLWECopy.Value.Q, 1, sk)
 
-	encryptor, err := rgsw.NewEncryptor(paramsRLWE, skRLWE)
-	if err != nil {
-		return key, err
-	}
+	encryptor := rgsw.NewEncryptor(paramsRLWE, skRLWE)
 
 	levelQ, levelP, BaseTwoDecomposition := rlwe.ResolveEvaluationKeyParameters(paramsRLWE, evkParams)
 
@@ -82,8 +79,8 @@ func GenEvaluationKeyNew(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, par
 
 		skiRGSW[i] = rgsw.NewCiphertext(paramsRLWE, levelQ, levelP, BaseTwoDecomposition)
 
-		if err = encryptor.Encrypt(ptXi[siInt], skiRGSW[i]); err != nil {
-			return
+		if err := encryptor.Encrypt(ptXi[siInt], skiRGSW[i]); err != nil {
+			panic(err)
 		}
 	}
 
@@ -96,15 +93,11 @@ func GenEvaluationKeyNew(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, par
 
 	galEls = append(galEls, paramsRLWE.RingQ().NthRoot()-ring.GaloisGen)
 
-	gks, err := kgen.GenGaloisKeysNew(galEls, skRLWE, rlwe.EvaluationKeyParameters{
+	gks := kgen.GenGaloisKeysNew(galEls, skRLWE, rlwe.EvaluationKeyParameters{
 		LevelQ:               utils.Pointy(levelQ),
 		LevelP:               utils.Pointy(levelP),
 		BaseTwoDecomposition: utils.Pointy(BaseTwoDecomposition),
 	})
 
-	if err != nil {
-		return MemBlindRotatationEvaluationKeySet{}, err
-	}
-
-	return MemBlindRotatationEvaluationKeySet{BlindRotationKeys: skiRGSW, AutomorphismKeys: gks}, nil
+	return MemBlindRotatationEvaluationKeySet{BlindRotationKeys: skiRGSW, AutomorphismKeys: gks}
 }

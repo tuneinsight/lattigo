@@ -41,27 +41,13 @@ func chebyshevinterpolation() {
 	sk, pk := kgen.GenKeyPairNew()
 
 	// Encryptor
-	encryptor, err := ckks.NewEncryptor(params, pk)
-	if err != nil {
-		panic(err)
-	}
+	encryptor := ckks.NewEncryptor(params, pk)
 
 	// Decryptor
-	decryptor, err := ckks.NewDecryptor(params, sk)
-	if err != nil {
-		panic(err)
-	}
+	decryptor := ckks.NewDecryptor(params, sk)
 
-	// Relinearization key
-	rlk, err := kgen.GenRelinearizationKeyNew(sk)
-	if err != nil {
-		panic(err)
-	}
-
-	evk := rlwe.NewMemEvaluationKeySet(rlk)
-
-	// Evaluator
-	evaluator := ckks.NewEvaluator(params, evk)
+	// Evaluator with relinearization key
+	evaluator := ckks.NewEvaluator(params, rlwe.NewMemEvaluationKeySet(kgen.GenRelinearizationKeyNew(sk)))
 
 	// Values to encrypt
 	slots := params.MaxSlots()

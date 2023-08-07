@@ -41,24 +41,10 @@ func example() {
 
 	sk := kgen.GenSecretKeyNew()
 
-	encryptor, err := ckks.NewEncryptor(params, sk)
-	if err != nil {
-		panic(err)
-	}
-
-	decryptor, err := ckks.NewDecryptor(params, sk)
-	if err != nil {
-		panic(err)
-	}
-
+	encryptor := ckks.NewEncryptor(params, sk)
+	decryptor := ckks.NewDecryptor(params, sk)
 	encoder := ckks.NewEncoder(params)
-
-	rlk, err := kgen.GenRelinearizationKeyNew(sk)
-	if err != nil {
-		panic(err)
-	}
-
-	evk := rlwe.NewMemEvaluationKeySet(rlk)
+	evk := rlwe.NewMemEvaluationKeySet(kgen.GenRelinearizationKeyNew(sk))
 	evaluator := ckks.NewEvaluator(params, evk)
 
 	fmt.Printf("Done in %s \n", time.Since(start))

@@ -114,24 +114,10 @@ func genCKKSTestParams(defaultParam ckks.Parameters) (tc *ckksTestContext, err e
 
 	tc.encoder = ckks.NewEncoder(tc.params)
 
-	if tc.encryptorPk, err = ckks.NewEncryptor(tc.params, tc.pk); err != nil {
-		return
-	}
-
-	if tc.encryptorSk, err = ckks.NewEncryptor(tc.params, tc.sk); err != nil {
-		return
-	}
-
-	if tc.decryptor, err = ckks.NewDecryptor(tc.params, tc.sk); err != nil {
-		return
-	}
-
-	rlk, err := tc.kgen.GenRelinearizationKeyNew(tc.sk)
-	if err != nil {
-		return nil, err
-	}
-
-	tc.evaluator = ckks.NewEvaluator(tc.params, rlwe.NewMemEvaluationKeySet(rlk))
+	tc.encryptorPk = ckks.NewEncryptor(tc.params, tc.pk)
+	tc.encryptorSk = ckks.NewEncryptor(tc.params, tc.sk)
+	tc.decryptor = ckks.NewDecryptor(tc.params, tc.sk)
+	tc.evaluator = ckks.NewEvaluator(tc.params, rlwe.NewMemEvaluationKeySet(tc.kgen.GenRelinearizationKeyNew(tc.sk)))
 
 	return tc, nil
 
@@ -188,13 +174,9 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 		batch := 1 << logBatch
 		n := slots / batch
 
-		gks, err := tc.kgen.GenGaloisKeysNew(rlwe.GaloisElementsForInnerSum(tc.params, batch, n), tc.sk)
-		require.NoError(t, err)
-		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
+		eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(rlwe.GaloisElementsForInnerSum(tc.params, batch, n), tc.sk)...))
 
-		eval := tc.evaluator.WithKey(evk)
-
-		eval.Average(ciphertext, logBatch, ciphertext)
+		require.NoError(t, eval.Average(ciphertext, logBatch, ciphertext))
 
 		tmp0 := make([]*bignum.Complex, len(values))
 		for i := range tmp0 {
@@ -258,9 +240,7 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 
 		galEls := GaloisElementsForLinearTransformation(params, ltparams)
 
-		gks, err := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
-		require.NoError(t, err)
-		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
+		evk := rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)
 
 		ltEval := NewEvaluator(tc.evaluator.WithKey(evk))
 
@@ -323,9 +303,7 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 
 		galEls := GaloisElementsForLinearTransformation(params, ltparams)
 
-		gks, err := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
-		require.NoError(t, err)
-		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
+		evk := rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)
 
 		ltEval := NewEvaluator(tc.evaluator.WithKey(evk))
 

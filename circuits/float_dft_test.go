@@ -127,10 +127,8 @@ func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T)
 		kgen := ckks.NewKeyGenerator(params)
 		sk := kgen.GenSecretKeyNew()
 		encoder := ckks.NewEncoder(params, 90) // Required to force roots.(type) to be []*bignum.Complex instead of []complex128
-		encryptor, err := ckks.NewEncryptor(params, sk)
-		require.NoError(t, err)
-		decryptor, err := ckks.NewDecryptor(params, sk)
-		require.NoError(t, err)
+		encryptor := ckks.NewEncryptor(params, sk)
+		decryptor := ckks.NewDecryptor(params, sk)
 
 		// Generates the encoding matrices
 		CoeffsToSlotMatrices, err := NewHomomorphicDFTMatrixFromLiteral(params, CoeffsToSlotsParametersLiteral, encoder)
@@ -140,11 +138,8 @@ func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T)
 		galEls := append(CoeffsToSlotsParametersLiteral.GaloisElements(params), params.GaloisElementOrderTwoOrthogonalSubgroup())
 
 		// Generates and adds the keys
-		gks, err := kgen.GenGaloisKeysNew(galEls, sk)
-		require.NoError(t, err)
-
 		// Instantiates the EvaluationKeySet
-		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
+		evk := rlwe.NewMemEvaluationKeySet(nil, kgen.GenGaloisKeysNew(galEls, sk)...)
 
 		// Creates an evaluator with the rotation keys
 		eval := ckks.NewEvaluator(params, evk)
@@ -336,10 +331,8 @@ func testHomomorphicDecoding(params ckks.Parameters, LogSlots int, t *testing.T)
 		kgen := ckks.NewKeyGenerator(params)
 		sk := kgen.GenSecretKeyNew()
 		encoder := ckks.NewEncoder(params)
-		encryptor, err := ckks.NewEncryptor(params, sk)
-		require.NoError(t, err)
-		decryptor, err := ckks.NewDecryptor(params, sk)
-		require.NoError(t, err)
+		encryptor := ckks.NewEncryptor(params, sk)
+		decryptor := ckks.NewDecryptor(params, sk)
 
 		// Generates the encoding matrices
 		SlotsToCoeffsMatrix, err := NewHomomorphicDFTMatrixFromLiteral(params, SlotsToCoeffsParametersLiteral, encoder)
@@ -349,11 +342,8 @@ func testHomomorphicDecoding(params ckks.Parameters, LogSlots int, t *testing.T)
 		galEls := append(SlotsToCoeffsParametersLiteral.GaloisElements(params), params.GaloisElementOrderTwoOrthogonalSubgroup())
 
 		// Generates and adds the keys
-		gks, err := kgen.GenGaloisKeysNew(galEls, sk)
-		require.NoError(t, err)
-
 		// Instantiates the EvaluationKeySet
-		evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
+		evk := rlwe.NewMemEvaluationKeySet(nil, kgen.GenGaloisKeysNew(galEls, sk)...)
 
 		// Creates an evaluator with the rotation keys
 		eval := ckks.NewEvaluator(params, evk)

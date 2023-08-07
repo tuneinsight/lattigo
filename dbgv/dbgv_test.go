@@ -151,25 +151,11 @@ func gentestContext(nParties int, params bgv.Parameters) (tc *testContext, err e
 	}
 
 	// Publickeys
-	if tc.pk0, err = kgen.GenPublicKeyNew(tc.sk0); err != nil {
-		return
-	}
-
-	if tc.pk1, err = kgen.GenPublicKeyNew(tc.sk1); err != nil {
-		return
-	}
-
-	if tc.encryptorPk0, err = bgv.NewEncryptor(tc.params, tc.pk0); err != nil {
-		return
-	}
-
-	if tc.decryptorSk0, err = bgv.NewDecryptor(tc.params, tc.sk0); err != nil {
-		return
-	}
-
-	if tc.decryptorSk1, err = bgv.NewDecryptor(tc.params, tc.sk1); err != nil {
-		return
-	}
+	tc.pk0 = kgen.GenPublicKeyNew(tc.sk0)
+	tc.pk1 = kgen.GenPublicKeyNew(tc.sk1)
+	tc.encryptorPk0 = bgv.NewEncryptor(tc.params, tc.pk0)
+	tc.decryptorSk0 = bgv.NewDecryptor(tc.params, tc.sk0)
+	tc.decryptorSk1 = bgv.NewDecryptor(tc.params, tc.sk1)
 
 	return
 }
@@ -489,8 +475,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		transform.Func(coeffs)
 
 		coeffsHave := make([]uint64, tc.params.MaxSlots())
-		dec, err := rlwe.NewDecryptor(paramsOut.Parameters, skIdealOut)
-		require.NoError(t, err)
+		dec := rlwe.NewDecryptor(paramsOut.Parameters, skIdealOut)
 		bgv.NewEncoder(paramsOut).Decode(dec.DecryptNew(ciphertext), coeffsHave)
 
 		//Decrypts and compares
@@ -501,7 +486,8 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 
 func newTestVectors(tc *testContext, encryptor *rlwe.Encryptor, t *testing.T) (coeffs []uint64, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
 
-	prng, _ := sampling.NewPRNG()
+	prng, err := sampling.NewPRNG()
+	require.NoError(t, err)
 	uniformSampler := ring.NewUniformSampler(prng, tc.ringT)
 	coeffsPol := uniformSampler.ReadNew()
 
@@ -512,9 +498,10 @@ func newTestVectors(tc *testContext, encryptor *rlwe.Encryptor, t *testing.T) (c
 	plaintext = bgv.NewPlaintext(tc.params, tc.params.MaxLevel())
 	plaintext.Scale = tc.params.NewScale(2)
 	require.NoError(t, tc.encoder.Encode(coeffsPol.Coeffs[0], plaintext))
-	var err error
 	ciphertext, err = encryptor.EncryptNew(plaintext)
-	require.NoError(t, err)
+	if err != nil {
+		panic(err)
+	}
 	return coeffsPol.Coeffs[0], plaintext, ciphertext
 }
 

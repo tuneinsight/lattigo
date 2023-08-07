@@ -16,12 +16,12 @@ type Decryptor struct {
 }
 
 // NewDecryptor instantiates a new generic RLWE Decryptor.
-func NewDecryptor(params ParameterProvider, sk *SecretKey) (*Decryptor, error) {
+func NewDecryptor(params ParameterProvider, sk *SecretKey) *Decryptor {
 
 	p := params.GetRLWEParameters()
 
 	if sk.Value.Q.N() != p.N() {
-		return nil, fmt.Errorf("cannot NewDecryptor: secret_key ring degree does not match parameters ring degree")
+		panic(fmt.Errorf("cannot NewDecryptor: secret_key ring degree does not match parameters ring degree"))
 	}
 
 	return &Decryptor{
@@ -29,7 +29,7 @@ func NewDecryptor(params ParameterProvider, sk *SecretKey) (*Decryptor, error) {
 		ringQ:  p.RingQ(),
 		buff:   p.RingQ().NewPoly(),
 		sk:     sk,
-	}, nil
+	}
 }
 
 // DecryptNew decrypts the Ciphertext and returns the result in a new Plaintext.

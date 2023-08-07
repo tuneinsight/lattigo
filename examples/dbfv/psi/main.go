@@ -136,10 +136,7 @@ func main() {
 
 	// Decrypt the result with the target secret key
 	l.Println("> ResulPlaintextModulus:")
-	decryptor, err := bfv.NewDecryptor(params, tsk)
-	if err != nil {
-		panic(err)
-	}
+	decryptor := bfv.NewDecryptor(params, tsk)
 	ptres := bfv.NewPlaintext(params, params.MaxLevel())
 	elapsedDecParty := runTimed(func() {
 		decryptor.Decrypt(encOut, ptres)
@@ -176,10 +173,7 @@ func encPhase(params bfv.Parameters, P []*party, pk *rlwe.PublicKey, encoder *bf
 
 	// Each party encrypts its input vector
 	l.Println("> Encrypt Phase")
-	encryptor, err := bfv.NewEncryptor(params, pk)
-	if err != nil {
-		panic(err)
-	}
+	encryptor := bfv.NewEncryptor(params, pk)
 
 	pt := bfv.NewPlaintext(params, params.MaxLevel())
 	elapsedEncryptParty = runTimedParty(func() {
@@ -329,9 +323,7 @@ func pcksPhase(params bfv.Parameters, tpk *rlwe.PublicKey, encRes *rlwe.Cipherte
 	l.Println("> PublicKeySwitch Phase")
 	elapsedPCKSParty = runTimedParty(func() {
 		for _, pi := range P {
-			if err = pcks.GenShare(pi.sk, tpk, encRes, &pi.pcksShare); err != nil {
-				panic(err)
-			}
+			pcks.GenShare(pi.sk, tpk, encRes, &pi.pcksShare)
 		}
 	}, len(P))
 

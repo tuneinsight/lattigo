@@ -121,32 +121,19 @@ func genTestParams(defaultParam Parameters) (tc *testContext, err error) {
 
 	tc.encoder = NewEncoder(tc.params)
 
-	if tc.encryptorPk, err = NewEncryptor(tc.params, tc.pk); err != nil {
-		return
-	}
+	tc.encryptorPk = NewEncryptor(tc.params, tc.pk)
 
-	if tc.encryptorSk, err = NewEncryptor(tc.params, tc.sk); err != nil {
-		return
-	}
+	tc.encryptorSk = NewEncryptor(tc.params, tc.sk)
 
-	if tc.decryptor, err = NewDecryptor(tc.params, tc.sk); err != nil {
-		return
-	}
+	tc.decryptor = NewDecryptor(tc.params, tc.sk)
 
-	rlk, err := tc.kgen.GenRelinearizationKeyNew(tc.sk)
-	if err != nil {
-		return nil, err
-	}
-
-	tc.evaluator = NewEvaluator(tc.params, rlwe.NewMemEvaluationKeySet(rlk))
+	tc.evaluator = NewEvaluator(tc.params, rlwe.NewMemEvaluationKeySet(tc.kgen.GenRelinearizationKeyNew(tc.sk)))
 
 	return tc, nil
 
 }
 
 func newTestVectors(tc *testContext, encryptor *rlwe.Encryptor, a, b complex128, t *testing.T) (values []*bignum.Complex, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
-
-	var err error
 
 	prec := tc.encoder.Prec()
 
@@ -176,8 +163,11 @@ func newTestVectors(tc *testContext, encryptor *rlwe.Encryptor, a, b complex128,
 	tc.encoder.Encode(values, pt)
 
 	if encryptor != nil {
+		var err error
 		ct, err = encryptor.EncryptNew(pt)
-		require.NoError(t, err)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	return values, pt, ct
@@ -793,9 +783,9 @@ func testFunctions(tc *testContext, t *testing.T) {
 
 		logPrec := math.Log2(tc.params.DefaultScale().Float64()) - float64(tc.params.LogN()-1)
 
-		btp, err := NewSecretKeyBootstrapper(tc.params, tc.sk)
-		require.NoError(t, err)
+		btp := NewSecretKeyBootstrapper(tc.params, tc.sk)
 
+		var err error
 		if ciphertext, err = tc.evaluator.GoldschmidtDivisionNew(ciphertext, min, logPrec, btp); err != nil {
 			t.Fatal(err)
 		}
@@ -828,13 +818,11 @@ func testBridge(tc *testContext, t *testing.T) {
 
 		stdKeyGen := NewKeyGenerator(stdParams)
 		stdSK := stdKeyGen.GenSecretKeyNew()
-		stdDecryptor, err := NewDecryptor(stdParams, stdSK)
-		require.NoError(t, err)
+		stdDecryptor := NewDecryptor(stdParams, stdSK)
 		stdEncoder := NewEncoder(stdParams)
 		stdEvaluator := NewEvaluator(stdParams, nil)
 
-		evkCtR, evkRtC, err := stdKeyGen.GenEvaluationKeysForRingSwapNew(stdSK, tc.sk)
-		require.NoError(t, err)
+		evkCtR, evkRtC := stdKeyGen.GenEvaluationKeysForRingSwapNew(stdSK, tc.sk)
 
 		switcher, err := NewDomainSwitcher(stdParams, evkCtR, evkRtC)
 		if err != nil {

@@ -140,25 +140,11 @@ func genTestParams(params ckks.Parameters, NParties int) (tc *testContext, err e
 	}
 
 	// Publickeys
-	if tc.pk0, err = kgen.GenPublicKeyNew(tc.sk0); err != nil {
-		return
-	}
-
-	if tc.pk1, err = kgen.GenPublicKeyNew(tc.sk1); err != nil {
-		return
-	}
-
-	if tc.encryptorPk0, err = ckks.NewEncryptor(tc.params, tc.pk0); err != nil {
-		return
-	}
-
-	if tc.decryptorSk0, err = ckks.NewDecryptor(tc.params, tc.sk0); err != nil {
-		return
-	}
-
-	if tc.decryptorSk1, err = ckks.NewDecryptor(tc.params, tc.sk1); err != nil {
-		return
-	}
+	tc.pk0 = kgen.GenPublicKeyNew(tc.sk0)
+	tc.pk1 = kgen.GenPublicKeyNew(tc.sk1)
+	tc.encryptorPk0 = ckks.NewEncryptor(tc.params, tc.pk0)
+	tc.decryptorSk0 = ckks.NewDecryptor(tc.params, tc.sk0)
+	tc.decryptorSk1 = ckks.NewDecryptor(tc.params, tc.sk1)
 
 	return
 }
@@ -505,10 +491,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 			coeffs[i][1].Mul(coeffs[i][1], bignum.NewFloat(0.7071067811865476, logBound))
 		}
 
-		dec, err := ckks.NewDecryptor(paramsOut, skIdealOut)
-		require.NoError(t, err)
-
-		ckks.VerifyTestVectors(paramsOut, ckks.NewEncoder(paramsOut), dec, coeffs, ciphertext, nil, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(paramsOut, ckks.NewEncoder(paramsOut), ckks.NewDecryptor(paramsOut, skIdealOut), coeffs, ciphertext, nil, *printPrecisionStats, t)
 	})
 }
 
@@ -544,12 +527,13 @@ func newTestVectorsAtScale(tc *testContext, encryptor *rlwe.Encryptor, a, b comp
 		panic("invalid ring type")
 	}
 
-	tc.encoder.Encode(values, pt)
+	if err := tc.encoder.Encode(values, pt); err != nil {
+		panic(err)
+	}
 
 	if encryptor != nil {
 		var err error
-		ct, err = encryptor.EncryptNew(pt)
-		if err != nil {
+		if ct, err = encryptor.EncryptNew(pt); err != nil {
 			panic(err)
 		}
 	}

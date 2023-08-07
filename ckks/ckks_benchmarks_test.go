@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -94,10 +92,7 @@ func benchEvaluator(tc *testContext, b *testing.B) {
 	ciphertext2 := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 1, tc.params.MaxLevel())
 	receiver := rlwe.NewCiphertextRandom(tc.prng, tc.params.Parameters, 2, tc.params.MaxLevel())
 
-	rlk, err := tc.kgen.GenRelinearizationKeyNew(tc.sk)
-	require.NoError(b, err)
-
-	eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(rlk))
+	eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(tc.kgen.GenRelinearizationKeyNew(tc.sk)))
 
 	b.Run(GetTestName(tc.params, "Evaluator/Add/Scalar"), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {

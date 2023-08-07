@@ -130,15 +130,9 @@ func testbootstrap(params ckks.Parameters, btpParams Parameters, t *testing.T) {
 		sk := kgen.GenSecretKeyNew()
 		encoder := ckks.NewEncoder(params)
 
-		encryptor, err := ckks.NewEncryptor(params, sk)
-		require.NoError(t, err)
-
-		decryptor, err := ckks.NewDecryptor(params, sk)
-		require.NoError(t, err)
-
-		evk, err := GenEvaluationKeySetNew(btpParams, params, sk)
-		require.NoError(t, err)
-
+		encryptor := ckks.NewEncryptor(params, sk)
+		decryptor := ckks.NewDecryptor(params, sk)
+		evk := GenEvaluationKeySetNew(btpParams, params, sk)
 		btp, err := NewBootstrapper(params, btpParams, evk)
 		require.NoError(t, err)
 

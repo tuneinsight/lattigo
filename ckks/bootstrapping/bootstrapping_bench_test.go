@@ -23,10 +23,7 @@ func BenchmarkBootstrap(b *testing.B) {
 	kgen := ckks.NewKeyGenerator(params)
 	sk := kgen.GenSecretKeyNew()
 
-	evk, err := GenEvaluationKeySetNew(btpParams, params, sk)
-	require.NoError(b, err)
-
-	btp, err := NewBootstrapper(params, btpParams, evk)
+	btp, err := NewBootstrapper(params, btpParams, GenEvaluationKeySetNew(btpParams, params, sk))
 	require.NoError(b, err)
 
 	b.Run(ParamsToString(params, btpParams.LogMaxDimensions().Cols, "Bootstrap/"), func(b *testing.B) {

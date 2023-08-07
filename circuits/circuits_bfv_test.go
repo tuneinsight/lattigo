@@ -135,10 +135,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 		galEls := GaloisElementsForLinearTransformation(params, ltparams)
 
-		gks, err := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
-		require.NoError(t, err)
-
-		ltEval := NewEvaluator(tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, gks...)))
+		ltEval := NewEvaluator(tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)))
 
 		require.NoError(t, ltEval.LinearTransformation(ciphertext, linTransf, ciphertext))
 
@@ -207,10 +204,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 		galEls := GaloisElementsForLinearTransformation(params, ltparams)
 
-		gks, err := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
-		require.NoError(t, err)
-
-		ltEval := NewEvaluator(tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, gks...)))
+		ltEval := NewEvaluator(tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)))
 
 		require.NoError(t, ltEval.LinearTransformation(ciphertext, linTransf, ciphertext))
 
@@ -343,25 +337,10 @@ func genTestParams(params bfv.Parameters) (tc *testContext, err error) {
 	tc.sk, tc.pk = tc.kgen.GenKeyPairNew()
 	tc.encoder = bgv.NewEncoder(bgv.Parameters(tc.params.Parameters))
 
-	if tc.encryptorPk, err = bfv.NewEncryptor(tc.params, tc.pk); err != nil {
-		return
-	}
-
-	if tc.encryptorSk, err = bfv.NewEncryptor(tc.params, tc.sk); err != nil {
-		return
-	}
-
-	if tc.decryptor, err = bfv.NewDecryptor(tc.params, tc.sk); err != nil {
-		return
-	}
-
-	var rlk *rlwe.RelinearizationKey
-	if rlk, err = tc.kgen.GenRelinearizationKeyNew(tc.sk); err != nil {
-		return
-	}
-
-	evk := rlwe.NewMemEvaluationKeySet(rlk)
-	tc.evaluator = bfv.NewEvaluator(tc.params, evk)
+	tc.encryptorPk = bfv.NewEncryptor(tc.params, tc.pk)
+	tc.encryptorSk = bfv.NewEncryptor(tc.params, tc.sk)
+	tc.decryptor = bfv.NewDecryptor(tc.params, tc.sk)
+	tc.evaluator = bfv.NewEvaluator(tc.params, rlwe.NewMemEvaluationKeySet(tc.kgen.GenRelinearizationKeyNew(tc.sk)))
 
 	tc.testLevel = []int{0, params.MaxLevel()}
 

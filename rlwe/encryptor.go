@@ -17,7 +17,7 @@ type EncryptionKey interface {
 }
 
 // NewEncryptor creates a new Encryptor from either a public key or a private key.
-func NewEncryptor(params ParameterProvider, key EncryptionKey) (*Encryptor, error) {
+func NewEncryptor(params ParameterProvider, key EncryptionKey) *Encryptor {
 
 	p := *params.GetRLWEParameters()
 
@@ -29,15 +29,15 @@ func NewEncryptor(params ParameterProvider, key EncryptionKey) (*Encryptor, erro
 	case *SecretKey:
 		err = enc.checkSk(key)
 	case nil:
-		return newEncryptor(p), nil
+		return newEncryptor(p)
 	default:
-		return nil, fmt.Errorf("key must be either *rlwe.PublicKey, *rlwe.SecretKey or nil but have %T", key)
+		panic(fmt.Errorf("key must be either *rlwe.PublicKey, *rlwe.SecretKey or nil but have %T", key))
 	}
 	if err != nil {
-		return nil, fmt.Errorf("key is not correct: %w", err)
+		panic(fmt.Errorf("key is not correct: %w", err))
 	}
 	enc.encKey = key
-	return enc, nil
+	return enc
 }
 
 type Encryptor struct {
@@ -439,27 +439,26 @@ func (enc Encryptor) WithPRNG(prng sampling.PRNG) *Encryptor {
 }
 
 func (enc Encryptor) ShallowCopy() *Encryptor {
-	encSh, _ := NewEncryptor(enc.params, enc.encKey)
-	return encSh
+	return NewEncryptor(enc.params, enc.encKey)
 }
 
-func (enc Encryptor) WithKey(key EncryptionKey) (*Encryptor, error) {
+func (enc Encryptor) WithKey(key EncryptionKey) *Encryptor {
 	switch key := key.(type) {
 	case *SecretKey:
 		if err := enc.checkSk(key); err != nil {
-			return nil, fmt.Errorf("cannot WithKey: %w", err)
+			panic(fmt.Errorf("cannot WithKey: %w", err))
 		}
 	case *PublicKey:
 		if err := enc.checkPk(key); err != nil {
-			return nil, fmt.Errorf("cannot WithKey: %w", err)
+			panic(fmt.Errorf("cannot WithKey: %w", err))
 		}
 	case nil:
-		return &enc, nil
+		return &enc
 	default:
-		return nil, fmt.Errorf("invalid key type, want *rlwe.SecretKey, *rlwe.PublicKey or nil but have %T", key)
+		panic(fmt.Errorf("invalid key type, want *rlwe.SecretKey, *rlwe.PublicKey or nil but have %T", key))
 	}
 	enc.encKey = key
-	return &enc, nil
+	return &enc
 }
 
 // checkPk checks that a given pk is correct for the parameters.

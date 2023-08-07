@@ -132,23 +132,14 @@ func main() {
 	kgenN12 := ckks.NewKeyGenerator(paramsN12)
 	skN12 := kgenN12.GenSecretKeyNew()
 	encoderN12 := ckks.NewEncoder(paramsN12)
-	encryptorN12, err := ckks.NewEncryptor(paramsN12, skN12)
-	if err != nil {
-		panic(err)
-	}
-	decryptorN12, err := ckks.NewDecryptor(paramsN12, skN12)
-	if err != nil {
-		panic(err)
-	}
+	encryptorN12 := ckks.NewEncryptor(paramsN12, skN12)
+	decryptorN12 := ckks.NewDecryptor(paramsN12, skN12)
 
 	kgenN11 := ckks.NewKeyGenerator(paramsN11)
 	skN11 := kgenN11.GenSecretKeyNew()
 
 	// EvaluationKey RLWEN12 -> RLWEN11
-	evkN12ToN11, err := ckks.NewKeyGenerator(paramsN12).GenEvaluationKeyNew(skN12, skN11)
-	if err != nil {
-		panic(err)
-	}
+	evkN12ToN11 := ckks.NewKeyGenerator(paramsN12).GenEvaluationKeyNew(skN12, skN11)
 
 	fmt.Printf("Gen SlotsToCoeffs Matrices... ")
 	now = time.Now()
@@ -168,12 +159,7 @@ func main() {
 	galEls = append(galEls, CoeffsToSlotsParameters.GaloisElements(paramsN12)...)
 	galEls = append(galEls, paramsN12.GaloisElementForComplexConjugation())
 
-	gks, err := kgenN12.GenGaloisKeysNew(galEls, skN12)
-	if err != nil {
-		panic(err)
-	}
-
-	evk := rlwe.NewMemEvaluationKeySet(nil, gks...)
+	evk := rlwe.NewMemEvaluationKeySet(nil, kgenN12.GenGaloisKeysNew(galEls, skN12)...)
 
 	// LUT Evaluator
 	evalLUT := lut.NewEvaluator(paramsN12.Parameters, paramsN11.Parameters)
@@ -184,10 +170,7 @@ func main() {
 
 	fmt.Printf("Encrypting bits of skLWE in RGSW... ")
 	now = time.Now()
-	blindRotateKey, err := lut.GenEvaluationKeyNew(paramsN12.Parameters, skN12, paramsN11.Parameters, skN11, evkParams) // Generate RGSW(sk_i) for all coefficients of sk
-	if err != nil {
-		panic(err)
-	}
+	blindRotateKey := lut.GenEvaluationKeyNew(paramsN12.Parameters, skN12, paramsN11.Parameters, skN11, evkParams) // Generate RGSW(sk_i) for all coefficients of sk
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	// Generates the starting plaintext values.
@@ -202,6 +185,7 @@ func main() {
 	if err := encoderN12.Encode(values, pt); err != nil {
 		panic(err)
 	}
+
 	ctN12, err := encryptorN12.EncryptNew(pt)
 	if err != nil {
 		panic(err)

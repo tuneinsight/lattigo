@@ -96,21 +96,12 @@ func main() {
 	sk, pk := kgen.GenKeyPairNew()
 
 	encoder := ckks.NewEncoder(params)
-	decryptor, err := ckks.NewDecryptor(params, sk)
-	if err != nil {
-		panic(err)
-	}
-	encryptor, err := ckks.NewEncryptor(params, pk)
-	if err != nil {
-		panic(err)
-	}
+	decryptor := ckks.NewDecryptor(params, sk)
+	encryptor := ckks.NewEncryptor(params, pk)
 
 	fmt.Println()
 	fmt.Println("Generating bootstrapping keys...")
-	evk, err := bootstrapping.GenEvaluationKeySetNew(btpParams, params, sk)
-	if err != nil {
-		panic(err)
-	}
+	evk := bootstrapping.GenEvaluationKeySetNew(btpParams, params, sk)
 	fmt.Println("Done")
 
 	var btp *bootstrapping.Bootstrapper

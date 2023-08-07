@@ -82,10 +82,7 @@ func benchEncryptor(tc *TestContext, bpw2 int, b *testing.B) {
 
 	b.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "Encryptor/EncryptZero/SecretKey"), func(b *testing.B) {
 		ct := NewCiphertext(params, 1, params.MaxLevel())
-		enc, err := tc.enc.WithKey(tc.sk)
-		if err != nil {
-			b.Fatal(err)
-		}
+		enc := tc.enc.WithKey(tc.sk)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			enc.EncryptZero(ct)
@@ -95,10 +92,7 @@ func benchEncryptor(tc *TestContext, bpw2 int, b *testing.B) {
 
 	b.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "Encryptor/EncryptZero/PublicKey"), func(b *testing.B) {
 		ct := NewCiphertext(params, 1, params.MaxLevel())
-		enc, err := tc.enc.WithKey(tc.pk)
-		if err != nil {
-			b.Fatal(err)
-		}
+		enc := tc.enc.WithKey(tc.pk)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			enc.EncryptZero(ct)
@@ -130,19 +124,11 @@ func benchEvaluator(tc *TestContext, bpw2 int, b *testing.B) {
 
 	b.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "Evaluator/GadgetProduct"), func(b *testing.B) {
 
-		enc, err := NewEncryptor(params, sk)
-
-		if err != nil {
-			b.Fatal(err)
-		}
+		enc := NewEncryptor(params, sk)
 
 		ct := enc.EncryptZeroNew(params.MaxLevel())
 
-		evk, err := kgen.GenEvaluationKeyNew(sk, kgen.GenSecretKeyNew())
-
-		if err != nil {
-			b.Fatal(err)
-		}
+		evk := kgen.GenEvaluationKeyNew(sk, kgen.GenSecretKeyNew())
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -155,11 +141,7 @@ func benchMarshalling(tc *TestContext, bpw2 int, b *testing.B) {
 	params := tc.params
 	sk := tc.sk
 
-	enc, err := NewEncryptor(params, sk)
-
-	if err != nil {
-		b.Fatal(err)
-	}
+	enc := NewEncryptor(params, sk)
 
 	ctf := enc.EncryptZeroNew(params.MaxLevel())
 

@@ -72,17 +72,9 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 	kgen := ckks.NewKeyGenerator(params)
 	sk := kgen.GenSecretKeyNew()
 	encoder := ckks.NewEncoder(params)
-	encryptor, err := ckks.NewEncryptor(params, sk)
-	require.NoError(t, err)
-	decryptor, err := ckks.NewDecryptor(params, sk)
-	require.NoError(t, err)
-
-	rlk, err := kgen.GenRelinearizationKeyNew(sk)
-	require.NoError(t, err)
-
-	evk := rlwe.NewMemEvaluationKeySet(rlk)
-
-	eval := ckks.NewEvaluator(params, evk)
+	encryptor := ckks.NewEncryptor(params, sk)
+	decryptor := ckks.NewDecryptor(params, sk)
+	eval := ckks.NewEvaluator(params, rlwe.NewMemEvaluationKeySet(kgen.GenRelinearizationKeyNew(sk)))
 
 	modEval := NewHModEvaluator(eval)
 

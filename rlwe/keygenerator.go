@@ -16,12 +16,8 @@ type KeyGenerator struct {
 
 // NewKeyGenerator creates a new KeyGenerator, from which the secret and public keys, as well as EvaluationKeys.
 func NewKeyGenerator(params ParameterProvider) *KeyGenerator {
-	enc, err := NewEncryptor(params, nil)
-	if err != nil {
-		panic(err)
-	}
 	return &KeyGenerator{
-		Encryptor: enc,
+		Encryptor: NewEncryptor(params, nil),
 	}
 }
 
@@ -70,60 +66,58 @@ func (kgen KeyGenerator) genSecretKeyFromSampler(sampler ring.Sampler, sk *Secre
 }
 
 // GenPublicKeyNew generates a new public key from the provided SecretKey.
-func (kgen KeyGenerator) GenPublicKeyNew(sk *SecretKey) (pk *PublicKey, err error) {
+func (kgen KeyGenerator) GenPublicKeyNew(sk *SecretKey) (pk *PublicKey) {
 	pk = NewPublicKey(kgen.params)
-	return pk, kgen.GenPublicKey(sk, pk)
+	kgen.GenPublicKey(sk, pk)
+	return
 }
 
 // GenPublicKey generates a public key from the provided SecretKey.
-func (kgen KeyGenerator) GenPublicKey(sk *SecretKey, pk *PublicKey) (err error) {
-	enc, err := kgen.WithKey(sk)
-	if err != nil {
-		return fmt.Errorf("cannot GenPublicKey: %w", err)
-	}
-
-	return enc.EncryptZero(Operand[ringqp.Poly]{
+func (kgen KeyGenerator) GenPublicKey(sk *SecretKey, pk *PublicKey) {
+	if err := kgen.WithKey(sk).EncryptZero(Operand[ringqp.Poly]{
 		MetaData: &MetaData{CiphertextMetaData: CiphertextMetaData{IsNTT: true, IsMontgomery: true}},
-		Value:    []ringqp.Poly(pk.Value)})
+		Value:    []ringqp.Poly(pk.Value),
+	}); err != nil {
+		panic(err)
+	}
 }
 
 // GenKeyPairNew generates a new SecretKey and a corresponding public key.
 // Distribution is of the SecretKey set according to `rlwe.Parameters.HammingWeight()`.
 func (kgen KeyGenerator) GenKeyPairNew() (sk *SecretKey, pk *PublicKey) {
 	sk = kgen.GenSecretKeyNew()
-	var err error
-	if pk, err = kgen.GenPublicKeyNew(sk); err != nil {
-		panic(err)
-	}
+	pk = kgen.GenPublicKeyNew(sk)
 	return
 }
 
 // GenRelinearizationKeyNew generates a new EvaluationKey that will be used to relinearize Ciphertexts during multiplication.
-func (kgen KeyGenerator) GenRelinearizationKeyNew(sk *SecretKey, evkParams ...EvaluationKeyParameters) (rlk *RelinearizationKey, err error) {
+func (kgen KeyGenerator) GenRelinearizationKeyNew(sk *SecretKey, evkParams ...EvaluationKeyParameters) (rlk *RelinearizationKey) {
 	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeyParameters(kgen.params, evkParams)
 	rlk = &RelinearizationKey{EvaluationKey: EvaluationKey{GadgetCiphertext: *NewGadgetCiphertext(kgen.params, 1, levelQ, levelP, BaseTwoDecomposition)}}
-	return rlk, kgen.GenRelinearizationKey(sk, rlk)
+	kgen.GenRelinearizationKey(sk, rlk)
+	return
 }
 
 // GenRelinearizationKey generates an EvaluationKey that will be used to relinearize Ciphertexts during multiplication.
-func (kgen KeyGenerator) GenRelinearizationKey(sk *SecretKey, rlk *RelinearizationKey) (err error) {
+func (kgen KeyGenerator) GenRelinearizationKey(sk *SecretKey, rlk *RelinearizationKey) {
 	kgen.buffQP.Q.CopyValues(sk.Value.Q)
 	kgen.params.RingQ().AtLevel(rlk.LevelQ()).MulCoeffsMontgomery(kgen.buffQP.Q, sk.Value.Q, kgen.buffQP.Q)
-	return kgen.genEvaluationKey(kgen.buffQP.Q, sk.Value, &rlk.EvaluationKey)
+	kgen.genEvaluationKey(kgen.buffQP.Q, sk.Value, &rlk.EvaluationKey)
 }
 
 // GenGaloisKeyNew generates a new GaloisKey, enabling the automorphism X^{i} -> X^{i * galEl}.
-func (kgen KeyGenerator) GenGaloisKeyNew(galEl uint64, sk *SecretKey, evkParams ...EvaluationKeyParameters) (gk *GaloisKey, err error) {
+func (kgen KeyGenerator) GenGaloisKeyNew(galEl uint64, sk *SecretKey, evkParams ...EvaluationKeyParameters) (gk *GaloisKey) {
 	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeyParameters(kgen.params, evkParams)
 	gk = &GaloisKey{
 		EvaluationKey: EvaluationKey{GadgetCiphertext: *NewGadgetCiphertext(kgen.params, 1, levelQ, levelP, BaseTwoDecomposition)},
 		NthRoot:       kgen.params.GetRLWEParameters().RingQ().NthRoot(),
 	}
-	return gk, kgen.GenGaloisKey(galEl, sk, gk)
+	kgen.GenGaloisKey(galEl, sk, gk)
+	return
 }
 
 // GenGaloisKey generates a GaloisKey, enabling the automorphism X^{i} -> X^{i * galEl}.
-func (kgen KeyGenerator) GenGaloisKey(galEl uint64, sk *SecretKey, gk *GaloisKey) (err error) {
+func (kgen KeyGenerator) GenGaloisKey(galEl uint64, sk *SecretKey, gk *GaloisKey) {
 
 	skIn := sk.Value
 	skOut := kgen.buffQP
@@ -151,55 +145,42 @@ func (kgen KeyGenerator) GenGaloisKey(galEl uint64, sk *SecretKey, gk *GaloisKey
 		ringP.AutomorphismNTTWithIndex(skIn.P, index, skOut.P)
 	}
 
-	if err = kgen.genEvaluationKey(skIn.Q, skOut, &gk.EvaluationKey); err != nil {
-		return fmt.Errorf("cannot GenGaloisKey: %w", err)
-	}
+	kgen.genEvaluationKey(skIn.Q, skOut, &gk.EvaluationKey)
 
 	gk.GaloisElement = galEl
 	gk.NthRoot = ringQ.NthRoot()
-
-	return
 }
 
 // GenGaloisKeys generates the GaloisKey objects for all galois elements in galEls, and stores
 // the resulting key for galois element i in gks[i].
 // The galEls and gks parameters must have the same length.
-func (kgen KeyGenerator) GenGaloisKeys(galEls []uint64, sk *SecretKey, gks []*GaloisKey) (err error) {
+func (kgen KeyGenerator) GenGaloisKeys(galEls []uint64, sk *SecretKey, gks []*GaloisKey) {
 	if len(galEls) != len(gks) {
-		return fmt.Errorf("galEls and gks must have the same length")
+		panic(fmt.Errorf("galEls and gks must have the same length"))
 	}
 	for i, galEl := range galEls {
 		if gks[i] == nil {
-			if gks[i], err = kgen.GenGaloisKeyNew(galEl, sk); err != nil {
-				return
-			}
+			gks[i] = kgen.GenGaloisKeyNew(galEl, sk)
 		} else {
-			return kgen.GenGaloisKey(galEl, sk, gks[i])
+			kgen.GenGaloisKey(galEl, sk, gks[i])
 		}
 	}
-	return nil
 }
 
 // GenGaloisKeysNew generates the GaloisKey objects for all galois elements in galEls, and
 // returns the resulting keys in a newly allocated []*GaloisKey.
-func (kgen KeyGenerator) GenGaloisKeysNew(galEls []uint64, sk *SecretKey, evkParams ...EvaluationKeyParameters) (gks []*GaloisKey, err error) {
-
+func (kgen KeyGenerator) GenGaloisKeysNew(galEls []uint64, sk *SecretKey, evkParams ...EvaluationKeyParameters) (gks []*GaloisKey) {
 	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeyParameters(kgen.params, evkParams)
-
 	gks = make([]*GaloisKey, len(galEls))
 	for i, galEl := range galEls {
-
 		gks[i] = newGaloisKey(kgen.params, levelQ, levelP, BaseTwoDecomposition)
-
-		if err = kgen.GenGaloisKey(galEl, sk, gks[i]); err != nil {
-			return
-		}
+		kgen.GenGaloisKey(galEl, sk, gks[i])
 	}
 	return
 }
 
 // GenEvaluationKeysForRingSwapNew generates the necessary EvaluationKeys to switch from a standard ring to to a conjugate invariant ring and vice-versa.
-func (kgen KeyGenerator) GenEvaluationKeysForRingSwapNew(skStd, skConjugateInvariant *SecretKey, evkParams ...EvaluationKeyParameters) (stdToci, ciToStd *EvaluationKey, err error) {
+func (kgen KeyGenerator) GenEvaluationKeysForRingSwapNew(skStd, skConjugateInvariant *SecretKey, evkParams ...EvaluationKeyParameters) (stdToci, ciToStd *EvaluationKey) {
 
 	levelQ := utils.Min(skStd.Value.Q.Level(), skConjugateInvariant.Value.Q.Level())
 
@@ -213,14 +194,10 @@ func (kgen KeyGenerator) GenEvaluationKeysForRingSwapNew(skStd, skConjugateInvar
 	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeyParameters(kgen.params, evkParams)
 
 	stdToci = newEvaluationKey(kgen.params, levelQ, levelP, BaseTwoDecomposition)
-	if err = kgen.GenEvaluationKey(skStd, skCIMappedToStandard, stdToci); err != nil {
-		return
-	}
+	kgen.GenEvaluationKey(skStd, skCIMappedToStandard, stdToci)
 
 	ciToStd = newEvaluationKey(kgen.params, levelQ, levelP, BaseTwoDecomposition)
-	if err = kgen.GenEvaluationKey(skCIMappedToStandard, skStd, ciToStd); err != nil {
-		return
-	}
+	kgen.GenEvaluationKey(skCIMappedToStandard, skStd, ciToStd)
 
 	return
 }
@@ -234,10 +211,11 @@ func (kgen KeyGenerator) GenEvaluationKeysForRingSwapNew(skStd, skConjugateInvar
 // using SwitchCiphertextRingDegreeNTT(ctSmallDim, nil, ctLargeDim).
 // When re-encrypting a Ciphertext from X^{N} to Y^{N/n}, the output of the re-encryption is in still X^{N} and
 // must be mapped Y^{N/n} using SwitchCiphertextRingDegreeNTT(ctLargeDim, ringQLargeDim, ctSmallDim).
-func (kgen KeyGenerator) GenEvaluationKeyNew(skInput, skOutput *SecretKey, evkParams ...EvaluationKeyParameters) (evk *EvaluationKey, err error) {
+func (kgen KeyGenerator) GenEvaluationKeyNew(skInput, skOutput *SecretKey, evkParams ...EvaluationKeyParameters) (evk *EvaluationKey) {
 	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeyParameters(kgen.params, evkParams)
 	evk = newEvaluationKey(kgen.params, levelQ, levelP, BaseTwoDecomposition)
-	return evk, kgen.GenEvaluationKey(skInput, skOutput, evk)
+	kgen.GenEvaluationKey(skInput, skOutput, evk)
+	return
 }
 
 // GenEvaluationKey generates an EvaluationKey, that will re-encrypt a Ciphertext encrypted under the input key into the output key.
@@ -249,7 +227,7 @@ func (kgen KeyGenerator) GenEvaluationKeyNew(skInput, skOutput *SecretKey, evkPa
 // using SwitchCiphertextRingDegreeNTT(ctSmallDim, nil, ctLargeDim).
 // When re-encrypting a Ciphertext from X^{N} to Y^{N/n}, the output of the re-encryption is in still X^{N} and
 // must be mapped Y^{N/n} using SwitchCiphertextRingDegreeNTT(ctLargeDim, ringQLargeDim, ctSmallDim).
-func (kgen KeyGenerator) GenEvaluationKey(skInput, skOutput *SecretKey, evk *EvaluationKey) (err error) {
+func (kgen KeyGenerator) GenEvaluationKey(skInput, skOutput *SecretKey, evk *EvaluationKey) {
 
 	ringQ := kgen.params.RingQ()
 	ringP := kgen.params.RingP()
@@ -266,7 +244,7 @@ func (kgen KeyGenerator) GenEvaluationKey(skInput, skOutput *SecretKey, evk *Eva
 	ring.MapSmallDimensionToLargerDimensionNTT(skInput.Value.Q, kgen.buffQ[0])
 	kgen.extendQ2P(ringQ, ringQ.AtLevel(skOutput.Value.Q.Level()), kgen.buffQ[0], kgen.buffQ[1], kgen.buffQ[0])
 
-	return kgen.genEvaluationKey(kgen.buffQ[0], kgen.buffQP, evk)
+	kgen.genEvaluationKey(kgen.buffQ[0], kgen.buffQP, evk)
 }
 
 func (kgen KeyGenerator) extendQ2P2(levelP int, polQ, buff, polP ring.Poly) {
@@ -340,21 +318,21 @@ func (kgen KeyGenerator) extendQ2P(rQ, rP *ring.Ring, polQ, buff, polP ring.Poly
 	rP.MForm(polP, polP)
 }
 
-func (kgen KeyGenerator) genEvaluationKey(skIn ring.Poly, skOut ringqp.Poly, evk *EvaluationKey) (err error) {
+func (kgen KeyGenerator) genEvaluationKey(skIn ring.Poly, skOut ringqp.Poly, evk *EvaluationKey) {
 
-	enc, err := kgen.WithKey(&SecretKey{Value: skOut})
-	if err != nil {
-		return err
-	}
+	enc := kgen.WithKey(&SecretKey{Value: skOut})
+
 	// Samples an encryption of zero for each element of the EvaluationKey.
 	for i := 0; i < len(evk.Value); i++ {
 		for j := 0; j < len(evk.Value[i]); j++ {
-			if err = enc.EncryptZero(Operand[ringqp.Poly]{MetaData: &MetaData{CiphertextMetaData: CiphertextMetaData{IsNTT: true, IsMontgomery: true}}, Value: []ringqp.Poly(evk.Value[i][j])}); err != nil {
-				return
+			if err := enc.EncryptZero(Operand[ringqp.Poly]{MetaData: &MetaData{CiphertextMetaData: CiphertextMetaData{IsNTT: true, IsMontgomery: true}}, Value: []ringqp.Poly(evk.Value[i][j])}); err != nil {
+				panic(err)
 			}
 		}
 	}
 
 	// Adds the plaintext (input-key) to the EvaluationKey.
-	return AddPolyTimesGadgetVectorToGadgetCiphertext(skIn, []GadgetCiphertext{evk.GadgetCiphertext}, *kgen.params.RingQP(), kgen.buffQ[0])
+	if err := AddPolyTimesGadgetVectorToGadgetCiphertext(skIn, []GadgetCiphertext{evk.GadgetCiphertext}, *kgen.params.RingQP(), kgen.buffQ[0]); err != nil {
+		panic(err)
+	}
 }

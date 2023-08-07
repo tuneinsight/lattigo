@@ -106,25 +106,10 @@ func genBGVTestParams(params bgv.Parameters) (tc *bgvTestContext, err error) {
 	tc.sk, tc.pk = tc.kgen.GenKeyPairNew()
 	tc.encoder = bgv.NewEncoder(tc.params)
 
-	if tc.encryptorPk, err = bgv.NewEncryptor(tc.params, tc.pk); err != nil {
-		return
-	}
-
-	if tc.encryptorSk, err = bgv.NewEncryptor(tc.params, tc.sk); err != nil {
-		return
-	}
-
-	if tc.decryptor, err = bgv.NewDecryptor(tc.params, tc.sk); err != nil {
-		return
-	}
-
-	var rlk *rlwe.RelinearizationKey
-	if rlk, err = tc.kgen.GenRelinearizationKeyNew(tc.sk); err != nil {
-		return
-	}
-
-	evk := rlwe.NewMemEvaluationKeySet(rlk)
-	tc.evaluator = bgv.NewEvaluator(tc.params, evk)
+	tc.encryptorPk = bgv.NewEncryptor(tc.params, tc.pk)
+	tc.encryptorSk = bgv.NewEncryptor(tc.params, tc.sk)
+	tc.decryptor = bgv.NewDecryptor(tc.params, tc.sk)
+	tc.evaluator = bgv.NewEvaluator(tc.params, rlwe.NewMemEvaluationKeySet(tc.kgen.GenRelinearizationKeyNew(tc.sk)))
 
 	tc.testLevel = []int{0, params.MaxLevel()}
 
@@ -230,9 +215,7 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 
 		galEls := GaloisElementsForLinearTransformation(params, ltparams)
 
-		gks, err := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
-		require.NoError(t, err)
-		eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, gks...))
+		eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...))
 		ltEval := NewEvaluator(eval)
 
 		require.NoError(t, ltEval.LinearTransformation(ciphertext, linTransf, ciphertext))
@@ -302,9 +285,7 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 
 		galEls := GaloisElementsForLinearTransformation(params, ltparams)
 
-		gks, err := tc.kgen.GenGaloisKeysNew(galEls, tc.sk)
-		require.NoError(t, err)
-		eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, gks...))
+		eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...))
 		ltEval := NewEvaluator(eval)
 
 		require.NoError(t, ltEval.LinearTransformation(ciphertext, linTransf, ciphertext))

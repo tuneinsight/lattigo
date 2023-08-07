@@ -75,20 +75,9 @@ func obliviousRiding() {
 
 	riderSk, riderPk := kgen.GenKeyPairNew()
 
-	decryptor, err := bfv.NewDecryptor(params, riderSk)
-	if err != nil {
-		panic(err)
-	}
-
-	encryptorRiderPk, err := bfv.NewEncryptor(params, riderPk)
-	if err != nil {
-		panic(err)
-	}
-
-	encryptorRiderSk, err := bfv.NewEncryptor(params, riderSk)
-	if err != nil {
-		panic(err)
-	}
+	decryptor := bfv.NewDecryptor(params, riderSk)
+	encryptorRiderPk := bfv.NewEncryptor(params, riderPk)
+	encryptorRiderSk := bfv.NewEncryptor(params, riderSk)
 
 	evaluator := bfv.NewEvaluator(params, nil)
 

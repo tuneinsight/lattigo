@@ -86,35 +86,22 @@ func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKeys *Eval
 //	EvaluationKeySet: struct compliant to the interface rlwe.EvaluationKeySetInterface.
 //	EvkDtS: *rlwe.EvaluationKey
 //	EvkStD: *rlwe.EvaluationKey
-func GenEvaluationKeySetNew(btpParams Parameters, ckksParams ckks.Parameters, sk *rlwe.SecretKey) (*EvaluationKeySet, error) {
+func GenEvaluationKeySetNew(btpParams Parameters, ckksParams ckks.Parameters, sk *rlwe.SecretKey) *EvaluationKeySet {
 
 	kgen := ckks.NewKeyGenerator(ckksParams)
 
-	gks, err := kgen.GenGaloisKeysNew(append(btpParams.GaloisElements(ckksParams), ckksParams.GaloisElementForComplexConjugation()), sk)
-	if err != nil {
-		return nil, err
-	}
+	EvkDtS, EvkStD := btpParams.GenEncapsulationEvaluationKeysNew(ckksParams, sk)
 
-	EvkDtS, EvkStD, err := btpParams.GenEncapsulationEvaluationKeysNew(ckksParams, sk)
-	if err != nil {
-		return nil, err
-	}
-
-	rlk, err := kgen.GenRelinearizationKeyNew(sk)
-	if err != nil {
-		return nil, err
-	}
-
-	evk := rlwe.NewMemEvaluationKeySet(rlk, gks...)
+	evk := rlwe.NewMemEvaluationKeySet(kgen.GenRelinearizationKeyNew(sk), kgen.GenGaloisKeysNew(append(btpParams.GaloisElements(ckksParams), ckksParams.GaloisElementForComplexConjugation()), sk)...)
 	return &EvaluationKeySet{
 		MemEvaluationKeySet: evk,
 		EvkDtS:              EvkDtS,
 		EvkStD:              EvkStD,
-	}, nil
+	}
 }
 
 // GenEncapsulationEvaluationKeysNew generates the low level encapsulation EvaluationKeys for the bootstrapping.
-func (p *Parameters) GenEncapsulationEvaluationKeysNew(params ckks.Parameters, skDense *rlwe.SecretKey) (EvkDtS, EvkStD *rlwe.EvaluationKey, err error) {
+func (p *Parameters) GenEncapsulationEvaluationKeysNew(params ckks.Parameters, skDense *rlwe.SecretKey) (EvkDtS, EvkStD *rlwe.EvaluationKey) {
 
 	if p.EphemeralSecretWeight == 0 {
 		return
@@ -130,18 +117,8 @@ func (p *Parameters) GenEncapsulationEvaluationKeysNew(params ckks.Parameters, s
 	kgenDense := rlwe.NewKeyGenerator(params.Parameters)
 	skSparse := kgenSparse.GenSecretKeyWithHammingWeightNew(p.EphemeralSecretWeight)
 
-	EvkDtS, err = kgenDense.GenEvaluationKeyNew(skDense, skSparse)
-
-	if err != nil {
-		return nil, nil, err
-	}
-
-	EvkStD, err = kgenDense.GenEvaluationKeyNew(skSparse, skDense)
-
-	if err != nil {
-		return nil, nil, err
-	}
-
+	EvkDtS = kgenDense.GenEvaluationKeyNew(skDense, skSparse)
+	EvkStD = kgenDense.GenEvaluationKeyNew(skSparse, skDense)
 	return
 }
 

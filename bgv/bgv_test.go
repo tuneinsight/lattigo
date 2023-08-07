@@ -111,25 +111,10 @@ func genTestParams(params Parameters) (tc *testContext, err error) {
 	tc.sk, tc.pk = tc.kgen.GenKeyPairNew()
 	tc.encoder = NewEncoder(tc.params)
 
-	if tc.encryptorPk, err = NewEncryptor(tc.params, tc.pk); err != nil {
-		return
-	}
-
-	if tc.encryptorSk, err = NewEncryptor(tc.params, tc.sk); err != nil {
-		return
-	}
-
-	if tc.decryptor, err = NewDecryptor(tc.params, tc.sk); err != nil {
-		return
-	}
-
-	var rlk *rlwe.RelinearizationKey
-	if rlk, err = tc.kgen.GenRelinearizationKeyNew(tc.sk); err != nil {
-		return
-	}
-
-	evk := rlwe.NewMemEvaluationKeySet(rlk)
-	tc.evaluator = NewEvaluator(tc.params, evk)
+	tc.encryptorPk = NewEncryptor(tc.params, tc.pk)
+	tc.encryptorSk = NewEncryptor(tc.params, tc.sk)
+	tc.decryptor = NewDecryptor(tc.params, tc.sk)
+	tc.evaluator = NewEvaluator(tc.params, rlwe.NewMemEvaluationKeySet(tc.kgen.GenRelinearizationKeyNew(tc.sk)))
 
 	tc.testLevel = []int{0, params.MaxLevel()}
 
@@ -144,7 +129,9 @@ func newTestVectorsLvl(level int, scale rlwe.Scale, tc *testContext, encryptor *
 
 	plaintext = NewPlaintext(tc.params, level)
 	plaintext.Scale = scale
-	tc.encoder.Encode(coeffs.Coeffs[0], plaintext)
+	if err := tc.encoder.Encode(coeffs.Coeffs[0], plaintext); err != nil {
+		panic(err)
+	}
 	if encryptor != nil {
 		var err error
 		ciphertext, err = encryptor.EncryptNew(plaintext)

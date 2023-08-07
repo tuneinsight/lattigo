@@ -94,8 +94,7 @@ func testLUT(t *testing.T) {
 		skLWE := rlwe.NewKeyGenerator(paramsLWE).GenSecretKeyNew()
 
 		// RLWE encryptor for the samples
-		encryptorLWE, err := rlwe.NewEncryptor(paramsLWE, skLWE)
-		require.NoError(t, err)
+		encryptorLWE := rlwe.NewEncryptor(paramsLWE, skLWE)
 
 		// Values to encrypt in the RLWE sample
 		values := make([]float64, slots)
@@ -129,8 +128,7 @@ func testLUT(t *testing.T) {
 		skLUT := rlwe.NewKeyGenerator(paramsLUT).GenSecretKeyNew()
 
 		// Collection of RGSW ciphertexts encrypting the bits of skLWE under skLUT
-		btpKey, err := GenEvaluationKeyNew(paramsLUT, skLUT, paramsLWE, skLWE, evkParams)
-		require.NoError(t, err)
+		btpKey := GenEvaluationKeyNew(paramsLUT, skLUT, paramsLWE, skLWE, evkParams)
 
 		// Evaluation of LUT(ctLWE)
 		// Returns one RLWE sample per slot in ctLWE
@@ -140,8 +138,7 @@ func testLUT(t *testing.T) {
 		// Decrypts, decodes and compares
 		q := paramsLUT.Q()[0]
 		qHalf := q >> 1
-		decryptorLUT, err := rlwe.NewDecryptor(paramsLUT, skLUT)
-		require.NoError(t, err)
+		decryptorLUT := rlwe.NewDecryptor(paramsLUT, skLUT)
 		ptLUT := rlwe.NewPlaintext(paramsLUT, paramsLUT.MaxLevel())
 		for i := 0; i < slots; i++ {
 

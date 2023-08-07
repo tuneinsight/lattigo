@@ -41,10 +41,7 @@ func NewPublicKeySwitchProtocol(params rlwe.Parameters, noiseFlooding ring.Distr
 		panic(err)
 	}
 
-	pcks.Encryptor, err = rlwe.NewEncryptor(params, nil)
-	if err != nil {
-		panic(err)
-	}
+	pcks.Encryptor = rlwe.NewEncryptor(params, nil)
 
 	switch noiseFlooding.(type) {
 	case ring.DiscreteGaussian:
@@ -69,17 +66,14 @@ func (pcks PublicKeySwitchProtocol) AllocateShare(levelQ int) (s PublicKeySwitch
 // ct is the rlwe.Ciphertext to keyswitch. Note that ct.Value[0] is not used by the function and can be nil/zero.
 //
 // Expected noise: ctNoise + encFreshPk + smudging
-func (pcks PublicKeySwitchProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *rlwe.Ciphertext, shareOut *PublicKeySwitchShare) (err error) {
+func (pcks PublicKeySwitchProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.PublicKey, ct *rlwe.Ciphertext, shareOut *PublicKeySwitchShare) {
 
 	levelQ := utils.Min(shareOut.Level(), ct.Value[1].Level())
 
 	ringQ := pcks.params.RingQ().AtLevel(levelQ)
 
 	// Encrypt zero
-	enc, err := pcks.Encryptor.WithKey(pk)
-	if err != nil {
-		return fmt.Errorf("cannot GenShare: %w", err)
-	}
+	enc := pcks.Encryptor.WithKey(pk)
 
 	if err := enc.EncryptZero(&rlwe.Ciphertext{
 		Operand: rlwe.Operand[ring.Poly]{
@@ -90,7 +84,7 @@ func (pcks PublicKeySwitchProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.Public
 			MetaData: ct.MetaData,
 		},
 	}); err != nil {
-		return fmt.Errorf("cannot GenShare: %w", err)
+		panic(err)
 	}
 
 	// Add ct[1] * s and noise
@@ -106,8 +100,6 @@ func (pcks PublicKeySwitchProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.Public
 		pcks.noiseSampler.ReadAndAdd(pcks.buf)
 		ringQ.Add(shareOut.Value[0], pcks.buf, shareOut.Value[0])
 	}
-
-	return
 }
 
 // AggregateShares is the second part of the first and unique round of the PublicKeySwitchProtocol protocol. Each party upon receiving the j-1 elements from the
@@ -155,15 +147,10 @@ func (pcks PublicKeySwitchProtocol) ShallowCopy() PublicKeySwitchProtocol {
 		panic(err)
 	}
 
-	enc, err := rlwe.NewEncryptor(params, nil)
-	if err != nil {
-		panic(err)
-	}
-
 	return PublicKeySwitchProtocol{
 		noiseSampler: Xe,
 		noise:        pcks.noise,
-		Encryptor:    enc,
+		Encryptor:    pcks.Encryptor.ShallowCopy(),
 		params:       params,
 		buf:          params.RingQ().NewPoly(),
 	}

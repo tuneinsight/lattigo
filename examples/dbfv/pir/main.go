@@ -164,10 +164,7 @@ func main() {
 
 	// Ciphertexts encrypted under collective public key and stored in the cloud
 	l.Println("> Encrypt Phase")
-	encryptor, err := bfv.NewEncryptor(params, pk)
-	if err != nil {
-		panic(err)
-	}
+	encryptor := bfv.NewEncryptor(params, pk)
 	pt := bfv.NewPlaintext(params, params.MaxLevel())
 	elapsedEncryptParty := runTimedParty(func() {
 		for i, pi := range P {
@@ -194,10 +191,7 @@ func main() {
 	l.Println("> ResulPlaintextModulus:")
 
 	// Decryption by the external party
-	decryptor, err := bfv.NewDecryptor(params, P[0].sk)
-	if err != nil {
-		panic(err)
-	}
+	decryptor := bfv.NewDecryptor(params, P[0].sk)
 	ptres := bfv.NewPlaintext(params, params.MaxLevel())
 	elapsedDecParty := runTimed(func() {
 		decryptor.Decrypt(encOut, ptres)

@@ -568,7 +568,7 @@ func main() {
 	// to have after the evaluation, which is usually the default scale, 2^{45} in this example.
 	// Other values can be specified, but they should be close to the default scale, else the
 	// depth consumption will not be optimal.
-	if res, err = polyEval.Polynomial(res, poly, params.DefaultScale()); err != nil {
+	if res, err = polyEval.Evaluate(res, poly, params.DefaultScale()); err != nil {
 		panic(err)
 	}
 

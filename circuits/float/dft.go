@@ -16,7 +16,7 @@ import (
 
 type DFTEvaluatorInterface interface {
 	rlwe.ParameterProvider
-	circuits.LinearTransformer
+	circuits.EvaluatorForLinearTransformation
 	Add(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
 	Sub(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
 	Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)

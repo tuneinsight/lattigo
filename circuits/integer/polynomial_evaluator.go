@@ -36,7 +36,7 @@ func NewPolynomialEvaluator(params bgv.Parameters, eval *bgv.Evaluator, Invarian
 	return e
 }
 
-func (eval PolynomialEvaluator) Polynomial(input interface{}, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
+func (eval PolynomialEvaluator) Evaluate(input interface{}, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 
 	var pcircuits interface{}
 	switch p := p.(type) {

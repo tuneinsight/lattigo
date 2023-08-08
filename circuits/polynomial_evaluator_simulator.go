@@ -4,11 +4,14 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
+// SimOperand is a dummy operand that
+// only stores its level and scale.
 type SimOperand struct {
 	Level int
 	Scale rlwe.Scale
 }
 
+// SimEvaluator defines a set of method on SimOperands.
 type SimEvaluator interface {
 	MulNew(op0, op1 *SimOperand) *SimOperand
 	Rescale(op0 *SimOperand)

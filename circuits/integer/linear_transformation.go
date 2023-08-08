@@ -26,10 +26,10 @@ type LinearTransformationParameters circuits.LinearTransformationParameters
 
 type LinearTransformation circuits.LinearTransformation
 
-// NewLinearTransformationEvaluator instantiates a new LinearTransformationEvaluator from an LinearTransformer.
-// The method is allocation free if the underlying LinearTransformer returns a non-nil
+// NewLinearTransformationEvaluator instantiates a new LinearTransformationEvaluator from an EvaluatorForLinearTransformation.
+// The method is allocation free if the underlying EvaluatorForLinearTransformation returns a non-nil
 // *rlwe.EvaluatorBuffers.
-func NewLinearTransformationEvaluator(eval circuits.LinearTransformer) (linTransEval *LinearTransformationEvaluator) {
+func NewLinearTransformationEvaluator(eval circuits.EvaluatorForLinearTransformation) (linTransEval *LinearTransformationEvaluator) {
 	return &LinearTransformationEvaluator{*circuits.NewLinearTransformationEvaluator(eval)}
 }
 

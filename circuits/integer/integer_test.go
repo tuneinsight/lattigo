@@ -330,7 +330,7 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 
 				polyEval := NewPolynomialEvaluator(tc.params, tc.evaluator, false)
 
-				res, err := polyEval.Polynomial(ciphertext, poly, tc.params.DefaultScale())
+				res, err := polyEval.Evaluate(ciphertext, poly, tc.params.DefaultScale())
 				require.NoError(t, err)
 
 				require.True(t, res.Scale.Cmp(tc.params.DefaultScale()) == 0)
@@ -342,7 +342,7 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 
 				polyEval := NewPolynomialEvaluator(tc.params, tc.evaluator, true)
 
-				res, err := polyEval.Polynomial(ciphertext, poly, tc.params.DefaultScale())
+				res, err := polyEval.Evaluate(ciphertext, poly, tc.params.DefaultScale())
 				require.NoError(t, err)
 
 				require.True(t, res.Scale.Cmp(tc.params.DefaultScale()) == 0)
@@ -392,7 +392,7 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 
 				polyEval := NewPolynomialEvaluator(tc.params, tc.evaluator, false)
 
-				res, err := polyEval.Polynomial(ciphertext, polyVector, tc.params.DefaultScale())
+				res, err := polyEval.Evaluate(ciphertext, polyVector, tc.params.DefaultScale())
 				require.NoError(t, err)
 
 				require.True(t, res.Scale.Cmp(tc.params.DefaultScale()) == 0)
@@ -404,7 +404,7 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 
 				polyEval := NewPolynomialEvaluator(tc.params, tc.evaluator, true)
 
-				res, err := polyEval.Polynomial(ciphertext, polyVector, tc.params.DefaultScale())
+				res, err := polyEval.Evaluate(ciphertext, polyVector, tc.params.DefaultScale())
 				require.NoError(t, err)
 
 				require.True(t, res.Scale.Cmp(tc.params.DefaultScale()) == 0)

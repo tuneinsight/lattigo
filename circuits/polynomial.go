@@ -56,6 +56,10 @@ func (p Polynomial) Factorize(n int) (pq, pr Polynomial) {
 	return
 }
 
+// PatersonStockmeyerPolynomial is a struct that stores
+// the Paterson Stockmeyer decomposition of a polynomial.
+// The decomposition of P(X) is given as sum pi(X) * X^{2^{n}}
+// where degree(pi(X)) =~ sqrt(degree(P(X)))
 type PatersonStockmeyerPolynomial struct {
 	Degree int
 	Base   int
@@ -64,22 +68,30 @@ type PatersonStockmeyerPolynomial struct {
 	Value  []Polynomial
 }
 
+// GetPatersonStockmeyerPolynomial returns the Paterson Stockmeyer polynomial decomposition of the target polynomial.
+// The decomposition is done with the power of two basis.
 func (p Polynomial) GetPatersonStockmeyerPolynomial(params rlwe.ParameterProvider, inputLevel int, inputScale, outputScale rlwe.Scale, eval SimEvaluator) PatersonStockmeyerPolynomial {
 
+	// ceil(log2(degree))
 	logDegree := bits.Len64(uint64(p.Degree()))
+
+	// optimal ratio between degree(pi(X)) et degree(P(X))
 	logSplit := bignum.OptimalSplit(logDegree)
 
+	// Initializes the simulated polynomial evaluation
 	pb := SimPowerBasis{}
 	pb[1] = &SimOperand{
 		Level: inputLevel,
 		Scale: inputScale,
 	}
 
+	// Generates the simulated powers (to get the scaling factors)
 	pb.GenPower(params, 1<<logDegree, eval)
 	for i := (1 << logSplit) - 1; i > 2; i-- {
 		pb.GenPower(params, i, eval)
 	}
 
+	// Simulates the homomorphic evaluation with levels and scaling factors to retrieve the scaling factor of each pi(X).
 	PSPoly, _ := recursePS(params, logSplit, inputLevel-eval.PolynomialDepth(p.Degree()), p, pb, outputScale, eval)
 
 	return PatersonStockmeyerPolynomial{
@@ -91,6 +103,7 @@ func (p Polynomial) GetPatersonStockmeyerPolynomial(params rlwe.ParameterProvide
 	}
 }
 
+// recursePS is a recursive implementation of a polynomial evaluation via the Paterson Stockmeyer algorithm with a power of two decomposition.
 func recursePS(params rlwe.ParameterProvider, logSplit, targetLevel int, p Polynomial, pb SimPowerBasis, outputScale rlwe.Scale, eval SimEvaluator) ([]Polynomial, *SimOperand) {
 
 	if p.Degree() < (1 << logSplit) {
@@ -133,11 +146,17 @@ func recursePS(params rlwe.ParameterProvider, logSplit, targetLevel int, p Polyn
 	return append(bsgsQ, bsgsR...), res
 }
 
+// PolynomialVector is a struct storing a set of polynomials and a mapping that
+// indicates on which slot each polynomial has to be independently evaluated.
 type PolynomialVector struct {
 	Value   []Polynomial
 	Mapping map[int][]int
 }
 
+// NewPolynomialVector instantiates a new PolynomialVector from a set of bignum.Polynomial and a mapping indicating
+// which polynomial has to be evaluated on which slot.
+// For example, if we are given two polynomials P0(X) and P1(X) and the folling mapping: map[int][]int{0:[0, 1, 2], 1:[3, 4, 5]},
+// then the polynomial evaluation on a vector [a, b, c, d, e, f, g, h] will evaluate to [P0(a), P0(b), P0(c), P1(d), P1(e), P1(f), 0, 0]
 func NewPolynomialVector(polys []bignum.Polynomial, mapping map[int][]int) (PolynomialVector, error) {
 	var maxDeg int
 	var basis bignum.Basis
@@ -168,6 +187,8 @@ func NewPolynomialVector(polys []bignum.Polynomial, mapping map[int][]int) (Poly
 	}, nil
 }
 
+// IsEven returns true if all underlying polynomials are even,
+// i.e. all odd powers are zero.
 func (p PolynomialVector) IsEven() (even bool) {
 	even = true
 	for _, poly := range p.Value {
@@ -176,6 +197,8 @@ func (p PolynomialVector) IsEven() (even bool) {
 	return
 }
 
+// IsOdd returns true if all underlying polynomials are odd,
+// i.e. all even powers are zero.
 func (p PolynomialVector) IsOdd() (odd bool) {
 	odd = true
 	for _, poly := range p.Value {
@@ -184,6 +207,7 @@ func (p PolynomialVector) IsOdd() (odd bool) {
 	return
 }
 
+// Factorize factorizes the underlying Polynomial vector p into p = polyq * X^{n} + polyr.
 func (p PolynomialVector) Factorize(n int) (polyq, polyr PolynomialVector) {
 
 	coeffsq := make([]Polynomial, len(p.Value))
@@ -196,12 +220,16 @@ func (p PolynomialVector) Factorize(n int) (polyq, polyr PolynomialVector) {
 	return PolynomialVector{Value: coeffsq, Mapping: p.Mapping}, PolynomialVector{Value: coeffsr, Mapping: p.Mapping}
 }
 
+// PatersonStockmeyerPolynomialVector is a struct implementing the
+// Paterson Stockmeyer decomposition of a PolynomialVector.
+// See PatersonStockmeyerPolynomial for additional information.
 type PatersonStockmeyerPolynomialVector struct {
 	Value   []PatersonStockmeyerPolynomial
 	Mapping map[int][]int
 }
 
-// GetPatersonStockmeyerPolynomial returns
+// GetPatersonStockmeyerPolynomial returns the Paterson Stockmeyer polynomial decomposition of the target PolynomialVector.
+// The decomposition is done with the power of two basis
 func (p PolynomialVector) GetPatersonStockmeyerPolynomial(params rlwe.Parameters, inputLevel int, inputScale, outputScale rlwe.Scale, eval SimEvaluator) PatersonStockmeyerPolynomialVector {
 	Value := make([]PatersonStockmeyerPolynomial, len(p.Value))
 	for i := range Value {

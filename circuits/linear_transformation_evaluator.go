@@ -9,8 +9,8 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
-// LinearTransformer defines a set of common and scheme agnostic method necessary to instantiate an LinearTransformationEvaluator.
-type LinearTransformer interface {
+// EvaluatorForLinearTransformation defines a set of common and scheme agnostic method necessary to instantiate an LinearTransformationEvaluator.
+type EvaluatorForLinearTransformation interface {
 	rlwe.ParameterProvider
 	Rescale(ctIn, ctOut *rlwe.Ciphertext) (err error)
 
@@ -28,15 +28,15 @@ type LinearTransformer interface {
 
 // LinearTransformationEvaluator is an evaluator used to evaluate linear transformations on ciphertexts.
 type LinearTransformationEvaluator struct {
-	LinearTransformer
+	EvaluatorForLinearTransformation
 	*rlwe.EvaluatorBuffers
 }
 
-// NewLinearTransformationEvaluator instantiates a new LinearTransformationEvaluator from an LinearTransformer.
-// The method is allocation free if the underlying LinearTransformer returns a non-nil *rlwe.EvaluatorBuffers.
-func NewLinearTransformationEvaluator(eval LinearTransformer) (linTransEval *LinearTransformationEvaluator) {
+// NewLinearTransformationEvaluator instantiates a new LinearTransformationEvaluator from an EvaluatorForLinearTransformation.
+// The method is allocation free if the underlying EvaluatorForLinearTransformation returns a non-nil *rlwe.EvaluatorBuffers.
+func NewLinearTransformationEvaluator(eval EvaluatorForLinearTransformation) (linTransEval *LinearTransformationEvaluator) {
 	linTransEval = new(LinearTransformationEvaluator)
-	linTransEval.LinearTransformer = eval
+	linTransEval.EvaluatorForLinearTransformation = eval
 	linTransEval.EvaluatorBuffers = eval.GetEvaluatorBuffer()
 	if linTransEval.EvaluatorBuffers == nil {
 		linTransEval.EvaluatorBuffers = rlwe.NewEvaluatorBuffers(*eval.GetRLWEParameters())

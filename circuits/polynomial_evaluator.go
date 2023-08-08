@@ -8,6 +8,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
+// EvaluatorForPolyEval defines a set of common and scheme agnostic method that are necessary to instantiate a PolynomialVectorEvaluator.
 type EvaluatorForPolyEval interface {
 	rlwe.ParameterProvider
 	Evaluator
@@ -15,15 +16,18 @@ type EvaluatorForPolyEval interface {
 	GetEvaluatorBuffer() *rlwe.EvaluatorBuffers // TODO extract
 }
 
+// PolynomialVectorEvaluator defines a scheme agnostic method to evaluate P(X) = sum ci * X^{i}.
 type PolynomialVectorEvaluator interface {
 	EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol PolynomialVector, pb PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error)
 }
 
+// PolynomialEvaluator is an evaluator used to evaluate polynomials on ciphertexts.
 type PolynomialEvaluator struct {
 	EvaluatorForPolyEval
 	*rlwe.EvaluatorBuffers
 }
 
+// EvaluatePolynomial is a generic and scheme agnostic method to evaluate polynomials on rlwe.Ciphertexts.
 func EvaluatePolynomial(eval PolynomialEvaluator, evalp PolynomialVectorEvaluator, input interface{}, p interface{}, targetScale rlwe.Scale, levelsConsummedPerRescaling int, SimEval SimEvaluator) (opOut *rlwe.Ciphertext, err error) {
 
 	var polyVec PolynomialVector
@@ -35,7 +39,7 @@ func EvaluatePolynomial(eval PolynomialEvaluator, evalp PolynomialVectorEvaluato
 	case PolynomialVector:
 		polyVec = p
 	default:
-		return nil, fmt.Errorf("cannot Polynomial: invalid polynomial type: %T", p)
+		return nil, fmt.Errorf("cannot Polynomial: invalid polynomial type, must be either bignum.Polynomial, circuits.Polynomial or circuits.PolynomialVector, but is %T", p)
 	}
 
 	var powerbasis PowerBasis
@@ -87,6 +91,7 @@ func EvaluatePolynomial(eval PolynomialEvaluator, evalp PolynomialVectorEvaluato
 	return opOut, err
 }
 
+// EvaluatePatersonStockmeyerPolynomialVector evaluates a pre-decomposed PatersonStockmeyerPolynomialVector on a pre-computed power basis [1, X^{1}, X^{2}, ..., X^{2^{n}}, X^{2^{n+1}}, ..., X^{2^{m}}]
 func (eval PolynomialEvaluator) EvaluatePatersonStockmeyerPolynomialVector(pvEval PolynomialVectorEvaluator, poly PatersonStockmeyerPolynomialVector, pb PowerBasis) (res *rlwe.Ciphertext, err error) {
 
 	type Poly struct {
@@ -145,7 +150,7 @@ func (eval PolynomialEvaluator) EvaluatePatersonStockmeyerPolynomialVector(pvEva
 
 				deg := 1 << bits.Len64(uint64(tmp[i].Degree))
 
-				if err = eval.EvalMonomial(even.Value, odd.Value, pb.Value[deg]); err != nil {
+				if err = eval.EvaluateMonomial(even.Value, odd.Value, pb.Value[deg]); err != nil {
 					return nil, err
 				}
 
@@ -181,8 +186,8 @@ func (eval PolynomialEvaluator) EvaluatePatersonStockmeyerPolynomialVector(pvEva
 	return tmp[0].Value, nil
 }
 
-// EvalMonomial evaluates a monomial of the form a = a + b * xpow and writes the results in b.
-func (eval PolynomialEvaluator) EvalMonomial(a, b, xpow *rlwe.Ciphertext) (err error) {
+// EvaluateMonomial evaluates a monomial of the form a + b * X^{pow} and writes the results in b.
+func (eval PolynomialEvaluator) EvaluateMonomial(a, b, xpow *rlwe.Ciphertext) (err error) {
 
 	if b.Degree() == 2 {
 		if err = eval.Relinearize(b, b); err != nil {

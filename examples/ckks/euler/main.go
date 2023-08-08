@@ -160,7 +160,7 @@ func example() {
 
 	polyEval := float.NewPolynomialEvaluator(params, evaluator)
 
-	if ciphertext, err = polyEval.Polynomial(ciphertext, poly, ciphertext.Scale); err != nil {
+	if ciphertext, err = polyEval.Evaluate(ciphertext, poly, ciphertext.Scale); err != nil {
 		panic(err)
 	}
 

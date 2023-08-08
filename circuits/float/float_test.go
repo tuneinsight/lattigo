@@ -362,7 +362,7 @@ func testEvaluatePolynomial(tc *ckksTestContext, t *testing.T) {
 			values[i] = poly.Evaluate(values[i])
 		}
 
-		if ciphertext, err = polyEval.Polynomial(ciphertext, poly, ciphertext.Scale); err != nil {
+		if ciphertext, err = polyEval.Evaluate(ciphertext, poly, ciphertext.Scale); err != nil {
 			t.Fatal(err)
 		}
 
@@ -410,7 +410,7 @@ func testEvaluatePolynomial(tc *ckksTestContext, t *testing.T) {
 		polyVector, err := NewPolynomialVector([]bignum.Polynomial{poly}, slotIndex)
 		require.NoError(t, err)
 
-		if ciphertext, err = polyEval.Polynomial(ciphertext, polyVector, ciphertext.Scale); err != nil {
+		if ciphertext, err = polyEval.Evaluate(ciphertext, polyVector, ciphertext.Scale); err != nil {
 			t.Fatal(err)
 		}
 

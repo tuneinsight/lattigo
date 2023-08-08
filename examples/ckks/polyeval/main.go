@@ -128,7 +128,7 @@ func chebyshevinterpolation() {
 	polyEval := float.NewPolynomialEvaluator(params, evaluator)
 
 	// We evaluate the interpolated Chebyshev interpolant on the ciphertext
-	if ciphertext, err = polyEval.Polynomial(ciphertext, polyVec, ciphertext.Scale); err != nil {
+	if ciphertext, err = polyEval.Evaluate(ciphertext, polyVec, ciphertext.Scale); err != nil {
 		panic(err)
 	}
 

@@ -30,7 +30,7 @@ func NewPolynomialEvaluator(params ckks.Parameters, eval circuits.EvaluatorForPo
 	return e
 }
 
-// Polynomial evaluates a polynomial in standard basis on the input Ciphertext in ceil(log2(deg+1)) levels.
+// Evaluate evaluates a polynomial in standard basis on the input Ciphertext in ceil(log2(deg+1)) levels.
 // Returns an error if the input ciphertext does not have enough level to carry out the full polynomial evaluation.
 // Returns an error if something is wrong with the scale.
 // If the polynomial is given in Chebyshev basis, then a change of basis ct' = (2/(b-a)) * (ct + (-a-b)/(b-a))
@@ -39,7 +39,7 @@ func NewPolynomialEvaluator(params ckks.Parameters, eval circuits.EvaluatorForPo
 // pol: a *bignum.Polynomial, *Polynomial or *PolynomialVector
 // targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
 // for example be used to correct small deviations in the ciphertext scale and reset it to the default scale.
-func (eval PolynomialEvaluator) Polynomial(input interface{}, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
+func (eval PolynomialEvaluator) Evaluate(input interface{}, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 
 	var pcircuits interface{}
 	switch p := p.(type) {

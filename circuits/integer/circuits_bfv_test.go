@@ -246,7 +246,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 			poly := bignum.NewPolynomial(bignum.Monomial, coeffs, nil)
 
-			res, err := polyEval.Polynomial(ciphertext, poly, tc.params.DefaultScale()) // TODO simpler interface for BFV ?
+			res, err := polyEval.Evaluate(ciphertext, poly, tc.params.DefaultScale()) // TODO simpler interface for BFV ?
 			require.NoError(t, err)
 
 			require.True(t, res.Scale.Cmp(tc.params.DefaultScale()) == 0)
@@ -292,7 +292,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 				}
 			}
 
-			res, err := polyEval.Polynomial(ciphertext, polyVector, tc.params.DefaultScale())
+			res, err := polyEval.Evaluate(ciphertext, polyVector, tc.params.DefaultScale())
 			require.NoError(t, err)
 
 			require.True(t, res.Scale.Cmp(tc.params.DefaultScale()) == 0)

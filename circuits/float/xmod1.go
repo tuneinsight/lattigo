@@ -311,7 +311,7 @@ func (eval *HModEvaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPo
 	}
 
 	// Chebyshev evaluation
-	if ct, err = eval.Polynomial(ct, evalModPoly.sinePoly, rlwe.NewScale(targetScale)); err != nil {
+	if ct, err = eval.Evaluate(ct, evalModPoly.sinePoly, rlwe.NewScale(targetScale)); err != nil {
 		return nil, fmt.Errorf("cannot EvalModNew: %w", err)
 	}
 
@@ -339,7 +339,7 @@ func (eval *HModEvaluator) EvalModNew(ct *rlwe.Ciphertext, evalModPoly EvalModPo
 
 	// ArcSine
 	if evalModPoly.arcSinePoly != nil {
-		if ct, err = eval.Polynomial(ct, *evalModPoly.arcSinePoly, ct.Scale); err != nil {
+		if ct, err = eval.Evaluate(ct, *evalModPoly.arcSinePoly, ct.Scale); err != nil {
 			return nil, fmt.Errorf("cannot EvalModNew: %w", err)
 		}
 	}

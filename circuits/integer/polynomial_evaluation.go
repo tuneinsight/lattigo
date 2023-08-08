@@ -14,19 +14,12 @@ type PolynomialEvaluator struct {
 	InvariantTensoring bool
 }
 
-// NewIntegerPowerBasis is a wrapper of NewPolynomialBasis.
+// NewPowerBasis is a wrapper of NewPolynomialBasis.
 // This function creates a new powerBasis from the input ciphertext.
 // The input ciphertext is treated as the base monomial X used to
 // generate the other powers X^{n}.
-func NewIntegerPowerBasis(ct *rlwe.Ciphertext) circuits.PowerBasis {
+func NewPowerBasis(ct *rlwe.Ciphertext) circuits.PowerBasis {
 	return circuits.NewPowerBasis(ct, bignum.Monomial)
-}
-
-// NewIntegerPolynomial is a wrapper of NewPolynomial.
-// This function creates a new polynomial from the input coefficients.
-// This polynomial can be evaluated on a ciphertext.
-func NewIntegerPolynomial[T Integer](coeffs []T) circuits.Polynomial {
-	return circuits.NewPolynomial(bignum.NewPolynomial(bignum.Monomial, coeffs, nil))
 }
 
 func NewPolynomialEvaluator(params bgv.Parameters, eval *bgv.Evaluator, InvariantTensoring bool) *PolynomialEvaluator {
@@ -44,7 +37,18 @@ func NewPolynomialEvaluator(params bgv.Parameters, eval *bgv.Evaluator, Invarian
 }
 
 func (eval PolynomialEvaluator) Polynomial(input interface{}, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
-	return circuits.EvaluatePolynomial(eval.PolynomialEvaluator, eval, input, p, targetScale, 1, &simIntegerPolynomialEvaluator{eval.Parameters, eval.InvariantTensoring})
+
+	var pcircuits interface{}
+	switch p := p.(type) {
+	case Polynomial:
+		pcircuits = circuits.Polynomial(p)
+	case PolynomialVector:
+		pcircuits = circuits.PolynomialVector(p)
+	default:
+		pcircuits = p
+	}
+
+	return circuits.EvaluatePolynomial(eval.PolynomialEvaluator, eval, input, pcircuits, targetScale, 1, &simIntegerPolynomialEvaluator{eval.Parameters, eval.InvariantTensoring})
 }
 
 type scaleInvariantEvaluator struct {
@@ -76,7 +80,7 @@ func (eval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLev
 	X := pb.Value
 
 	params := eval.Parameters
-	slotsIndex := pol.SlotsIndex
+	mapping := pol.Mapping
 	slots := params.RingT().N()
 	even := pol.IsEven()
 	odd := pol.IsOdd()
@@ -97,7 +101,7 @@ func (eval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLev
 	}
 
 	// If an index slot is given (either multiply polynomials or masking)
-	if slotsIndex != nil {
+	if mapping != nil {
 
 		var toEncode bool
 
@@ -115,7 +119,7 @@ func (eval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLev
 			for i, p := range pol.Value {
 				if c := p.Coeffs[0].Uint64(); c != 0 {
 					toEncode = true
-					for _, j := range slotsIndex[i] {
+					for _, j := range mapping[i] {
 						values[j] = c
 					}
 				}
@@ -146,7 +150,7 @@ func (eval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLev
 		for i, p := range pol.Value {
 			if c := p.Coeffs[0].Uint64(); c != 0 {
 				toEncode = true
-				for _, j := range slotsIndex[i] {
+				for _, j := range mapping[i] {
 					values[j] = c
 				}
 			}
@@ -188,7 +192,7 @@ func (eval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLev
 
 					// Copies the coefficient on the temporary array
 					// according to the slot map index
-					for _, j := range slotsIndex[i] {
+					for _, j := range mapping[i] {
 						values[j] = c
 					}
 				}

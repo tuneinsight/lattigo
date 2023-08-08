@@ -5,7 +5,6 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/circuits/float"
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -96,7 +95,7 @@ func chebyshevinterpolation() {
 	approxG := bignum.ChebyshevApproximation(g, interval)
 
 	// Map storing which polynomial has to be applied to which slot.
-	slotsIndex := make(map[int][]int)
+	mapping := make(map[int][]int)
 
 	idxF := make([]int, slots>>1)
 	idxG := make([]int, slots>>1)
@@ -105,8 +104,8 @@ func chebyshevinterpolation() {
 		idxG[i] = i*2 + 1 // Index with all odd slots
 	}
 
-	slotsIndex[0] = idxF // Assigns index of all even slots to poly[0] = f(x)
-	slotsIndex[1] = idxG // Assigns index of all odd slots to poly[1] = g(x)
+	mapping[0] = idxF // Assigns index of all even slots to poly[0] = f(x)
+	mapping[1] = idxG // Assigns index of all odd slots to poly[1] = g(x)
 
 	// Change of variable
 	if err := evaluator.Mul(ciphertext, 2/(b-a), ciphertext); err != nil {
@@ -121,7 +120,7 @@ func chebyshevinterpolation() {
 		panic(err)
 	}
 
-	polyVec, err := circuits.NewPolynomialVector([]circuits.Polynomial{circuits.NewPolynomial(approxF), circuits.NewPolynomial(approxG)}, slotsIndex)
+	polyVec, err := float.NewPolynomialVector([]bignum.Polynomial{approxF, approxG}, mapping)
 	if err != nil {
 		panic(err)
 	}

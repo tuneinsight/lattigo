@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/tuneinsight/lattigo/v4/bgv"
-	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -365,7 +364,7 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 
 			slots := values.N()
 
-			slotIndex := make(map[int][]int)
+			mapping := make(map[int][]int)
 			idx0 := make([]int, slots>>1)
 			idx1 := make([]int, slots>>1)
 			for i := 0; i < slots>>1; i++ {
@@ -373,17 +372,17 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 				idx1[i] = 2*i + 1
 			}
 
-			slotIndex[0] = idx0
-			slotIndex[1] = idx1
+			mapping[0] = idx0
+			mapping[1] = idx1
 
-			polyVector, err := circuits.NewPolynomialVector([]circuits.Polynomial{
-				NewIntegerPolynomial(coeffs0),
-				NewIntegerPolynomial(coeffs1),
-			}, slotIndex)
+			polyVector, err := NewPolynomialVector([][]uint64{
+				coeffs0,
+				coeffs1,
+			}, mapping)
 			require.NoError(t, err)
 
 			TInt := new(big.Int).SetUint64(tc.params.PlaintextModulus())
-			for pol, idx := range slotIndex {
+			for pol, idx := range mapping {
 				for _, i := range idx {
 					values.Coeffs[0][i] = polyVector.Value[pol].EvaluateModP(new(big.Int).SetUint64(values.Coeffs[0][i]), TInt).Uint64()
 				}

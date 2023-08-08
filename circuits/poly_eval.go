@@ -104,8 +104,8 @@ func (eval PolynomialEvaluator) EvaluatePatersonStockmeyerPolynomialVector(pvEva
 	for i := range tmp {
 
 		polyVec := PolynomialVector{
-			Value:      make([]Polynomial, nbPoly),
-			SlotsIndex: poly.SlotsIndex,
+			Value:   make([]Polynomial, nbPoly),
+			Mapping: poly.Mapping,
 		}
 
 		// Transposes the polynomial matrix

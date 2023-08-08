@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/bfv"
 	"github.com/tuneinsight/lattigo/v4/bgv"
-	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -280,9 +279,9 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 			slotIndex[0] = idx0
 			slotIndex[1] = idx1
 
-			polyVector, err := circuits.NewPolynomialVector([]circuits.Polynomial{
-				NewIntegerPolynomial(coeffs0),
-				NewIntegerPolynomial(coeffs1),
+			polyVector, err := NewPolynomialVector([][]uint64{
+				coeffs0,
+				coeffs1,
 			}, slotIndex)
 			require.NoError(t, err)
 

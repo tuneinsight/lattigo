@@ -15,11 +15,11 @@ type PolynomialEvaluator struct {
 	Parameters ckks.Parameters
 }
 
-// NewFloatPowerBasis is a wrapper of NewPolynomialBasis.
+// NewPowerBasis is a wrapper of NewPolynomialBasis.
 // This function creates a new powerBasis from the input ciphertext.
 // The input ciphertext is treated as the base monomial X used to
 // generate the other powers X^{n}.
-func NewFloatPowerBasis(ct *rlwe.Ciphertext, basis bignum.Basis) circuits.PowerBasis {
+func NewPowerBasis(ct *rlwe.Ciphertext, basis bignum.Basis) circuits.PowerBasis {
 	return circuits.NewPowerBasis(ct, basis)
 }
 
@@ -40,8 +40,20 @@ func NewPolynomialEvaluator(params ckks.Parameters, eval circuits.EvaluatorForPo
 // targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
 // for example be used to correct small deviations in the ciphertext scale and reset it to the default scale.
 func (eval PolynomialEvaluator) Polynomial(input interface{}, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
+
+	var pcircuits interface{}
+	switch p := p.(type) {
+	case Polynomial:
+		pcircuits = circuits.Polynomial(p)
+	case PolynomialVector:
+		pcircuits = circuits.PolynomialVector(p)
+	default:
+		pcircuits = p
+	}
+
 	levelsConsummedPerRescaling := eval.Parameters.LevelsConsummedPerRescaling()
-	return circuits.EvaluatePolynomial(eval.PolynomialEvaluator, eval, input, p, targetScale, levelsConsummedPerRescaling, &simEvaluator{eval.Parameters, levelsConsummedPerRescaling})
+
+	return circuits.EvaluatePolynomial(eval.PolynomialEvaluator, eval, input, pcircuits, targetScale, levelsConsummedPerRescaling, &simEvaluator{eval.Parameters, levelsConsummedPerRescaling})
 }
 
 func (eval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol circuits.PolynomialVector, pb circuits.PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
@@ -54,7 +66,7 @@ func (eval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLev
 	slots := 1 << logSlots.Cols
 
 	params := eval.Parameters
-	slotsIndex := pol.SlotsIndex
+	mapping := pol.Mapping
 	even := pol.IsEven()
 	odd := pol.IsOdd()
 
@@ -75,7 +87,7 @@ func (eval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLev
 	}
 
 	// If an index slot is given (either multiply polynomials or masking)
-	if slotsIndex != nil {
+	if mapping != nil {
 
 		var toEncode bool
 
@@ -95,7 +107,7 @@ func (eval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLev
 				for i, p := range pol.Value {
 					if !isZero(p.Coeffs[0]) {
 						toEncode = true
-						for _, j := range slotsIndex[i] {
+						for _, j := range mapping[i] {
 							values[j] = p.Coeffs[0]
 						}
 					}
@@ -125,7 +137,7 @@ func (eval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLev
 			for i, p := range pol.Value {
 				if !isZero(p.Coeffs[0]) {
 					toEncode = true
-					for _, j := range slotsIndex[i] {
+					for _, j := range mapping[i] {
 						values[j] = p.Coeffs[0]
 					}
 				}
@@ -171,7 +183,7 @@ func (eval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLev
 
 						// Copies the coefficient on the temporary array
 						// according to the slot map index
-						for _, j := range slotsIndex[i] {
+						for _, j := range mapping[i] {
 							values[j] = p.Coeffs[key]
 						}
 					}

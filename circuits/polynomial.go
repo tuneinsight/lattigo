@@ -134,11 +134,11 @@ func recursePS(params rlwe.ParameterProvider, logSplit, targetLevel int, p Polyn
 }
 
 type PolynomialVector struct {
-	Value      []Polynomial
-	SlotsIndex map[int][]int
+	Value   []Polynomial
+	Mapping map[int][]int
 }
 
-func NewPolynomialVector(polys []Polynomial, slotsIndex map[int][]int) (PolynomialVector, error) {
+func NewPolynomialVector(polys []bignum.Polynomial, mapping map[int][]int) (PolynomialVector, error) {
 	var maxDeg int
 	var basis bignum.Basis
 	for i := range polys {
@@ -158,11 +158,13 @@ func NewPolynomialVector(polys []Polynomial, slotsIndex map[int][]int) (Polynomi
 
 	polyvec := make([]Polynomial, len(polys))
 
-	copy(polyvec, polys)
+	for i := range polyvec {
+		polyvec[i] = NewPolynomial(polys[i])
+	}
 
 	return PolynomialVector{
-		Value:      polyvec,
-		SlotsIndex: slotsIndex,
+		Value:   polyvec,
+		Mapping: mapping,
 	}, nil
 }
 
@@ -191,12 +193,12 @@ func (p PolynomialVector) Factorize(n int) (polyq, polyr PolynomialVector) {
 		coeffsq[i], coeffsr[i] = p.Factorize(n)
 	}
 
-	return PolynomialVector{Value: coeffsq, SlotsIndex: p.SlotsIndex}, PolynomialVector{Value: coeffsr, SlotsIndex: p.SlotsIndex}
+	return PolynomialVector{Value: coeffsq, Mapping: p.Mapping}, PolynomialVector{Value: coeffsr, Mapping: p.Mapping}
 }
 
 type PatersonStockmeyerPolynomialVector struct {
-	Value      []PatersonStockmeyerPolynomial
-	SlotsIndex map[int][]int
+	Value   []PatersonStockmeyerPolynomial
+	Mapping map[int][]int
 }
 
 // GetPatersonStockmeyerPolynomial returns
@@ -207,7 +209,7 @@ func (p PolynomialVector) GetPatersonStockmeyerPolynomial(params rlwe.Parameters
 	}
 
 	return PatersonStockmeyerPolynomialVector{
-		Value:      Value,
-		SlotsIndex: p.SlotsIndex,
+		Value:   Value,
+		Mapping: p.Mapping,
 	}
 }

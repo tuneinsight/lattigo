@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -48,7 +47,7 @@ type ckksTestContext struct {
 	evaluator   *ckks.Evaluator
 }
 
-func TestCKKS(t *testing.T) {
+func TestFloat(t *testing.T) {
 
 	var err error
 
@@ -408,7 +407,7 @@ func testEvaluatePolynomial(tc *ckksTestContext, t *testing.T) {
 			valuesWant[j] = poly.Evaluate(values[j])
 		}
 
-		polyVector, err := circuits.NewPolynomialVector([]circuits.Polynomial{circuits.NewPolynomial(poly)}, slotIndex)
+		polyVector, err := NewPolynomialVector([]bignum.Polynomial{poly}, slotIndex)
 		require.NoError(t, err)
 
 		if ciphertext, err = polyEval.Polynomial(ciphertext, polyVector, ciphertext.Scale); err != nil {

@@ -89,7 +89,6 @@ func TestCKKS(t *testing.T) {
 				testEvaluatorRescale,
 				testEvaluatorMul,
 				testEvaluatorMulThenAdd,
-				testFunctions,
 				testBridge,
 			} {
 				testSet(tc, t)
@@ -765,32 +764,6 @@ func testEvaluatorMulThenAdd(tc *testContext, t *testing.T) {
 		require.Equal(t, ciphertext1.Degree(), 1)
 
 		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, nil, *printPrecisionStats, t)
-	})
-}
-
-func testFunctions(tc *testContext, t *testing.T) {
-
-	t.Run(GetTestName(tc.params, "Evaluator/GoldschmidtDivisionNew"), func(t *testing.T) {
-
-		min := 0.1
-
-		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, complex(min, 0), complex(2-min, 0), t)
-
-		one := new(big.Float).SetInt64(1)
-		for i := range values {
-			values[i][0].Quo(one, values[i][0])
-		}
-
-		logPrec := math.Log2(tc.params.DefaultScale().Float64()) - float64(tc.params.LogN()-1)
-
-		btp := NewSecretKeyBootstrapper(tc.params, tc.sk)
-
-		var err error
-		if ciphertext, err = tc.evaluator.GoldschmidtDivisionNew(ciphertext, min, logPrec, btp); err != nil {
-			t.Fatal(err)
-		}
-
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, *printPrecisionStats, t)
 	})
 }
 

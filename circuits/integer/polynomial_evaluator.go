@@ -26,9 +26,9 @@ func NewPolynomialEvaluator(params bgv.Parameters, eval *bgv.Evaluator, Invarian
 	e := new(PolynomialEvaluator)
 
 	if InvariantTensoring {
-		e.PolynomialEvaluator = circuits.PolynomialEvaluator{EvaluatorForPolyEval: scaleInvariantEvaluator{eval}, EvaluatorBuffers: eval.GetEvaluatorBuffer()}
+		e.PolynomialEvaluator = circuits.PolynomialEvaluator{EvaluatorForPolynomialEvaluation: scaleInvariantEvaluator{eval}, EvaluatorBuffers: eval.GetEvaluatorBuffer()}
 	} else {
-		e.PolynomialEvaluator = circuits.PolynomialEvaluator{EvaluatorForPolyEval: eval, EvaluatorBuffers: eval.GetEvaluatorBuffer()}
+		e.PolynomialEvaluator = circuits.PolynomialEvaluator{EvaluatorForPolynomialEvaluation: eval, EvaluatorBuffers: eval.GetEvaluatorBuffer()}
 	}
 
 	e.InvariantTensoring = InvariantTensoring

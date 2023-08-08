@@ -146,3 +146,7 @@ func ArithmeticGeometricMean(x, y *big.Float) *big.Float {
 
 	return a
 }
+
+func Sign(x *big.Float) (y *big.Float) {
+	return NewFloat(float64(x.Cmp(NewFloat(0.0, x.Prec()))), x.Prec())
+}

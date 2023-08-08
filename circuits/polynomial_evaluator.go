@@ -8,8 +8,8 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
-// EvaluatorForPolyEval defines a set of common and scheme agnostic method that are necessary to instantiate a PolynomialVectorEvaluator.
-type EvaluatorForPolyEval interface {
+// EvaluatorForPolynomialEvaluation defines a set of common and scheme agnostic method that are necessary to instantiate a PolynomialVectorEvaluator.
+type EvaluatorForPolynomialEvaluation interface {
 	rlwe.ParameterProvider
 	Evaluator
 	Encode(values interface{}, pt *rlwe.Plaintext) (err error)
@@ -23,7 +23,7 @@ type PolynomialVectorEvaluator interface {
 
 // PolynomialEvaluator is an evaluator used to evaluate polynomials on ciphertexts.
 type PolynomialEvaluator struct {
-	EvaluatorForPolyEval
+	EvaluatorForPolynomialEvaluation
 	*rlwe.EvaluatorBuffers
 }
 
@@ -125,7 +125,7 @@ func (eval PolynomialEvaluator) EvaluatePatersonStockmeyerPolynomialVector(pvEva
 		tmp[idx] = new(Poly)
 		tmp[idx].Degree = poly.Value[0].Value[i].Degree()
 		if tmp[idx].Value, err = pvEval.EvaluatePolynomialVectorFromPowerBasis(level, polyVec, pb, scale); err != nil {
-			return nil, fmt.Errorf("cannot EvaluatePatersonStockmeyerPolynomial: polynomial[%d]: %w", i, err)
+			return nil, fmt.Errorf("cannot EvaluatePolynomialVectorFromPowerBasis: polynomial[%d]: %w", i, err)
 		}
 	}
 

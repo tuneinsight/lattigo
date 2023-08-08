@@ -16,7 +16,23 @@ All notable changes to this library are documented in this file.
         - `Encode([]byte) (int, error)`: highly efficient encoding on preallocated slice of bytes.
         - `Decode([]byte) (int, error)`: highly efficient decoding from a slice of bytes.
     - Streamlined and simplified all test related to serialization. They can now be implemented with a single line of code with `RequireSerializerCorrect`.
-
+- New Packages:
+    - `circuits`: this package implements high level circuits over the HE schemes implemented in Lattigo.
+        - Linear Transformations
+        - Polynomial Evaluation
+    - `circuits/float`: this package implements advanced homomorphic circuit for encrypted arithmetic over floating point numbers.
+        - Linear Transformations
+        - Homomorphic encoding/decoding
+        - Polynomial Evaluation
+        - Homomorphic modular reduction (x mod 1)
+        - GoldschmidtDivision (x in [0, 2])
+        - Full domain division (x in [-max, -min] U [min, max])
+        - Sign and Step piece wise functions (x in [-1, 1] and [0, 1] respectively)
+    - `circuits/float/bootstrapping`: this package implement the bootstrapping circuit for the CKKS scheme.
+    - `circuits/integer`: Package integer implements advanced homomorphic circuit for encrypted arithmetic modular arithmetic with integers.
+        - Linear Transformations
+        - Polynomial Evaluation 
+    - `circuits/blindrotations`: this implements blind rotations evaluation for R-LWE schemes.
 - DRLWE/DBFV/DBGV/DCKKS: 
     - Renamed:
             - `NewCKGProtocol` to `NewPublicKeyGenProtocol`

@@ -21,7 +21,7 @@ import (
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short.")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 
-func GetCKKSTestName(params ckks.Parameters, opname string) string {
+func GetTestName(params ckks.Parameters, opname string) string {
 	return fmt.Sprintf("%s/RingType=%s/logN=%d/logQP=%d/Qi=%d/Pi=%d/LogScale=%d",
 		opname,
 		params.RingType(),
@@ -85,6 +85,7 @@ func TestFloat(t *testing.T) {
 			for _, testSet := range []func(tc *ckksTestContext, t *testing.T){
 				testCKKSLinearTransformation,
 				testEvaluatePolynomial,
+				testGoldschmidtDivisionNew,
 			} {
 				testSet(tc, t)
 				runtime.GC()
@@ -164,7 +165,7 @@ func newCKKSTestVectors(tc *ckksTestContext, encryptor *rlwe.Encryptor, a, b com
 
 func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 
-	t.Run(GetCKKSTestName(tc.params, "Average"), func(t *testing.T) {
+	t.Run(GetTestName(tc.params, "Average"), func(t *testing.T) {
 
 		values, _, ciphertext := newCKKSTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
 
@@ -202,7 +203,7 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 		ckks.VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, *printPrecisionStats, t)
 	})
 
-	t.Run(GetCKKSTestName(tc.params, "LinearTransform/BSGS=True"), func(t *testing.T) {
+	t.Run(GetTestName(tc.params, "LinearTransform/BSGS=True"), func(t *testing.T) {
 
 		params := tc.params
 
@@ -265,7 +266,7 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 		ckks.VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, *printPrecisionStats, t)
 	})
 
-	t.Run(GetCKKSTestName(tc.params, "LinearTransform/BSGS=False"), func(t *testing.T) {
+	t.Run(GetTestName(tc.params, "LinearTransform/BSGS=False"), func(t *testing.T) {
 
 		params := tc.params
 
@@ -335,7 +336,7 @@ func testEvaluatePolynomial(tc *ckksTestContext, t *testing.T) {
 
 	polyEval := NewPolynomialEvaluator(tc.params, tc.evaluator)
 
-	t.Run(GetCKKSTestName(tc.params, "EvaluatePoly/PolySingle/Exp"), func(t *testing.T) {
+	t.Run(GetTestName(tc.params, "EvaluatePoly/PolySingle/Exp"), func(t *testing.T) {
 
 		if tc.params.MaxLevel() < 3 {
 			t.Skip("skipping test for params max level < 3")
@@ -369,7 +370,7 @@ func testEvaluatePolynomial(tc *ckksTestContext, t *testing.T) {
 		ckks.VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, nil, *printPrecisionStats, t)
 	})
 
-	t.Run(GetCKKSTestName(tc.params, "Polynomial/PolyVector/Exp"), func(t *testing.T) {
+	t.Run(GetTestName(tc.params, "Polynomial/PolyVector/Exp"), func(t *testing.T) {
 
 		if tc.params.MaxLevel() < 3 {
 			t.Skip("skipping test for params max level < 3")

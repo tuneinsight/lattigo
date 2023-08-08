@@ -137,7 +137,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 		ltEval := NewLinearTransformationEvaluator(tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)))
 
-		require.NoError(t, ltEval.LinearTransformation(ciphertext, linTransf, ciphertext))
+		require.NoError(t, ltEval.Evaluate(ciphertext, linTransf, ciphertext))
 
 		tmp := make([]uint64, totSlots)
 		copy(tmp, values.Coeffs[0])
@@ -206,7 +206,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 		ltEval := NewLinearTransformationEvaluator(tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)))
 
-		require.NoError(t, ltEval.LinearTransformation(ciphertext, linTransf, ciphertext))
+		require.NoError(t, ltEval.Evaluate(ciphertext, linTransf, ciphertext))
 
 		tmp := make([]uint64, totSlots)
 		copy(tmp, values.Coeffs[0])

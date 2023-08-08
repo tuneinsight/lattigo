@@ -16,7 +16,7 @@ import (
 
 type DFTEvaluatorInterface interface {
 	rlwe.ParameterProvider
-	circuits.EvaluatorForLinearTransformation
+	circuits.LinearTransformer
 	Add(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
 	Sub(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
 	Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
@@ -317,25 +317,13 @@ func (eval *DFTEvaluator) SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext, stcMatr
 	return
 }
 
-func (eval *DFTEvaluator) dft(ctIn *rlwe.Ciphertext, plainVectors []LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
+func (eval *DFTEvaluator) dft(ctIn *rlwe.Ciphertext, matrices []LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
 
 	inputLogSlots := ctIn.LogDimensions
 
 	// Sequentially multiplies w with the provided dft matrices.
-	var in, out *rlwe.Ciphertext
-	for i, plainVector := range plainVectors {
-		in, out = opOut, opOut
-		if i == 0 {
-			in, out = ctIn, opOut
-		}
-
-		if err = eval.LinearTransformation(in, plainVector, out); err != nil {
-			return
-		}
-
-		if err = eval.Rescale(out, out); err != nil {
-			return
-		}
+	if err = eval.LinearTransformationEvaluator.EvaluateSequential(ctIn, matrices, opOut); err != nil {
+		return
 	}
 
 	// Encoding matrices are a special case of `fractal` linear transform

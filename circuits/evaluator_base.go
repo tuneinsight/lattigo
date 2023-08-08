@@ -2,6 +2,7 @@ package circuits
 
 import "github.com/tuneinsight/lattigo/v4/rlwe"
 
+// Evaluator defines a set of common and scheme agnostic method provided by an Evaluator struct.
 type Evaluator interface {
 	Add(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
 	Sub(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)

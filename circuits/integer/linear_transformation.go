@@ -26,10 +26,10 @@ type LinearTransformationParameters circuits.LinearTransformationParameters
 
 type LinearTransformation circuits.LinearTransformation
 
-// NewLinearTransformationEvaluator instantiates a new LinearTransformationEvaluator from an EvaluatorForLinearTransformation.
-// The method is allocation free if the underlying EvaluatorForLinearTransformation returns a non-nil
+// NewLinearTransformationEvaluator instantiates a new LinearTransformationEvaluator from an LinearTransformer.
+// The method is allocation free if the underlying LinearTransformer returns a non-nil
 // *rlwe.EvaluatorBuffers.
-func NewLinearTransformationEvaluator(eval circuits.EvaluatorForLinearTransformation) (linTransEval *LinearTransformationEvaluator) {
+func NewLinearTransformationEvaluator(eval circuits.LinearTransformer) (linTransEval *LinearTransformationEvaluator) {
 	return &LinearTransformationEvaluator{*circuits.NewLinearTransformationEvaluator(eval)}
 }
 
@@ -54,34 +54,51 @@ type LinearTransformationEvaluator struct {
 	circuits.LinearTransformationEvaluator
 }
 
-// LinearTransformationsNew takes as input a ciphertext ctIn and a list of linear transformations [M0, M1, M2, ...] and returns opOut:[M0(ctIn), M1(ctIn), M2(ctInt), ...].
-func (eval LinearTransformationEvaluator) LinearTransformationsNew(ctIn *rlwe.Ciphertext, linearTransformations []LinearTransformation) (opOut []*rlwe.Ciphertext, err error) {
+// EvaluateNew takes as input a ciphertext ctIn and a linear transformation M and evaluate and returns opOut: M(ctIn).
+func (eval LinearTransformationEvaluator) EvaluateNew(ctIn *rlwe.Ciphertext, linearTransformation LinearTransformation) (opOut *rlwe.Ciphertext, err error) {
+	return eval.LinearTransformationEvaluator.EvaluateNew(ctIn, circuits.LinearTransformation(linearTransformation))
+}
+
+// Evaluate takes as input a ciphertext ctIn, a linear transformation M and evaluates opOut: M(ctIn).
+func (eval LinearTransformationEvaluator) Evaluate(ctIn *rlwe.Ciphertext, linearTransformation LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
+	return eval.LinearTransformationEvaluator.Evaluate(ctIn, circuits.LinearTransformation(linearTransformation), opOut)
+}
+
+// EvaluateManyNew takes as input a ciphertext ctIn and a list of linear transformations [M0, M1, M2, ...] and returns opOut:[M0(ctIn), M1(ctIn), M2(ctInt), ...].
+func (eval LinearTransformationEvaluator) EvaluateManyNew(ctIn *rlwe.Ciphertext, linearTransformations []LinearTransformation) (opOut []*rlwe.Ciphertext, err error) {
 	circuitLTs := make([]circuits.LinearTransformation, len(linearTransformations))
 	for i := range circuitLTs {
 		circuitLTs[i] = circuits.LinearTransformation(linearTransformations[i])
 	}
-	return eval.LinearTransformationEvaluator.LinearTransformationsNew(ctIn, circuitLTs)
+	return eval.LinearTransformationEvaluator.EvaluateManyNew(ctIn, circuitLTs)
 }
 
-// LinearTransformationNew takes as input a ciphertext ctIn and a linear transformation M and evaluate and returns opOut: M(ctIn).
-func (eval LinearTransformationEvaluator) LinearTransformationNew(ctIn *rlwe.Ciphertext, linearTransformation LinearTransformation) (opOut *rlwe.Ciphertext, err error) {
-	cts, err := eval.LinearTransformationsNew(ctIn, []LinearTransformation{linearTransformation})
-	return cts[0], err
-}
-
-// LinearTransformation takes as input a ciphertext ctIn, a linear transformation M and evaluates opOut: M(ctIn).
-func (eval LinearTransformationEvaluator) LinearTransformation(ctIn *rlwe.Ciphertext, linearTransformation LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
-	return eval.LinearTransformations(ctIn, []LinearTransformation{linearTransformation}, []*rlwe.Ciphertext{opOut})
-}
-
-// LinearTransformations takes as input a ciphertext ctIn, a list of linear transformations [M0, M1, M2, ...] and a list of pre-allocated receiver opOut
+// EvaluateMany takes as input a ciphertext ctIn, a list of linear transformations [M0, M1, M2, ...] and a list of pre-allocated receiver opOut
 // and evaluates opOut: [M0(ctIn), M1(ctIn), M2(ctIn), ...]
-func (eval LinearTransformationEvaluator) LinearTransformations(ctIn *rlwe.Ciphertext, linearTransformations []LinearTransformation, opOut []*rlwe.Ciphertext) (err error) {
+func (eval LinearTransformationEvaluator) EvaluateMany(ctIn *rlwe.Ciphertext, linearTransformations []LinearTransformation, opOut []*rlwe.Ciphertext) (err error) {
 	circuitLTs := make([]circuits.LinearTransformation, len(linearTransformations))
 	for i := range circuitLTs {
 		circuitLTs[i] = circuits.LinearTransformation(linearTransformations[i])
 	}
-	return eval.LinearTransformationEvaluator.LinearTransformations(ctIn, circuitLTs, opOut)
+	return eval.LinearTransformationEvaluator.EvaluateMany(ctIn, circuitLTs, opOut)
+}
+
+// EvaluateSequentialNew takes as input a ciphertext ctIn and a list of linear transformations [M0, M1, M2, ...] and returns opOut:...M2(M1(M0(ctIn))
+func (eval LinearTransformationEvaluator) EvaluateSequentialNew(ctIn *rlwe.Ciphertext, linearTransformations []LinearTransformation) (opOut *rlwe.Ciphertext, err error) {
+	circuitLTs := make([]circuits.LinearTransformation, len(linearTransformations))
+	for i := range circuitLTs {
+		circuitLTs[i] = circuits.LinearTransformation(linearTransformations[i])
+	}
+	return eval.LinearTransformationEvaluator.EvaluateSequentialNew(ctIn, circuitLTs)
+}
+
+// EvaluateSequential takes as input a ciphertext ctIn and a list of linear transformations [M0, M1, M2, ...] and returns opOut:...M2(M1(M0(ctIn))
+func (eval LinearTransformationEvaluator) EvaluateSequential(ctIn *rlwe.Ciphertext, linearTransformations []LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
+	circuitLTs := make([]circuits.LinearTransformation, len(linearTransformations))
+	for i := range circuitLTs {
+		circuitLTs[i] = circuits.LinearTransformation(linearTransformations[i])
+	}
+	return eval.LinearTransformationEvaluator.EvaluateSequential(ctIn, circuitLTs, opOut)
 }
 
 // MultiplyByDiagMatrix multiplies the Ciphertext "ctIn" by the plaintext matrix "matrix" and returns the result on the Ciphertext

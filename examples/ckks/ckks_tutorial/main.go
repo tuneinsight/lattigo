@@ -699,7 +699,7 @@ func main() {
 	ltEval := float.NewLinearTransformationEvaluator(eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, kgen.GenGaloisKeysNew(galEls, sk)...)))
 
 	// And we valuate the linear transform
-	if err := ltEval.LinearTransformation(ct1, lt, res); err != nil {
+	if err := ltEval.Evaluate(ct1, lt, res); err != nil {
 		panic(err)
 	}
 
@@ -735,7 +735,7 @@ func main() {
 	// By design, structs outside of the parameters are not thread safe.
 	// For example, one cannot use an encoder to encode concurrently on different plaintexts.
 	// However, all structs (for which it makes sens) have the method `ShallowCopy`, which creates
-	//  a copy of the original struct with new internal buffers, that is safe to use concurrently.
+	// a copy of the original struct with new internal buffers, that is safe to use concurrently.
 
 }
 

@@ -246,7 +246,7 @@ func (r *Remez) getCoefficients() {
 	for i := 0; i < r.Degree+2; i++ {
 		r.Vector[i].Set(r.Nodes[i].y)
 	}
-	
+
 	// Solves the linear system
 	solveLinearSystemInPlace(r.Matrix, r.Vector)
 
@@ -604,7 +604,6 @@ func findLocalMaximum(fErr func(x *big.Float) (y *big.Float), start, end *big.Fl
 		// 2: [0.50, 0.75]
 		// 3: [0.75, 1.00]
 
-		
 		slopeWin0, slopeWin1, slopeWin2, slopeWin3 := slopes(fErr, windowStart, windowEnd, quarter)
 
 		// Look for a sign change between the 4 intervals.

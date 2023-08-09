@@ -97,7 +97,7 @@ func GenSignPoly() {
 		fmt.Printf("{")
 		for j := range coeffs[i] {
 
-			if true {
+			if j&1 == 1 {
 				if j == len(coeffs[i])-1 {
 					fmt.Printf("%.15f", coeffs[i][j])
 				} else {

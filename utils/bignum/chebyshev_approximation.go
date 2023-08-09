@@ -50,11 +50,11 @@ func ChebyshevApproximation(f interface{}, interval Interval) (pol Polynomial) {
 	return NewPolynomial(Chebyshev, chebyCoeffs(nodes, fi, interval), &interval)
 }
 
-func chebyshevNodes(n int, interval Interval) (u []*big.Float) {
+func chebyshevNodes(n int, interval Interval) (nodes []*big.Float) {
 
 	prec := interval.A.Prec()
 
-	u = make([]*big.Float, n)
+	nodes = make([]*big.Float, n)
 
 	half := new(big.Float).SetPrec(prec).SetFloat64(0.5)
 
@@ -64,15 +64,14 @@ func chebyshevNodes(n int, interval Interval) (u []*big.Float) {
 	y.Mul(y, half)
 
 	PiOverN := Pi(prec)
-	PiOverN.Quo(PiOverN, new(big.Float).SetInt64(int64(n)))
+	PiOverN.Quo(PiOverN, new(big.Float).SetInt64(int64(n-1)))
 
-	for k := 1; k < n+1; k++ {
-		up := new(big.Float).SetPrec(prec).SetFloat64(float64(k) - 0.5)
-		up.Mul(up, PiOverN)
-		up = Cos(up)
-		up.Mul(up, y)
-		up.Add(up, x)
-		u[k-1] = up
+	for i := 0; i < n; i++ {
+		nodes[i] = NewFloat(float64(n-i-1), prec)
+		nodes[i].Mul(nodes[i], PiOverN)
+		nodes[i] = Cos(nodes[i])
+		nodes[i].Mul(nodes[i], y)
+		nodes[i].Add(nodes[i], x)
 	}
 
 	return

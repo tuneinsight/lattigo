@@ -246,7 +246,7 @@ func (r *Remez) getCoefficients() {
 	for i := 0; i < r.Degree+2; i++ {
 		r.Vector[i].Set(r.Nodes[i].y)
 	}
-
+	
 	// Solves the linear system
 	solveLinearSystemInPlace(r.Matrix, r.Vector)
 
@@ -524,25 +524,27 @@ func (r *Remez) findLocalExtrempointsWithSlope(fErr func(*big.Float) (y *big.Flo
 
 			for i := 0; i < s; i++ {
 
+				pow10 := NewFloat(math.Pow(10, float64(i)), prec)
+
 				// start + 10*scan/pow(10,i)
 				a := new(big.Float).Mul(scan, NewFloat(10, prec))
-				a.Quo(a, NewFloat(math.Pow(10, float64(i)), prec))
+				a.Quo(a, pow10)
 				a.Add(&interval.A, a)
 
 				// end - 10*scan/pow(10,i)
 				b := new(big.Float).Mul(scan, NewFloat(10, prec))
-				b.Quo(b, NewFloat(math.Pow(10, float64(i)), prec))
+				b.Quo(b, pow10)
 				b.Sub(&interval.B, b)
 
 				// a < scanRight && scanRight < b
 				if a.Cmp(scanRight) == -1 && scanRight.Cmp(b) == -1 {
-					optScan.Quo(scan, NewFloat(math.Pow(10, float64(i)), prec))
+					optScan.Quo(scan, pow10)
 					break
 				}
 
 				if i == s-1 {
-					optScan.Quo(scan, NewFloat(math.Pow(10, float64(i+1)), prec))
-					break
+					optScan.Quo(scan, pow10)
+					optScan.Quo(optScan, NewFloat(10, prec))
 				}
 			}
 
@@ -569,11 +571,11 @@ func (r *Remez) findLocalExtrempointsWithSlope(fErr func(*big.Float) (y *big.Flo
 
 		// Positive and negative slope (concave)
 		if slopeLeft == 1 && slopeRight == -1 {
-			findLocalMaximum(fErr, scanLeft, scanRight, optScan, prec, &extrempoints[nbextrempoints])
+			findLocalMaximum(fErr, scanLeft, scanRight, prec, &extrempoints[nbextrempoints])
 			nbextrempoints++
 			// Negative and positive slope (convexe)
 		} else if slopeLeft == -1 && slopeRight == 1 {
-			findLocalMinimum(fErr, scanLeft, scanRight, optScan, prec, &extrempoints[nbextrempoints])
+			findLocalMinimum(fErr, scanLeft, scanRight, prec, &extrempoints[nbextrempoints])
 			nbextrempoints++
 		}
 	}
@@ -587,12 +589,12 @@ func (r *Remez) findLocalExtrempointsWithSlope(fErr func(*big.Float) (y *big.Flo
 }
 
 // findLocalMaximum finds the local maximum of a function that is concave in a given window.
-func findLocalMaximum(fErr func(x *big.Float) (y *big.Float), start, end, step *big.Float, prec uint, p *point) {
+func findLocalMaximum(fErr func(x *big.Float) (y *big.Float), start, end *big.Float, prec uint, p *point) {
 
 	windowStart := new(big.Float).Set(start)
 	windowEnd := new(big.Float).Set(end)
 	quarter := new(big.Float).Sub(windowEnd, windowStart)
-	quarter.Quo(step, NewFloat(4, prec))
+	quarter.Quo(quarter, NewFloat(4, prec))
 
 	for i := 0; i < int(prec); i++ {
 
@@ -601,6 +603,8 @@ func findLocalMaximum(fErr func(x *big.Float) (y *big.Float), start, end, step *
 		// 1: [0.25, 0.50]
 		// 2: [0.50, 0.75]
 		// 3: [0.75, 1.00]
+
+		
 		slopeWin0, slopeWin1, slopeWin2, slopeWin3 := slopes(fErr, windowStart, windowEnd, quarter)
 
 		// Look for a sign change between the 4 intervals.
@@ -615,6 +619,9 @@ func findLocalMaximum(fErr func(x *big.Float) (y *big.Float), start, end, step *
 			windowEnd.Sub(windowEnd, quarter)
 			windowEnd.Sub(windowEnd, quarter)
 
+			// Divides the scan step by half
+			quarter.Quo(quarter, NewFloat(2.0, prec))
+
 			// Sign change occurs between [0.25, 0.75]
 		} else if slopeWin1 == 1 && slopeWin2 == -1 {
 
@@ -624,16 +631,19 @@ func findLocalMaximum(fErr func(x *big.Float) (y *big.Float), start, end, step *
 			// Decreases windowEnd from 1 to 0.75
 			windowEnd.Sub(windowEnd, quarter)
 
+			// Divides the scan step by half
+			quarter.Quo(quarter, NewFloat(2.0, prec))
+
 			// Sign change occurs between [0.5, 1.0]
 		} else if slopeWin2 == 1 && slopeWin3 == -1 {
 
 			// Increases windowStart fro 0 to 0.5
 			windowStart.Add(windowStart, quarter)
 			windowStart.Add(windowStart, quarter)
-		}
 
-		// Divides the scan step by half
-		quarter.Quo(quarter, NewFloat(2.0, prec))
+			// Divides the scan step by half
+			quarter.Quo(quarter, NewFloat(2.0, prec))
+		}
 	}
 
 	p.x.Quo(new(big.Float).Add(windowStart, windowEnd), NewFloat(2, prec))
@@ -642,12 +652,12 @@ func findLocalMaximum(fErr func(x *big.Float) (y *big.Float), start, end, step *
 }
 
 // findLocalMaximum finds the local maximum of a function that is convex in a given window.
-func findLocalMinimum(fErr func(x *big.Float) (y *big.Float), start, end, step *big.Float, prec uint, p *point) {
+func findLocalMinimum(fErr func(x *big.Float) (y *big.Float), start, end *big.Float, prec uint, p *point) {
 
 	windowStart := new(big.Float).Set(start)
 	windowEnd := new(big.Float).Set(end)
 	quarter := new(big.Float).Sub(windowEnd, windowStart)
-	quarter.Quo(step, NewFloat(4, prec))
+	quarter.Quo(quarter, NewFloat(4, prec))
 
 	for i := 0; i < int(prec); i++ {
 
@@ -670,6 +680,9 @@ func findLocalMinimum(fErr func(x *big.Float) (y *big.Float), start, end, step *
 			windowEnd.Sub(windowEnd, quarter)
 			windowEnd.Sub(windowEnd, quarter)
 
+			// Divides the scan step by half
+			quarter.Quo(quarter, NewFloat(2.0, prec))
+
 			// Sign change occurs between [0.25, 0.75]
 		} else if slopeWin1 == -1 && slopeWin2 == 1 {
 
@@ -679,16 +692,20 @@ func findLocalMinimum(fErr func(x *big.Float) (y *big.Float), start, end, step *
 			// Decreases windowEnd from 1 to 0.75
 			windowEnd.Sub(windowEnd, quarter)
 
+			// Divides the scan step by half
+			quarter.Quo(quarter, NewFloat(2.0, prec))
+
 			// Sign change occurs between [0.5, 1.0]
 		} else if slopeWin2 == -1 && slopeWin3 == 1 {
 
 			// Increases windowStart fro 0 to 0.5
 			windowStart.Add(windowStart, quarter)
 			windowStart.Add(windowStart, quarter)
+
+			// Divides the scan step by half
+			quarter.Quo(quarter, NewFloat(2.0, prec))
 		}
 
-		// Divides the scan step by half
-		quarter.Quo(quarter, NewFloat(2.0, prec))
 	}
 
 	p.x.Quo(new(big.Float).Add(windowStart, windowEnd), NewFloat(2, prec))

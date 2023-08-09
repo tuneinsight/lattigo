@@ -1,6 +1,7 @@
 package float
 
 import (
+	//"fmt"
 	"math"
 	"sort"
 	"testing"
@@ -9,12 +10,27 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
+/*
+func TestMinimaxApprox(t *testing.T) {
+	// Precision of the floating point arithmetic
+	prec := uint(512)
+
+	// 2^{-logalpha} distinguishing ability
+	logalpha := int(30)
+
+	// Degrees of each minimax polynomial
+	deg := []int{16, 16, 16, 32, 32, 32, 32, 32}
+
+	GenSignPoly(prec, logalpha, deg)
+}
+*/
+
 func TestMinimaxCompositeSignPolys30bits(t *testing.T) {
 
-	keys := make([]int, len(SignPolys30))
+	keys := make([]int, len(SingPoly30String))
 
 	idx := 0
-	for k := range SignPolys30 {
+	for k := range SingPoly30String {
 		keys[idx] = k
 		idx++
 	}

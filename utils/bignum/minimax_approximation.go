@@ -70,8 +70,8 @@ func NewRemez(p RemezParameters) (r *Remez) {
 
 	r = &Remez{
 		RemezParameters: p,
-		MaxErr:          new(big.Float),
-		MinErr:          new(big.Float),
+		MaxErr:          new(big.Float).SetPrec(p.Prec),
+		MinErr:          new(big.Float).SetPrec(p.Prec),
 	}
 
 	for i := range r.Intervals {
@@ -124,6 +124,8 @@ func NewRemez(p RemezParameters) (r *Remez) {
 // before the approximation process is terminated.
 func (r *Remez) Approximate(maxIter int, threshold float64) {
 
+	decimals := int(-math.Log(threshold)/math.Log(10)+0.5) + 10
+
 	r.initialize()
 
 	for i := 0; i < maxIter; i++ {
@@ -140,7 +142,7 @@ func (r *Remez) Approximate(maxIter int, threshold float64) {
 		nErr := new(big.Float).Sub(r.MaxErr, r.MinErr)
 		nErr.Quo(nErr, r.MinErr)
 
-		fmt.Printf("Iteration: %2d - %v\n", i, nErr)
+		fmt.Printf("Iteration: %2d - %.*f\n", i, decimals, nErr)
 
 		if nErr.Cmp(new(big.Float).SetFloat64(threshold)) < 1 {
 			break
@@ -242,6 +244,16 @@ func (r *Remez) getCoefficients() {
 			r.Matrix[i][r.Degree+1] = NewFloat(1, r.Prec)
 		}
 	}
+
+	/*
+		for i := 0; i < r.Degree+2; i++{
+			for j := 0; j < r.Degree+2; j++{
+				fmt.Printf("%v\n", r.Matrix[i][j])
+			}
+			fmt.Println()
+		}
+		fmt.Println()
+	*/
 
 	for i := 0; i < r.Degree+2; i++ {
 		r.Vector[i].Set(r.Nodes[i].y)

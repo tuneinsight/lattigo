@@ -2,6 +2,7 @@ package float
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/ckks"
@@ -40,31 +41,25 @@ func (eval PieceWiseFunctionEvaluator) EvaluateSign(ct *rlwe.Ciphertext, prec in
 
 	sign = ct.CopyNew()
 
-	var polys [][]float64
-	if polys, err = GetSignPoly30Coefficients(prec); err != nil {
+	var polys []bignum.Polynomial
+	if polys, err = GetSignPoly30Polynomials(prec); err != nil {
 		return
 	}
 
-	for _, coeffs := range polys {
+	two := new(big.Float).SetInt64(2)
 
-		c128 := make([]complex128, len(coeffs))
+	for _, poly := range polys {
 
 		if params.RingType() == ring.Standard {
-			for j := range c128 {
-				c128[j] = complex(coeffs[j]/2, 0)
-			}
-		} else {
-			for j := range c128 {
-				c128[j] = complex(coeffs[j], 0)
+			for j := range poly.Coeffs {
+				poly.Coeffs[j][0].Quo(poly.Coeffs[j][0], two)
 			}
 		}
 
-		pol := bignum.NewPolynomial(bignum.Chebyshev, c128, nil)
+		if sign.Level() < poly.Depth()+btp.MinimumInputLevel() {
 
-		if sign.Level() < pol.Depth()+btp.MinimumInputLevel() {
-
-			if params.MaxLevel() < pol.Depth()+btp.MinimumInputLevel() {
-				return nil, fmt.Errorf("sign: parameters do not enable the evaluation of the circuit, missing %d levels", pol.Depth()+btp.MinimumInputLevel()-params.MaxLevel())
+			if params.MaxLevel() < poly.Depth()+btp.MinimumInputLevel() {
+				return nil, fmt.Errorf("sign: parameters do not enable the evaluation of the circuit, missing %d levels", poly.Depth()+btp.MinimumInputLevel()-params.MaxLevel())
 			}
 
 			if sign, err = btp.Bootstrap(sign); err != nil {
@@ -72,7 +67,7 @@ func (eval PieceWiseFunctionEvaluator) EvaluateSign(ct *rlwe.Ciphertext, prec in
 			}
 		}
 
-		if sign, err = eval.PolynomialEvaluator.Evaluate(sign, pol, ct.Scale); err != nil {
+		if sign, err = eval.PolynomialEvaluator.Evaluate(sign, poly, ct.Scale); err != nil {
 			return nil, fmt.Errorf("sign: polynomial: %w", err)
 		}
 
@@ -103,38 +98,32 @@ func (eval PieceWiseFunctionEvaluator) EvaluateStep(ct *rlwe.Ciphertext, prec in
 
 	step = ct.CopyNew()
 
-	var polys [][]float64
-	if polys, err = GetSignPoly30Coefficients(prec); err != nil {
+	var polys []bignum.Polynomial
+	if polys, err = GetSignPoly30Polynomials(prec); err != nil {
 		return
 	}
 
-	for i, coeffs := range polys {
+	two := new(big.Float).SetInt64(2)
 
-		c128 := make([]complex128, len(coeffs))
+	for i, poly := range polys {
 
 		if params.RingType() == ring.Standard {
-			for j := range c128 {
-				c128[j] = complex(coeffs[j]/2, 0)
-			}
-		} else {
-			for j := range c128 {
-				c128[j] = complex(coeffs[j], 0)
+			for j := range poly.Coeffs {
+				poly.Coeffs[j][0].Quo(poly.Coeffs[j][0], two)
 			}
 		}
 
 		// Changes the last poly to scale the output by 0.5 and add 0.5
 		if i == len(polys)-1 {
-			for j := range c128 {
-				c128[j] /= 2
+			for j := range poly.Coeffs {
+				poly.Coeffs[j][0].Quo(poly.Coeffs[j][0], two)
 			}
 		}
 
-		pol := bignum.NewPolynomial(bignum.Chebyshev, c128, nil)
+		if step.Level() < poly.Depth()+btp.MinimumInputLevel() {
 
-		if step.Level() < pol.Depth()+btp.MinimumInputLevel() {
-
-			if params.MaxLevel() < pol.Depth()+btp.MinimumInputLevel() {
-				return nil, fmt.Errorf("step: parameters do not enable the evaluation of the circuit, missing %d levels", pol.Depth()+btp.MinimumInputLevel()-params.MaxLevel())
+			if params.MaxLevel() < poly.Depth()+btp.MinimumInputLevel() {
+				return nil, fmt.Errorf("step: parameters do not enable the evaluation of the circuit, missing %d levels", poly.Depth()+btp.MinimumInputLevel()-params.MaxLevel())
 			}
 
 			if step, err = btp.Bootstrap(step); err != nil {
@@ -142,7 +131,7 @@ func (eval PieceWiseFunctionEvaluator) EvaluateStep(ct *rlwe.Ciphertext, prec in
 			}
 		}
 
-		if step, err = eval.PolynomialEvaluator.Evaluate(step, pol, ct.Scale); err != nil {
+		if step, err = eval.PolynomialEvaluator.Evaluate(step, poly, ct.Scale); err != nil {
 			return nil, fmt.Errorf("step: polynomial: %w", err)
 		}
 

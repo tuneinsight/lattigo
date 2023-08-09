@@ -79,7 +79,7 @@ func (eval InverseEvaluator) EvaluateNew(ct *rlwe.Ciphertext, min, max float64, 
 		}
 
 		// Computes the sign with precision [-1, -2^-a] U [2^-a, 1]
-		if sign, err = eval.PieceWiseFunctionEvaluator.EvaluateSign(cInv, int(math.Ceil(math.Log2(1/min))), btp); err != nil {
+		if sign, err = eval.PieceWiseFunctionEvaluator.EvaluateSign(cInv, 30, btp); err != nil { // TODO REVERT TO int(math.Ceil(math.Log2(1/min)))
 			return nil, fmt.Errorf("canBeNegative: true -> sign: %w", err)
 		}
 

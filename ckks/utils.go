@@ -142,7 +142,7 @@ func singleFloatToFixedPointCRT(level, i int, value float64, scale float64, ring
 
 	moduli := ringQ.Modulus
 
-	if value > 1.8446744073709552e+19 {
+	if value >= 1.8446744073709552e+19 {
 		xFlo = big.NewFloat(value)
 		xFlo.Add(xFlo, big.NewFloat(0.5))
 		xInt = new(big.Int)

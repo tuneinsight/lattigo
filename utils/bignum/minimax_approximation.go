@@ -87,14 +87,14 @@ func NewRemez(p RemezParameters) (r *Remez) {
 		r.Coeffs[i] = new(big.Float)
 	}
 
-	r.extrempoints = make([]point, 2*r.Degree)
+	r.extrempoints = make([]point, 3*r.Degree)
 
 	for i := range r.extrempoints {
 		r.extrempoints[i].x = new(big.Float)
 		r.extrempoints[i].y = new(big.Float)
 	}
 
-	r.localExtrempoints = make([]point, 2*r.Degree)
+	r.localExtrempoints = make([]point, 3*r.Degree)
 	for i := range r.localExtrempoints {
 		r.localExtrempoints[i].x = new(big.Float)
 		r.localExtrempoints[i].y = new(big.Float)

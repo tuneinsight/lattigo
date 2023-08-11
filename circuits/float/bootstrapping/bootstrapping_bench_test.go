@@ -32,7 +32,7 @@ func BenchmarkBootstrap(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 
-			bootstrappingScale := rlwe.NewScale(math.Exp2(math.Round(math.Log2(float64(btp.params.Q()[0]) / btp.evalModPoly.MessageRatio()))))
+			bootstrappingScale := rlwe.NewScale(math.Exp2(math.Round(math.Log2(float64(btp.params.Q()[0]) / btp.mod1Parameters.MessageRatio()))))
 
 			b.StopTimer()
 			ct := ckks.NewCiphertext(params, 1, 0)
@@ -61,12 +61,12 @@ func BenchmarkBootstrap(b *testing.B) {
 
 			// Part 2 : SineEval
 			t = time.Now()
-			ct0, err = btp.EvalModNew(ct0, btp.evalModPoly)
+			ct0, err = btp.Mod1Evaluator.EvaluateNew(ct0)
 			require.NoError(b, err)
 			ct0.Scale = btp.params.DefaultScale()
 
 			if ct1 != nil {
-				ct1, err = btp.EvalModNew(ct1, btp.evalModPoly)
+				ct1, err = btp.Mod1Evaluator.EvaluateNew(ct1)
 				require.NoError(b, err)
 				ct1.Scale = btp.params.DefaultScale()
 			}

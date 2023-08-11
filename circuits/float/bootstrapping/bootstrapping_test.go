@@ -99,7 +99,7 @@ func TestBootstrap(t *testing.T) {
 			// Insecure params for fast testing only
 			if !*flagLongTest {
 				// Corrects the message ratio to take into account the smaller number of slots and keep the same precision
-				btpParams.EvalModParameters.LogMessageRatio += utils.Min(utils.Max(15-LogSlots, 0), 8)
+				btpParams.Mod1ParametersLiteral.LogMessageRatio += utils.Min(utils.Max(15-LogSlots, 0), 8)
 			}
 
 			if !encapsulation {

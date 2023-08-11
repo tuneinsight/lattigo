@@ -25,9 +25,9 @@ func NewPowerBasis(ct *rlwe.Ciphertext, basis bignum.Basis) circuits.PowerBasis 
 }
 
 // NewPolynomialEvaluator instantiates a new PolynomialEvaluator.
-func NewPolynomialEvaluator(params ckks.Parameters, eval circuits.EvaluatorForPolynomialEvaluation) *PolynomialEvaluator {
+func NewPolynomialEvaluator(params ckks.Parameters, eval circuits.EvaluatorForPolynomial) *PolynomialEvaluator {
 	e := new(PolynomialEvaluator)
-	e.PolynomialEvaluator = circuits.PolynomialEvaluator{EvaluatorForPolynomialEvaluation: eval, EvaluatorBuffers: eval.GetEvaluatorBuffer()}
+	e.PolynomialEvaluator = circuits.PolynomialEvaluator{EvaluatorForPolynomial: eval, EvaluatorBuffers: eval.GetEvaluatorBuffer()}
 	e.Parameters = params
 	return e
 }

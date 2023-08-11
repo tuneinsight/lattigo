@@ -76,7 +76,7 @@ func main() {
 
 	if *flagShort {
 		// Corrects the message ratio to take into account the smaller number of slots and keep the same precision
-		btpParams.EvalModParameters.LogMessageRatio += 3
+		btpParams.Mod1ParametersLiteral.LogMessageRatio += 3
 	}
 
 	// This generate ckks.Parameters, with the NTT tables and other pre-computations from the ckks.ParametersLiteral (which is only a template).

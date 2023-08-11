@@ -43,7 +43,7 @@ func (btp *Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (opOut *rlwe.Ciphertex
 
 		// Does an integer constant mult by round((Q0/Delta_m)/ctscale)
 		if scale := ctDiff.Scale.Float64(); scale != math.Exp2(math.Round(math.Log2(scale))) || btp.q0OverMessageRatio < scale {
-			msgRatio := btp.EvalModParameters.LogMessageRatio
+			msgRatio := btp.Mod1ParametersLiteral.LogMessageRatio
 			return nil, fmt.Errorf("cannot Bootstrap: ciphertext scale must be a power of two smaller than Q[0]/2^{LogMessageRatio=%d} = %f but is %f", msgRatio, float64(btp.params.Q()[0])/math.Exp2(float64(msgRatio)), scale)
 		}
 
@@ -53,7 +53,7 @@ func (btp *Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (opOut *rlwe.Ciphertex
 	}
 
 	// Scales the message to Q0/|m|, which is the maximum possible before ModRaise to avoid plaintext overflow.
-	if scale := math.Round((float64(btp.params.Q()[0]) / btp.evalModPoly.MessageRatio()) / ctDiff.Scale.Float64()); scale > 1 {
+	if scale := math.Round((float64(btp.params.Q()[0]) / btp.mod1Parameters.MessageRatio()) / ctDiff.Scale.Float64()); scale > 1 {
 		if err = btp.ScaleUp(ctDiff, rlwe.NewScale(scale), ctDiff); err != nil {
 			return nil, fmt.Errorf("cannot Bootstrap: %w", err)
 		}
@@ -107,7 +107,7 @@ func (btp *Bootstrapper) bootstrap(ctIn *rlwe.Ciphertext) (opOut *rlwe.Ciphertex
 	}
 
 	// Scale the message from Q0/|m| to QL/|m|, where QL is the largest modulus used during the bootstrapping.
-	if scale := (btp.evalModPoly.ScalingFactor().Float64() / btp.evalModPoly.MessageRatio()) / opOut.Scale.Float64(); scale > 1 {
+	if scale := (btp.mod1Parameters.ScalingFactor().Float64() / btp.mod1Parameters.MessageRatio()) / opOut.Scale.Float64(); scale > 1 {
 		if err = btp.ScaleUp(opOut, rlwe.NewScale(scale), opOut); err != nil {
 			return nil, err
 		}
@@ -128,13 +128,13 @@ func (btp *Bootstrapper) bootstrap(ctIn *rlwe.Ciphertext) (opOut *rlwe.Ciphertex
 	// ctReal = Ecd(real)
 	// ctImag = Ecd(imag)
 	// If n < N/2 then ctReal = Ecd(real|imag)
-	if ctReal, err = btp.EvalModNew(ctReal, btp.evalModPoly); err != nil {
+	if ctReal, err = btp.Mod1Evaluator.EvaluateNew(ctReal); err != nil {
 		return nil, err
 	}
 	ctReal.Scale = btp.params.DefaultScale()
 
 	if ctImag != nil {
-		if ctImag, err = btp.EvalModNew(ctImag, btp.evalModPoly); err != nil {
+		if ctImag, err = btp.Mod1Evaluator.EvaluateNew(ctImag); err != nil {
 			return nil, err
 		}
 		ctImag.Scale = btp.params.DefaultScale()

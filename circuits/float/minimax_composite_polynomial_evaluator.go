@@ -12,7 +12,7 @@ import (
 
 // EvaluatorForMinimaxCompositePolynomial defines a set of common and scheme agnostic method that are necessary to instantiate a MinimaxCompositePolynomialEvaluator.
 type EvaluatorForMinimaxCompositePolynomial interface {
-	circuits.EvaluatorForPolynomialEvaluation
+	circuits.EvaluatorForPolynomial
 	circuits.Evaluator
 	ConjugateNew(ct *rlwe.Ciphertext) (ctConj *rlwe.Ciphertext, err error)
 }

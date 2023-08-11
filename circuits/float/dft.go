@@ -14,6 +14,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
+// DFTEvaluatorInterface is an interface defining the set of methods required to instantiate a DFTEvaluator.
 type DFTEvaluatorInterface interface {
 	rlwe.ParameterProvider
 	circuits.EvaluatorForLinearTransformation
@@ -25,7 +26,7 @@ type DFTEvaluatorInterface interface {
 	Rescale(op0 *rlwe.Ciphertext, opOut *rlwe.Ciphertext) (err error)
 }
 
-// DFTType is a type used to distinguish different linear transformations.
+// DFTType is a type used to distinguish between different discrete Fourier transformations.
 type DFTType int
 
 // HomomorphicEncode (IDFT) and HomomorphicDecode (DFT) are two available linear transformations for homomorphic encoding and decoding.
@@ -35,7 +36,7 @@ const (
 )
 
 // DFTMatrix is a struct storing the factorized IDFT, DFT matrices, which are
-// used to hommorphically encode and decode a ciphertext respectively.
+// used to homomorphically encode and decode a ciphertext respectively.
 type DFTMatrix struct {
 	DFTMatrixLiteral
 	Matrices []LinearTransformation

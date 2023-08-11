@@ -15,7 +15,7 @@ import (
 type Bootstrapper struct {
 	*ckks.Evaluator
 	*float.DFTEvaluator
-	*float.HModEvaluator
+	*float.Mod1Evaluator
 	*bootstrapperBase
 }
 
@@ -27,9 +27,9 @@ type bootstrapperBase struct {
 	dslots    int // Number of plaintext slots after the re-encoding
 	logdslots int
 
-	evalModPoly float.EvalModPoly
-	stcMatrices float.DFTMatrix
-	ctsMatrices float.DFTMatrix
+	mod1Parameters float.Mod1Parameters
+	stcMatrices    float.DFTMatrix
+	ctsMatrices    float.DFTMatrix
 
 	q0OverMessageRatio float64
 }
@@ -45,19 +45,19 @@ type EvaluationKeySet struct {
 // NewBootstrapper creates a new Bootstrapper.
 func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKeys *EvaluationKeySet) (btp *Bootstrapper, err error) {
 
-	if btpParams.EvalModParameters.SineType == float.SinContinuous && btpParams.EvalModParameters.DoubleAngle != 0 {
+	if btpParams.Mod1ParametersLiteral.SineType == float.SinContinuous && btpParams.Mod1ParametersLiteral.DoubleAngle != 0 {
 		return nil, fmt.Errorf("cannot use double angle formul for SineType = Sin -> must use SineType = Cos")
 	}
 
-	if btpParams.EvalModParameters.SineType == float.CosDiscrete && btpParams.EvalModParameters.SineDegree < 2*(btpParams.EvalModParameters.K-1) {
+	if btpParams.Mod1ParametersLiteral.SineType == float.CosDiscrete && btpParams.Mod1ParametersLiteral.SineDegree < 2*(btpParams.Mod1ParametersLiteral.K-1) {
 		return nil, fmt.Errorf("SineType 'ckks.CosDiscrete' uses a minimum degree of 2*(K-1) but EvalMod degree is smaller")
 	}
 
-	if btpParams.CoeffsToSlotsParameters.LevelStart-btpParams.CoeffsToSlotsParameters.Depth(true) != btpParams.EvalModParameters.LevelStart {
+	if btpParams.CoeffsToSlotsParameters.LevelStart-btpParams.CoeffsToSlotsParameters.Depth(true) != btpParams.Mod1ParametersLiteral.LevelStart {
 		return nil, fmt.Errorf("starting level and depth of CoeffsToSlotsParameters inconsistent starting level of SineEvalParameters")
 	}
 
-	if btpParams.EvalModParameters.LevelStart-btpParams.EvalModParameters.Depth() != btpParams.SlotsToCoeffsParameters.LevelStart {
+	if btpParams.Mod1ParametersLiteral.LevelStart-btpParams.Mod1ParametersLiteral.Depth() != btpParams.SlotsToCoeffsParameters.LevelStart {
 		return nil, fmt.Errorf("starting level and depth of SineEvalParameters inconsistent starting level of CoeffsToSlotsParameters")
 	}
 
@@ -76,7 +76,7 @@ func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKeys *Eval
 
 	btp.DFTEvaluator = float.NewDFTEvaluator(params, btp.Evaluator)
 
-	btp.HModEvaluator = float.NewHModEvaluator(btp.Evaluator)
+	btp.Mod1Evaluator = float.NewMod1Evaluator(btp.Evaluator, btp.bootstrapperBase.mod1Parameters)
 
 	return
 }
@@ -168,26 +168,26 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey *E
 		bb.logdslots++
 	}
 
-	if bb.evalModPoly, err = float.NewEvalModPolyFromLiteral(params, btpParams.EvalModParameters); err != nil {
+	if bb.mod1Parameters, err = float.NewMod1ParametersFromLiteral(params, btpParams.Mod1ParametersLiteral); err != nil {
 		return nil, err
 	}
 
-	scFac := bb.evalModPoly.ScFac()
-	K := bb.evalModPoly.K() / scFac
+	scFac := bb.mod1Parameters.ScFac()
+	K := bb.mod1Parameters.K() / scFac
 
 	// Correcting factor for approximate division by Q
 	// The second correcting factor for approximate multiplication by Q is included in the coefficients of the EvalMod polynomials
-	qDiff := bb.evalModPoly.QDiff()
+	qDiff := bb.mod1Parameters.QDiff()
 
 	Q0 := params.Q()[0]
 
 	// Q0/|m|
-	bb.q0OverMessageRatio = math.Exp2(math.Round(math.Log2(float64(Q0) / bb.evalModPoly.MessageRatio())))
+	bb.q0OverMessageRatio = math.Exp2(math.Round(math.Log2(float64(Q0) / bb.mod1Parameters.MessageRatio())))
 
 	// If the scale used during the EvalMod step is smaller than Q0, then we cannot increase the scale during
 	// the EvalMod step to get a free division by MessageRatio, and we need to do this division (totally or partly)
 	// during the CoeffstoSlots step
-	qDiv := bb.evalModPoly.ScalingFactor().Float64() / math.Exp2(math.Round(math.Log2(float64(Q0))))
+	qDiv := bb.mod1Parameters.ScalingFactor().Float64() / math.Exp2(math.Round(math.Log2(float64(Q0))))
 
 	// Sets qDiv to 1 if there is enough room for the division to happen using scale manipulation.
 	if qDiv > 1 {
@@ -213,9 +213,9 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey *E
 	// Rescaling factor to set the final ciphertext to the desired scale
 
 	if bb.SlotsToCoeffsParameters.Scaling == nil {
-		bb.SlotsToCoeffsParameters.Scaling = new(big.Float).SetFloat64(bb.params.DefaultScale().Float64() / (bb.evalModPoly.ScalingFactor().Float64() / bb.evalModPoly.MessageRatio()) * qDiff)
+		bb.SlotsToCoeffsParameters.Scaling = new(big.Float).SetFloat64(bb.params.DefaultScale().Float64() / (bb.mod1Parameters.ScalingFactor().Float64() / bb.mod1Parameters.MessageRatio()) * qDiff)
 	} else {
-		bb.SlotsToCoeffsParameters.Scaling.Mul(bb.SlotsToCoeffsParameters.Scaling, new(big.Float).SetFloat64(bb.params.DefaultScale().Float64()/(bb.evalModPoly.ScalingFactor().Float64()/bb.evalModPoly.MessageRatio())*qDiff))
+		bb.SlotsToCoeffsParameters.Scaling.Mul(bb.SlotsToCoeffsParameters.Scaling, new(big.Float).SetFloat64(bb.params.DefaultScale().Float64()/(bb.mod1Parameters.ScalingFactor().Float64()/bb.mod1Parameters.MessageRatio())*qDiff))
 	}
 
 	if bb.stcMatrices, err = float.NewDFTMatrixFromLiteral(params, bb.SlotsToCoeffsParameters, encoder); err != nil {

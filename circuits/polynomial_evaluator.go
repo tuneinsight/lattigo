@@ -8,8 +8,8 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
-// EvaluatorForPolynomialEvaluation defines a set of common and scheme agnostic method that are necessary to instantiate a PolynomialVectorEvaluator.
-type EvaluatorForPolynomialEvaluation interface {
+// EvaluatorForPolynomial defines a set of common and scheme agnostic method that are necessary to instantiate a PolynomialVectorEvaluator.
+type EvaluatorForPolynomial interface {
 	rlwe.ParameterProvider
 	Evaluator
 	Encode(values interface{}, pt *rlwe.Plaintext) (err error)
@@ -23,7 +23,7 @@ type PolynomialVectorEvaluator interface {
 
 // PolynomialEvaluator is an evaluator used to evaluate polynomials on ciphertexts.
 type PolynomialEvaluator struct {
-	EvaluatorForPolynomialEvaluation
+	EvaluatorForPolynomial
 	*rlwe.EvaluatorBuffers
 }
 

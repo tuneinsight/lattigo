@@ -13,7 +13,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
-func TestHomomorphicMod(t *testing.T) {
+func TestMod1(t *testing.T) {
 	var err error
 
 	if runtime.GOARCH == "wasm" {
@@ -28,7 +28,7 @@ func TestHomomorphicMod(t *testing.T) {
 		LogDefaultScale: 45,
 	}
 
-	testEvalModMarshalling(t)
+	testMod1Marhsalling(t)
 
 	var params ckks.Parameters
 	if params, err = ckks.NewParametersFromLiteral(ParametersLiteral); err != nil {
@@ -36,17 +36,17 @@ func TestHomomorphicMod(t *testing.T) {
 	}
 
 	for _, testSet := range []func(params ckks.Parameters, t *testing.T){
-		testEvalMod,
+		testMod1,
 	} {
 		testSet(params, t)
 		runtime.GC()
 	}
 }
 
-func testEvalModMarshalling(t *testing.T) {
+func testMod1Marhsalling(t *testing.T) {
 	t.Run("Marshalling", func(t *testing.T) {
 
-		evm := EvalModLiteral{
+		evm := Mod1ParametersLiteral{
 			LevelStart:      12,
 			SineType:        SinContinuous,
 			LogMessageRatio: 8,
@@ -59,7 +59,7 @@ func testEvalModMarshalling(t *testing.T) {
 		data, err := evm.MarshalBinary()
 		assert.Nil(t, err)
 
-		evmNew := new(EvalModLiteral)
+		evmNew := new(Mod1ParametersLiteral)
 		if err := evmNew.UnmarshalBinary(data); err != nil {
 			assert.Nil(t, err)
 		}
@@ -67,7 +67,7 @@ func testEvalModMarshalling(t *testing.T) {
 	})
 }
 
-func testEvalMod(params ckks.Parameters, t *testing.T) {
+func testMod1(params ckks.Parameters, t *testing.T) {
 
 	kgen := ckks.NewKeyGenerator(params)
 	sk := kgen.GenSecretKeyNew()
@@ -76,11 +76,9 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 	dec := ckks.NewDecryptor(params, sk)
 	eval := ckks.NewEvaluator(params, rlwe.NewMemEvaluationKeySet(kgen.GenRelinearizationKeyNew(sk)))
 
-	modEval := NewHModEvaluator(eval)
-
 	t.Run("SineContinuousWithArcSine", func(t *testing.T) {
 
-		evm := EvalModLiteral{
+		evm := Mod1ParametersLiteral{
 			LevelStart:      12,
 			SineType:        SinContinuous,
 			LogMessageRatio: 8,
@@ -90,14 +88,14 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 			LogScale:        60,
 		}
 
-		values, ciphertext := evaluatexmod1(evm, params, ecd, enc, modEval, t)
+		values, ciphertext := evaluateMod1(evm, params, ecd, enc, eval, t)
 
 		ckks.VerifyTestVectors(params, ecd, dec, values, ciphertext, params.LogDefaultScale(), nil, *printPrecisionStats, t)
 	})
 
 	t.Run("CosDiscrete", func(t *testing.T) {
 
-		evm := EvalModLiteral{
+		evm := Mod1ParametersLiteral{
 			LevelStart:      12,
 			SineType:        CosDiscrete,
 			LogMessageRatio: 8,
@@ -107,14 +105,14 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 			LogScale:        60,
 		}
 
-		values, ciphertext := evaluatexmod1(evm, params, ecd, enc, modEval, t)
+		values, ciphertext := evaluateMod1(evm, params, ecd, enc, eval, t)
 
 		ckks.VerifyTestVectors(params, ecd, dec, values, ciphertext, params.LogDefaultScale(), nil, *printPrecisionStats, t)
 	})
 
 	t.Run("CosContinuous", func(t *testing.T) {
 
-		evm := EvalModLiteral{
+		evm := Mod1ParametersLiteral{
 			LevelStart:      12,
 			SineType:        CosContinuous,
 			LogMessageRatio: 4,
@@ -124,51 +122,51 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 			LogScale:        60,
 		}
 
-		values, ciphertext := evaluatexmod1(evm, params, ecd, enc, modEval, t)
+		values, ciphertext := evaluateMod1(evm, params, ecd, enc, eval, t)
 
 		ckks.VerifyTestVectors(params, ecd, dec, values, ciphertext, params.LogDefaultScale(), nil, *printPrecisionStats, t)
 	})
 }
 
-func evaluatexmod1(evm EvalModLiteral, params ckks.Parameters, ecd *ckks.Encoder, enc *rlwe.Encryptor, eval *HModEvaluator, t *testing.T) ([]float64, *rlwe.Ciphertext) {
+func evaluateMod1(evm Mod1ParametersLiteral, params ckks.Parameters, ecd *ckks.Encoder, enc *rlwe.Encryptor, eval *ckks.Evaluator, t *testing.T) ([]float64, *rlwe.Ciphertext) {
 
-	EvalModPoly, err := NewEvalModPolyFromLiteral(params, evm)
+	mod1Parameters, err := NewMod1ParametersFromLiteral(params, evm)
 	require.NoError(t, err)
 
-	values, _, ciphertext := newTestVectorsEvalMod(params, enc, ecd, EvalModPoly, t)
+	values, _, ciphertext := newTestVectorsMod1(params, enc, ecd, mod1Parameters, t)
 
 	// Scale the message to Delta = Q/MessageRatio
-	scale := rlwe.NewScale(math.Exp2(math.Round(math.Log2(float64(params.Q()[0]) / EvalModPoly.MessageRatio()))))
+	scale := rlwe.NewScale(math.Exp2(math.Round(math.Log2(float64(params.Q()[0]) / mod1Parameters.MessageRatio()))))
 	scale = scale.Div(ciphertext.Scale)
 	eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round(scale.Float64())), ciphertext)
 
 	// Scale the message up to Sine/MessageRatio
-	scale = EvalModPoly.ScalingFactor().Div(ciphertext.Scale)
-	scale = scale.Div(rlwe.NewScale(EvalModPoly.MessageRatio()))
+	scale = mod1Parameters.ScalingFactor().Div(ciphertext.Scale)
+	scale = scale.Div(rlwe.NewScale(mod1Parameters.MessageRatio()))
 	eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round(scale.Float64())), ciphertext)
 
 	// Normalization
-	require.NoError(t, eval.Mul(ciphertext, 1/(float64(EvalModPoly.K())*EvalModPoly.QDiff()), ciphertext))
+	require.NoError(t, eval.Mul(ciphertext, 1/(float64(mod1Parameters.K())*mod1Parameters.QDiff()), ciphertext))
 	require.NoError(t, eval.Rescale(ciphertext, ciphertext))
 
 	// EvalMod
-	ciphertext, err = eval.EvalModNew(ciphertext, EvalModPoly)
+	ciphertext, err = NewMod1Evaluator(eval, mod1Parameters).EvaluateNew(ciphertext)
 	require.NoError(t, err)
 
 	// PlaintextCircuit
 	for i := range values {
 		x := values[i]
 
-		x /= EvalModPoly.MessageRatio()
-		x /= EvalModPoly.QDiff()
+		x /= mod1Parameters.MessageRatio()
+		x /= mod1Parameters.QDiff()
 		x = math.Sin(6.28318530717958 * x)
 
 		if evm.ArcSineDegree > 0 {
 			x = math.Asin(x)
 		}
 
-		x *= EvalModPoly.MessageRatio()
-		x *= EvalModPoly.QDiff()
+		x *= mod1Parameters.MessageRatio()
+		x *= mod1Parameters.QDiff()
 		x /= 6.28318530717958
 
 		values[i] = x
@@ -177,7 +175,7 @@ func evaluatexmod1(evm EvalModLiteral, params ckks.Parameters, ecd *ckks.Encoder
 	return values, ciphertext
 }
 
-func newTestVectorsEvalMod(params ckks.Parameters, encryptor *rlwe.Encryptor, encoder *ckks.Encoder, evm EvalModPoly, t *testing.T) (values []float64, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
+func newTestVectorsMod1(params ckks.Parameters, encryptor *rlwe.Encryptor, encoder *ckks.Encoder, evm Mod1Parameters, t *testing.T) (values []float64, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
 
 	logSlots := params.LogMaxDimensions().Cols
 

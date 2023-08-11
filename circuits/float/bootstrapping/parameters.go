@@ -13,7 +13,7 @@ import (
 // Parameters is a struct for the default bootstrapping parameters
 type Parameters struct {
 	SlotsToCoeffsParameters float.DFTMatrixLiteral
-	EvalModParameters       float.EvalModLiteral
+	Mod1ParametersLiteral   float.Mod1ParametersLiteral
 	CoeffsToSlotsParameters float.DFTMatrixLiteral
 	Iterations              int
 	EphemeralSecretWeight   int // Hamming weight of the ephemeral secret. If 0, no ephemeral secret is used during the bootstrapping.
@@ -97,7 +97,7 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 		return ckks.ParametersLiteral{}, Parameters{}, err
 	}
 
-	EvalModParams := float.EvalModLiteral{
+	Mod1ParametersLiteral := float.Mod1ParametersLiteral{
 		LogScale:        EvalModLogScale,
 		SineType:        SineType,
 		SineDegree:      SineDegree,
@@ -113,7 +113,7 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 	}
 
 	// Coeffs To Slots params
-	EvalModParams.LevelStart = S2CParams.LevelStart + EvalModParams.Depth()
+	Mod1ParametersLiteral.LevelStart = S2CParams.LevelStart + Mod1ParametersLiteral.Depth()
 
 	CoeffsToSlotsLevels := make([]int, len(CoeffsToSlotsFactorizationDepthAndLogScales))
 	for i := range CoeffsToSlotsLevels {
@@ -124,7 +124,7 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 		Type:            float.HomomorphicEncode,
 		LogSlots:        LogSlots,
 		RepackImag2Real: true,
-		LevelStart:      EvalModParams.LevelStart + len(CoeffsToSlotsFactorizationDepthAndLogScales),
+		LevelStart:      Mod1ParametersLiteral.LevelStart + len(CoeffsToSlotsFactorizationDepthAndLogScales),
 		LogBSGSRatio:    1,
 		Levels:          CoeffsToSlotsLevels,
 	}
@@ -149,7 +149,7 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 		LogQ = append(LogQ, qi)
 	}
 
-	for i := 0; i < EvalModParams.Depth(); i++ {
+	for i := 0; i < Mod1ParametersLiteral.Depth(); i++ {
 		LogQ = append(LogQ, EvalModLogScale)
 	}
 
@@ -181,7 +181,7 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 		Parameters{
 			EphemeralSecretWeight:   EphemeralSecretWeight,
 			SlotsToCoeffsParameters: S2CParams,
-			EvalModParameters:       EvalModParams,
+			Mod1ParametersLiteral:   Mod1ParametersLiteral,
 			CoeffsToSlotsParameters: C2SParams,
 			Iterations:              Iterations,
 		}, nil
@@ -199,7 +199,7 @@ func (p *Parameters) DepthCoeffsToSlots() (depth int) {
 
 // DepthEvalMod returns the depth of the EvalMod step of the CKKS bootstrapping.
 func (p *Parameters) DepthEvalMod() (depth int) {
-	return p.EvalModParameters.Depth()
+	return p.Mod1ParametersLiteral.Depth()
 }
 
 // DepthSlotsToCoeffs returns the depth of the Slots to Coeffs step of the CKKS bootstrapping.

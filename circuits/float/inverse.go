@@ -9,7 +9,8 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
-// EvaluatorForInverse defines a set of common and scheme agnostic method that are necessary to instantiate an InverseEvaluator.
+// EvaluatorForInverse defines a set of common and scheme agnostic
+// method that are necessary to instantiate an InverseEvaluator.
 type EvaluatorForInverse interface {
 	circuits.Evaluator
 	SetScale(ct *rlwe.Ciphertext, scale rlwe.Scale) (err error)
@@ -18,52 +19,99 @@ type EvaluatorForInverse interface {
 // InverseEvaluator is an evaluator used to evaluate the inverses of ciphertexts.
 type InverseEvaluator struct {
 	EvaluatorForInverse
-	*PieceWiseFunctionEvaluator
-	Parameters ckks.Parameters
+	*MinimaxCompositePolynomialEvaluator
+	rlwe.Bootstrapper
+	Parameters                     ckks.Parameters
+	Log2Min, Log2Max               float64
+	SignMinimaxCompositePolynomial MinimaxCompositePolynomial
 }
 
 // NewInverseEvaluator instantiates a new InverseEvaluator from an EvaluatorForInverse.
-// evalPWF can be nil and is not be required if 'canBeNegative' of EvaluateNew is set to false.
 // This method is allocation free.
-func NewInverseEvaluator(params ckks.Parameters, evalInv EvaluatorForInverse, evalPWF EvaluatorForPieceWiseFunction) InverseEvaluator {
+//
+// The evaluator can be used to compute the inverse of values:
+// EvaluateFullDomainNew: [-2^{log2max}, -2^{log2min}] U [2^{log2min}, 2^{log2max}]
+// EvaluatePositiveDomainNew: [2^{log2min}, 2^{log2max}]
+// EvaluateNegativeDomainNew: [-2^{log2max}, -2^{log2min}]
+// GoldschmidtDivisionNew: [0, 2]
+//
+// A minimax composite polynomial (signMCP) for the sign function in the interval [-1-e, -2^{log2min}] U [2^{log2min}, 1+e]
+// (where e is an upperbound on the scheme error) is required for the full domain inverse.
+func NewInverseEvaluator(params ckks.Parameters, log2min, log2max float64, signMCP MinimaxCompositePolynomial, evalInv EvaluatorForInverse, evalPWF EvaluatorForMinimaxCompositePolynomial, btp rlwe.Bootstrapper) InverseEvaluator {
 
-	var PWFEval *PieceWiseFunctionEvaluator
-
+	var MCPEval *MinimaxCompositePolynomialEvaluator
 	if evalPWF != nil {
-		PWFEval = NewPieceWiseFunctionEvaluator(params, evalPWF)
+		MCPEval = NewMinimaxCompositePolynomialEvaluator(params, evalPWF, btp)
 	}
 
 	return InverseEvaluator{
-		EvaluatorForInverse:        evalInv,
-		PieceWiseFunctionEvaluator: PWFEval,
-		Parameters:                 params,
+		EvaluatorForInverse:                 evalInv,
+		MinimaxCompositePolynomialEvaluator: MCPEval,
+		Bootstrapper:                        btp,
+		Parameters:                          params,
+		Log2Min:                             log2min,
+		Log2Max:                             log2max,
+		SignMinimaxCompositePolynomial:      signMCP,
 	}
 }
 
-// EvaluateNew computes 1/x for x in [-max, -min] U [min, max].
+// EvaluateFullDomainNew computes 1/x for x in [-max, -min] U [min, max].
 //  1. Reduce the interval from [-max, -min] U [min, max] to [-1, -min] U [min, 1] by computing an approximate
 //     inverse c such that |c * x| <= 1. For |x| > 1, c tends to 1/x while for |x| < c tends to 1.
 //     This is done by using the work Efficient Homomorphic Evaluation on Large Intervals (https://eprint.iacr.org/2022/280.pdf).
 //  2. Compute |c * x| = sign(x * c) * (x * c), this is required for the next step, which can only accept positive values.
 //  3. Compute y' = 1/(|c * x|) with the iterative Goldschmidt division algorithm.
 //  4. Compute y = y' * c * sign(x * c)
-//
-// canBeNegative: if set to false, then step 2 is skipped.
-// prec: the desired precision of the GoldschmidtDivisionNew given the interval [min, 1].
-func (eval InverseEvaluator) EvaluateNew(ct *rlwe.Ciphertext, min, max float64, canBeNegative bool, btp rlwe.Bootstrapper) (cInv *rlwe.Ciphertext, err error) {
+func (eval InverseEvaluator) EvaluateFullDomainNew(ct *rlwe.Ciphertext) (cInv *rlwe.Ciphertext, err error) {
+	return eval.evaluateNew(ct, true)
+}
+
+// EvaluatePositiveDomainNew computes 1/x for x in [min, max].
+//  1. Reduce the interval from [min, max] to [min, 1] by computing an approximate
+//     inverse c such that |c * x| <= 1. For |x| > 1, c tends to 1/x while for |x| < c tends to 1.
+//     This is done by using the work Efficient Homomorphic Evaluation on Large Intervals (https://eprint.iacr.org/2022/280.pdf).
+//  2. Compute y' = 1/(c * x) with the iterative Goldschmidt division algorithm.
+//  3. Compute y = y' * c
+func (eval InverseEvaluator) EvaluatePositiveDomainNew(ct *rlwe.Ciphertext) (cInv *rlwe.Ciphertext, err error) {
+	return eval.evaluateNew(ct, false)
+}
+
+// EvaluateNegativeDomainNew computes 1/x for x in [-max, -min].
+//  1. Reduce the interval from [-max, -min] to [-1, -min] by computing an approximate
+//     inverse c such that |c * x| <= 1. For |x| > 1, c tends to 1/x while for |x| < c tends to 1.
+//     This is done by using the work Efficient Homomorphic Evaluation on Large Intervals (https://eprint.iacr.org/2022/280.pdf).
+//  2. Compute y' = 1/(c * x) with the iterative Goldschmidt division algorithm.
+//  3. Compute y = y' * c
+func (eval InverseEvaluator) EvaluateNegativeDomainNew(ct *rlwe.Ciphertext) (cInv *rlwe.Ciphertext, err error) {
+
+	var ctNeg *rlwe.Ciphertext
+	if ctNeg, err = eval.MulNew(ct, -1); err != nil {
+		return
+	}
+
+	if cInv, err = eval.EvaluatePositiveDomainNew(ctNeg); err != nil {
+		return
+	}
+
+	return cInv, eval.Mul(cInv, -1, cInv)
+}
+
+func (eval InverseEvaluator) evaluateNew(ct *rlwe.Ciphertext, fulldomain bool) (cInv *rlwe.Ciphertext, err error) {
 
 	params := eval.Parameters
 
 	levelsPerRescaling := params.LevelsConsummedPerRescaling()
 
+	btp := eval.Bootstrapper
+
 	var normalizationfactor *rlwe.Ciphertext
 
 	// If max > 1, then normalizes the ciphertext interval from  [-max, -min] U [min, max]
 	// to [-1, -min] U [min, 1], and returns the encrypted normalization factor.
-	if max > 1.0 {
+	if eval.Log2Max > 0 {
 
-		if cInv, normalizationfactor, err = eval.IntervalNormalization(ct, max, btp); err != nil {
-			return
+		if cInv, normalizationfactor, err = eval.IntervalNormalization(ct, eval.Log2Max, btp); err != nil {
+			return nil, fmt.Errorf("preprocessing: normalizationfactor: %w", err)
 		}
 
 	} else {
@@ -72,74 +120,89 @@ func (eval InverseEvaluator) EvaluateNew(ct *rlwe.Ciphertext, min, max float64, 
 
 	var sign *rlwe.Ciphertext
 
-	if canBeNegative {
+	if fulldomain {
 
-		if eval.PieceWiseFunctionEvaluator == nil {
-			return nil, fmt.Errorf("cannot EvaluateNew: PieceWiseFunctionEvaluator is nil but canBeNegative is set to true")
+		if eval.MinimaxCompositePolynomialEvaluator == nil {
+			return nil, fmt.Errorf("preprocessing: cannot EvaluateNew: MinimaxCompositePolynomialEvaluator is nil but fulldomain is set to true")
 		}
 
 		// Computes the sign with precision [-1, -2^-a] U [2^-a, 1]
-		if sign, err = eval.PieceWiseFunctionEvaluator.EvaluateSign(cInv, 30, btp); err != nil { // TODO REVERT TO int(math.Ceil(math.Log2(1/min)))
-			return nil, fmt.Errorf("canBeNegative: true -> sign: %w", err)
+		if sign, err = eval.MinimaxCompositePolynomialEvaluator.Evaluate(cInv, eval.SignMinimaxCompositePolynomial); err != nil {
+			return nil, fmt.Errorf("preprocessing: fulldomain: true -> sign: %w", err)
 		}
 
-		if sign, err = btp.Bootstrap(sign); err != nil {
-			return
-		}
-
-		if cInv.Level() == btp.MinimumInputLevel() || cInv.Level() == levelsPerRescaling-1 {
-			if cInv, err = btp.Bootstrap(cInv); err != nil {
-				return nil, fmt.Errorf("canBeNegative: true -> sign -> bootstrap: %w", err)
+		if sign.Level() < btp.MinimumInputLevel()+levelsPerRescaling {
+			if sign, err = btp.Bootstrap(sign); err != nil {
+				return nil, fmt.Errorf("preprocessing: fulldomain: true -> sign -> bootstrap(sign): %w", err)
 			}
 		}
 
-		// Gets the absolute value
+		// Checks that cInv have at least one level remaining above the minimum
+		// level required for the bootstrapping.
+		if cInv.Level() < btp.MinimumInputLevel()+levelsPerRescaling {
+			if cInv, err = btp.Bootstrap(cInv); err != nil {
+				return nil, fmt.Errorf("preprocessing: fulldomain: true -> sign -> bootstrap(cInv): %w", err)
+			}
+		}
+
+		// Gets |x| = x * sign(x)
 		if err = eval.MulRelin(cInv, sign, cInv); err != nil {
-			return nil, fmt.Errorf("canBeNegative: true -> sign -> bootstrap -> mul(cInv, sign): %w", err)
+			return nil, fmt.Errorf("preprocessing: fulldomain: true -> sign -> bootstrap -> mul(cInv, sign): %w", err)
 		}
 
 		if err = eval.Rescale(cInv, cInv); err != nil {
-			return nil, fmt.Errorf("canBeNegative: true -> sign -> bootstrap -> mul(cInv, sign) -> rescale: %w", err)
+			return nil, fmt.Errorf("preprocessing: fulldomain: true -> sign -> bootstrap -> mul(cInv, sign) -> rescale: %w", err)
 		}
 	}
 
 	// Computes the inverse of x in [min = 2^-a, 1]
-	if cInv, err = eval.GoldschmidtDivisionNew(cInv, min, btp); err != nil {
-		return
+	if cInv, err = eval.GoldschmidtDivisionNew(cInv, eval.Log2Min); err != nil {
+		return nil, fmt.Errorf("division: GoldschmidtDivisionNew: %w", err)
 	}
 
-	if cInv, err = btp.Bootstrap(cInv); err != nil {
-		return
+	var postprocessdepth int
+
+	if normalizationfactor != nil || fulldomain {
+		postprocessdepth += levelsPerRescaling
+	}
+
+	if fulldomain {
+		postprocessdepth += levelsPerRescaling
 	}
 
 	// If x > 1 then multiplies back with the encrypted normalization vector
 	if normalizationfactor != nil {
 
-		if normalizationfactor, err = btp.Bootstrap(normalizationfactor); err != nil {
-			return
+		if cInv.Level() < btp.MinimumInputLevel()+postprocessdepth {
+			if cInv, err = btp.Bootstrap(cInv); err != nil {
+				return nil, fmt.Errorf("normalizationfactor: bootstrap(cInv): %w", err)
+			}
+		}
+
+		if normalizationfactor.Level() < btp.MinimumInputLevel()+postprocessdepth {
+			if normalizationfactor, err = btp.Bootstrap(normalizationfactor); err != nil {
+				return nil, fmt.Errorf("normalizationfactor: bootstrap(normalizationfactor): %w", err)
+			}
 		}
 
 		if err = eval.MulRelin(cInv, normalizationfactor, cInv); err != nil {
-			return
+			return nil, fmt.Errorf("normalizationfactor: mul(cInv): %w", err)
 		}
 
 		if err = eval.Rescale(cInv, cInv); err != nil {
-			return
+			return nil, fmt.Errorf("normalizationfactor: rescale(cInv): %w", err)
 		}
 	}
 
-	if canBeNegative {
+	if fulldomain {
+
 		// Multiplies back with the encrypted sign
 		if err = eval.MulRelin(cInv, sign, cInv); err != nil {
-			return
+			return nil, fmt.Errorf("fulldomain: mul(cInv):  %w", err)
 		}
 
 		if err = eval.Rescale(cInv, cInv); err != nil {
-			return
-		}
-
-		if cInv, err = btp.Bootstrap(cInv); err != nil {
-			return
+			return nil, fmt.Errorf("fulldomain: rescale(cInv): %w", err)
 		}
 	}
 
@@ -149,10 +212,14 @@ func (eval InverseEvaluator) EvaluateNew(ct *rlwe.Ciphertext, min, max float64, 
 // GoldschmidtDivisionNew homomorphically computes 1/x.
 // input: ct: Enc(x) with values in the interval [0+minvalue, 2-minvalue].
 // output: Enc(1/x - e), where |e| <= (1-x)^2^(#iterations+1) -> the bit-precision doubles after each iteration.
-// The method automatically estimates how many iterations are needed to achieve the optimal precision, which is derived from the plaintext scale,
-// and will returns an error if the input ciphertext does not have enough remaining level and if no bootstrapper was given.
+// This method automatically estimates how many iterations are needed to
+// achieve the optimal precision, which is derived from the plaintext scale.
+// This method will return an error if the input ciphertext does not have enough
+// remaining level and if the InverseEvaluator was instantiated with no bootstrapper.
 // This method will return an error if something goes wrong with the bootstrapping or the rescaling operations.
-func (eval InverseEvaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, minValue float64, btp rlwe.Bootstrapper) (ctInv *rlwe.Ciphertext, err error) {
+func (eval InverseEvaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, log2Min float64) (ctInv *rlwe.Ciphertext, err error) {
+
+	btp := eval.Bootstrapper
 
 	params := eval.Parameters
 
@@ -160,7 +227,7 @@ func (eval InverseEvaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, minValu
 	prec := float64(params.N()/2) / ct.Scale.Float64()
 
 	// Estimates the number of iterations required to achieve the desired precision, given the interval [min, 2-min]
-	start := 1 - minValue
+	start := 1 - math.Exp2(log2Min)
 	var iters = 1
 	for start >= prec {
 		start *= start // Doubles the bit-precision at each iteration
@@ -239,19 +306,25 @@ func (eval InverseEvaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, minValu
 
 // IntervalNormalization applies a modified version of Algorithm 2 of Efficient Homomorphic Evaluation on Large Intervals (https://eprint.iacr.org/2022/280)
 // to normalize the interval from [-max, max] to [-1, 1]. Also returns the encrypted normalization factor.
+//
+// The original algorithm of https://eprint.iacr.org/2022/280 works by successive evaluation of a function that compresses values greater than some threshold
+// to this threshold and let values smaller than the threshold untouched (mostly). The process is iterated, each time reducing the threshold by a pre-defined
+// factor L. We can modify the algorithm to keep track of the compression factor so that we can get back the original values (before the compression) afterward.
+//
 // Given ct with values [-max, max], the method will compute y such that ct * y has values in [-1, 1].
 // The normalization factor is independant to each slot:
 //   - values smaller than 1 will have a normalizes factor that tends to 1
 //   - values greater than 1 will have a normalizes factor that tends to 1/x
-func (eval InverseEvaluator) IntervalNormalization(ct *rlwe.Ciphertext, max float64, btp rlwe.Bootstrapper) (ctNorm, ctNormFac *rlwe.Ciphertext, err error) {
+func (eval InverseEvaluator) IntervalNormalization(ct *rlwe.Ciphertext, log2Max float64, btp rlwe.Bootstrapper) (ctNorm, ctNormFac *rlwe.Ciphertext, err error) {
 
 	ctNorm = ct.CopyNew()
 
 	levelsPerRescaling := eval.Parameters.LevelsConsummedPerRescaling()
 
-	L := 2.45 // Experimental
+	L := 2.45 // Compression factor (experimental)
 
-	n := math.Ceil(math.Log(max) / math.Log(L))
+	// n = log_{L}(max)
+	n := math.Ceil(log2Max / math.Log2(L))
 
 	for i := 0; i < int(n); i++ {
 

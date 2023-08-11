@@ -71,9 +71,9 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 
 	kgen := ckks.NewKeyGenerator(params)
 	sk := kgen.GenSecretKeyNew()
-	encoder := ckks.NewEncoder(params)
-	encryptor := ckks.NewEncryptor(params, sk)
-	decryptor := ckks.NewDecryptor(params, sk)
+	ecd := ckks.NewEncoder(params)
+	enc := ckks.NewEncryptor(params, sk)
+	dec := ckks.NewDecryptor(params, sk)
 	eval := ckks.NewEvaluator(params, rlwe.NewMemEvaluationKeySet(kgen.GenRelinearizationKeyNew(sk)))
 
 	modEval := NewHModEvaluator(eval)
@@ -90,47 +90,9 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 			LogScale:        60,
 		}
 
-		EvalModPoly, err := NewEvalModPolyFromLiteral(params, evm)
-		require.NoError(t, err)
+		values, ciphertext := evaluatexmod1(evm, params, ecd, enc, modEval, t)
 
-		values, _, ciphertext := newTestVectorsEvalMod(params, encryptor, encoder, EvalModPoly, t)
-
-		// Scale the message to Delta = Q/MessageRatio
-		scale := rlwe.NewScale(math.Exp2(math.Round(math.Log2(float64(params.Q()[0]) / EvalModPoly.MessageRatio()))))
-		scale = scale.Div(ciphertext.Scale)
-		eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round(scale.Float64())), ciphertext)
-
-		// Scale the message up to Sine/MessageRatio
-		scale = EvalModPoly.ScalingFactor().Div(ciphertext.Scale)
-		scale = scale.Div(rlwe.NewScale(EvalModPoly.MessageRatio()))
-		eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round(scale.Float64())), ciphertext)
-
-		// Normalization
-		eval.Mul(ciphertext, 1/(float64(EvalModPoly.K())*EvalModPoly.QDiff()), ciphertext)
-		if err := eval.RescaleTo(ciphertext, params.DefaultScale(), ciphertext); err != nil {
-			t.Error(err)
-		}
-
-		// EvalMod
-		ciphertext, err = modEval.EvalModNew(ciphertext, EvalModPoly)
-		require.NoError(t, err)
-
-		// PlaintextCircuit
-		for i := range values {
-			x := values[i]
-
-			x /= EvalModPoly.MessageRatio()
-			x /= EvalModPoly.QDiff()
-			x = math.Sin(6.28318530717958 * x)
-			x = math.Asin(x)
-			x *= EvalModPoly.MessageRatio()
-			x *= EvalModPoly.QDiff()
-			x /= 6.28318530717958
-
-			values[i] = x
-		}
-
-		ckks.VerifyTestVectors(params, encoder, decryptor, values, ciphertext, nil, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, ecd, dec, values, ciphertext, params.LogDefaultScale(), nil, *printPrecisionStats, t)
 	})
 
 	t.Run("CosDiscrete", func(t *testing.T) {
@@ -145,48 +107,9 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 			LogScale:        60,
 		}
 
-		EvalModPoly, err := NewEvalModPolyFromLiteral(params, evm)
-		require.NoError(t, err)
+		values, ciphertext := evaluatexmod1(evm, params, ecd, enc, modEval, t)
 
-		values, _, ciphertext := newTestVectorsEvalMod(params, encryptor, encoder, EvalModPoly, t)
-
-		// Scale the message to Delta = Q/MessageRatio
-		scale := rlwe.NewScale(math.Exp2(math.Round(math.Log2(float64(params.Q()[0]) / EvalModPoly.MessageRatio()))))
-		scale = scale.Div(ciphertext.Scale)
-		eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round(scale.Float64())), ciphertext)
-
-		// Scale the message up to Sine/MessageRatio
-		scale = EvalModPoly.ScalingFactor().Div(ciphertext.Scale)
-		scale = scale.Div(rlwe.NewScale(EvalModPoly.MessageRatio()))
-		eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round(scale.Float64())), ciphertext)
-
-		// Normalization
-		eval.Mul(ciphertext, 1/(float64(EvalModPoly.K())*EvalModPoly.QDiff()), ciphertext)
-		if err := eval.RescaleTo(ciphertext, params.DefaultScale(), ciphertext); err != nil {
-			t.Error(err)
-		}
-
-		// EvalMod
-		ciphertext, err = modEval.EvalModNew(ciphertext, EvalModPoly)
-		require.NoError(t, err)
-
-		// PlaintextCircuit
-		//pi2r := 6.283185307179586/complex(math.Exp2(float64(evm.DoubleAngle)), 0)
-		for i := range values {
-
-			x := values[i]
-
-			x /= EvalModPoly.MessageRatio()
-			x /= EvalModPoly.QDiff()
-			x = math.Sin(6.28318530717958 * x)
-			x *= EvalModPoly.MessageRatio()
-			x *= EvalModPoly.QDiff()
-			x /= 6.28318530717958
-
-			values[i] = x
-		}
-
-		ckks.VerifyTestVectors(params, encoder, decryptor, values, ciphertext, nil, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, ecd, dec, values, ciphertext, params.LogDefaultScale(), nil, *printPrecisionStats, t)
 	})
 
 	t.Run("CosContinuous", func(t *testing.T) {
@@ -201,48 +124,57 @@ func testEvalMod(params ckks.Parameters, t *testing.T) {
 			LogScale:        60,
 		}
 
-		EvalModPoly, err := NewEvalModPolyFromLiteral(params, evm)
-		require.NoError(t, err)
+		values, ciphertext := evaluatexmod1(evm, params, ecd, enc, modEval, t)
 
-		values, _, ciphertext := newTestVectorsEvalMod(params, encryptor, encoder, EvalModPoly, t)
-
-		// Scale the message to Delta = Q/MessageRatio
-		scale := rlwe.NewScale(math.Exp2(math.Round(math.Log2(float64(params.Q()[0]) / EvalModPoly.MessageRatio()))))
-		scale = scale.Div(ciphertext.Scale)
-		eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round(scale.Float64())), ciphertext)
-
-		// Scale the message up to Sine/MessageRatio
-		scale = EvalModPoly.ScalingFactor().Div(ciphertext.Scale)
-		scale = scale.Div(rlwe.NewScale(EvalModPoly.MessageRatio()))
-		eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round(scale.Float64())), ciphertext)
-
-		// Normalization
-		eval.Mul(ciphertext, 1/(float64(EvalModPoly.K())*EvalModPoly.QDiff()), ciphertext)
-		if err := eval.RescaleTo(ciphertext, params.DefaultScale(), ciphertext); err != nil {
-			t.Error(err)
-		}
-
-		// EvalMod
-		ciphertext, err = modEval.EvalModNew(ciphertext, EvalModPoly)
-		require.NoError(t, err)
-
-		// PlaintextCircuit
-		//pi2r := 6.283185307179586/complex(math.Exp2(float64(EvalModPoly.DoubleAngle)), 0)
-		for i := range values {
-			x := values[i]
-
-			x /= EvalModPoly.MessageRatio()
-			x /= EvalModPoly.QDiff()
-			x = math.Sin(6.28318530717958 * x)
-			x *= EvalModPoly.MessageRatio()
-			x *= EvalModPoly.QDiff()
-			x /= 6.28318530717958
-
-			values[i] = x
-		}
-
-		ckks.VerifyTestVectors(params, encoder, decryptor, values, ciphertext, nil, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, ecd, dec, values, ciphertext, params.LogDefaultScale(), nil, *printPrecisionStats, t)
 	})
+}
+
+func evaluatexmod1(evm EvalModLiteral, params ckks.Parameters, ecd *ckks.Encoder, enc *rlwe.Encryptor, eval *HModEvaluator, t *testing.T) ([]float64, *rlwe.Ciphertext) {
+
+	EvalModPoly, err := NewEvalModPolyFromLiteral(params, evm)
+	require.NoError(t, err)
+
+	values, _, ciphertext := newTestVectorsEvalMod(params, enc, ecd, EvalModPoly, t)
+
+	// Scale the message to Delta = Q/MessageRatio
+	scale := rlwe.NewScale(math.Exp2(math.Round(math.Log2(float64(params.Q()[0]) / EvalModPoly.MessageRatio()))))
+	scale = scale.Div(ciphertext.Scale)
+	eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round(scale.Float64())), ciphertext)
+
+	// Scale the message up to Sine/MessageRatio
+	scale = EvalModPoly.ScalingFactor().Div(ciphertext.Scale)
+	scale = scale.Div(rlwe.NewScale(EvalModPoly.MessageRatio()))
+	eval.ScaleUp(ciphertext, rlwe.NewScale(math.Round(scale.Float64())), ciphertext)
+
+	// Normalization
+	require.NoError(t, eval.Mul(ciphertext, 1/(float64(EvalModPoly.K())*EvalModPoly.QDiff()), ciphertext))
+	require.NoError(t, eval.Rescale(ciphertext, ciphertext))
+
+	// EvalMod
+	ciphertext, err = eval.EvalModNew(ciphertext, EvalModPoly)
+	require.NoError(t, err)
+
+	// PlaintextCircuit
+	for i := range values {
+		x := values[i]
+
+		x /= EvalModPoly.MessageRatio()
+		x /= EvalModPoly.QDiff()
+		x = math.Sin(6.28318530717958 * x)
+
+		if evm.ArcSineDegree > 0 {
+			x = math.Asin(x)
+		}
+
+		x *= EvalModPoly.MessageRatio()
+		x *= EvalModPoly.QDiff()
+		x /= 6.28318530717958
+
+		values[i] = x
+	}
+
+	return values, ciphertext
 }
 
 func newTestVectorsEvalMod(params ckks.Parameters, encryptor *rlwe.Encryptor, encoder *ckks.Encoder, evm EvalModPoly, t *testing.T) (values []float64, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {

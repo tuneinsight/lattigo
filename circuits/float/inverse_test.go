@@ -8,39 +8,14 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 
 	"github.com/stretchr/testify/require"
 )
 
-func testGoldschmidtDivisionNew(tc *ckksTestContext, t *testing.T) {
-
-	params := tc.params
-
-	t.Run(GetTestName(params, "GoldschmidtDivisionNew"), func(t *testing.T) {
-
-		min := 0.1
-
-		values, _, ciphertext := newCKKSTestVectors(tc, tc.encryptorSk, complex(min, 0), complex(2-min, 0), t)
-
-		one := new(big.Float).SetInt64(1)
-		for i := range values {
-			values[i][0].Quo(one, values[i][0])
-		}
-
-		btp := ckks.NewSecretKeyBootstrapper(params, tc.sk)
-
-		var err error
-		if ciphertext, err = NewInverseEvaluator(params, tc.evaluator, nil).GoldschmidtDivisionNew(ciphertext, min, btp); err != nil {
-			t.Fatal(err)
-		}
-
-		ckks.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, nil, *printPrecisionStats, t)
-	})
-}
-
 func TestInverse(t *testing.T) {
 
-	paramsLiteral := testPrec45
+	paramsLiteral := testPrec90
 
 	for _, ringType := range []ring.Type{ring.Standard, ring.ConjugateInvariant} {
 
@@ -64,68 +39,127 @@ func TestInverse(t *testing.T) {
 		dec := tc.decryptor
 		kgen := tc.kgen
 
-		t.Run(GetTestName(params, "FullDomain"), func(t *testing.T) {
+		btp := ckks.NewSecretKeyBootstrapper(params, sk)
 
-			r := 10
+		minimaxpolysign := NewMinimaxCompositePolynomial(CoeffsMinimaxCompositePolynomialSignAlpha30Err35Prec20x4Cheby)
 
-			// 2^{-r}
-			min := math.Exp2(-float64(r))
+		logmin := -30.0
+		logmax := 10.0
 
-			// 2^{r}
-			max := math.Exp2(float64(r))
+		// 2^{-r}
+		min := math.Exp2(float64(logmin))
 
-			require.NoError(t, err)
+		// 2^{r}
+		max := math.Exp2(float64(logmax))
 
-			var galKeys []*rlwe.GaloisKey
-			if params.RingType() == ring.Standard {
-				galKeys = append(galKeys, kgen.GenGaloisKeyNew(params.GaloisElementForComplexConjugation(), sk))
+		var galKeys []*rlwe.GaloisKey
+		if params.RingType() == ring.Standard {
+			galKeys = append(galKeys, kgen.GenGaloisKeyNew(params.GaloisElementForComplexConjugation(), sk))
+		}
+
+		evk := rlwe.NewMemEvaluationKeySet(kgen.GenRelinearizationKeyNew(sk), galKeys...)
+
+		evalInverse := tc.evaluator.WithKey(evk)
+		evalMinimaxPoly := evalInverse
+
+		t.Run(GetTestName(params, "GoldschmidtDivisionNew"), func(t *testing.T) {
+
+			values, _, ciphertext := newCKKSTestVectors(tc, tc.encryptorSk, complex(min, 0), complex(2-min, 0), t)
+
+			one := new(big.Float).SetInt64(1)
+			for i := range values {
+				values[i][0].Quo(one, values[i][0])
 			}
 
-			evk := rlwe.NewMemEvaluationKeySet(kgen.GenRelinearizationKeyNew(sk), galKeys...)
+			invEval := NewInverseEvaluator(params, logmin, logmax, nil, evalInverse, nil, btp)
 
-			eval := tc.evaluator.WithKey(evk)
+			var err error
+			if ciphertext, err = invEval.GoldschmidtDivisionNew(ciphertext, logmin); err != nil {
+				t.Fatal(err)
+			}
 
-			values, _, ct := newCKKSTestVectors(tc, enc, complex(-max, 0), complex(max, 0), t)
+			ckks.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, 70, nil, *printPrecisionStats, t)
+		})
 
-			btp := ckks.NewSecretKeyBootstrapper(params, sk)
+		t.Run(GetTestName(params, "PositiveDomain"), func(t *testing.T) {
 
-			invEval := NewInverseEvaluator(params, eval, eval)
+			values, _, ct := newCKKSTestVectors(tc, enc, complex(0, 0), complex(max, 0), t)
 
-			canBeNegative := true
+			invEval := NewInverseEvaluator(params, logmin, logmax, nil, evalInverse, nil, btp)
 
-			cInv, err := invEval.EvaluateNew(ct, min, max, canBeNegative, btp)
+			cInv, err := invEval.EvaluatePositiveDomainNew(ct)
 			require.NoError(t, err)
 
-			have := make([]complex128, params.MaxSlots())
+			have := make([]*big.Float, params.MaxSlots())
 
 			require.NoError(t, ecd.Decode(dec.DecryptNew(cInv), have))
 
-			want := make([]complex128, params.MaxSlots())
+			want := make([]*big.Float, params.MaxSlots())
 
+			threshold := bignum.NewFloat(min, params.EncodingPrecision())
 			for i := range have {
-
-				vc128 := values[i].Complex128()
-
-				have[i] *= vc128
-
-				if math.Abs(real(vc128)) < min {
+				if new(big.Float).Abs(values[i][0]).Cmp(threshold) == -1 {
 					want[i] = have[i] // Ignores values outside of the interval
 				} else {
-					want[i] = 1.0
+					want[i] = new(big.Float).Quo(bignum.NewFloat(1, params.EncodingPrecision()), values[i][0])
 				}
 			}
 
-			stats := ckks.GetPrecisionStats(params, ecd, nil, want, have, nil, false)
+			ckks.VerifyTestVectors(params, tc.encoder, nil, want, have, 70, nil, *printPrecisionStats, t)
+		})
 
-			if *printPrecisionStats {
-				t.Log(stats.String())
+		t.Run(GetTestName(params, "NegativeDomain"), func(t *testing.T) {
+
+			values, _, ct := newCKKSTestVectors(tc, enc, complex(-max, 0), complex(0, 0), t)
+
+			invEval := NewInverseEvaluator(params, logmin, logmax, nil, evalInverse, nil, btp)
+
+			cInv, err := invEval.EvaluateNegativeDomainNew(ct)
+			require.NoError(t, err)
+
+			have := make([]*big.Float, params.MaxSlots())
+
+			require.NoError(t, ecd.Decode(dec.DecryptNew(cInv), have))
+
+			want := make([]*big.Float, params.MaxSlots())
+
+			threshold := bignum.NewFloat(min, params.EncodingPrecision())
+			for i := range have {
+				if new(big.Float).Abs(values[i][0]).Cmp(threshold) == -1 {
+					want[i] = have[i] // Ignores values outside of the interval
+				} else {
+					want[i] = new(big.Float).Quo(bignum.NewFloat(1, params.EncodingPrecision()), values[i][0])
+				}
 			}
 
-			rf64, _ := stats.MeanPrecision.Real.Float64()
-			if64, _ := stats.MeanPrecision.Imag.Float64()
+			ckks.VerifyTestVectors(params, tc.encoder, nil, want, have, 70, nil, *printPrecisionStats, t)
+		})
 
-			require.Greater(t, rf64, 25.0)
-			require.Greater(t, if64, 25.0)
+		t.Run(GetTestName(params, "FullDomain"), func(t *testing.T) {
+
+			values, _, ct := newCKKSTestVectors(tc, enc, complex(-max, 0), complex(max, 0), t)
+
+			invEval := NewInverseEvaluator(params, logmin, logmax, minimaxpolysign, evalInverse, evalMinimaxPoly, btp)
+
+			cInv, err := invEval.EvaluateFullDomainNew(ct)
+			require.NoError(t, err)
+
+			have := make([]*big.Float, params.MaxSlots())
+
+			require.NoError(t, ecd.Decode(dec.DecryptNew(cInv), have))
+
+			want := make([]*big.Float, params.MaxSlots())
+
+			threshold := bignum.NewFloat(min, params.EncodingPrecision())
+			for i := range have {
+				if new(big.Float).Abs(values[i][0]).Cmp(threshold) == -1 {
+					want[i] = have[i] // Ignores values outside of the interval
+				} else {
+					want[i] = new(big.Float).Quo(bignum.NewFloat(1, params.EncodingPrecision()), values[i][0])
+				}
+			}
+
+			ckks.VerifyTestVectors(params, tc.encoder, nil, want, have, 70, nil, *printPrecisionStats, t)
 		})
 	}
 }

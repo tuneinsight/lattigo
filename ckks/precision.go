@@ -5,7 +5,9 @@ import (
 	"math"
 	"math/big"
 	"sort"
+	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
@@ -63,6 +65,31 @@ func GetPrecisionStats(params Parameters, encoder *Encoder, decryptor *rlwe.Decr
 	}
 
 	return getPrecisionStatsF128(params, encoder, decryptor, want, have, noiseFlooding, computeDCF)
+}
+
+func VerifyTestVectors(params Parameters, encoder *Encoder, decryptor *rlwe.Decryptor, valuesWant, valuesHave interface{}, log2MinPrec int, noise ring.DistributionParameters, printPrecisionStats bool, t *testing.T) {
+
+	precStats := GetPrecisionStats(params, encoder, decryptor, valuesWant, valuesHave, noise, false)
+
+	if printPrecisionStats {
+		t.Log(precStats.String())
+	}
+
+	rf64, _ := precStats.MeanPrecision.Real.Float64()
+	if64, _ := precStats.MeanPrecision.Imag.Float64()
+
+	switch params.RingType() {
+	case ring.Standard:
+		log2MinPrec -= params.LogN() + 2 // Z[X]/(X^{N} + 1)
+	case ring.ConjugateInvariant:
+		log2MinPrec -= params.LogN() + 3 // Z[X + X^1]/(X^{2N} + 1)
+	}
+	if log2MinPrec < 0 {
+		log2MinPrec = 0
+	}
+
+	require.GreaterOrEqual(t, rf64, float64(log2MinPrec))
+	require.GreaterOrEqual(t, if64, float64(log2MinPrec))
 }
 
 func getPrecisionStatsF64(params Parameters, encoder *Encoder, decryptor *rlwe.Decryptor, want, have interface{}, noiseFlooding ring.DistributionParameters, computeDCF bool) (prec PrecisionStats) {

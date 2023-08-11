@@ -10,6 +10,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
+// PolynomialEvaluator is a wrapper of the circuits.PolynomialEvaluator.
 type PolynomialEvaluator struct {
 	circuits.PolynomialEvaluator
 	Parameters ckks.Parameters
@@ -23,6 +24,7 @@ func NewPowerBasis(ct *rlwe.Ciphertext, basis bignum.Basis) circuits.PowerBasis 
 	return circuits.NewPowerBasis(ct, basis)
 }
 
+// NewPolynomialEvaluator instantiates a new PolynomialEvaluator.
 func NewPolynomialEvaluator(params ckks.Parameters, eval circuits.EvaluatorForPolynomialEvaluation) *PolynomialEvaluator {
 	e := new(PolynomialEvaluator)
 	e.PolynomialEvaluator = circuits.PolynomialEvaluator{EvaluatorForPolynomialEvaluation: eval, EvaluatorBuffers: eval.GetEvaluatorBuffer()}
@@ -56,6 +58,7 @@ func (eval PolynomialEvaluator) Evaluate(input interface{}, p interface{}, targe
 	return circuits.EvaluatePolynomial(eval.PolynomialEvaluator, eval, input, pcircuits, targetScale, levelsConsummedPerRescaling, &simEvaluator{eval.Parameters, levelsConsummedPerRescaling})
 }
 
+// EvaluatePolynomialVectorFromPowerBasis a method that complies to the interface circuits.PolynomialVectorEvaluator. This method evaluates P(ct) = sum c_i * ct^{i}.
 func (eval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol circuits.PolynomialVector, pb circuits.PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
 
 	// Map[int] of the powers [X^{0}, X^{1}, X^{2}, ...]

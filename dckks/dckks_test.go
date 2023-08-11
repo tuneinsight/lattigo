@@ -221,7 +221,7 @@ func testEncToShareProtocol(tc *testContext, t *testing.T) {
 		pt.Scale = ciphertext.Scale
 		tc.ringQ.AtLevel(pt.Level()).SetCoefficientsBigint(rec.Value, pt.Value)
 
-		ckks.VerifyTestVectors(params, tc.encoder, nil, coeffs, pt, nil, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, tc.encoder, nil, coeffs, pt, params.LogDefaultScale(), nil, *printPrecisionStats, t)
 
 		crp := P[0].s2e.SampleCRP(params.MaxLevel(), tc.crs)
 
@@ -236,7 +236,7 @@ func testEncToShareProtocol(tc *testContext, t *testing.T) {
 		ctRec.Scale = params.DefaultScale()
 		P[0].s2e.GetEncryption(P[0].publicShareS2E, crp, ctRec)
 
-		ckks.VerifyTestVectors(params, tc.encoder, tc.decryptorSk0, coeffs, ctRec, nil, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, tc.encoder, tc.decryptorSk0, coeffs, ctRec, params.LogDefaultScale(), nil, *printPrecisionStats, t)
 	})
 }
 
@@ -303,7 +303,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 
 				P0.Finalize(ciphertext, crp, P0.share, ciphertext)
 
-				ckks.VerifyTestVectors(params, tc.encoder, decryptorSk0, coeffs, ciphertext, nil, *printPrecisionStats, t)
+				ckks.VerifyTestVectors(params, tc.encoder, decryptorSk0, coeffs, ciphertext, params.LogDefaultScale(), nil, *printPrecisionStats, t)
 			})
 		}
 
@@ -388,7 +388,7 @@ func testRefreshAndTransform(tc *testContext, t *testing.T) {
 			coeffs[i][1].Mul(coeffs[i][1], bignum.NewFloat(0.7071067811865476, logBound))
 		}
 
-		ckks.VerifyTestVectors(params, tc.encoder, decryptorSk0, coeffs, ciphertext, nil, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, tc.encoder, decryptorSk0, coeffs, ciphertext, params.LogDefaultScale(), nil, *printPrecisionStats, t)
 	})
 }
 
@@ -427,10 +427,10 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		var paramsOut ckks.Parameters
 		paramsOut, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
 			LogN:            params.LogN() + 1,
-			LogQ:            []int{54, 49, 49, 49, 49, 49, 49},
+			LogQ:            []int{54, 54, 54, 49, 49, 49, 49, 49, 49},
 			LogP:            []int{52, 52},
 			RingType:        params.RingType(),
-			LogDefaultScale: 49,
+			LogDefaultScale: params.LogDefaultScale(),
 		})
 
 		require.Nil(t, err)
@@ -491,7 +491,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 			coeffs[i][1].Mul(coeffs[i][1], bignum.NewFloat(0.7071067811865476, logBound))
 		}
 
-		ckks.VerifyTestVectors(paramsOut, ckks.NewEncoder(paramsOut), ckks.NewDecryptor(paramsOut, skIdealOut), coeffs, ciphertext, nil, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(paramsOut, ckks.NewEncoder(paramsOut), ckks.NewDecryptor(paramsOut, skIdealOut), coeffs, ciphertext, paramsOut.LogDefaultScale(), nil, *printPrecisionStats, t)
 	})
 }
 

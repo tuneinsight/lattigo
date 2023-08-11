@@ -178,7 +178,8 @@ func (p Parameters) LogMaxSlots() int {
 	return dims.Rows + dims.Cols
 }
 
-// LogDefaultScale returns the log2 of the default plaintext scaling factor.
+// LogDefaultScale returns the log2 of the default plaintext
+// scaling factor (rounded to the nearest integer).
 func (p Parameters) LogDefaultScale() int {
 	return int(math.Round(math.Log2(p.DefaultScale().Float64())))
 }

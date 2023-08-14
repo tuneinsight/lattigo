@@ -235,9 +235,9 @@ func (p Parameters) QLvl(level int) *big.Int {
 	return tmp
 }
 
-// GaloisElementForColRotation returns the Galois element for generating the
+// GaloisElementForRotation returns the Galois element for generating the
 // automorphism phi(k): X -> X^{5^k mod 2N} mod (X^{N} + 1), which acts as a
-// column-wise cyclic rotation by k position to the left on batched plaintexts.
+// cyclic rotation by k position to the left on batched plaintexts.
 //
 // Example:
 // Recall that batched plaintexts are 2xN/2 matrices of the form [m, conjugate(m)]
@@ -253,7 +253,7 @@ func (p Parameters) QLvl(level int) *big.Int {
 //
 // Note that when using the ConjugateInvariant variant of the scheme, the conjugate is
 // dropped and the matrix becomes an 1xN matrix.
-func (p Parameters) GaloisElementForColRotation(k int) uint64 {
+func (p Parameters) GaloisElementForRotation(k int) uint64 {
 	return p.Parameters.GaloisElement(k)
 }
 

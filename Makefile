@@ -57,7 +57,7 @@ EXECUTABLES = goimports staticcheck
 .PHONY: get_tools
 get_tools:
 	go install golang.org/x/tools/cmd/goimports@latest
-	go install honnef.co/go/tools/cmd/staticcheck@2023.1.3
+	go install honnef.co/go/tools/cmd/staticcheck@2023.1.5
 
 .PHONY: check_tools
 check_tools:

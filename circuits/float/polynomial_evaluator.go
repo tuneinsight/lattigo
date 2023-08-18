@@ -1,12 +1,11 @@
 package float
 
 import (
-	"math/big"
+	"fmt"
 
 	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
@@ -32,16 +31,15 @@ func NewPolynomialEvaluator(params ckks.Parameters, eval circuits.EvaluatorForPo
 	return e
 }
 
-// Evaluate evaluates a polynomial in standard basis on the input Ciphertext in ceil(log2(deg+1)) levels.
+// Evaluate evaluates a polynomial on the input Ciphertext in ceil(log2(deg+1)) levels.
 // Returns an error if the input ciphertext does not have enough level to carry out the full polynomial evaluation.
 // Returns an error if something is wrong with the scale.
 // If the polynomial is given in Chebyshev basis, then a change of basis ct' = (2/(b-a)) * (ct + (-a-b)/(b-a))
 // is necessary before the polynomial evaluation to ensure correctness.
-// input must be either *rlwe.Ciphertext or *PolynomialBasis.
 // pol: a *bignum.Polynomial, *Polynomial or *PolynomialVector
 // targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
 // for example be used to correct small deviations in the ciphertext scale and reset it to the default scale.
-func (eval PolynomialEvaluator) Evaluate(input interface{}, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
+func (eval PolynomialEvaluator) Evaluate(ct *rlwe.Ciphertext, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 
 	var pcircuits interface{}
 	switch p := p.(type) {
@@ -55,199 +53,58 @@ func (eval PolynomialEvaluator) Evaluate(input interface{}, p interface{}, targe
 
 	levelsConsummedPerRescaling := eval.Parameters.LevelsConsummedPerRescaling()
 
-	return circuits.EvaluatePolynomial(eval.PolynomialEvaluator, eval, input, pcircuits, targetScale, levelsConsummedPerRescaling, &simEvaluator{eval.Parameters, levelsConsummedPerRescaling})
+	coeffGetter := circuits.CoefficientGetter[*bignum.Complex](&CoefficientGetter{Values: make([]*bignum.Complex, ct.Slots())})
+
+	return circuits.EvaluatePolynomial(eval.PolynomialEvaluator, ct, pcircuits, coeffGetter, targetScale, levelsConsummedPerRescaling, &simEvaluator{eval.Parameters, levelsConsummedPerRescaling})
 }
 
-// EvaluatePolynomialVectorFromPowerBasis a method that complies to the interface circuits.PolynomialVectorEvaluator. This method evaluates P(ct) = sum c_i * ct^{i}.
-func (eval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol circuits.PolynomialVector, pb circuits.PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
+// EvaluateFromPowerBasis evaluates a polynomial using the provided PowerBasis, holding pre-computed powers of X.
+// This method is the same as Evaluate except that the encrypted input is a PowerBasis.
+// See Evaluate for additional informations.
+func (eval PolynomialEvaluator) EvaluateFromPowerBasis(pb circuits.PowerBasis, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 
-	// Map[int] of the powers [X^{0}, X^{1}, X^{2}, ...]
-	X := pb.Value
-
-	// Retrieve the number of slots
-	logSlots := X[1].LogDimensions
-	slots := 1 << logSlots.Cols
-
-	params := eval.Parameters
-	mapping := pol.Mapping
-	even := pol.IsEven()
-	odd := pol.IsOdd()
-
-	// Retrieve the degree of the highest degree non-zero coefficient
-	// TODO: optimize for nil/zero coefficients
-	minimumDegreeNonZeroCoefficient := len(pol.Value[0].Coeffs) - 1
-	if even && !odd {
-		minimumDegreeNonZeroCoefficient--
+	var pcircuits interface{}
+	switch p := p.(type) {
+	case Polynomial:
+		pcircuits = circuits.Polynomial(p)
+	case PolynomialVector:
+		pcircuits = circuits.PolynomialVector(p)
+	default:
+		pcircuits = p
 	}
 
-	// Gets the maximum degree of the ciphertexts among the power basis
-	// TODO: optimize for nil/zero coefficients, odd/even polynomial
-	maximumCiphertextDegree := 0
-	for i := pol.Value[0].Degree(); i > 0; i-- {
-		if x, ok := X[i]; ok {
-			maximumCiphertextDegree = utils.Max(maximumCiphertextDegree, x.Degree())
-		}
+	levelsConsummedPerRescaling := eval.Parameters.LevelsConsummedPerRescaling()
+
+	if _, ok := pb.Value[1]; !ok {
+		return nil, fmt.Errorf("cannot EvaluateFromPowerBasis: X^{1} is nil")
 	}
 
-	// If an index slot is given (either multiply polynomials or masking)
-	if mapping != nil {
+	coeffGetter := circuits.CoefficientGetter[*bignum.Complex](&CoefficientGetter{Values: make([]*bignum.Complex, pb.Value[1].Slots())})
 
-		var toEncode bool
+	return circuits.EvaluatePolynomial(eval.PolynomialEvaluator, pb, pcircuits, coeffGetter, targetScale, levelsConsummedPerRescaling, &simEvaluator{eval.Parameters, levelsConsummedPerRescaling})
+}
 
-		// Allocates temporary buffer for coefficients encoding
-		values := make([]*bignum.Complex, slots)
+type CoefficientGetter struct {
+	Values []*bignum.Complex
+}
 
-		// If the degree of the poly is zero
-		if minimumDegreeNonZeroCoefficient == 0 {
+func (c *CoefficientGetter) GetVectorCoefficient(pol []circuits.Polynomial, k int, mapping map[int][]int) (values []*bignum.Complex) {
 
-			// Allocates the output ciphertext
-			res = ckks.NewCiphertext(params, 1, targetLevel)
-			res.Scale = targetScale
-			res.LogDimensions = logSlots
+	values = c.Values
 
-			// Looks for non-zero coefficients among the degree 0 coefficients of the polynomials
-			if even {
-				for i, p := range pol.Value {
-					if !isZero(p.Coeffs[0]) {
-						toEncode = true
-						for _, j := range mapping[i] {
-							values[j] = p.Coeffs[0]
-						}
-					}
-				}
-			}
+	for j := range values {
+		values[j] = nil
+	}
 
-			// If a non-zero coefficient was found, encode the values, adds on the ciphertext, and returns
-			if toEncode {
-				pt := &rlwe.Plaintext{}
-				pt.Value = res.Value[0]
-				pt.MetaData = res.MetaData
-				if err = eval.Encode(values, pt); err != nil {
-					return nil, err
-				}
-			}
-
-			return
-		}
-
-		// Allocates the output ciphertext
-		res = ckks.NewCiphertext(params, maximumCiphertextDegree, targetLevel)
-		res.Scale = targetScale
-		res.LogDimensions = logSlots
-
-		// Looks for a non-zero coefficient among the degree zero coefficient of the polynomials
-		if even {
-			for i, p := range pol.Value {
-				if !isZero(p.Coeffs[0]) {
-					toEncode = true
-					for _, j := range mapping[i] {
-						values[j] = p.Coeffs[0]
-					}
-				}
-			}
-		}
-
-		// If a non-zero degre coefficient was found, encode and adds the values on the output
-		// ciphertext
-		if toEncode {
-			if err = eval.Add(res, values, res); err != nil {
-				return
-			}
-			toEncode = false
-		}
-
-		// Loops starting from the highest degree coefficient
-		for key := pol.Value[0].Degree(); key > 0; key-- {
-
-			var reset bool
-
-			if !(even || odd) || (key&1 == 0 && even) || (key&1 == 1 && odd) {
-
-				// Loops over the polynomials
-				for i, p := range pol.Value {
-
-					// Looks for a non-zero coefficient
-					if !isZero(p.Coeffs[key]) {
-						toEncode = true
-
-						// Resets the temporary array to zero
-						// is needed if a zero coefficient
-						// is at the place of a previous non-zero
-						// coefficient
-						if !reset {
-							for j := range values {
-								if values[j] != nil {
-									values[j][0].SetFloat64(0)
-									values[j][1].SetFloat64(0)
-								}
-							}
-							reset = true
-						}
-
-						// Copies the coefficient on the temporary array
-						// according to the slot map index
-						for _, j := range mapping[i] {
-							values[j] = p.Coeffs[key]
-						}
-					}
-				}
-			}
-
-			// If a non-zero degre coefficient was found, encode and adds the values on the output
-			// ciphertext
-			if toEncode {
-				if err = eval.MulThenAdd(X[key], values, res); err != nil {
-					return
-				}
-				toEncode = false
-			}
-		}
-
-	} else {
-
-		var c *bignum.Complex
-		if even && !isZero(pol.Value[0].Coeffs[0]) {
-			c = pol.Value[0].Coeffs[0]
-		}
-
-		if minimumDegreeNonZeroCoefficient == 0 {
-
-			res = ckks.NewCiphertext(params, 1, targetLevel)
-			res.Scale = targetScale
-			res.LogDimensions = logSlots
-
-			if !isZero(c) {
-				if err = eval.Add(res, c, res); err != nil {
-					return
-				}
-			}
-
-			return
-		}
-
-		res = ckks.NewCiphertext(params, maximumCiphertextDegree, targetLevel)
-		res.Scale = targetScale
-		res.LogDimensions = logSlots
-
-		if c != nil {
-			if err = eval.Add(res, c, res); err != nil {
-				return
-			}
-		}
-
-		for key := pol.Value[0].Degree(); key > 0; key-- {
-			if c = pol.Value[0].Coeffs[key]; key != 0 && !isZero(c) && (!(even || odd) || (key&1 == 0 && even) || (key&1 == 1 && odd)) {
-				if err = eval.MulThenAdd(X[key], c, res); err != nil {
-					return
-				}
-			}
+	for i, p := range pol {
+		for _, j := range mapping[i] {
+			values[j] = p.Coeffs[k]
 		}
 	}
 
 	return
 }
 
-func isZero(c *bignum.Complex) bool {
-	zero := new(big.Float)
-	return c == nil || (c[0].Cmp(zero) == 0 && c[1].Cmp(zero) == 0)
+func (c *CoefficientGetter) GetSingleCoefficient(pol circuits.Polynomial, k int) (value *bignum.Complex) {
+	return pol.Coeffs[k]
 }

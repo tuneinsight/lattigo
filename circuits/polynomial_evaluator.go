@@ -5,6 +5,7 @@ import (
 	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
@@ -12,13 +13,7 @@ import (
 type EvaluatorForPolynomial interface {
 	rlwe.ParameterProvider
 	Evaluator
-	Encode(values interface{}, pt *rlwe.Plaintext) (err error)
 	GetEvaluatorBuffer() *rlwe.EvaluatorBuffers // TODO extract
-}
-
-// PolynomialVectorEvaluator defines a scheme agnostic method to evaluate P(X) = sum ci * X^{i}.
-type PolynomialVectorEvaluator interface {
-	EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol PolynomialVector, pb PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error)
 }
 
 // PolynomialEvaluator is an evaluator used to evaluate polynomials on ciphertexts.
@@ -27,8 +22,13 @@ type PolynomialEvaluator struct {
 	*rlwe.EvaluatorBuffers
 }
 
+type CoefficientGetter[T any] interface {
+	GetVectorCoefficient(pol []Polynomial, k int, mapping map[int][]int) (values []T)
+	GetSingleCoefficient(pol Polynomial, k int) (value T)
+}
+
 // EvaluatePolynomial is a generic and scheme agnostic method to evaluate polynomials on rlwe.Ciphertexts.
-func EvaluatePolynomial(eval PolynomialEvaluator, evalp PolynomialVectorEvaluator, input interface{}, p interface{}, targetScale rlwe.Scale, levelsConsummedPerRescaling int, SimEval SimEvaluator) (opOut *rlwe.Ciphertext, err error) {
+func EvaluatePolynomial[T any](eval PolynomialEvaluator, input interface{}, p interface{}, cg CoefficientGetter[T], targetScale rlwe.Scale, levelsConsummedPerRescaling int, SimEval SimEvaluator) (opOut *rlwe.Ciphertext, err error) {
 
 	var polyVec PolynomialVector
 	switch p := p.(type) {
@@ -84,7 +84,7 @@ func EvaluatePolynomial(eval PolynomialEvaluator, evalp PolynomialVectorEvaluato
 
 	PS := polyVec.GetPatersonStockmeyerPolynomial(*eval.GetRLWEParameters(), powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, SimEval)
 
-	if opOut, err = eval.EvaluatePatersonStockmeyerPolynomialVector(evalp, PS, powerbasis); err != nil {
+	if opOut, err = EvaluatePatersonStockmeyerPolynomialVector(eval, PS, cg, powerbasis); err != nil {
 		return nil, err
 	}
 
@@ -92,7 +92,7 @@ func EvaluatePolynomial(eval PolynomialEvaluator, evalp PolynomialVectorEvaluato
 }
 
 // EvaluatePatersonStockmeyerPolynomialVector evaluates a pre-decomposed PatersonStockmeyerPolynomialVector on a pre-computed power basis [1, X^{1}, X^{2}, ..., X^{2^{n}}, X^{2^{n+1}}, ..., X^{2^{m}}]
-func (eval PolynomialEvaluator) EvaluatePatersonStockmeyerPolynomialVector(pvEval PolynomialVectorEvaluator, poly PatersonStockmeyerPolynomialVector, pb PowerBasis) (res *rlwe.Ciphertext, err error) {
+func EvaluatePatersonStockmeyerPolynomialVector[T any](eval PolynomialEvaluator, poly PatersonStockmeyerPolynomialVector, cg CoefficientGetter[T], pb PowerBasis) (res *rlwe.Ciphertext, err error) {
 
 	type Poly struct {
 		Degree int
@@ -124,7 +124,7 @@ func (eval PolynomialEvaluator) EvaluatePatersonStockmeyerPolynomialVector(pvEva
 		idx := split - i - 1
 		tmp[idx] = new(Poly)
 		tmp[idx].Degree = poly.Value[0].Value[i].Degree()
-		if tmp[idx].Value, err = pvEval.EvaluatePolynomialVectorFromPowerBasis(level, polyVec, pb, scale); err != nil {
+		if tmp[idx].Value, err = EvaluatePolynomialVectorFromPowerBasis(eval, level, polyVec, cg, pb, scale); err != nil {
 			return nil, fmt.Errorf("cannot EvaluatePolynomialVectorFromPowerBasis: polynomial[%d]: %w", i, err)
 		}
 	}
@@ -209,6 +209,114 @@ func (eval PolynomialEvaluator) EvaluateMonomial(a, b, xpow *rlwe.Ciphertext) (e
 
 	if err = eval.Add(b, a, b); err != nil {
 		return fmt.Errorf("evalMonomial: %w", err)
+	}
+
+	return
+}
+
+// EvaluatePolynomialVectorFromPowerBasis a method that complies to the interface circuits.PolynomialVectorEvaluator. This method evaluates P(ct) = sum c_i * ct^{i}.
+func EvaluatePolynomialVectorFromPowerBasis[T any](eval PolynomialEvaluator, targetLevel int, pol PolynomialVector, cg CoefficientGetter[T], pb PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
+
+	// Map[int] of the powers [X^{0}, X^{1}, X^{2}, ...]
+	X := pb.Value
+
+	params := eval.GetRLWEParameters()
+	mapping := pol.Mapping
+	even := pol.IsEven()
+	odd := pol.IsOdd()
+
+	// Retrieve the degree of the highest degree non-zero coefficient
+	// TODO: optimize for nil/zero coefficients
+	minimumDegreeNonZeroCoefficient := len(pol.Value[0].Coeffs) - 1
+	if even && !odd {
+		minimumDegreeNonZeroCoefficient--
+	}
+
+	// Gets the maximum degree of the ciphertexts among the power basis
+	// TODO: optimize for nil/zero coefficients, odd/even polynomial
+	maximumCiphertextDegree := 0
+	for i := pol.Value[0].Degree(); i > 0; i-- {
+		if x, ok := X[i]; ok {
+			maximumCiphertextDegree = utils.Max(maximumCiphertextDegree, x.Degree())
+		}
+	}
+
+	// If an index slot is given (either multiply polynomials or masking)
+	if mapping != nil {
+
+		// If the degree of the poly is zero
+		if minimumDegreeNonZeroCoefficient == 0 {
+
+			// Allocates the output ciphertext
+			res = rlwe.NewCiphertext(params, 1, targetLevel)
+			*res.MetaData = *X[1].MetaData
+			res.Scale = targetScale
+
+			if even {
+
+				if err = eval.Add(res, cg.GetVectorCoefficient(pol.Value, 0, mapping), res); err != nil {
+					return nil, err
+				}
+			}
+
+			return
+		}
+
+		// Allocates the output ciphertext
+		res = rlwe.NewCiphertext(params, maximumCiphertextDegree, targetLevel)
+		*res.MetaData = *X[1].MetaData
+		res.Scale = targetScale
+
+		if even {
+			if err = eval.Add(res, cg.GetVectorCoefficient(pol.Value, 0, mapping), res); err != nil {
+				return nil, err
+			}
+		}
+
+		// Loops starting from the highest degree coefficient
+		for key := pol.Value[0].Degree(); key > 0; key-- {
+			if !(even || odd) || (key&1 == 0 && even) || (key&1 == 1 && odd) {
+				if err = eval.MulThenAdd(X[key], cg.GetVectorCoefficient(pol.Value, key, mapping), res); err != nil {
+					return
+				}
+			}
+		}
+
+	} else {
+
+		if minimumDegreeNonZeroCoefficient == 0 {
+
+			res = rlwe.NewCiphertext(params, 1, targetLevel)
+			*res.MetaData = *X[1].MetaData
+			res.Scale = targetScale
+
+			if even {
+				if err = eval.Add(res, cg.GetSingleCoefficient(pol.Value[0], 0), res); err != nil {
+					return
+				}
+			}
+
+			return
+		}
+
+		res = rlwe.NewCiphertext(params, maximumCiphertextDegree, targetLevel)
+		*res.MetaData = *X[1].MetaData
+		res.Scale = targetScale
+
+		if even {
+			if err = eval.Add(res, cg.GetSingleCoefficient(pol.Value[0], 0), res); err != nil {
+				return
+			}
+		}
+
+		for key := pol.Value[0].Degree(); key > 0; key-- {
+			if key != 0 && (!(even || odd) || (key&1 == 0 && even) || (key&1 == 1 && odd)) {
+				// MulScalarAndAdd automatically scales c to match the scale of res.
+				if err = eval.MulThenAdd(X[key], cg.GetSingleCoefficient(pol.Value[0], key), res); err != nil {
+					return
+				}
+			}
+		}
 	}
 
 	return

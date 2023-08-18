@@ -292,6 +292,8 @@ func (eval InverseEvaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, log2Min
 			return
 		}
 
+		// a is at a higher level than tmp but at the same scale magnitude
+		// We consume a level to bring a to the same level as tmp
 		if err = eval.SetScale(a, tmp.Scale); err != nil {
 			return
 		}

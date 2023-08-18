@@ -1,10 +1,11 @@
 package integer
 
 import (
+	"fmt"
+
 	"github.com/tuneinsight/lattigo/v4/bgv"
 	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
@@ -36,7 +37,15 @@ func NewPolynomialEvaluator(params bgv.Parameters, eval *bgv.Evaluator, Invarian
 	return e
 }
 
-func (eval PolynomialEvaluator) Evaluate(input interface{}, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
+// Evaluate evaluates a polynomial on the input Ciphertext in ceil(log2(deg+1)) levels.
+// Returns an error if the input ciphertext does not have enough level to carry out the full polynomial evaluation.
+// Returns an error if something is wrong with the scale.
+// If the polynomial is given in Chebyshev basis, then a change of basis ct' = (2/(b-a)) * (ct + (-a-b)/(b-a))
+// is necessary before the polynomial evaluation to ensure correctness.
+// pol: a *bignum.Polynomial, *Polynomial or *PolynomialVector
+// targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
+// for example be used to correct small deviations in the ciphertext scale and reset it to the default scale.
+func (eval PolynomialEvaluator) Evaluate(ct *rlwe.Ciphertext, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 
 	var pcircuits interface{}
 	switch p := p.(type) {
@@ -48,7 +57,33 @@ func (eval PolynomialEvaluator) Evaluate(input interface{}, p interface{}, targe
 		pcircuits = p
 	}
 
-	return circuits.EvaluatePolynomial(eval.PolynomialEvaluator, eval, input, pcircuits, targetScale, 1, &simIntegerPolynomialEvaluator{eval.Parameters, eval.InvariantTensoring})
+	coeffGetter := circuits.CoefficientGetter[uint64](&CoefficientGetter{Values: make([]uint64, ct.Slots())})
+
+	return circuits.EvaluatePolynomial(eval.PolynomialEvaluator, ct, pcircuits, coeffGetter, targetScale, 1, &simIntegerPolynomialEvaluator{eval.Parameters, eval.InvariantTensoring})
+}
+
+// EvaluateFromPowerBasis evaluates a polynomial using the provided PowerBasis, holding pre-computed powers of X.
+// This method is the same as Evaluate except that the encrypted input is a PowerBasis.
+// See Evaluate for additional informations.
+func (eval PolynomialEvaluator) EvaluateFromPowerBasis(pb circuits.PowerBasis, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
+
+	var pcircuits interface{}
+	switch p := p.(type) {
+	case Polynomial:
+		pcircuits = circuits.Polynomial(p)
+	case PolynomialVector:
+		pcircuits = circuits.PolynomialVector(p)
+	default:
+		pcircuits = p
+	}
+
+	if _, ok := pb.Value[1]; !ok {
+		return nil, fmt.Errorf("cannot EvaluateFromPowerBasis: X^{1} is nil")
+	}
+
+	coeffGetter := circuits.CoefficientGetter[uint64](&CoefficientGetter{Values: make([]uint64, pb.Value[1].Slots())})
+
+	return circuits.EvaluatePolynomial(eval.PolynomialEvaluator, pb, pcircuits, coeffGetter, targetScale, 1, &simIntegerPolynomialEvaluator{eval.Parameters, eval.InvariantTensoring})
 }
 
 type scaleInvariantEvaluator struct {
@@ -75,178 +110,27 @@ func (polyEval scaleInvariantEvaluator) Rescale(op0, op1 *rlwe.Ciphertext) (err 
 	return nil
 }
 
-func (eval PolynomialEvaluator) EvaluatePolynomialVectorFromPowerBasis(targetLevel int, pol circuits.PolynomialVector, pb circuits.PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
+type CoefficientGetter struct {
+	Values []uint64
+}
 
-	X := pb.Value
+func (c *CoefficientGetter) GetVectorCoefficient(pol []circuits.Polynomial, k int, mapping map[int][]int) (values []uint64) {
 
-	params := eval.Parameters
-	mapping := pol.Mapping
-	slots := params.RingT().N()
-	even := pol.IsEven()
-	odd := pol.IsOdd()
+	values = c.Values
 
-	// Retrieve the degree of the highest degree non-zero coefficient
-	// TODO: optimize for nil/zero coefficients
-	minimumDegreeNonZeroCoefficient := len(pol.Value[0].Coeffs) - 1
-	if even && !odd {
-		minimumDegreeNonZeroCoefficient--
+	for j := range values {
+		values[j] = 0
 	}
 
-	// Get the minimum non-zero degree coefficient
-	maximumCiphertextDegree := 0
-	for i := pol.Value[0].Degree(); i > 0; i-- {
-		if x, ok := X[i]; ok {
-			maximumCiphertextDegree = utils.Max(maximumCiphertextDegree, x.Degree())
-		}
-	}
-
-	// If an index slot is given (either multiply polynomials or masking)
-	if mapping != nil {
-
-		var toEncode bool
-
-		// Allocates temporary buffer for coefficients encoding
-		values := make([]uint64, slots)
-
-		// If the degree of the poly is zero
-		if minimumDegreeNonZeroCoefficient == 0 {
-
-			// Allocates the output ciphertext
-			res = bgv.NewCiphertext(params, 1, targetLevel)
-			res.Scale = targetScale
-
-			// Looks for non-zero coefficients among the degree 0 coefficients of the polynomials
-			for i, p := range pol.Value {
-				if c := p.Coeffs[0].Uint64(); c != 0 {
-					toEncode = true
-					for _, j := range mapping[i] {
-						values[j] = c
-					}
-				}
-			}
-
-			// If a non-zero coefficient was found, encode the values, adds on the ciphertext, and returns
-			if toEncode {
-				pt, err := rlwe.NewPlaintextAtLevelFromPoly(targetLevel, res.Value[0])
-				if err != nil {
-					panic(err)
-				}
-				pt.Scale = res.Scale
-				pt.IsNTT = bgv.NTTFlag
-				pt.IsBatched = true
-				if err = eval.Encode(values, pt); err != nil {
-					return nil, err
-				}
-			}
-
-			return
-		}
-
-		// Allocates the output ciphertext
-		res = bgv.NewCiphertext(params, maximumCiphertextDegree, targetLevel)
-		res.Scale = targetScale
-
-		// Looks for a non-zero coefficient among the degree zero coefficient of the polynomials
-		for i, p := range pol.Value {
-			if c := p.Coeffs[0].Uint64(); c != 0 {
-				toEncode = true
-				for _, j := range mapping[i] {
-					values[j] = c
-				}
-			}
-		}
-
-		// If a non-zero degree coefficient was found, encode and adds the values on the output
-		// ciphertext
-		if toEncode {
-			// Add would actually scale the plaintext accordingly,
-			// but encoding with the correct scale is slightly faster
-			if err := eval.Add(res, values, res); err != nil {
-				return nil, err
-			}
-
-			toEncode = false
-		}
-
-		// Loops starting from the highest degree coefficient
-		for key := pol.Value[0].Degree(); key > 0; key-- {
-
-			var reset bool
-			// Loops over the polynomials
-			for i, p := range pol.Value {
-
-				// Looks for a non-zero coefficient
-				if c := p.Coeffs[key].Uint64(); c != 0 {
-					toEncode = true
-
-					// Resets the temporary array to zero
-					// is needed if a zero coefficient
-					// is at the place of a previous non-zero
-					// coefficient
-					if !reset {
-						for j := range values {
-							values[j] = 0
-						}
-						reset = true
-					}
-
-					// Copies the coefficient on the temporary array
-					// according to the slot map index
-					for _, j := range mapping[i] {
-						values[j] = c
-					}
-				}
-			}
-
-			// If a non-zero degree coefficient was found, encode and adds the values on the output
-			// ciphertext
-			if toEncode {
-
-				// MulAndAdd would actually scale the plaintext accordingly,
-				// but encoding with the correct scale is slightly faster
-				if err = eval.MulThenAdd(X[key], values, res); err != nil {
-					return nil, err
-				}
-				toEncode = false
-			}
-		}
-
-	} else {
-
-		c := pol.Value[0].Coeffs[0].Uint64()
-
-		if minimumDegreeNonZeroCoefficient == 0 {
-
-			res = bgv.NewCiphertext(params, 1, targetLevel)
-			res.Scale = targetScale
-
-			if c != 0 {
-				if err := eval.Add(res, c, res); err != nil {
-					return nil, err
-				}
-			}
-
-			return
-		}
-
-		res = bgv.NewCiphertext(params, maximumCiphertextDegree, targetLevel)
-		res.Scale = targetScale
-
-		if c != 0 {
-			if err := eval.Add(res, c, res); err != nil {
-				return nil, err
-			}
-		}
-
-		for key := pol.Value[0].Degree(); key > 0; key-- {
-			if c = pol.Value[0].Coeffs[key].Uint64(); key != 0 && c != 0 {
-				// MulScalarAndAdd automatically scales c to match the scale of res.
-				if err := eval.MulThenAdd(X[key], c, res); err != nil {
-					return nil, err
-				}
-			}
+	for i, p := range pol {
+		for _, j := range mapping[i] {
+			values[j] = p.Coeffs[k].Uint64()
 		}
 	}
 
 	return
+}
+
+func (c *CoefficientGetter) GetSingleCoefficient(pol circuits.Polynomial, k int) (value uint64) {
+	return pol.Coeffs[k].Uint64()
 }

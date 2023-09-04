@@ -87,10 +87,10 @@ func (enc Encryptor) EncryptZero(ct interface{}) (err error) {
 
 	for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
 		for j := 0; j < BaseTwoDecompositionVectorSize[i]; j++ {
-			if err = enc.Encryptor.EncryptZero(rlwe.Operand[ringqp.Poly]{MetaData: metadata, Value: []ringqp.Poly(rgswCt.Value[0].Value[i][j])}); err != nil {
+			if err = enc.Encryptor.EncryptZero(rlwe.Element[ringqp.Poly]{MetaData: metadata, Value: []ringqp.Poly(rgswCt.Value[0].Value[i][j])}); err != nil {
 				return
 			}
-			if err = enc.Encryptor.EncryptZero(rlwe.Operand[ringqp.Poly]{MetaData: metadata, Value: []ringqp.Poly(rgswCt.Value[1].Value[i][j])}); err != nil {
+			if err = enc.Encryptor.EncryptZero(rlwe.Element[ringqp.Poly]{MetaData: metadata, Value: []ringqp.Poly(rgswCt.Value[1].Value[i][j])}); err != nil {
 				return
 			}
 		}

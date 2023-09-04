@@ -167,7 +167,7 @@ func (enc Encryptor) EncryptZero(ct interface{}) (err error) {
 		return enc.encryptZeroSk(key, ct)
 	case *PublicKey:
 		if cti, isCt := ct.(*Ciphertext); isCt && enc.params.PCount() == 0 {
-			return enc.encryptZeroPkNoP(key, cti.Operand)
+			return enc.encryptZeroPkNoP(key, cti.Element)
 		}
 		return enc.encryptZeroPk(key, ct)
 	default:
@@ -193,19 +193,19 @@ func (enc Encryptor) encryptZeroPk(pk *PublicKey, ct interface{}) (err error) {
 	var ct0QP, ct1QP ringqp.Poly
 
 	if ctCt, isCiphertext := ct.(*Ciphertext); isCiphertext {
-		ct = ctCt.Operand
+		ct = ctCt.Element
 	}
 
 	var levelQ, levelP int
 	switch ct := ct.(type) {
-	case Operand[ring.Poly]:
+	case Element[ring.Poly]:
 
 		levelQ = ct.Level()
 		levelP = 0
 
 		ct0QP = ringqp.Poly{Q: ct.Value[0], P: enc.buffP[0]}
 		ct1QP = ringqp.Poly{Q: ct.Value[1], P: enc.buffP[1]}
-	case Operand[ringqp.Poly]:
+	case Element[ringqp.Poly]:
 
 		levelQ = ct.LevelQ()
 		levelP = ct.LevelP()
@@ -247,7 +247,7 @@ func (enc Encryptor) encryptZeroPk(pk *PublicKey, ct interface{}) (err error) {
 	ringQP.Add(ct1QP, e, ct1QP)
 
 	switch ct := ct.(type) {
-	case Operand[ring.Poly]:
+	case Element[ring.Poly]:
 
 		// ct0 = (u*pk0 + e0)/P
 		enc.basisextender.ModDownQPtoQ(levelQ, levelP, ct0QP.Q, ct0QP.P, ct.Value[0])
@@ -265,7 +265,7 @@ func (enc Encryptor) encryptZeroPk(pk *PublicKey, ct interface{}) (err error) {
 			ringQP.RingQ.MForm(ct.Value[1], ct.Value[1])
 		}
 
-	case Operand[ringqp.Poly]:
+	case Element[ringqp.Poly]:
 		if ct.IsNTT {
 			ringQP.NTT(ct.Value[0], ct.Value[0])
 			ringQP.NTT(ct.Value[1], ct.Value[1])
@@ -280,7 +280,7 @@ func (enc Encryptor) encryptZeroPk(pk *PublicKey, ct interface{}) (err error) {
 	return
 }
 
-func (enc Encryptor) encryptZeroPkNoP(pk *PublicKey, ct Operand[ring.Poly]) (err error) {
+func (enc Encryptor) encryptZeroPkNoP(pk *PublicKey, ct Element[ring.Poly]) (err error) {
 
 	levelQ := ct.Level()
 
@@ -342,9 +342,9 @@ func (enc Encryptor) encryptZeroSk(sk *SecretKey, ct interface{}) (err error) {
 			enc.params.RingQ().AtLevel(ct.Level()).NTT(c1, c1)
 		}
 
-		return enc.encryptZeroSkFromC1(sk, ct.Operand, c1)
+		return enc.encryptZeroSkFromC1(sk, ct.Element, c1)
 
-	case Operand[ringqp.Poly]:
+	case Element[ringqp.Poly]:
 
 		var c1 ringqp.Poly
 
@@ -368,7 +368,7 @@ func (enc Encryptor) encryptZeroSk(sk *SecretKey, ct interface{}) (err error) {
 	}
 }
 
-func (enc Encryptor) encryptZeroSkFromC1(sk *SecretKey, ct Operand[ring.Poly], c1 ring.Poly) (err error) {
+func (enc Encryptor) encryptZeroSkFromC1(sk *SecretKey, ct Element[ring.Poly], c1 ring.Poly) (err error) {
 
 	levelQ := ct.Level()
 
@@ -401,7 +401,7 @@ func (enc Encryptor) encryptZeroSkFromC1(sk *SecretKey, ct Operand[ring.Poly], c
 // sk     : secret key
 // sampler: uniform sampler; if `sampler` is nil, then the internal sampler will be used.
 // montgomery: returns the result in the Montgomery domain.
-func (enc Encryptor) encryptZeroSkFromC1QP(sk *SecretKey, ct Operand[ringqp.Poly], c1 ringqp.Poly) (err error) {
+func (enc Encryptor) encryptZeroSkFromC1QP(sk *SecretKey, ct Element[ringqp.Poly], c1 ringqp.Poly) (err error) {
 
 	levelQ, levelP := ct.LevelQ(), ct.LevelP()
 	ringQP := enc.params.RingQP().AtLevel(levelQ, levelP)

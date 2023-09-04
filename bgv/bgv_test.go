@@ -143,7 +143,7 @@ func newTestVectorsLvl(level int, scale rlwe.Scale, tc *testContext, encryptor *
 	return coeffs, plaintext, ciphertext
 }
 
-func verifyTestVectors(tc *testContext, decryptor *rlwe.Decryptor, coeffs ring.Poly, element rlwe.OperandInterface[ring.Poly], t *testing.T) {
+func verifyTestVectors(tc *testContext, decryptor *rlwe.Decryptor, coeffs ring.Poly, element rlwe.OperandPoly[ring.Poly], t *testing.T) {
 
 	coeffsTest := make([]uint64, tc.params.MaxSlots())
 
@@ -304,10 +304,10 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 			values, _, ciphertext := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
 
-			scalar := tc.params.PlaintextModulus() >> 1
+			scalar := rlwe.OperandScalar[uint64]{Value: tc.params.PlaintextModulus() >> 1}
 
 			require.NoError(t, tc.evaluator.Add(ciphertext, scalar, ciphertext))
-			tc.ringT.AddScalar(values, scalar, values)
+			tc.ringT.AddScalar(values, scalar.Value, values)
 
 			verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
 
@@ -319,7 +319,7 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 			values, _, ciphertext := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
 
-			require.NoError(t, tc.evaluator.Add(ciphertext, values.Coeffs[0], ciphertext))
+			require.NoError(t, tc.evaluator.Add(ciphertext, rlwe.OperandVector[uint64]{Value: values.Coeffs[0]}, ciphertext))
 			tc.ringT.Add(values, values, values)
 
 			verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)

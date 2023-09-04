@@ -152,7 +152,7 @@ func (eval Evaluator) CheckAndGetRelinearizationKey() (evk *RelinearizationKey, 
 // LogDimensions <- max(op0.LogDimensions, op1.LogDimensions)
 //
 // The method returns max(op0.Degree(), op1.Degree(), opOut.Degree()) and min(op0.Level(), op1.Level(), opOut.Level())
-func (eval Evaluator) InitOutputBinaryOp(op0, op1 *Operand[ring.Poly], opInTotalMaxDegree int, opOut *Operand[ring.Poly]) (degree, level int, err error) {
+func (eval Evaluator) InitOutputBinaryOp(op0, op1 *Element[ring.Poly], opInTotalMaxDegree int, opOut *Element[ring.Poly]) (degree, level int, err error) {
 
 	if op0 == nil || op1 == nil || opOut == nil {
 		return 0, 0, fmt.Errorf("op0, op1 and opOut cannot be nil")
@@ -209,7 +209,7 @@ func (eval Evaluator) InitOutputBinaryOp(op0, op1 *Operand[ring.Poly], opInTotal
 // LogDimensions <- op0.LogDimensions
 //
 // The method returns max(op0.Degree(), opOut.Degree()) and min(op0.Level(), opOut.Level()).
-func (eval Evaluator) InitOutputUnaryOp(op0, opOut *Operand[ring.Poly]) (degree, level int, err error) {
+func (eval Evaluator) InitOutputUnaryOp(op0, opOut *Element[ring.Poly]) (degree, level int, err error) {
 
 	if op0 == nil || opOut == nil {
 		return 0, 0, fmt.Errorf("op0 and opOut cannot be nil")

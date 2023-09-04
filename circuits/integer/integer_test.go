@@ -136,7 +136,7 @@ func newBGVTestVectorsLvl(level int, scale rlwe.Scale, tc *bgvTestContext, encry
 	return coeffs, plaintext, ciphertext
 }
 
-func verifyBGVTestVectors(tc *bgvTestContext, decryptor *rlwe.Decryptor, coeffs ring.Poly, element rlwe.OperandInterface[ring.Poly], t *testing.T) {
+func verifyBGVTestVectors(tc *bgvTestContext, decryptor *rlwe.Decryptor, coeffs ring.Poly, element rlwe.OperandPoly[ring.Poly], t *testing.T) {
 
 	coeffsTest := make([]uint64, tc.params.MaxSlots())
 

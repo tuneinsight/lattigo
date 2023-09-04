@@ -109,7 +109,7 @@ func (eval Evaluator) ShallowCopy() *Evaluator {
 // The procedure will return an error if opOut.Degree != op0.Degree + op1.Degree.
 func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
 	switch op1 := op1.(type) {
-	case rlwe.OperandInterface[ring.Poly], []uint64:
+	case rlwe.OperandPoly[ring.Poly], []uint64:
 		return eval.Evaluator.MulScaleInvariant(op0, op1, opOut)
 	case uint64, int64, int:
 		return eval.Evaluator.Mul(op0, op1, op0)
@@ -128,7 +128,7 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 // The procedure will return an error if either op0.Degree or op1.Degree > 1.
 func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
 	switch op1 := op1.(type) {
-	case rlwe.OperandInterface[ring.Poly], []uint64:
+	case rlwe.OperandPoly[ring.Poly], []uint64:
 		return eval.Evaluator.MulScaleInvariantNew(op0, op1)
 	case uint64, int64, int:
 		return eval.Evaluator.MulNew(op0, op1)

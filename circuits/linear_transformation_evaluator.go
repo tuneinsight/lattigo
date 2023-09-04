@@ -17,9 +17,9 @@ type EvaluatorForLinearTransformation interface {
 	// TODO: separated int
 	DecomposeNTT(levelQ, levelP, nbPi int, c2 ring.Poly, c2IsNTT bool, decompQP []ringqp.Poly)
 	CheckAndGetGaloisKey(galEl uint64) (evk *rlwe.GaloisKey, err error)
-	GadgetProductLazy(levelQ int, cx ring.Poly, gadgetCt *rlwe.GadgetCiphertext, ct *rlwe.Operand[ringqp.Poly])
-	GadgetProductHoistedLazy(levelQ int, BuffQPDecompQP []ringqp.Poly, gadgetCt *rlwe.GadgetCiphertext, ct *rlwe.Operand[ringqp.Poly])
-	AutomorphismHoistedLazy(levelQ int, ctIn *rlwe.Ciphertext, c1DecompQP []ringqp.Poly, galEl uint64, ctQP *rlwe.Operand[ringqp.Poly]) (err error)
+	GadgetProductLazy(levelQ int, cx ring.Poly, gadgetCt *rlwe.GadgetCiphertext, ct *rlwe.Element[ringqp.Poly])
+	GadgetProductHoistedLazy(levelQ int, BuffQPDecompQP []ringqp.Poly, gadgetCt *rlwe.GadgetCiphertext, ct *rlwe.Element[ringqp.Poly])
+	AutomorphismHoistedLazy(levelQ int, ctIn *rlwe.Ciphertext, c1DecompQP []ringqp.Poly, galEl uint64, ctQP *rlwe.Element[ringqp.Poly]) (err error)
 	ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q ring.Poly)
 	AutomorphismIndex(uint64) []uint64
 
@@ -165,7 +165,7 @@ func (eval LinearTransformationEvaluator) MultiplyByDiagMatrix(ctIn *rlwe.Cipher
 	tmp0QP := eval.BuffQP[1]
 	tmp1QP := eval.BuffQP[2]
 
-	cQP := &rlwe.Operand[ringqp.Poly]{}
+	cQP := &rlwe.Element[ringqp.Poly]{}
 	cQP.Value = []ringqp.Poly{eval.BuffQP[3], eval.BuffQP[4]}
 	cQP.MetaData = &rlwe.MetaData{}
 	cQP.MetaData.IsNTT = true
@@ -282,10 +282,10 @@ func (eval LinearTransformationEvaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ci
 	ctInTmp0, ctInTmp1 := eval.BuffCt.Value[0], eval.BuffCt.Value[1]
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
-	ctInRotQP := map[int]*rlwe.Operand[ringqp.Poly]{}
+	ctInRotQP := map[int]*rlwe.Element[ringqp.Poly]{}
 	for _, i := range rotN2 {
 		if i != 0 {
-			ctInRotQP[i] = rlwe.NewOperandQP(params, 1, levelQ, levelP)
+			ctInRotQP[i] = rlwe.NewElementQP(params, 1, levelQ, levelP)
 			if err = eval.AutomorphismHoistedLazy(levelQ, ctIn, BuffDecompQP, params.GaloisElement(i), ctInRotQP[i]); err != nil {
 				return
 			}
@@ -297,7 +297,7 @@ func (eval LinearTransformationEvaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ci
 	tmp1QP := eval.BuffQP[2]
 
 	// Accumulator outer loop
-	cQP := &rlwe.Operand[ringqp.Poly]{}
+	cQP := &rlwe.Element[ringqp.Poly]{}
 	cQP.Value = []ringqp.Poly{eval.BuffQP[3], eval.BuffQP[4]}
 	cQP.MetaData = &rlwe.MetaData{}
 	cQP.IsNTT = true

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"math/big"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/tuneinsight/lattigo/v4/ring"
@@ -13,20 +14,42 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/structs"
 )
 
-// OperandInterface is a common interface for Ciphertext and Plaintext types.
-type OperandInterface[T ring.Poly | ringqp.Poly] interface {
-	El() *Operand[T]
+type Operand interface {
+	isOperand()
+}
+
+// OperandPoly is a common interface for Ciphertext and Plaintext types.
+type OperandPoly[T ring.Poly | ringqp.Poly] interface {
+	El() *Element[T]
 	Degree() int
 	Level() int
 }
 
-type Operand[T ring.Poly | ringqp.Poly] struct {
+type Element[T ring.Poly | ringqp.Poly] struct {
 	*MetaData
 	Value structs.Vector[T]
 }
 
-// NewOperandQ allocates a new Operand[ring.Poly].
-func NewOperandQ(params ParameterProvider, degree int, levelQ ...int) *Operand[ring.Poly] {
+func (op Element[T]) isOperand() {}
+
+type OperandScalarInterface interface {
+	Operand
+	Op() *big.Int
+}
+
+type OperandScalar[T big.Int | uint64 | int64 | int] struct {
+	Value T
+}
+
+type OperandVector[T uint64 | int64 | int] struct {
+	Value []T
+}
+
+func (op OperandScalar[T]) isOperand() {}
+func (op OperandVector[T]) isOperand() {}
+
+// NewElementQ allocates a new Operand[ring.Poly].
+func NewElementQ(params ParameterProvider, degree int, levelQ ...int) *Element[ring.Poly] {
 	p := params.GetRLWEParameters()
 
 	lvlq, _ := p.UnpackLevelParams(levelQ)
@@ -38,7 +61,7 @@ func NewOperandQ(params ParameterProvider, degree int, levelQ ...int) *Operand[r
 		Value[i] = ringQ.NewPoly()
 	}
 
-	return &Operand[ring.Poly]{
+	return &Element[ring.Poly]{
 		Value: Value,
 		MetaData: &MetaData{
 			CiphertextMetaData: CiphertextMetaData{
@@ -48,8 +71,8 @@ func NewOperandQ(params ParameterProvider, degree int, levelQ ...int) *Operand[r
 	}
 }
 
-// NewOperandQP allocates a new Operand[ringqp.Poly].
-func NewOperandQP(params ParameterProvider, degree, levelQ, levelP int) *Operand[ringqp.Poly] {
+// NewElementQP allocates a new Operand[ringqp.Poly].
+func NewElementQP(params ParameterProvider, degree, levelQ, levelP int) *Element[ringqp.Poly] {
 
 	p := params.GetRLWEParameters()
 
@@ -60,7 +83,7 @@ func NewOperandQP(params ParameterProvider, degree, levelQ, levelP int) *Operand
 		Value[i] = ringQP.NewPoly()
 	}
 
-	return &Operand[ringqp.Poly]{
+	return &Element[ringqp.Poly]{
 		Value: Value,
 		MetaData: &MetaData{
 			CiphertextMetaData: CiphertextMetaData{
@@ -70,11 +93,11 @@ func NewOperandQP(params ParameterProvider, degree, levelQ, levelP int) *Operand
 	}
 }
 
-// NewOperandQAtLevelFromPoly constructs a new Operand at a specific level
+// NewElementQAtLevelFromPoly constructs a new Operand at a specific level
 // where the message is set to the passed poly. No checks are performed on poly and
 // the returned Operand will share its backing array of coefficients.
 // Returned Operand's MetaData is nil.
-func NewOperandQAtLevelFromPoly(level int, poly []ring.Poly) (*Operand[ring.Poly], error) {
+func NewElementQAtLevelFromPoly(level int, poly []ring.Poly) (*Element[ring.Poly], error) {
 	Value := make([]ring.Poly, len(poly))
 	for i := range Value {
 
@@ -86,25 +109,25 @@ func NewOperandQAtLevelFromPoly(level int, poly []ring.Poly) (*Operand[ring.Poly
 		Value[i].Buff = poly[i].Buff[:poly[i].N()*(level+1)]
 	}
 
-	return &Operand[ring.Poly]{Value: Value}, nil
+	return &Element[ring.Poly]{Value: Value}, nil
 }
 
 // Equal performs a deep equal.
-func (op Operand[T]) Equal(other *Operand[T]) bool {
+func (op Element[T]) Equal(other *Element[T]) bool {
 	return cmp.Equal(op.MetaData, other.MetaData) && cmp.Equal(op.Value, other.Value)
 }
 
 // Degree returns the degree of the target Operand.
-func (op Operand[T]) Degree() int {
+func (op Element[T]) Degree() int {
 	return len(op.Value) - 1
 }
 
 // Level returns the level of the target Operand.
-func (op Operand[T]) Level() int {
+func (op Element[T]) Level() int {
 	return op.LevelQ()
 }
 
-func (op Operand[T]) LevelQ() int {
+func (op Element[T]) LevelQ() int {
 	switch el := any(op.Value[0]).(type) {
 	case ring.Poly:
 		return el.Level()
@@ -115,7 +138,7 @@ func (op Operand[T]) LevelQ() int {
 	}
 }
 
-func (op Operand[T]) LevelP() int {
+func (op Element[T]) LevelP() int {
 	switch el := any(op.Value[0]).(type) {
 	case ring.Poly:
 		panic("cannot levelP on Operand[ring.Poly]")
@@ -126,17 +149,17 @@ func (op Operand[T]) LevelP() int {
 	}
 }
 
-func (op *Operand[T]) El() *Operand[T] {
+func (op *Element[T]) El() *Element[T] {
 	return op
 }
 
 // Resize resizes the degree of the target element.
 // Sets the NTT flag of the added poly equal to the NTT flag
 // to the poly at degree zero.
-func (op *Operand[T]) Resize(degree, level int) {
+func (op *Element[T]) Resize(degree, level int) {
 
 	switch op := any(op).(type) {
-	case *Operand[ring.Poly]:
+	case *Element[ring.Poly]:
 		if op.Level() != level {
 			for i := range op.Value {
 				op.Value[i].Resize(level)
@@ -157,12 +180,12 @@ func (op *Operand[T]) Resize(degree, level int) {
 }
 
 // CopyNew creates a deep copy of the object and returns it.
-func (op Operand[T]) CopyNew() *Operand[T] {
-	return &Operand[T]{Value: *op.Value.CopyNew(), MetaData: op.MetaData.CopyNew()}
+func (op Element[T]) CopyNew() *Element[T] {
+	return &Element[T]{Value: *op.Value.CopyNew(), MetaData: op.MetaData.CopyNew()}
 }
 
 // Copy copies the input element and its parameters on the target element.
-func (op *Operand[T]) Copy(opCopy *Operand[T]) {
+func (op *Element[T]) Copy(opCopy *Element[T]) {
 
 	if op != opCopy {
 		switch any(op.Value).(type) {
@@ -192,7 +215,7 @@ func (op *Operand[T]) Copy(opCopy *Operand[T]) {
 // GetSmallestLargest returns the provided element that has the smallest degree as a first
 // returned value and the largest degree as second return value. If the degree match, the
 // order is the same as for the input.
-func GetSmallestLargest[T ring.Poly | ringqp.Poly](el0, el1 *Operand[T]) (smallest, largest *Operand[T], sameDegree bool) {
+func GetSmallestLargest[T ring.Poly | ringqp.Poly](el0, el1 *Element[T]) (smallest, largest *Element[T], sameDegree bool) {
 	switch {
 	case el0.Degree() > el1.Degree():
 		return el1, el0, false
@@ -203,7 +226,7 @@ func GetSmallestLargest[T ring.Poly | ringqp.Poly](el0, el1 *Operand[T]) (smalle
 }
 
 // PopulateElementRandom creates a new rlwe.Element with random coefficients.
-func PopulateElementRandom(prng sampling.PRNG, params ParameterProvider, ct *Operand[ring.Poly]) {
+func PopulateElementRandom(prng sampling.PRNG, params ParameterProvider, ct *Element[ring.Poly]) {
 	sampler := ring.NewUniformSampler(prng, params.GetRLWEParameters().RingQ()).AtLevel(ct.Level())
 	for i := range ct.Value {
 		sampler.Read(ct.Value[i])
@@ -215,7 +238,7 @@ func PopulateElementRandom(prng sampling.PRNG, params ParameterProvider, ct *Ope
 // If the ring degree of opOut is larger than the one of ctIn, then the ringQ of opOut
 // must be provided (otherwise, a nil pointer).
 // The ctIn must be in the NTT domain and opOut will be in the NTT domain.
-func SwitchCiphertextRingDegreeNTT(ctIn *Operand[ring.Poly], ringQLargeDim *ring.Ring, opOut *Operand[ring.Poly]) {
+func SwitchCiphertextRingDegreeNTT(ctIn *Element[ring.Poly], ringQLargeDim *ring.Ring, opOut *Element[ring.Poly]) {
 
 	NIn, NOut := len(ctIn.Value[0].Coeffs[0]), len(opOut.Value[0].Coeffs[0])
 
@@ -258,7 +281,7 @@ func SwitchCiphertextRingDegreeNTT(ctIn *Operand[ring.Poly], ringQLargeDim *ring
 // Maps Y^{N/n} -> X^{N} or X^{N} -> Y^{N/n}.
 // If the ring degree of opOut is larger than the one of ctIn, then the ringQ of ctIn
 // must be provided (otherwise, a nil pointer).
-func SwitchCiphertextRingDegree(ctIn, opOut *Operand[ring.Poly]) {
+func SwitchCiphertextRingDegree(ctIn, opOut *Element[ring.Poly]) {
 
 	NIn, NOut := len(ctIn.Value[0].Coeffs[0]), len(opOut.Value[0].Coeffs[0])
 
@@ -280,7 +303,7 @@ func SwitchCiphertextRingDegree(ctIn, opOut *Operand[ring.Poly]) {
 }
 
 // BinarySize returns the serialized size of the object in bytes.
-func (op Operand[T]) BinarySize() (size int) {
+func (op Element[T]) BinarySize() (size int) {
 	size++
 	if op.MetaData != nil {
 		size += op.MetaData.BinarySize()
@@ -300,7 +323,7 @@ func (op Operand[T]) BinarySize() (size int) {
 //     io.Writer in a pre-allocated bufio.Writer.
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
-func (op Operand[T]) WriteTo(w io.Writer) (n int64, err error) {
+func (op Element[T]) WriteTo(w io.Writer) (n int64, err error) {
 
 	switch w := w.(type) {
 	case buffer.Writer:
@@ -349,7 +372,7 @@ func (op Operand[T]) WriteTo(w io.Writer) (n int64, err error) {
 //     first wrap io.Reader in a pre-allocated bufio.Reader.
 //   - When reading from a var b []byte, it is preferable to pass a buffer.NewBuffer(b)
 //     as w (see lattigo/utils/buffer/buffer.go).
-func (op *Operand[T]) ReadFrom(r io.Reader) (n int64, err error) {
+func (op *Element[T]) ReadFrom(r io.Reader) (n int64, err error) {
 
 	switch r := r.(type) {
 	case buffer.Reader:
@@ -391,7 +414,7 @@ func (op *Operand[T]) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (op Operand[T]) MarshalBinary() (data []byte, err error) {
+func (op Element[T]) MarshalBinary() (data []byte, err error) {
 	buf := buffer.NewBufferSize(op.BinarySize())
 	_, err = op.WriteTo(buf)
 	return buf.Bytes(), err
@@ -399,7 +422,7 @@ func (op Operand[T]) MarshalBinary() (data []byte, err error) {
 
 // UnmarshalBinary decodes a slice of bytes generated by
 // MarshalBinary or WriteTo on the object.
-func (op *Operand[T]) UnmarshalBinary(p []byte) (err error) {
+func (op *Element[T]) UnmarshalBinary(p []byte) (err error) {
 	_, err = op.ReadFrom(buffer.NewBuffer(p))
 	return
 }

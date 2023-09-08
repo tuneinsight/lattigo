@@ -9,6 +9,18 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
+func (btp *Bootstrapper) MinimumInputLevel() int {
+	return 0
+}
+
+func (btp *Bootstrapper) OutputLevel() int {
+	return btp.params.MaxLevel() - btp.Depth()
+}
+
+func (btp *Bootstrapper) BootstrapMany(ctIn []*rlwe.Ciphertext) (ctOut []*rlwe.Ciphertext, err error) {
+	return
+}
+
 // Bootstrap re-encrypts a ciphertext to a ciphertext at MaxLevel - k where k is the depth of the bootstrapping circuit.
 // If the input ciphertext level is zero, the input scale must be an exact power of two smaller than Q[0]/MessageRatio
 // (it can't be equal since Q[0] is not a power of two).

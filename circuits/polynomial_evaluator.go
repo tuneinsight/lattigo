@@ -91,17 +91,17 @@ func EvaluatePolynomial[T any](eval PolynomialEvaluator, input interface{}, p in
 	return opOut, err
 }
 
+type ctPoly struct {
+	Degree int
+	Value  *rlwe.Ciphertext
+}
+
 // EvaluatePatersonStockmeyerPolynomialVector evaluates a pre-decomposed PatersonStockmeyerPolynomialVector on a pre-computed power basis [1, X^{1}, X^{2}, ..., X^{2^{n}}, X^{2^{n+1}}, ..., X^{2^{m}}]
 func EvaluatePatersonStockmeyerPolynomialVector[T any](eval PolynomialEvaluator, poly PatersonStockmeyerPolynomialVector, cg CoefficientGetter[T], pb PowerBasis) (res *rlwe.Ciphertext, err error) {
 
-	type Poly struct {
-		Degree int
-		Value  *rlwe.Ciphertext
-	}
-
 	split := len(poly.Value[0].Value)
 
-	tmp := make([]*Poly, split)
+	tmp := make([]*ctPoly, split)
 
 	nbPoly := len(poly.Value)
 
@@ -122,7 +122,7 @@ func EvaluatePatersonStockmeyerPolynomialVector[T any](eval PolynomialEvaluator,
 		scale := poly.Value[0].Value[i].Scale
 
 		idx := split - i - 1
-		tmp[idx] = new(Poly)
+		tmp[idx] = new(ctPoly)
 		tmp[idx].Degree = poly.Value[0].Value[i].Degree()
 		if tmp[idx].Value, err = EvaluatePolynomialVectorFromPowerBasis(eval, level, polyVec, cg, pb, scale); err != nil {
 			return nil, fmt.Errorf("cannot EvaluatePolynomialVectorFromPowerBasis: polynomial[%d]: %w", i, err)

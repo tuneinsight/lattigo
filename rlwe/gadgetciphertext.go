@@ -229,11 +229,8 @@ func AddPolyTimesGadgetVectorToGadgetCiphertext(pt ring.Poly, cts []GadgetCipher
 			}
 		}
 
-		// Temporary fix of compiler error https://github.com/golang/go/issues/61992
-		tmpfix := uint64(1 << cts[0].BaseTwoDecomposition)
-
 		// w^2j
-		ringQ.MulScalar(buff, tmpfix, buff)
+		ringQ.MulScalar(buff, 1<<cts[0].BaseTwoDecomposition, buff)
 	}
 
 	return
@@ -290,9 +287,7 @@ func NewGadgetPlaintext(params Parameters, value interface{}, levelQ, levelP, ba
 		pt.Value[i] = *pt.Value[0].CopyNew()
 
 		for j := 0; j < i; j++ {
-			// Temporary fix of compiler error https://github.com/golang/go/issues/61992
-			tmpfix := uint64(1 << baseTwoDecomposition)
-			ringQ.MulScalar(pt.Value[i], tmpfix, pt.Value[i])
+			ringQ.MulScalar(pt.Value[i], 1<<baseTwoDecomposition, pt.Value[i])
 		}
 	}
 

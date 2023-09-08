@@ -45,6 +45,13 @@ func NewScaleModT(s interface{}, mod uint64) Scale {
 	return scale
 }
 
+// Bigint returns the scale as a big.Int, truncating the rational part and rounding ot the nearest integer.
+func (s Scale) Bigint() (sInt *big.Int) {
+	sInt = new(big.Int)
+	new(big.Float).SetPrec(s.Value.Prec()).Add(&s.Value, new(big.Float).SetFloat64(0.5)).Int(sInt)
+	return
+}
+
 // Float64 returns the underlying scale as a float64 value.
 func (s Scale) Float64() float64 {
 	f64, _ := s.Value.Float64()

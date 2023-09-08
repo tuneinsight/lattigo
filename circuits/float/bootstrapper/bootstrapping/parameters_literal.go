@@ -14,15 +14,13 @@ import (
 // and create the bootstrapping `Parameter` struct, which is used to instantiate a `Bootstrapper`.
 // This struct contains only optional fields.
 // The default bootstrapping (with no optional field) has
-//   - Depth 4 for CoeffsToSlots
-//   - Depth 8 for EvalMod
-//   - Depth 3 for SlotsToCoeffs
-//
+// - Depth 4 for CoeffsToSlots
+// - Depth 8 for EvalMod
+// - Depth 3 for SlotsToCoeffs
 // for a total depth of 15 and a bit consumption of 821
 // A precision, for complex values with both real and imaginary parts uniformly distributed in -1, 1 of
-//   - 27.25 bits for H=192
-//   - 23.8 bits for H=32768,
-//
+// - 27.25 bits for H=192
+// - 23.8 bits for H=32768,
 // And a failure probability of 2^{-138.7} for 2^{15} slots.
 //
 // =====================================
@@ -31,7 +29,7 @@ import (
 //
 // LogSlots: the maximum number of slots of the ciphertext. Default value: LogN-1.
 //
-// CoeffsToSlotsFactorizationDepthAndLogScales: the scaling factor and distribution of the moduli for the SlotsToCoeffs (homomorphic encoding) step.
+// CoeffsToSlotsFactorizationDepthAndLogPlaintextScales: the scaling factor and distribution of the moduli for the SlotsToCoeffs (homomorphic encoding) step.
 //
 //	Default value is [][]int{min(4, max(LogSlots, 1)) * 56}.
 //	This is a double slice where the first dimension is the index of the prime to be used, and the second dimension the scaling factors to be used: [level][scaling].
@@ -40,11 +38,11 @@ import (
 //	Non standard parameterization can include multiple scaling factors for a same prime, for example [][]int{{30}, {30, 30}} will use two levels for three matrices.
 //	The first two matrices will consume a prime of 30 + 30 bits, and have a scaling factor which prime^(1/2), and the third matrix will consume the second prime of 30 bits.
 //
-// SlotsToCoeffsFactorizationDepthAndLogScales: the scaling factor and distribution of the moduli for the CoeffsToSlots (homomorphic decoding) step.
+// SlotsToCoeffsFactorizationDepthAndLogPlaintextScales: the scaling factor and distribution of the moduli for the CoeffsToSlots (homomorphic decoding) step.
 //
-//	Parameterization is identical to C2SLogScale. and the default value is [][]int{min(3, max(LogSlots, 1)) * 39}.
+//	Parameterization is identical to C2SLogPlaintextScale. and the default value is [][]int{min(3, max(LogSlots, 1)) * 39}.
 //
-// EvalModLogScale: the scaling factor used during the EvalMod step (all primes will have this bit-size).
+// EvalModLogPlaintextScale: the scaling factor used during the EvalMod step (all primes will have this bit-size).
 //
 //	Default value is 60.
 //
@@ -54,12 +52,49 @@ import (
 //	Be aware that doing so will impact the security, precision, and failure probability of the bootstrapping circuit.
 //	See https://eprint.iacr.org/2022/024 for more information.
 //
+// IterationsParamters : by treating the bootstrapping as a blackbox with precision logprec, we can construct a bootstrapping of precision ~k*logprec by iteration (see https://eprint.iacr.org/2022/1167).
+// - BootstrappingPrecision: []float64, the list of iterations (after the initial bootstrapping) given by the expected precision of each previous iteration.
+// - ReservedPrimeBitSize: the size of the reserved prime for the scaling after the initial bootstrapping.
+//
+// For example: &bootstrapping.IterationsParameters{BootstrappingPrecision: []float64{16}, ReservedPrimeBitSize: 16} will define a two iteration bootstrapping (the first iteration being the initial bootstrapping)
+// with a additional prime close to 2^{16} reserved for the scaling of the error during the second iteration.
+//
+// Here is an example for a two iterations bootstrapping of an input message mod [logq0=55, logq1=45] with scaling factor 2^{90}:
+//
+// INPUT:
+// 1) The input is a ciphertext encrypting [2^{90} * M]_{q0, q1}
+// ITERATION N°0
+// 2) Rescale  [M^{90}]_{q0, q1} to [M^{90}/q1]_{q0} (ensure that M^{90}/q1 ~ q0/messageratio by additional scaling if necessary)
+// 3) Bootsrap [M^{90}/q1]_{q0} to [M^{90}/q1 + e^{90 - logprec}/q1]_{q0, q1, q2, ...}
+// 4) Scale up [M^{90}/q1 + e^{90 - logprec}/q1]_{q0, q1, q2, ...} to [M^{d} + e^{d - logprec}]_{q0, q1, q2, ...}
+// ITERATION N°1
+// 5) Subtract [M^{d}]_{q0, q1} to [M^{d} + e^{d - logprec}]_{q0, q1, q2, ...} to get [e^{d - logprec}]_{q0, q1}
+// 6) Scale up [e^{90 - logprec}]_{q0, q1} by 2^{logprec} to get [e^{d}]_{q0, q1}
+// 7) Rescale  [e^{90}]_{q0, q1} to [{90}/q1]_{q0}
+// 8) Bootsrap [e^{90}/q1]_{q0} to [e^{90}/q1 + e'^{90 - logprec}/q1]_{q0, q1, q2, ...}
+// 9) Scale up [e^{90}/q1 + e'^{90 - logprec}/q0]_{q0, q1, q2, ...} by round(q1/2^{logprec}) to get [e^{90-logprec} + e'^{90 - 2logprec}]_{q0, q1, q2, ...}
+// 10) Subtract [e^{d - logprec} + e'^{d - 2logprec}]_{q0, q1, q2, ...} to [M^{d} + e^{d - logprec}]_{q0, q1, q2, ...} to get [M^{d} + e'^{d - 2logprec}]_{q0, q1, q2, ...}
+// 11) Go back to step 5 for more iterations until 2^{k * logprec} >= 2^{90}
+//
+// This example can be generalized to input messages of any scaling factor and desired output precision by increasing the input scaling factor and substituting q1 by a larger product of primes.
+//
+// Notes:
+//   - The bootstrapping precision cannot exceed the original input ciphertext precision.
+//   - Although the rescalings of 2) and 7) are approximate, we can ignore them and treat them as being part of the bootstrapping error
+//   - As long as round(q1/2^{k*logprec}) >= 2^{logprec}, for k the iteration number, we are guaranteed that the error due to the approximate scale up of step 8) is smaller than 2^{logprec}
+//   - The gain in precision for each iteration is proportional to min(round(q1/2^{k*logprec}), 2^{logprec})
+//   - If round(q1/2^{k * logprec}) < 2^{logprec}, where k is the iteration number, then the gain in precision will be less than the expected logprec.
+//     This can happen during the last iteration when q1/2^{k * logprec} < 1, and gets rounded to 1 or 0.
+//     To solve this issue, we can reduce logprec for the last iterations, but this increases the number of iterations, or reserve a prime of size at least 2^{logprec} to get
+//     a proper scaling by q1/2^{k * logprec} (i.e. not a integer rounded scaling).
+//   - If the input ciphertext is at level 0, we must reserve a prime because everything happens within Q[0] and we have no other prime to use for rescaling.
+//
 // LogMessageRatio: the log of expected ratio Q[0]/|m|, by default set to 8 (ratio of 256.0).
 //
 //		This ratio directly impacts the precision of the bootstrapping.
 //		The homomorphic modular reduction x mod 1 is approximated with by sin(2*pi*x)/(2*pi), which is a good approximation
 //		when x is close to the origin. Thus a large message ratio (i.e. 2^8) implies that x is small with respect to Q, and thus close to the origin.
-//		When using a small ratio (i.e. 2^4), for example if ct.Scale is close to Q[0] is small or if |m| is large, the ArcSine degree can be set to
+//		When using a small ratio (i.e. 2^4), for example if ct.PlaintextScale is close to Q[0] is small or if |m| is large, the ArcSine degree can be set to
 //	 a non zero value (i.e. 5 or 7). This will greatly improve the precision of the bootstrapping, at the expense of slightly increasing its depth.
 //
 // SineType: the type of approximation for the modular reduction polynomial. By default set to ckks.CosDiscrete.
@@ -72,18 +107,18 @@ import (
 //
 // ArcSineDeg: the degree of the ArcSine Taylor polynomial, by default set to 0.
 type ParametersLiteral struct {
-	LogSlots                                    *int           // Default: LogN-1
-	CoeffsToSlotsFactorizationDepthAndLogScales [][]int        // Default: [][]int{min(4, max(LogSlots, 1)) * 56}
-	SlotsToCoeffsFactorizationDepthAndLogScales [][]int        // Default: [][]int{min(3, max(LogSlots, 1)) * 39}
-	EvalModLogScale                             *int           // Default: 60
-	EphemeralSecretWeight                       *int           // Default: 32
-	Iterations                                  *int           // Default: 1
-	SineType                                    float.SineType // Default: ckks.CosDiscrete
-	LogMessageRatio                             *int           // Default: 8
-	K                                           *int           // Default: 16
-	SineDegree                                  *int           // Default: 30
-	DoubleAngle                                 *int           // Default: 3
-	ArcSineDegree                               *int           // Default: 0
+	LogSlots                                    *int                  // Default: LogN-1
+	CoeffsToSlotsFactorizationDepthAndLogScales [][]int               // Default: [][]int{min(4, max(LogSlots, 1)) * 56}
+	SlotsToCoeffsFactorizationDepthAndLogScales [][]int               // Default: [][]int{min(3, max(LogSlots, 1)) * 39}
+	EvalModLogScale                             *int                  // Default: 60
+	EphemeralSecretWeight                       *int                  // Default: 32
+	IterationsParameters                        *IterationsParameters // Default: nil (default starting level of 0 and 1 iteration)
+	SineType                                    float.SineType        // Default: ckks.CosDiscrete
+	LogMessageRatio                             *int                  // Default: 8
+	K                                           *int                  // Default: 16
+	SineDegree                                  *int                  // Default: 30
+	DoubleAngle                                 *int                  // Default: 3
+	ArcSineDegree                               *int                  // Default: 0
 }
 
 const (
@@ -101,8 +136,6 @@ const (
 	DefaultEphemeralSecretWeight = 32
 	// DefaultIterations is the default number of bootstrapping iterations.
 	DefaultIterations = 1
-	// DefaultIterationsLogScale is the default scaling factor for the additional prime consumed per additional bootstrapping iteration above 1.
-	DefaultIterationsLogScale = 25
 	// DefaultSineType is the default function and approximation technique for the homomorphic modular reduction polynomial.
 	DefaultSineType = float.CosDiscrete
 	// DefaultLogMessageRatio is the default ratio between Q[0] and |m|.
@@ -116,6 +149,11 @@ const (
 	// DefaultArcSineDeg is the default degree of the arcsine polynomial for the homomorphic modular reduction.
 	DefaultArcSineDegree = 0
 )
+
+type IterationsParameters struct {
+	BootstrappingPrecision []float64
+	ReservedPrimeBitSize   int
+}
 
 // MarshalBinary returns a JSON representation of the the target ParametersLiteral struct on a slice of bytes.
 // See `Marshal` from the `encoding/json` package.
@@ -209,20 +247,30 @@ func (p *ParametersLiteral) GetEvalModLogScale() (EvalModLogScale int, err error
 	return
 }
 
-// GetIterations returns the Iterations field of the target ParametersLiteral.
-// The default value DefaultIterations is returned is the field is nil.
-func (p *ParametersLiteral) GetIterations() (Iterations int, err error) {
-	if v := p.Iterations; v == nil {
-		Iterations = DefaultIterations
+// GetIterationsParameters returns the IterationsParmaeters field of the target ParametersLiteral.
+// The default value is nil.
+func (p *ParametersLiteral) GetIterationsParameters() (Iterations *IterationsParameters, err error) {
+
+	if v := p.IterationsParameters; v == nil {
+		return nil, nil
 	} else {
-		Iterations = *v
 
-		if Iterations < 1 || Iterations > 2 {
-			return Iterations, fmt.Errorf("field Iterations cannot be smaller than 1 or greater than 2")
+		if len(v.BootstrappingPrecision) < 1 {
+			return nil, fmt.Errorf("field BootstrappingPrecision of IterationsParameters must be greater than 0")
 		}
-	}
 
-	return
+		for _, prec := range v.BootstrappingPrecision {
+			if prec == 0 {
+				return nil, fmt.Errorf("field BootstrappingPrecision of IterationsParameters cannot be 0")
+			}
+		}
+
+		if v.ReservedPrimeBitSize > 61 {
+			return nil, fmt.Errorf("field ReservedPrimeBitSize of IterationsParameters cannot be larger than 61")
+		}
+
+		return v, nil
+	}
 }
 
 // GetSineType returns the SineType field of the target ParametersLiteral.
@@ -337,24 +385,24 @@ func (p *ParametersLiteral) GetEphemeralSecretWeight() (EphemeralSecretWeight in
 // The value is rounded up and thus will overestimate the value by up to 1 bit.
 func (p *ParametersLiteral) BitConsumption(LogSlots int) (logQ int, err error) {
 
-	var C2SLogScale [][]int
-	if C2SLogScale, err = p.GetCoeffsToSlotsFactorizationDepthAndLogScales(LogSlots); err != nil {
+	var C2SLogPlaintextScale [][]int
+	if C2SLogPlaintextScale, err = p.GetCoeffsToSlotsFactorizationDepthAndLogScales(LogSlots); err != nil {
 		return
 	}
 
-	for i := range C2SLogScale {
-		for _, logQi := range C2SLogScale[i] {
+	for i := range C2SLogPlaintextScale {
+		for _, logQi := range C2SLogPlaintextScale[i] {
 			logQ += logQi
 		}
 	}
 
-	var S2CLogScale [][]int
-	if S2CLogScale, err = p.GetSlotsToCoeffsFactorizationDepthAndLogScales(LogSlots); err != nil {
+	var S2CLogPlaintextScale [][]int
+	if S2CLogPlaintextScale, err = p.GetSlotsToCoeffsFactorizationDepthAndLogScales(LogSlots); err != nil {
 		return
 	}
 
-	for i := range S2CLogScale {
-		for _, logQi := range S2CLogScale[i] {
+	for i := range S2CLogPlaintextScale {
+		for _, logQi := range S2CLogPlaintextScale[i] {
 			logQ += logQi
 		}
 	}
@@ -364,8 +412,8 @@ func (p *ParametersLiteral) BitConsumption(LogSlots int) (logQ int, err error) {
 		return
 	}
 
-	var EvalModLogScale int
-	if EvalModLogScale, err = p.GetEvalModLogScale(); err != nil {
+	var EvalModLogPlaintextScale int
+	if EvalModLogPlaintextScale, err = p.GetEvalModLogScale(); err != nil {
 		return
 	}
 
@@ -379,12 +427,17 @@ func (p *ParametersLiteral) BitConsumption(LogSlots int) (logQ int, err error) {
 		return
 	}
 
-	var Iterations int
-	if Iterations, err = p.GetIterations(); err != nil {
+	var Iterations *IterationsParameters
+	if Iterations, err = p.GetIterationsParameters(); err != nil {
 		return
 	}
 
-	logQ += 1 + EvalModLogScale*(bits.Len64(uint64(SineDegree))+DoubleAngle+bits.Len64(uint64(ArcSineDegree))) + (Iterations-1)*DefaultIterationsLogScale
+	var ReservedPrimeBitSize int
+	if Iterations != nil {
+		ReservedPrimeBitSize = Iterations.ReservedPrimeBitSize
+	}
+
+	logQ += 1 + EvalModLogPlaintextScale*(bits.Len64(uint64(SineDegree))+DoubleAngle+bits.Len64(uint64(ArcSineDegree))) + ReservedPrimeBitSize
 
 	return
 }

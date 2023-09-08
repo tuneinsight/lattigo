@@ -125,10 +125,13 @@ func (p *Parameters) GenEncapsulationEvaluationKeysNew(params ckks.Parameters, s
 // ShallowCopy creates a shallow copy of this Bootstrapper in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Bootstrapper can be used concurrently.
-func (btp *Bootstrapper) ShallowCopy() *Bootstrapper {
+func (btp Bootstrapper) ShallowCopy() *Bootstrapper {
 	return &Bootstrapper{
 		Evaluator:        btp.Evaluator.ShallowCopy(),
 		bootstrapperBase: btp.bootstrapperBase,
+		//DFTEvaluator: btp.DFTEvaluator.ShallowCopy(),
+		//Mod1Evaluator: btp.Mod1Evaluator.ShallowCopy(),
+
 	}
 }
 

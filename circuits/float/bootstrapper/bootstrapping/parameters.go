@@ -8,6 +8,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // Parameters is a struct for the default bootstrapping parameters
@@ -15,7 +16,7 @@ type Parameters struct {
 	SlotsToCoeffsParameters float.DFTMatrixLiteral
 	Mod1ParametersLiteral   float.Mod1ParametersLiteral
 	CoeffsToSlotsParameters float.DFTMatrixLiteral
-	Iterations              int
+	IterationsParameters    *IterationsParameters
 	EphemeralSecretWeight   int // Hamming weight of the ephemeral secret. If 0, no ephemeral secret is used during the bootstrapping.
 }
 
@@ -28,6 +29,20 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 
 	if ckksLit.RingType != ring.Standard {
 		return ckks.ParametersLiteral{}, Parameters{}, fmt.Errorf("NewParametersFromLiteral: invalid ring.RingType: must be ring.Standard")
+	}
+
+	var hasLogQ bool
+	var residualLevel int
+
+	if len(ckksLit.LogQ)+len(ckksLit.LogQ) == 0 && len(ckksLit.Q)+len(ckksLit.P) != 0 {
+		residualLevel = len(ckksLit.Q) - 1
+
+	} else if len(ckksLit.LogQ)+len(ckksLit.LogQ) != 0 && len(ckksLit.Q)+len(ckksLit.P) == 0 {
+		hasLogQ = true
+		residualLevel = len(ckksLit.LogQ) - 1
+
+	} else {
+		return ckks.ParametersLiteral{}, Parameters{}, fmt.Errorf("cannot NewParametersFromLiteral: must specify (LogQ, LogP) or (Q, P) but not a mix of both")
 	}
 
 	var LogSlots int
@@ -51,16 +66,21 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 		SlotsToCoeffsLevels[i] = len(SlotsToCoeffsFactorizationDepthAndLogScales[i])
 	}
 
-	var Iterations int
-	if Iterations, err = btpLit.GetIterations(); err != nil {
+	var iterParams *IterationsParameters
+	if iterParams, err = btpLit.GetIterationsParameters(); err != nil {
 		return ckks.ParametersLiteral{}, Parameters{}, err
+	}
+
+	var hasReservedIterationPrime int
+	if iterParams != nil && iterParams.ReservedPrimeBitSize > 0 {
+		hasReservedIterationPrime = 1
 	}
 
 	S2CParams := float.DFTMatrixLiteral{
 		Type:            float.HomomorphicDecode,
 		LogSlots:        LogSlots,
 		RepackImag2Real: true,
-		LevelStart:      len(ckksLit.LogQ) - 1 + len(SlotsToCoeffsFactorizationDepthAndLogScales) + Iterations - 1,
+		LevelStart:      residualLevel + len(SlotsToCoeffsFactorizationDepthAndLogScales) + hasReservedIterationPrime,
 		LogBSGSRatio:    1,
 		Levels:          SlotsToCoeffsLevels,
 	}
@@ -129,11 +149,10 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 		Levels:          CoeffsToSlotsLevels,
 	}
 
-	LogQ := make([]int, len(ckksLit.LogQ))
-	copy(LogQ, ckksLit.LogQ)
+	LogQBootstrappingCircuit := []int{}
 
-	for i := 0; i < Iterations-1; i++ {
-		LogQ = append(LogQ, DefaultIterationsLogScale)
+	if hasReservedIterationPrime == 1 {
+		LogQBootstrappingCircuit = append(LogQBootstrappingCircuit, iterParams.ReservedPrimeBitSize)
 	}
 
 	for i := range SlotsToCoeffsFactorizationDepthAndLogScales {
@@ -146,11 +165,11 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 			qi += ckksLit.LogDefaultScale
 		}
 
-		LogQ = append(LogQ, qi)
+		LogQBootstrappingCircuit = append(LogQBootstrappingCircuit, qi)
 	}
 
 	for i := 0; i < Mod1ParametersLiteral.Depth(); i++ {
-		LogQ = append(LogQ, EvalModLogScale)
+		LogQBootstrappingCircuit = append(LogQBootstrappingCircuit, EvalModLogScale)
 	}
 
 	for i := range CoeffsToSlotsFactorizationDepthAndLogScales {
@@ -158,16 +177,81 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 		for j := range CoeffsToSlotsFactorizationDepthAndLogScales[i] {
 			qi += CoeffsToSlotsFactorizationDepthAndLogScales[i][j]
 		}
-		LogQ = append(LogQ, qi)
+		LogQBootstrappingCircuit = append(LogQBootstrappingCircuit, qi)
 	}
 
-	LogP := make([]int, len(ckksLit.LogP))
-	copy(LogP, ckksLit.LogP)
+	var Q, P []uint64
+	// Specific moduli are given in the residual parameters
+	if hasLogQ {
 
-	Q, P, err := rlwe.GenModuli(ckksLit.LogN+1, LogQ, LogP)
+		if Q, P, err = rlwe.GenModuli(ckksLit.LogN+1, append(ckksLit.LogQ, LogQBootstrappingCircuit...), ckksLit.LogP); err != nil {
+			return ckks.ParametersLiteral{}, Parameters{}, fmt.Errorf("cannot NewParametersFromLiteral: %w", err)
+		}
 
-	if err != nil {
-		return ckks.ParametersLiteral{}, Parameters{}, err
+		// Only the bit-size of the moduli are given in the residual parameters
+	} else {
+
+		// Extracts all the different primes
+		primesHave := map[uint64]bool{}
+
+		for _, qi := range ckksLit.Q {
+			primesHave[qi] = true
+		}
+
+		for _, pj := range ckksLit.P {
+			primesHave[pj] = true
+		}
+
+		// Maps the number of primes per bit size
+		primesBitLenNew := map[int]int{}
+		for _, logqi := range LogQBootstrappingCircuit {
+			primesBitLenNew[logqi]++
+		}
+
+		// Map to store [bit-size][]primes
+		primesNew := map[int][]uint64{}
+
+		// For each bit-size
+		for logqi, k := range primesBitLenNew {
+
+			// Creates a new prime generator
+			g := ring.NewNTTFriendlyPrimesGenerator(uint64(logqi), 1<<(ckksLit.LogN+1))
+
+			// Populates the list with primes that aren't yet in primesHave
+			primes := make([]uint64, k)
+			var i int
+			for i < k {
+
+				for {
+					qi, err := g.NextAlternatingPrime()
+
+					if err != nil {
+						return ckks.ParametersLiteral{}, Parameters{}, fmt.Errorf("cannot NewParametersFromLiteral: NextAlternatingPrime for 2^{%d} +/- k*2N + 1: %w", logqi, err)
+
+					}
+
+					if _, ok := primesHave[qi]; !ok {
+						primes[i] = qi
+						i++
+						break
+					}
+				}
+			}
+
+			primesNew[logqi] = primes
+		}
+
+		Q = make([]uint64, len(ckksLit.Q))
+		copy(Q, ckksLit.Q)
+
+		// Appends to the residual modli
+		for _, qi := range LogQBootstrappingCircuit {
+			Q = append(Q, primesNew[qi][0])
+			primesNew[qi] = primesNew[qi][1:]
+		}
+
+		P = make([]uint64, len(ckksLit.P))
+		copy(P, ckksLit.P)
 	}
 
 	return ckks.ParametersLiteral{
@@ -183,13 +267,18 @@ func NewParametersFromLiteral(ckksLit ckks.ParametersLiteral, btpLit ParametersL
 			SlotsToCoeffsParameters: S2CParams,
 			Mod1ParametersLiteral:   Mod1ParametersLiteral,
 			CoeffsToSlotsParameters: C2SParams,
-			Iterations:              Iterations,
+			IterationsParameters:    iterParams,
 		}, nil
 }
 
 // LogMaxDimensions returns the log plaintext dimensions of the target Parameters.
 func (p *Parameters) LogMaxDimensions() ring.Dimensions {
 	return ring.Dimensions{Rows: 0, Cols: p.SlotsToCoeffsParameters.LogSlots}
+}
+
+// LogMaxSlots returns the log of the maximum number of slots.
+func (p *Parameters) LogMaxSlots() int {
+	return p.SlotsToCoeffsParameters.LogSlots
 }
 
 // DepthCoeffsToSlots returns the depth of the Coeffs to Slots of the CKKS bootstrapping.
@@ -245,13 +334,7 @@ func (p *Parameters) GaloisElements(params ckks.Parameters) (galEls []uint64) {
 		keys[galEl] = true
 	}
 
-	galEls = make([]uint64, len(keys))
+	keys[params.GaloisElementForComplexConjugation()] = true
 
-	var i int
-	for key := range keys {
-		galEls[i] = key
-		i++
-	}
-
-	return
+	return utils.GetSortedKeys(keys)
 }

@@ -132,7 +132,7 @@ func newTestVectorsLvl(level int, scale rlwe.Scale, tc *testContext, encryptor *
 	return coeffs, plaintext, ciphertext
 }
 
-func verifyTestVectors(tc *testContext, decryptor *rlwe.Decryptor, coeffs ring.Poly, element rlwe.OperandInterface[ring.Poly], t *testing.T) {
+func verifyTestVectors(tc *testContext, decryptor *rlwe.Decryptor, coeffs ring.Poly, element rlwe.Operand[ring.Poly], t *testing.T) {
 
 	coeffsTest := make([]uint64, tc.params.MaxSlots())
 

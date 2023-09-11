@@ -74,7 +74,7 @@ func (kgen KeyGenerator) GenPublicKeyNew(sk *SecretKey) (pk *PublicKey) {
 
 // GenPublicKey generates a public key from the provided SecretKey.
 func (kgen KeyGenerator) GenPublicKey(sk *SecretKey, pk *PublicKey) {
-	if err := kgen.WithKey(sk).EncryptZero(Operand[ringqp.Poly]{
+	if err := kgen.WithKey(sk).EncryptZero(Element[ringqp.Poly]{
 		MetaData: &MetaData{CiphertextMetaData: CiphertextMetaData{IsNTT: true, IsMontgomery: true}},
 		Value:    []ringqp.Poly(pk.Value),
 	}); err != nil {
@@ -325,7 +325,7 @@ func (kgen KeyGenerator) genEvaluationKey(skIn ring.Poly, skOut ringqp.Poly, evk
 	// Samples an encryption of zero for each element of the EvaluationKey.
 	for i := 0; i < len(evk.Value); i++ {
 		for j := 0; j < len(evk.Value[i]); j++ {
-			if err := enc.EncryptZero(Operand[ringqp.Poly]{MetaData: &MetaData{CiphertextMetaData: CiphertextMetaData{IsNTT: true, IsMontgomery: true}}, Value: []ringqp.Poly(evk.Value[i][j])}); err != nil {
+			if err := enc.EncryptZero(Element[ringqp.Poly]{MetaData: &MetaData{CiphertextMetaData: CiphertextMetaData{IsNTT: true, IsMontgomery: true}}, Value: []ringqp.Poly(evk.Value[i][j])}); err != nil {
 				panic(err)
 			}
 		}

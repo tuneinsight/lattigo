@@ -9,13 +9,13 @@ import (
 
 // Ciphertext is a generic type for RLWE ciphertexts.
 type Ciphertext struct {
-	Operand[ring.Poly]
+	Element[ring.Poly]
 }
 
 // NewCiphertext returns a new Ciphertext with zero values and an associated
 // MetaData set to the Parameters default value.
 func NewCiphertext(params ParameterProvider, degree int, level ...int) (ct *Ciphertext) {
-	op := *NewOperandQ(params, degree, level...)
+	op := *NewElement(params, degree, level...)
 	return &Ciphertext{op}
 }
 
@@ -25,7 +25,7 @@ func NewCiphertext(params ParameterProvider, degree int, level ...int) (ct *Ciph
 // Returned Ciphertext's MetaData is allocated but empty	.
 func NewCiphertextAtLevelFromPoly(level int, poly []ring.Poly) (*Ciphertext, error) {
 
-	operand, err := NewOperandQAtLevelFromPoly(level, poly)
+	operand, err := NewElementAtLevelFromPoly(level, poly)
 
 	if err != nil {
 		return nil, fmt.Errorf("cannot NewCiphertextAtLevelFromPoly: %w", err)
@@ -45,15 +45,15 @@ func NewCiphertextRandom(prng sampling.PRNG, params ParameterProvider, degree, l
 
 // CopyNew creates a new element as a copy of the target element.
 func (ct Ciphertext) CopyNew() *Ciphertext {
-	return &Ciphertext{Operand: *ct.Operand.CopyNew()}
+	return &Ciphertext{Element: *ct.Element.CopyNew()}
 }
 
 // Copy copies the input element and its parameters on the target element.
 func (ct Ciphertext) Copy(ctxCopy *Ciphertext) {
-	ct.Operand.Copy(&ctxCopy.Operand)
+	ct.Element.Copy(&ctxCopy.Element)
 }
 
 // Equal performs a deep equal.
 func (ct Ciphertext) Equal(other *Ciphertext) bool {
-	return ct.Operand.Equal(&other.Operand)
+	return ct.Element.Equal(&other.Element)
 }

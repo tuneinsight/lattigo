@@ -143,10 +143,10 @@ func (eval Evaluator) WithKey(evk rlwe.EvaluationKeySet) *Evaluator {
 // Add adds op1 to op0 and returns the result in opOut.
 // inputs:
 //   - op0: an *rlwe.Ciphertext
-//   - op1: an rlwe.OperandInterface[ring.Poly], an uint64 or an []uint64 slice (of size at most N where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
+//   - op1: an rlwe.Operand[ring.Poly], an uint64 or an []uint64 slice (of size at most N where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
 //   - opOut: an *rlwe.Ciphertext
 //
-// If op1 is an rlwe.OperandInterface[ring.Poly] and the scales of op0, op1 and opOut do not match, then a scale matching operation will
+// If op1 is an rlwe.Operand[ring.Poly] and the scales of op0, op1 and opOut do not match, then a scale matching operation will
 // be automatically carried out to ensure that addition is performed between operands of the same scale.
 // This scale matching operation will increase the noise by a small factor.
 // For this reason it is preferable to ensure that all operands are already at the same scale when calling this method.
@@ -155,7 +155,7 @@ func (eval Evaluator) Add(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 	ringQ := eval.parameters.RingQ()
 
 	switch op1 := op1.(type) {
-	case rlwe.OperandInterface[ring.Poly]:
+	case rlwe.Operand[ring.Poly]:
 
 		degree, level, err := eval.InitOutputBinaryOp(op0.El(), op1.El(), op0.Degree()+op1.Degree(), opOut.El())
 		if err != nil {
@@ -233,13 +233,13 @@ func (eval Evaluator) Add(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 		// Generic in place evaluation
 		eval.evaluateInPlace(level, op0, pt.El(), opOut, eval.parameters.RingQ().AtLevel(level).Add)
 	default:
-		return fmt.Errorf("invalid op1.(Type), expected rlwe.OperandInterface[ring.Poly], []uint64, []int64, *big.Int, uint64, int64 or int, but got %T", op1)
+		return fmt.Errorf("invalid op1.(Type), expected rlwe.Operand[ring.Poly], []uint64, []int64, *big.Int, uint64, int64 or int, but got %T", op1)
 	}
 
 	return
 }
 
-func (eval Evaluator) evaluateInPlace(level int, el0 *rlwe.Ciphertext, el1 *rlwe.Operand[ring.Poly], elOut *rlwe.Ciphertext, evaluate func(ring.Poly, ring.Poly, ring.Poly)) {
+func (eval Evaluator) evaluateInPlace(level int, el0 *rlwe.Ciphertext, el1 *rlwe.Element[ring.Poly], elOut *rlwe.Ciphertext, evaluate func(ring.Poly, ring.Poly, ring.Poly)) {
 
 	smallest, largest, _ := rlwe.GetSmallestLargest(el0.El(), el1.El())
 
@@ -255,7 +255,7 @@ func (eval Evaluator) evaluateInPlace(level int, el0 *rlwe.Ciphertext, el1 *rlwe
 	}
 }
 
-func (eval Evaluator) matchScaleThenEvaluateInPlace(level int, el0 *rlwe.Ciphertext, el1 *rlwe.Operand[ring.Poly], elOut *rlwe.Ciphertext, evaluate func(ring.Poly, uint64, ring.Poly)) {
+func (eval Evaluator) matchScaleThenEvaluateInPlace(level int, el0 *rlwe.Ciphertext, el1 *rlwe.Element[ring.Poly], elOut *rlwe.Ciphertext, evaluate func(ring.Poly, uint64, ring.Poly)) {
 
 	r0, r1, _ := eval.matchScalesBinary(el0.Scale.Uint64(), el1.Scale.Uint64())
 
@@ -274,23 +274,23 @@ func (eval Evaluator) matchScaleThenEvaluateInPlace(level int, el0 *rlwe.Ciphert
 	elOut.Scale = el0.Scale.Mul(eval.parameters.NewScale(r0))
 }
 
-func (eval Evaluator) newCiphertextBinary(op0, op1 rlwe.OperandInterface[ring.Poly]) (opOut *rlwe.Ciphertext) {
+func (eval Evaluator) newCiphertextBinary(op0, op1 rlwe.Operand[ring.Poly]) (opOut *rlwe.Ciphertext) {
 	return NewCiphertext(*eval.GetParameters(), utils.Max(op0.Degree(), op1.Degree()), utils.Min(op0.Level(), op1.Level()))
 }
 
 // AddNew adds op1 to op0 and returns the result on a new *rlwe.Ciphertext opOut.
 // inputs:
 //   - op0: an *rlwe.Ciphertext
-//   - op1: an rlwe.OperandInterface[ring.Poly], an uint64 or an []uint64 slice (of size at most N where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
+//   - op1: an rlwe.Operand[ring.Poly], an uint64 or an []uint64 slice (of size at most N where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
 //
-// If op1 is an rlwe.OperandInterface[ring.Poly] and the scales of op0 and op1 not match, then a scale matching operation will
+// If op1 is an rlwe.Operand[ring.Poly] and the scales of op0 and op1 not match, then a scale matching operation will
 // be automatically carried out to ensure that addition is performed between operands of the same scale.
 // This scale matching operation will increase the noise by a small factor.
 // For this reason it is preferable to ensure that all operands are already at the same scale when calling this method.
 func (eval Evaluator) AddNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
 
 	switch op1 := op1.(type) {
-	case rlwe.OperandInterface[ring.Poly]:
+	case rlwe.Operand[ring.Poly]:
 		opOut = eval.newCiphertextBinary(op0, op1)
 	default:
 		opOut = NewCiphertext(eval.parameters, op0.Degree(), op0.Level())
@@ -302,17 +302,17 @@ func (eval Evaluator) AddNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe
 // Sub subtracts op1 to op0 and returns the result in opOut.
 // inputs:
 //   - op0: an *rlwe.Ciphertext
-//   - op1: an rlwe.OperandInterface[ring.Poly], an uint64 or an []uint64 slice (of size at most N where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
+//   - op1: an rlwe.Operand[ring.Poly], an uint64 or an []uint64 slice (of size at most N where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
 //   - opOut: an *rlwe.Ciphertext
 //
-// If op1 is an rlwe.OperandInterface[ring.Poly] and the scales of op0, op1 and opOut do not match, then a scale matching operation will
+// If op1 is an rlwe.Operand[ring.Poly] and the scales of op0, op1 and opOut do not match, then a scale matching operation will
 // be automatically carried out to ensure that the subtraction is performed between operands of the same scale.
 // This scale matching operation will increase the noise by a small factor.
 // For this reason it is preferable to ensure that all operands are already at the same scale when calling this method.
 func (eval Evaluator) Sub(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
 
 	switch op1 := op1.(type) {
-	case rlwe.OperandInterface[ring.Poly]:
+	case rlwe.Operand[ring.Poly]:
 
 		degree, level, err := eval.InitOutputBinaryOp(op0.El(), op1.El(), op0.Degree()+op1.Degree(), opOut.El())
 		if err != nil {
@@ -362,7 +362,7 @@ func (eval Evaluator) Sub(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 		// Generic in place evaluation
 		eval.evaluateInPlace(level, op0, pt.El(), opOut, eval.parameters.RingQ().AtLevel(level).Sub)
 	default:
-		return fmt.Errorf("invalid op1.(Type), expected rlwe.OperandInterface[ring.Poly], []uint64, []int64, *big.Int, uint64, int64 or int, but got %T", op1)
+		return fmt.Errorf("invalid op1.(Type), expected rlwe.Operand[ring.Poly], []uint64, []int64, *big.Int, uint64, int64 or int, but got %T", op1)
 	}
 
 	return
@@ -371,15 +371,15 @@ func (eval Evaluator) Sub(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 // SubNew subtracts op1 to op0 and returns the result in a new *rlwe.Ciphertext opOut.
 // inputs:
 //   - op0: an *rlwe.Ciphertext
-//   - op1: an rlwe.OperandInterface[ring.Poly], an uint64 or an []uint64 slice (of size at most N where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
+//   - op1: an rlwe.Operand[ring.Poly], an uint64 or an []uint64 slice (of size at most N where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
 //
-// If op1 is an rlwe.OperandInterface[ring.Poly] and the scales of op0, op1 and opOut do not match, then a scale matching operation will
+// If op1 is an rlwe.Operand[ring.Poly] and the scales of op0, op1 and opOut do not match, then a scale matching operation will
 // be automatically carried out to ensure that the subtraction is performed between operands of the same scale.
 // This scale matching operation will increase the noise by a small factor.
 // For this reason it is preferable to ensure that all operands are already at the same scale when calling this method.
 func (eval Evaluator) SubNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
 	switch op1 := op1.(type) {
-	case rlwe.OperandInterface[ring.Poly]:
+	case rlwe.Operand[ring.Poly]:
 		opOut = eval.newCiphertextBinary(op0, op1)
 	default:
 		opOut = NewCiphertext(eval.parameters, op0.Degree(), op0.Level())
@@ -402,16 +402,16 @@ func (eval Evaluator) DropLevel(op0 *rlwe.Ciphertext, levels int) {
 //
 // inputs:
 //   - op0: an *rlwe.Ciphertext
-//   - op1: an rlwe.OperandInterface[ring.Poly], an uint64 or an []uint64 slice (of size at most N, where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
+//   - op1: an rlwe.Operand[ring.Poly], an uint64 or an []uint64 slice (of size at most N, where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
 //   - opOut: an *rlwe.Ciphertext
 //
-// If op1 is an rlwe.OperandInterface[ring.Poly]:
+// If op1 is an rlwe.Operand[ring.Poly]:
 //   - the level of opOut will be updated to min(op0.Level(), op1.Level())
 //   - the scale of opOut will be updated to op0.Scale * op1.Scale
 func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
 
 	switch op1 := op1.(type) {
-	case rlwe.OperandInterface[ring.Poly]:
+	case rlwe.Operand[ring.Poly]:
 
 		_, level, err := eval.InitOutputBinaryOp(op0.El(), op1.El(), 2, opOut.El())
 		if err != nil {
@@ -479,7 +479,7 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 			return fmt.Errorf("cannot Mul: %w", err)
 		}
 	default:
-		return fmt.Errorf("invalid op1.(Type), expected rlwe.OperandInterface[ring.Poly], []uint64, []int64, *big.Int, uint64, int64 or int, but got %T", op1)
+		return fmt.Errorf("invalid op1.(Type), expected rlwe.Operand[ring.Poly], []uint64, []int64, *big.Int, uint64, int64 or int, but got %T", op1)
 	}
 
 	return
@@ -492,15 +492,15 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 //
 // inputs:
 //   - op0: an *rlwe.Ciphertext
-//   - op1: an rlwe.OperandInterface[ring.Poly], an uint64 or an []uint64 slice (of size at most N, where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
+//   - op1: an rlwe.Operand[ring.Poly], an uint64 or an []uint64 slice (of size at most N, where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
 //
-// If op1 is an rlwe.OperandInterface[ring.Poly]:
+// If op1 is an rlwe.Operand[ring.Poly]:
 //   - the degree of opOut will be op0.Degree() + op1.Degree()
 //   - the level of opOut will be to min(op0.Level(), op1.Level())
 //   - the scale of opOut will be to op0.Scale * op1.Scale
 func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
 	switch op1 := op1.(type) {
-	case rlwe.OperandInterface[ring.Poly]:
+	case rlwe.Operand[ring.Poly]:
 		opOut = NewCiphertext(eval.parameters, op0.Degree()+op1.Degree(), utils.Min(op0.Level(), op1.Level()))
 	default:
 		opOut = NewCiphertext(eval.parameters, op0.Degree(), op0.Level())
@@ -518,15 +518,15 @@ func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe
 //
 // inputs:
 //   - op0: an *rlwe.Ciphertext
-//   - op1: an rlwe.OperandInterface[ring.Poly], an uint64 or an []uint64 slice (of size at most N, where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
+//   - op1: an rlwe.Operand[ring.Poly], an uint64 or an []uint64 slice (of size at most N, where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
 //   - opOut: an *rlwe.Ciphertext
 //
-// If op1 is an rlwe.OperandInterface[ring.Poly]:
+// If op1 is an rlwe.Operand[ring.Poly]:
 //   - the level of opOut will be updated to min(op0.Level(), op1.Level())
 //   - the scale of opOut will be updated to op0.Scale * op1.Scale
 func (eval Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
 	switch op1 := op1.(type) {
-	case rlwe.OperandInterface[ring.Poly]:
+	case rlwe.Operand[ring.Poly]:
 
 		_, level, err := eval.InitOutputBinaryOp(op0.El(), op1.El(), 2, opOut.El())
 		if err != nil {
@@ -556,14 +556,14 @@ func (eval Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlw
 //
 // inputs:
 //   - op0: an *rlwe.Ciphertext
-//   - op1: an rlwe.OperandInterface[ring.Poly], an uint64 or an []uint64 slice (of size at most N, where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
+//   - op1: an rlwe.Operand[ring.Poly], an uint64 or an []uint64 slice (of size at most N, where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
 //
-// If op1 is an rlwe.OperandInterface[ring.Poly]:
+// If op1 is an rlwe.Operand[ring.Poly]:
 //   - the level of opOut will be to min(op0.Level(), op1.Level())
 //   - the scale of opOut will be to op0.Scale * op1.Scale
 func (eval Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
 	switch op1 := op1.(type) {
-	case rlwe.OperandInterface[ring.Poly]:
+	case rlwe.Operand[ring.Poly]:
 		opOut = NewCiphertext(eval.parameters, 1, utils.Min(op0.Level(), op1.Level()))
 	default:
 		opOut = NewCiphertext(eval.parameters, 1, op0.Level())
@@ -572,7 +572,7 @@ func (eval Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut 
 	return opOut, eval.MulRelin(op0, op1, opOut)
 }
 
-func (eval Evaluator) tensorStandard(op0 *rlwe.Ciphertext, op1 *rlwe.Operand[ring.Poly], relin bool, opOut *rlwe.Ciphertext) (err error) {
+func (eval Evaluator) tensorStandard(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ring.Poly], relin bool, opOut *rlwe.Ciphertext) (err error) {
 
 	level := opOut.Level()
 
@@ -600,7 +600,7 @@ func (eval Evaluator) tensorStandard(op0 *rlwe.Ciphertext, op1 *rlwe.Operand[rin
 		}
 
 		// Avoid overwriting if the second input is the output
-		var tmp0, tmp1 *rlwe.Operand[ring.Poly]
+		var tmp0, tmp1 *rlwe.Element[ring.Poly]
 		if op1.El() == opOut.El() {
 			tmp0, tmp1 = op1.El(), op0.El()
 		} else {
@@ -669,15 +669,15 @@ func (eval Evaluator) tensorStandard(op0 *rlwe.Ciphertext, op1 *rlwe.Operand[rin
 //
 // inputs:
 //   - op0: an *rlwe.Ciphertext
-//   - op1: an rlwe.OperandInterface[ring.Poly], an uint64 or an []uint64 slice (of size at most N, where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
+//   - op1: an rlwe.Operand[ring.Poly], an uint64 or an []uint64 slice (of size at most N, where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
 //   - opOut: an *rlwe.Ciphertext
 //
-// If op1 is an rlwe.OperandInterface[ring.Poly]:
+// If op1 is an rlwe.Operand[ring.Poly]:
 //   - the level of opOut will be updated to min(op0.Level(), op1.Level())
 //   - the scale of opOut will be to op0.Scale * op1.Scale * (-Q mod T)^{-1} mod T
 func (eval Evaluator) MulScaleInvariant(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
 	switch op1 := op1.(type) {
-	case rlwe.OperandInterface[ring.Poly]:
+	case rlwe.Operand[ring.Poly]:
 
 		_, level, err := eval.InitOutputBinaryOp(op0.El(), op1.El(), 2, opOut.El())
 		if err != nil {
@@ -741,14 +741,14 @@ func (eval Evaluator) MulScaleInvariant(op0 *rlwe.Ciphertext, op1 interface{}, o
 //
 // inputs:
 //   - op0: an *rlwe.Ciphertext
-//   - op1: an rlwe.OperandInterface[ring.Poly], an uint64 or an []uint64 slice (of size at most N, where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
+//   - op1: an rlwe.Operand[ring.Poly], an uint64 or an []uint64 slice (of size at most N, where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
 //
-// If op1 is an rlwe.OperandInterface[ring.Poly]:
+// If op1 is an rlwe.Operand[ring.Poly]:
 //   - the level of opOut will be to min(op0.Level(), op1.Level())
 //   - the scale of opOut will be to op0.Scale * op1.Scale * (-Q mod PlaintextModulus)^{-1} mod PlaintextModulus
 func (eval Evaluator) MulScaleInvariantNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
 	switch op1 := op1.(type) {
-	case rlwe.OperandInterface[ring.Poly]:
+	case rlwe.Operand[ring.Poly]:
 		opOut = NewCiphertext(eval.parameters, op0.Degree()+op1.Degree(), utils.Min(op0.Level(), op1.Level()))
 	default:
 		opOut = NewCiphertext(eval.parameters, op0.Degree(), op0.Level())
@@ -765,15 +765,15 @@ func (eval Evaluator) MulScaleInvariantNew(op0 *rlwe.Ciphertext, op1 interface{}
 //
 // inputs:
 //   - op0: an *rlwe.Ciphertext
-//   - op1: an rlwe.OperandInterface[ring.Poly], an uint64 or an []uint64 slice (of size at most N, where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
+//   - op1: an rlwe.Operand[ring.Poly], an uint64 or an []uint64 slice (of size at most N, where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
 //   - opOut: an *rlwe.Ciphertext
 //
-// If op1 is an rlwe.OperandInterface[ring.Poly]:
+// If op1 is an rlwe.Operand[ring.Poly]:
 //   - the level of opOut will be updated to min(op0.Level(), op1.Level())
 //   - the scale of opOut will be to op0.Scale * op1.Scale * (-Q mod PlaintextModulus)^{-1} mod PlaintextModulus
 func (eval Evaluator) MulRelinScaleInvariant(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
 	switch op1 := op1.(type) {
-	case rlwe.OperandInterface[ring.Poly]:
+	case rlwe.Operand[ring.Poly]:
 
 		_, level, err := eval.InitOutputBinaryOp(op0.El(), op1.El(), 2, opOut.El())
 		if err != nil {
@@ -828,7 +828,7 @@ func (eval Evaluator) MulRelinScaleInvariant(op0 *rlwe.Ciphertext, op1 interface
 			return fmt.Errorf("cannot MulRelinInvariant: %w", err)
 		}
 	default:
-		return fmt.Errorf("cannot MulRelinInvariant: invalid op1.(Type), expected rlwe.OperandInterface[ring.Poly], []uint64, []int64, uint64, int64 or int, but got %T", op1)
+		return fmt.Errorf("cannot MulRelinInvariant: invalid op1.(Type), expected rlwe.Operand[ring.Poly], []uint64, []int64, uint64, int64 or int, but got %T", op1)
 	}
 	return
 }
@@ -842,14 +842,14 @@ func (eval Evaluator) MulRelinScaleInvariant(op0 *rlwe.Ciphertext, op1 interface
 //
 // inputs:
 //   - op0: an *rlwe.Ciphertext
-//   - op1: an rlwe.OperandInterface[ring.Poly], an uint64 or an []uint64 slice (of size at most N, where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
+//   - op1: an rlwe.Operand[ring.Poly], an uint64 or an []uint64 slice (of size at most N, where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
 //
-// If op1 is an rlwe.OperandInterface[ring.Poly]:
+// If op1 is an rlwe.Operand[ring.Poly]:
 //   - the level of opOut will be to min(op0.Level(), op1.Level())
 //   - the scale of opOut will be to op0.Scale * op1.Scale * (-Q mod PlaintextModulus)^{-1} mod PlaintextModulus
 func (eval Evaluator) MulRelinScaleInvariantNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
 	switch op1 := op1.(type) {
-	case rlwe.OperandInterface[ring.Poly]:
+	case rlwe.Operand[ring.Poly]:
 		opOut = NewCiphertext(eval.parameters, 1, utils.Min(op0.Level(), op1.Level()))
 	default:
 		opOut = NewCiphertext(eval.parameters, op0.Degree(), op0.Level())
@@ -862,22 +862,22 @@ func (eval Evaluator) MulRelinScaleInvariantNew(op0 *rlwe.Ciphertext, op1 interf
 }
 
 // tensorScaleInvariant computes (ct0 x ct1) * (t/Q) and stores the result in opOut.
-func (eval Evaluator) tensorScaleInvariant(ct0 *rlwe.Ciphertext, ct1 *rlwe.Operand[ring.Poly], relin bool, opOut *rlwe.Ciphertext) (err error) {
+func (eval Evaluator) tensorScaleInvariant(ct0 *rlwe.Ciphertext, ct1 *rlwe.Element[ring.Poly], relin bool, opOut *rlwe.Ciphertext) (err error) {
 
 	level := opOut.Level()
 
 	levelQMul := eval.levelQMul[level]
 
 	// Avoid overwriting if the second input is the output
-	var tmp0Q0, tmp1Q0 *rlwe.Operand[ring.Poly]
+	var tmp0Q0, tmp1Q0 *rlwe.Element[ring.Poly]
 	if ct1 == opOut.El() {
 		tmp0Q0, tmp1Q0 = ct1, ct0.El()
 	} else {
 		tmp0Q0, tmp1Q0 = ct0.El(), ct1
 	}
 
-	tmp0Q1 := &rlwe.Operand[ring.Poly]{Value: eval.buffQMul[0:3]}
-	tmp1Q1 := &rlwe.Operand[ring.Poly]{Value: eval.buffQMul[3:5]}
+	tmp0Q1 := &rlwe.Element[ring.Poly]{Value: eval.buffQMul[0:3]}
+	tmp1Q1 := &rlwe.Element[ring.Poly]{Value: eval.buffQMul[3:5]}
 	tmp2Q1 := tmp0Q1
 
 	eval.modUpAndNTT(level, levelQMul, tmp0Q0, tmp0Q1)
@@ -895,7 +895,7 @@ func (eval Evaluator) tensorScaleInvariant(ct0 *rlwe.Ciphertext, ct1 *rlwe.Opera
 		c2 = eval.buffQ[2]
 	}
 
-	tmp2Q0 := &rlwe.Operand[ring.Poly]{Value: []ring.Poly{opOut.Value[0], opOut.Value[1], c2}}
+	tmp2Q0 := &rlwe.Element[ring.Poly]{Value: []ring.Poly{opOut.Value[0], opOut.Value[1], c2}}
 
 	eval.tensorLowDeg(level, levelQMul, tmp0Q0, tmp1Q0, tmp2Q0, tmp0Q1, tmp1Q1, tmp2Q1)
 
@@ -937,7 +937,7 @@ func MulScaleInvariant(params Parameters, a, b rlwe.Scale, level int) (c rlwe.Sc
 	return
 }
 
-func (eval Evaluator) modUpAndNTT(level, levelQMul int, ctQ0, ctQ1 *rlwe.Operand[ring.Poly]) {
+func (eval Evaluator) modUpAndNTT(level, levelQMul int, ctQ0, ctQ1 *rlwe.Element[ring.Poly]) {
 	ringQ, ringQMul := eval.parameters.RingQ().AtLevel(level), eval.parameters.RingQMul().AtLevel(levelQMul)
 	for i := range ctQ0.Value {
 		ringQ.INTT(ctQ0.Value[i], eval.buffQ[0])
@@ -946,7 +946,7 @@ func (eval Evaluator) modUpAndNTT(level, levelQMul int, ctQ0, ctQ1 *rlwe.Operand
 	}
 }
 
-func (eval Evaluator) tensorLowDeg(level, levelQMul int, ct0Q0, ct1Q0, ct2Q0, ct0Q1, ct1Q1, ct2Q1 *rlwe.Operand[ring.Poly]) {
+func (eval Evaluator) tensorLowDeg(level, levelQMul int, ct0Q0, ct1Q0, ct2Q0, ct0Q1, ct1Q1, ct2Q1 *rlwe.Element[ring.Poly]) {
 
 	ringQ, ringQMul := eval.parameters.RingQ().AtLevel(level), eval.parameters.RingQMul().AtLevel(levelQMul)
 
@@ -1016,17 +1016,17 @@ func (eval Evaluator) quantize(level, levelQMul int, c2Q1, c2Q2 ring.Poly) {
 //
 // inputs:
 //   - op0: an *rlwe.Ciphertext
-//   - op1: an rlwe.OperandInterface[ring.Poly], an uint64 or an []uint64 slice of size at most N where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N.
+//   - op1: an rlwe.Operand[ring.Poly], an uint64 or an []uint64 slice of size at most N where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N.
 //   - opOut: an *rlwe.Ciphertext
 //
-// If op1 is an rlwe.OperandInterface[ring.Poly] and opOut.Scale != op1.Scale * op0.Scale, then a scale matching operation will
+// If op1 is an rlwe.Operand[ring.Poly] and opOut.Scale != op1.Scale * op0.Scale, then a scale matching operation will
 // be automatically carried out to ensure that addition is performed between operands of the same scale.
 // This scale matching operation will increase the noise by a small factor.
 // For this reason it is preferable to ensure that opOut.Scale == op1.Scale * op0.Scale when calling this method.
 func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
 
 	switch op1 := op1.(type) {
-	case rlwe.OperandInterface[ring.Poly]:
+	case rlwe.Operand[ring.Poly]:
 
 		_, level, err := eval.InitOutputBinaryOp(op0.El(), op1.El(), 2, opOut.El())
 		if err != nil {
@@ -1119,7 +1119,7 @@ func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, opOut *r
 		}
 
 	default:
-		return fmt.Errorf("cannot MulThenAdd: invalid op1.(Type), expected rlwe.OperandInterface[ring.Poly], []uint64, []int64, *big.Int, uint64, int64 or int, but got %T", op1)
+		return fmt.Errorf("cannot MulThenAdd: invalid op1.(Type), expected rlwe.Operand[ring.Poly], []uint64, []int64, *big.Int, uint64, int64 or int, but got %T", op1)
 	}
 
 	return
@@ -1131,16 +1131,16 @@ func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, opOut *r
 //
 // inputs:
 //   - op0: an *rlwe.Ciphertext
-//   - op1: an rlwe.OperandInterface[ring.Poly], an uint64 or an []uint64 slice of size at most N where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N.
+//   - op1: an rlwe.Operand[ring.Poly], an uint64 or an []uint64 slice of size at most N where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N.
 //   - opOut: an *rlwe.Ciphertext
 //
-// If op1 is an rlwe.OperandInterface[ring.Poly] and opOut.Scale != op1.Scale * op0.Scale, then a scale matching operation will
+// If op1 is an rlwe.Operand[ring.Poly] and opOut.Scale != op1.Scale * op0.Scale, then a scale matching operation will
 // be automatically carried out to ensure that addition is performed between operands of the same scale.
 // This scale matching operation will increase the noise by a small factor.
 // For this reason it is preferable to ensure that opOut.Scale == op1.Scale * op0.Scale when calling this method.
 func (eval Evaluator) MulRelinThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
 	switch op1 := op1.(type) {
-	case rlwe.OperandInterface[ring.Poly]:
+	case rlwe.Operand[ring.Poly]:
 		if op1.Degree() == 0 {
 			return eval.MulThenAdd(op0, op1, opOut)
 		} else {
@@ -1163,7 +1163,7 @@ func (eval Evaluator) MulRelinThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, opO
 	}
 }
 
-func (eval Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.Operand[ring.Poly], relin bool, opOut *rlwe.Ciphertext) (err error) {
+func (eval Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ring.Poly], relin bool, opOut *rlwe.Ciphertext) (err error) {
 
 	level := opOut.Level()
 
@@ -1363,11 +1363,11 @@ func (eval Evaluator) RotateRows(op0, opOut *rlwe.Ciphertext) (err error) {
 
 // RotateHoistedLazyNew applies a series of rotations on the same ciphertext and returns each different rotation in a map indexed by the rotation.
 // Results are not rescaled by P.
-func (eval Evaluator) RotateHoistedLazyNew(level int, rotations []int, op0 *rlwe.Ciphertext, c2DecompQP []ringqp.Poly) (opOut map[int]*rlwe.Operand[ringqp.Poly], err error) {
-	opOut = make(map[int]*rlwe.Operand[ringqp.Poly])
+func (eval Evaluator) RotateHoistedLazyNew(level int, rotations []int, op0 *rlwe.Ciphertext, c2DecompQP []ringqp.Poly) (opOut map[int]*rlwe.Element[ringqp.Poly], err error) {
+	opOut = make(map[int]*rlwe.Element[ringqp.Poly])
 	for _, i := range rotations {
 		if i != 0 {
-			opOut[i] = rlwe.NewOperandQP(eval.parameters, 1, level, eval.parameters.MaxLevelP())
+			opOut[i] = rlwe.NewElementExtended(eval.parameters, 1, level, eval.parameters.MaxLevelP())
 			if err = eval.AutomorphismHoistedLazy(level, op0, c2DecompQP, eval.parameters.GaloisElement(i), opOut[i]); err != nil {
 				return
 			}

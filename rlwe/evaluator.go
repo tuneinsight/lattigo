@@ -137,12 +137,12 @@ func (eval Evaluator) CheckAndGetRelinearizationKey() (evk *RelinearizationKey, 
 	return
 }
 
-// InitOutputBinaryOp initializes the output Operand opOut for receiving the result of a binary operation over
+// InitOutputBinaryOp initializes the output Element opOut for receiving the result of a binary operation over
 // op0 and op1. The method also performs the following checks:
 //
 // 1. Inputs are not nil
 // 2. MetaData are not nil
-// 3. op0.Degree() + op1.Degree() != 0 (i.e at least one operand is a ciphertext)
+// 3. op0.Degree() + op1.Degree() != 0 (i.e at least one Element is a ciphertext)
 // 4. op0.IsNTT == op1.IsNTT == DefaultNTTFlag
 // 5. op0.IsBatched == op1.IsBatched
 //
@@ -152,7 +152,7 @@ func (eval Evaluator) CheckAndGetRelinearizationKey() (evk *RelinearizationKey, 
 // LogDimensions <- max(op0.LogDimensions, op1.LogDimensions)
 //
 // The method returns max(op0.Degree(), op1.Degree(), opOut.Degree()) and min(op0.Level(), op1.Level(), opOut.Level())
-func (eval Evaluator) InitOutputBinaryOp(op0, op1 *Operand[ring.Poly], opInTotalMaxDegree int, opOut *Operand[ring.Poly]) (degree, level int, err error) {
+func (eval Evaluator) InitOutputBinaryOp(op0, op1 *Element[ring.Poly], opInTotalMaxDegree int, opOut *Element[ring.Poly]) (degree, level int, err error) {
 
 	if op0 == nil || op1 == nil || opOut == nil {
 		return 0, 0, fmt.Errorf("op0, op1 and opOut cannot be nil")
@@ -195,7 +195,7 @@ func (eval Evaluator) InitOutputBinaryOp(op0, op1 *Operand[ring.Poly], opInTotal
 	return
 }
 
-// InitOutputUnaryOp initializes the output Operand opOut for receiving the result of a unary operation over
+// InitOutputUnaryOp initializes the output Element opOut for receiving the result of a unary operation over
 // op0. The method also performs the following checks:
 //
 // 1. Input and output are not nil
@@ -209,7 +209,7 @@ func (eval Evaluator) InitOutputBinaryOp(op0, op1 *Operand[ring.Poly], opInTotal
 // LogDimensions <- op0.LogDimensions
 //
 // The method returns max(op0.Degree(), opOut.Degree()) and min(op0.Level(), opOut.Level()).
-func (eval Evaluator) InitOutputUnaryOp(op0, opOut *Operand[ring.Poly]) (degree, level int, err error) {
+func (eval Evaluator) InitOutputUnaryOp(op0, opOut *Element[ring.Poly]) (degree, level int, err error) {
 
 	if op0 == nil || opOut == nil {
 		return 0, 0, fmt.Errorf("op0 and opOut cannot be nil")

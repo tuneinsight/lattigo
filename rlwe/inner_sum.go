@@ -49,11 +49,11 @@ func (eval Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, opOut *Cipher
 		// BuffQP[0:2] are used by AutomorphismHoistedLazy
 
 		// Accumulator mod QP (i.e. opOut Mod QP)
-		accQP := &Operand[ringqp.Poly]{Value: []ringqp.Poly{eval.BuffQP[2], eval.BuffQP[3]}}
+		accQP := &Element[ringqp.Poly]{Value: []ringqp.Poly{eval.BuffQP[2], eval.BuffQP[3]}}
 		accQP.MetaData = ctInNTT.MetaData
 
 		// Buffer mod QP (i.e. to store the result of lazy gadget products)
-		cQP := &Operand[ringqp.Poly]{Value: []ringqp.Poly{eval.BuffQP[4], eval.BuffQP[5]}}
+		cQP := &Element[ringqp.Poly]{Value: []ringqp.Poly{eval.BuffQP[4], eval.BuffQP[5]}}
 		cQP.MetaData = ctInNTT.MetaData
 
 		// Buffer mod Q (i.e. to store the result of gadget products)

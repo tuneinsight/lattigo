@@ -819,7 +819,7 @@ func testAutomorphism(tc *TestContext, level, bpw2 int, t *testing.T) {
 		//Decompose the ciphertext
 		eval.DecomposeNTT(level, params.MaxLevelP(), params.MaxLevelP()+1, ct.Value[1], ct.IsNTT, eval.BuffDecompQP)
 
-		ctQP := NewOperandQP(params, 1, level, params.MaxLevelP())
+		ctQP := NewElementExtended(params, 1, level, params.MaxLevelP())
 
 		// Evaluate the automorphism
 		eval.WithKey(evk).AutomorphismHoistedLazy(level, ct, eval.BuffDecompQP, galEl, ctQP)
@@ -1138,12 +1138,12 @@ func testWriteAndRead(tc *TestContext, bpw2 int, t *testing.T) {
 	levelQ := params.MaxLevelQ()
 	levelP := params.MaxLevelP()
 
-	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/Operand[ring.Poly]"), func(t *testing.T) {
+	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/Element[ring.Poly]"), func(t *testing.T) {
 
 		prng, _ := sampling.NewPRNG()
 		sampler := ring.NewUniformSampler(prng, params.RingQ())
 
-		op := Operand[ring.Poly]{
+		op := Element[ring.Poly]{
 			Value: structs.Vector[ring.Poly]{
 				sampler.ReadNew(),
 				sampler.ReadNew(),
@@ -1158,12 +1158,12 @@ func testWriteAndRead(tc *TestContext, bpw2 int, t *testing.T) {
 		buffer.RequireSerializerCorrect(t, &op)
 	})
 
-	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/Operand[ringqp.Poly]"), func(t *testing.T) {
+	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/Element[ringqp.Poly]"), func(t *testing.T) {
 
 		prng, _ := sampling.NewPRNG()
 		sampler := ringqp.NewUniformSampler(prng, *params.RingQP())
 
-		op := Operand[ringqp.Poly]{
+		op := Element[ringqp.Poly]{
 			Value: structs.Vector[ringqp.Poly]{
 				sampler.ReadNew(),
 				sampler.ReadNew(),

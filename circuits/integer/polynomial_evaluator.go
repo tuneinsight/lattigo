@@ -10,7 +10,7 @@ import (
 )
 
 type PolynomialEvaluator struct {
-	circuits.PolynomialEvaluator
+	circuits.EvaluatorForPolynomial
 	bgv.Parameters
 	InvariantTensoring bool
 }
@@ -23,13 +23,26 @@ func NewPowerBasis(ct *rlwe.Ciphertext) circuits.PowerBasis {
 	return circuits.NewPowerBasis(ct, bignum.Monomial)
 }
 
-func NewPolynomialEvaluator(params bgv.Parameters, eval *bgv.Evaluator, InvariantTensoring bool) *PolynomialEvaluator {
+// NewPolynomialEvaluator instantiates a new PolynomialEvaluator.
+// eval can be a circuit.Evaluator, in which case it will use the default circuit.[...] polynomial
+// evaluation function, or it can be an interface implementing circuits.EvaluatorForPolynomial, in
+// which case it will use this interface to evaluate the polynomial.
+// InvariantTensoring is a boolean that specifies if the evaluator performes the invariant tensoring (BFV-style) or
+// the regular tensoring (BGB-style).
+func NewPolynomialEvaluator(params bgv.Parameters, eval interface{}, InvariantTensoring bool) *PolynomialEvaluator {
 	e := new(PolynomialEvaluator)
 
-	if InvariantTensoring {
-		e.PolynomialEvaluator = circuits.PolynomialEvaluator{EvaluatorForPolynomial: scaleInvariantEvaluator{eval}, EvaluatorBuffers: eval.GetEvaluatorBuffer()}
-	} else {
-		e.PolynomialEvaluator = circuits.PolynomialEvaluator{EvaluatorForPolynomial: eval, EvaluatorBuffers: eval.GetEvaluatorBuffer()}
+	switch eval := eval.(type) {
+	case *bgv.Evaluator:
+		if InvariantTensoring {
+			e.EvaluatorForPolynomial = &defaultCircuitEvaluatorForPolynomial{Evaluator: &scaleInvariantEvaluator{eval}}
+		} else {
+			e.EvaluatorForPolynomial = &defaultCircuitEvaluatorForPolynomial{Evaluator: eval}
+		}
+	case circuits.EvaluatorForPolynomial:
+		e.EvaluatorForPolynomial = eval
+	default:
+		panic(fmt.Sprintf("invalid eval type: must be circuits.Evaluator or circuits.EvaluatorForPolynomial but is %T", eval))
 	}
 
 	e.InvariantTensoring = InvariantTensoring
@@ -57,9 +70,7 @@ func (eval PolynomialEvaluator) Evaluate(ct *rlwe.Ciphertext, p interface{}, tar
 		pcircuits = p
 	}
 
-	coeffGetter := circuits.CoefficientGetter[uint64](&CoefficientGetter{Values: make([]uint64, ct.Slots())})
-
-	return circuits.EvaluatePolynomial(eval.PolynomialEvaluator, ct, pcircuits, coeffGetter, targetScale, 1, &simIntegerPolynomialEvaluator{eval.Parameters, eval.InvariantTensoring})
+	return circuits.EvaluatePolynomial(eval.EvaluatorForPolynomial, ct, pcircuits, targetScale, 1, &simIntegerPolynomialEvaluator{eval.Parameters, eval.InvariantTensoring})
 }
 
 // EvaluateFromPowerBasis evaluates a polynomial using the provided PowerBasis, holding pre-computed powers of X.
@@ -81,9 +92,7 @@ func (eval PolynomialEvaluator) EvaluateFromPowerBasis(pb circuits.PowerBasis, p
 		return nil, fmt.Errorf("cannot EvaluateFromPowerBasis: X^{1} is nil")
 	}
 
-	coeffGetter := circuits.CoefficientGetter[uint64](&CoefficientGetter{Values: make([]uint64, pb.Value[1].Slots())})
-
-	return circuits.EvaluatePolynomial(eval.PolynomialEvaluator, pb, pcircuits, coeffGetter, targetScale, 1, &simIntegerPolynomialEvaluator{eval.Parameters, eval.InvariantTensoring})
+	return circuits.EvaluatePolynomial(eval.EvaluatorForPolynomial, pb, pcircuits, targetScale, 1, &simIntegerPolynomialEvaluator{eval.Parameters, eval.InvariantTensoring})
 }
 
 type scaleInvariantEvaluator struct {
@@ -114,7 +123,7 @@ type CoefficientGetter struct {
 	Values []uint64
 }
 
-func (c *CoefficientGetter) GetVectorCoefficient(pol []circuits.Polynomial, k int, mapping map[int][]int) (values []uint64) {
+func (c *CoefficientGetter) GetVectorCoefficient(pol circuits.PolynomialVector, k int) (values []uint64) {
 
 	values = c.Values
 
@@ -122,7 +131,9 @@ func (c *CoefficientGetter) GetVectorCoefficient(pol []circuits.Polynomial, k in
 		values[j] = 0
 	}
 
-	for i, p := range pol {
+	mapping := pol.Mapping
+
+	for i, p := range pol.Value {
 		for _, j := range mapping[i] {
 			values[j] = p.Coeffs[k].Uint64()
 		}
@@ -133,4 +144,13 @@ func (c *CoefficientGetter) GetVectorCoefficient(pol []circuits.Polynomial, k in
 
 func (c *CoefficientGetter) GetSingleCoefficient(pol circuits.Polynomial, k int) (value uint64) {
 	return pol.Coeffs[k].Uint64()
+}
+
+type defaultCircuitEvaluatorForPolynomial struct {
+	circuits.Evaluator
+}
+
+func (eval defaultCircuitEvaluatorForPolynomial) EvaluatePatersonStockmeyerPolynomialVector(poly circuits.PatersonStockmeyerPolynomialVector, pb circuits.PowerBasis) (res *rlwe.Ciphertext, err error) {
+	coeffGetter := circuits.CoefficientGetter[uint64](&CoefficientGetter{Values: make([]uint64, pb.Value[1].Slots())})
+	return circuits.EvaluatePatersonStockmeyerPolynomialVector(eval, poly, coeffGetter, pb)
 }

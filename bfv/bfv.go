@@ -102,7 +102,10 @@ func (eval Evaluator) ShallowCopy() *Evaluator {
 // Mul multiplies op0 with op1 without relinearization and returns the result in opOut.
 // inputs:
 //   - op0: an *rlwe.Ciphertext
-//   - op1: an rlwe.Operand[ring.Poly], an uint64 or an []uint64 slice (of size at most N where N is the smallest integer satisfying T = 1 mod 2N)
+//   - op1:
+//   - rlwe.Operand[ring.Poly]
+//   - *big.Int, uint64, int64, int
+//   - []uint64 or []int64 (of size at most N where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
 //   - opOut: an *rlwe.Ciphertext
 //
 // The procedure will return an error if either op0 or op1 are have a degree higher than 1.
@@ -122,7 +125,10 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 // MulNew multiplies op0 with op1 without relinearization and returns the result in a new opOut.
 // inputs:
 //   - op0: an *rlwe.Ciphertext
-//   - op1: an rlwe.Operand[ring.Poly], an uint64 or an []uint64 slice (of size at most N where N is the smallest integer satisfying T = 1 mod 2N)
+//   - op1:
+//   - rlwe.Operand[ring.Poly]
+//   - *big.Int, uint64, int64, int
+//   - []uint64 or []int64 (of size at most N where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
 //   - opOut: an *rlwe.Ciphertext
 //
 // The procedure will return an error if either op0.Degree or op1.Degree > 1.
@@ -140,7 +146,10 @@ func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe
 // MulRelinNew multiplies op0 with op1 with relinearization and returns the result in a new opOut.
 // inputs:
 //   - op0: an *rlwe.Ciphertext
-//   - op1: an rlwe.Operand[ring.Poly], an uint64 or an []uint64 slice (of size at most N where N is the smallest integer satisfying T = 1 mod 2N)
+//   - op1:
+//   - rlwe.Operand[ring.Poly]
+//   - *big.Int, uint64, int64, int
+//   - []uint64 or []int64 (of size at most N where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
 //   - opOut: an *rlwe.Ciphertext
 //
 // The procedure will return an error if either op0.Degree or op1.Degree > 1.
@@ -152,7 +161,10 @@ func (eval Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut 
 // MulRelin multiplies op0 with op1 with relinearization and returns the result in opOut.
 // inputs:
 //   - op0: an *rlwe.Ciphertext
-//   - op1: an rlwe.Operand[ring.Poly], an uint64 or an []uint64 slice (of size at most N where N is the smallest integer satisfying T = 1 mod 2N)
+//   - op1:
+//   - rlwe.Operand[ring.Poly]
+//   - *big.Int, uint64, int64, int
+//   - []uint64 or []int64 (of size at most N where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
 //   - opOut: an *rlwe.Ciphertext
 //
 // The procedure will return an error if either op0.Degree or op1.Degree > 1.

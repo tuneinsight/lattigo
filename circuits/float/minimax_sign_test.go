@@ -66,7 +66,10 @@ func TestMinimaxCompositePolynomial(t *testing.T) {
 			galKeys = append(galKeys, kgen.GenGaloisKeyNew(params.GaloisElementForComplexConjugation(), sk))
 		}
 
-		PWFEval := NewMinimaxCompositePolynomialEvaluator(params, tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(kgen.GenRelinearizationKeyNew(sk), galKeys...)), btp)
+		eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(kgen.GenRelinearizationKeyNew(sk), galKeys...))
+		polyEval := NewPolynomialEvaluator(params, eval)
+
+		PWFEval := NewMinimaxCompositePolynomialEvaluator(params, eval, polyEval, btp)
 
 		threshold := bignum.NewFloat(math.Exp2(-30), params.EncodingPrecision())
 

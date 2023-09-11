@@ -11,19 +11,18 @@ import (
 
 type EvaluatorForMod1 interface {
 	circuits.Evaluator
-	circuits.EvaluatorForPolynomial
 	DropLevel(*rlwe.Ciphertext, int)
 	GetParameters() *ckks.Parameters
 }
 
 type Mod1Evaluator struct {
 	EvaluatorForMod1
-	PolynomialEvaluator PolynomialEvaluator
+	PolynomialEvaluator *PolynomialEvaluator
 	Mod1Parameters      Mod1Parameters
 }
 
-func NewMod1Evaluator(eval EvaluatorForMod1, Mod1Parameters Mod1Parameters) *Mod1Evaluator {
-	return &Mod1Evaluator{EvaluatorForMod1: eval, PolynomialEvaluator: *NewPolynomialEvaluator(*eval.GetParameters(), eval), Mod1Parameters: Mod1Parameters}
+func NewMod1Evaluator(eval EvaluatorForMod1, evalPoly *PolynomialEvaluator, Mod1Parameters Mod1Parameters) *Mod1Evaluator {
+	return &Mod1Evaluator{EvaluatorForMod1: eval, PolynomialEvaluator: evalPoly, Mod1Parameters: Mod1Parameters}
 }
 
 // EvaluateNew applies a homomorphic mod Q on a vector scaled by Delta, scaled down to mod 1 :

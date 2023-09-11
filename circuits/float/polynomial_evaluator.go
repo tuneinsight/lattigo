@@ -11,8 +11,8 @@ import (
 
 // PolynomialEvaluator is a wrapper of the circuits.PolynomialEvaluator.
 type PolynomialEvaluator struct {
-	circuits.PolynomialEvaluator
 	Parameters ckks.Parameters
+	circuits.EvaluatorForPolynomial
 }
 
 // NewPowerBasis is a wrapper of NewPolynomialBasis.
@@ -24,9 +24,21 @@ func NewPowerBasis(ct *rlwe.Ciphertext, basis bignum.Basis) circuits.PowerBasis 
 }
 
 // NewPolynomialEvaluator instantiates a new PolynomialEvaluator.
-func NewPolynomialEvaluator(params ckks.Parameters, eval circuits.EvaluatorForPolynomial) *PolynomialEvaluator {
+// eval can be a circuit.Evaluator, in which case it will use the default circuit.[...] polynomial
+// evaluation function, or it can be an interface implementing circuits.EvaluatorForPolynomial, in
+// which case it will use this interface to evaluate the polynomial.
+func NewPolynomialEvaluator(params ckks.Parameters, eval interface{}) *PolynomialEvaluator {
 	e := new(PolynomialEvaluator)
-	e.PolynomialEvaluator = circuits.PolynomialEvaluator{EvaluatorForPolynomial: eval, EvaluatorBuffers: eval.GetEvaluatorBuffer()}
+
+	switch eval := eval.(type) {
+	case *ckks.Evaluator:
+		e.EvaluatorForPolynomial = &defaultCircuitEvaluatorForPolynomial{Evaluator: eval}
+	case circuits.EvaluatorForPolynomial:
+		e.EvaluatorForPolynomial = eval
+	default:
+		panic(fmt.Sprintf("invalid eval type: must be circuits.Evaluator or circuits.EvaluatorForPolynomial but is %T", eval))
+	}
+
 	e.Parameters = params
 	return e
 }
@@ -53,9 +65,7 @@ func (eval PolynomialEvaluator) Evaluate(ct *rlwe.Ciphertext, p interface{}, tar
 
 	levelsConsummedPerRescaling := eval.Parameters.LevelsConsummedPerRescaling()
 
-	coeffGetter := circuits.CoefficientGetter[*bignum.Complex](&CoefficientGetter{Values: make([]*bignum.Complex, ct.Slots())})
-
-	return circuits.EvaluatePolynomial(eval.PolynomialEvaluator, ct, pcircuits, coeffGetter, targetScale, levelsConsummedPerRescaling, &simEvaluator{eval.Parameters, levelsConsummedPerRescaling})
+	return circuits.EvaluatePolynomial(eval, ct, pcircuits, targetScale, levelsConsummedPerRescaling, &simEvaluator{eval.Parameters, levelsConsummedPerRescaling})
 }
 
 // EvaluateFromPowerBasis evaluates a polynomial using the provided PowerBasis, holding pre-computed powers of X.
@@ -79,16 +89,14 @@ func (eval PolynomialEvaluator) EvaluateFromPowerBasis(pb circuits.PowerBasis, p
 		return nil, fmt.Errorf("cannot EvaluateFromPowerBasis: X^{1} is nil")
 	}
 
-	coeffGetter := circuits.CoefficientGetter[*bignum.Complex](&CoefficientGetter{Values: make([]*bignum.Complex, pb.Value[1].Slots())})
-
-	return circuits.EvaluatePolynomial(eval.PolynomialEvaluator, pb, pcircuits, coeffGetter, targetScale, levelsConsummedPerRescaling, &simEvaluator{eval.Parameters, levelsConsummedPerRescaling})
+	return circuits.EvaluatePolynomial(eval, pb, pcircuits, targetScale, levelsConsummedPerRescaling, &simEvaluator{eval.Parameters, levelsConsummedPerRescaling})
 }
 
 type CoefficientGetter struct {
 	Values []*bignum.Complex
 }
 
-func (c *CoefficientGetter) GetVectorCoefficient(pol []circuits.Polynomial, k int, mapping map[int][]int) (values []*bignum.Complex) {
+func (c *CoefficientGetter) GetVectorCoefficient(pol circuits.PolynomialVector, k int) (values []*bignum.Complex) {
 
 	values = c.Values
 
@@ -96,7 +104,9 @@ func (c *CoefficientGetter) GetVectorCoefficient(pol []circuits.Polynomial, k in
 		values[j] = nil
 	}
 
-	for i, p := range pol {
+	mapping := pol.Mapping
+
+	for i, p := range pol.Value {
 		for _, j := range mapping[i] {
 			values[j] = p.Coeffs[k]
 		}
@@ -107,4 +117,13 @@ func (c *CoefficientGetter) GetVectorCoefficient(pol []circuits.Polynomial, k in
 
 func (c *CoefficientGetter) GetSingleCoefficient(pol circuits.Polynomial, k int) (value *bignum.Complex) {
 	return pol.Coeffs[k]
+}
+
+type defaultCircuitEvaluatorForPolynomial struct {
+	circuits.Evaluator
+}
+
+func (eval defaultCircuitEvaluatorForPolynomial) EvaluatePatersonStockmeyerPolynomialVector(poly circuits.PatersonStockmeyerPolynomialVector, pb circuits.PowerBasis) (res *rlwe.Ciphertext, err error) {
+	coeffGetter := circuits.CoefficientGetter[*bignum.Complex](&CoefficientGetter{Values: make([]*bignum.Complex, pb.Value[1].Slots())})
+	return circuits.EvaluatePatersonStockmeyerPolynomialVector(eval, poly, coeffGetter, pb)
 }

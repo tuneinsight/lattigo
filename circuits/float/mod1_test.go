@@ -150,7 +150,7 @@ func evaluateMod1(evm Mod1ParametersLiteral, params ckks.Parameters, ecd *ckks.E
 	require.NoError(t, eval.Rescale(ciphertext, ciphertext))
 
 	// EvalMod
-	ciphertext, err = NewMod1Evaluator(eval, mod1Parameters).EvaluateNew(ciphertext)
+	ciphertext, err = NewMod1Evaluator(eval, NewPolynomialEvaluator(params, eval), mod1Parameters).EvaluateNew(ciphertext)
 	require.NoError(t, err)
 
 	// PlaintextCircuit

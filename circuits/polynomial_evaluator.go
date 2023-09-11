@@ -11,24 +11,24 @@ import (
 
 // EvaluatorForPolynomial defines a set of common and scheme agnostic method that are necessary to instantiate a PolynomialVectorEvaluator.
 type EvaluatorForPolynomial interface {
-	rlwe.ParameterProvider
 	Evaluator
-	GetEvaluatorBuffer() *rlwe.EvaluatorBuffers // TODO extract
+	EvaluatePatersonStockmeyerPolynomialVector(poly PatersonStockmeyerPolynomialVector, pb PowerBasis) (res *rlwe.Ciphertext, err error)
 }
 
-// PolynomialEvaluator is an evaluator used to evaluate polynomials on ciphertexts.
-type PolynomialEvaluator struct {
-	EvaluatorForPolynomial
-	*rlwe.EvaluatorBuffers
-}
-
+// CoefficientGetter defines an interface to get the coefficients of a Polynomial.
 type CoefficientGetter[T any] interface {
-	GetVectorCoefficient(pol []Polynomial, k int, mapping map[int][]int) (values []T)
+
+	// GetVectorCoefficient should return a slice []T containing the k-th coefficient
+	// of each polynomial of PolynomialVector indexed by its Mapping.
+	// See PolynomialVector for additional information about the Mapping.
+	GetVectorCoefficient(pol PolynomialVector, k int) (values []T)
+
+	// GetSingleCoefficient should return the k-th coefficient of Polynomial as the type T.
 	GetSingleCoefficient(pol Polynomial, k int) (value T)
 }
 
 // EvaluatePolynomial is a generic and scheme agnostic method to evaluate polynomials on rlwe.Ciphertexts.
-func EvaluatePolynomial[T any](eval PolynomialEvaluator, input interface{}, p interface{}, cg CoefficientGetter[T], targetScale rlwe.Scale, levelsConsummedPerRescaling int, SimEval SimEvaluator) (opOut *rlwe.Ciphertext, err error) {
+func EvaluatePolynomial(eval EvaluatorForPolynomial, input interface{}, p interface{}, targetScale rlwe.Scale, levelsConsummedPerRescaling int, SimEval SimEvaluator) (opOut *rlwe.Ciphertext, err error) {
 
 	var polyVec PolynomialVector
 	switch p := p.(type) {
@@ -84,7 +84,7 @@ func EvaluatePolynomial[T any](eval PolynomialEvaluator, input interface{}, p in
 
 	PS := polyVec.GetPatersonStockmeyerPolynomial(*eval.GetRLWEParameters(), powerbasis.Value[1].Level(), powerbasis.Value[1].Scale, targetScale, SimEval)
 
-	if opOut, err = EvaluatePatersonStockmeyerPolynomialVector(eval, PS, cg, powerbasis); err != nil {
+	if opOut, err = eval.EvaluatePatersonStockmeyerPolynomialVector(PS, powerbasis); err != nil {
 		return nil, err
 	}
 
@@ -97,7 +97,7 @@ type ctPoly struct {
 }
 
 // EvaluatePatersonStockmeyerPolynomialVector evaluates a pre-decomposed PatersonStockmeyerPolynomialVector on a pre-computed power basis [1, X^{1}, X^{2}, ..., X^{2^{n}}, X^{2^{n+1}}, ..., X^{2^{m}}]
-func EvaluatePatersonStockmeyerPolynomialVector[T any](eval PolynomialEvaluator, poly PatersonStockmeyerPolynomialVector, cg CoefficientGetter[T], pb PowerBasis) (res *rlwe.Ciphertext, err error) {
+func EvaluatePatersonStockmeyerPolynomialVector[T any](eval Evaluator, poly PatersonStockmeyerPolynomialVector, cg CoefficientGetter[T], pb PowerBasis) (res *rlwe.Ciphertext, err error) {
 
 	split := len(poly.Value[0].Value)
 
@@ -150,7 +150,7 @@ func EvaluatePatersonStockmeyerPolynomialVector[T any](eval PolynomialEvaluator,
 
 				deg := 1 << bits.Len64(uint64(tmp[i].Degree))
 
-				if err = eval.EvaluateMonomial(even.Value, odd.Value, pb.Value[deg]); err != nil {
+				if err = EvaluateMonomial(even.Value, odd.Value, pb.Value[deg], eval); err != nil {
 					return nil, err
 				}
 
@@ -187,7 +187,7 @@ func EvaluatePatersonStockmeyerPolynomialVector[T any](eval PolynomialEvaluator,
 }
 
 // EvaluateMonomial evaluates a monomial of the form a + b * X^{pow} and writes the results in b.
-func (eval PolynomialEvaluator) EvaluateMonomial(a, b, xpow *rlwe.Ciphertext) (err error) {
+func EvaluateMonomial(a, b, xpow *rlwe.Ciphertext, eval Evaluator) (err error) {
 
 	if b.Degree() == 2 {
 		if err = eval.Relinearize(b, b); err != nil {
@@ -215,7 +215,7 @@ func (eval PolynomialEvaluator) EvaluateMonomial(a, b, xpow *rlwe.Ciphertext) (e
 }
 
 // EvaluatePolynomialVectorFromPowerBasis a method that complies to the interface circuits.PolynomialVectorEvaluator. This method evaluates P(ct) = sum c_i * ct^{i}.
-func EvaluatePolynomialVectorFromPowerBasis[T any](eval PolynomialEvaluator, targetLevel int, pol PolynomialVector, cg CoefficientGetter[T], pb PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
+func EvaluatePolynomialVectorFromPowerBasis[T any](eval Evaluator, targetLevel int, pol PolynomialVector, cg CoefficientGetter[T], pb PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
 
 	// Map[int] of the powers [X^{0}, X^{1}, X^{2}, ...]
 	X := pb.Value
@@ -254,7 +254,7 @@ func EvaluatePolynomialVectorFromPowerBasis[T any](eval PolynomialEvaluator, tar
 
 			if even {
 
-				if err = eval.Add(res, cg.GetVectorCoefficient(pol.Value, 0, mapping), res); err != nil {
+				if err = eval.Add(res, cg.GetVectorCoefficient(pol, 0), res); err != nil {
 					return nil, err
 				}
 			}
@@ -268,7 +268,7 @@ func EvaluatePolynomialVectorFromPowerBasis[T any](eval PolynomialEvaluator, tar
 		res.Scale = targetScale
 
 		if even {
-			if err = eval.Add(res, cg.GetVectorCoefficient(pol.Value, 0, mapping), res); err != nil {
+			if err = eval.Add(res, cg.GetVectorCoefficient(pol, 0), res); err != nil {
 				return nil, err
 			}
 		}
@@ -276,7 +276,7 @@ func EvaluatePolynomialVectorFromPowerBasis[T any](eval PolynomialEvaluator, tar
 		// Loops starting from the highest degree coefficient
 		for key := pol.Value[0].Degree(); key > 0; key-- {
 			if !(even || odd) || (key&1 == 0 && even) || (key&1 == 1 && odd) {
-				if err = eval.MulThenAdd(X[key], cg.GetVectorCoefficient(pol.Value, key, mapping), res); err != nil {
+				if err = eval.MulThenAdd(X[key], cg.GetVectorCoefficient(pol, key), res); err != nil {
 					return
 				}
 			}

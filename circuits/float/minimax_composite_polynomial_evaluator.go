@@ -12,7 +12,6 @@ import (
 
 // EvaluatorForMinimaxCompositePolynomial defines a set of common and scheme agnostic method that are necessary to instantiate a MinimaxCompositePolynomialEvaluator.
 type EvaluatorForMinimaxCompositePolynomial interface {
-	circuits.EvaluatorForPolynomial
 	circuits.Evaluator
 	ConjugateNew(ct *rlwe.Ciphertext) (ctConj *rlwe.Ciphertext, err error)
 }
@@ -27,8 +26,8 @@ type MinimaxCompositePolynomialEvaluator struct {
 
 // NewMinimaxCompositePolynomialEvaluator instantiates a new MinimaxCompositePolynomialEvaluator from an EvaluatorForMinimaxCompositePolynomial.
 // This method is allocation free.
-func NewMinimaxCompositePolynomialEvaluator(params ckks.Parameters, eval EvaluatorForMinimaxCompositePolynomial, bootstrapper rlwe.Bootstrapper) *MinimaxCompositePolynomialEvaluator {
-	return &MinimaxCompositePolynomialEvaluator{eval, NewPolynomialEvaluator(params, eval), bootstrapper, params}
+func NewMinimaxCompositePolynomialEvaluator(params ckks.Parameters, eval EvaluatorForMinimaxCompositePolynomial, polyEval *PolynomialEvaluator, bootstrapper rlwe.Bootstrapper) *MinimaxCompositePolynomialEvaluator {
+	return &MinimaxCompositePolynomialEvaluator{eval, polyEval, bootstrapper, params}
 }
 
 func (eval MinimaxCompositePolynomialEvaluator) Evaluate(ct *rlwe.Ciphertext, mcp MinimaxCompositePolynomial) (res *rlwe.Ciphertext, err error) {

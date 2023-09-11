@@ -148,6 +148,8 @@ func recursePS(params rlwe.ParameterProvider, logSplit, targetLevel int, p Polyn
 
 // PolynomialVector is a struct storing a set of polynomials and a mapping that
 // indicates on which slot each polynomial has to be independently evaluated.
+// For example, if we are given two polynomials P0(X) and P1(X) and the folling mapping: map[int][]int{0:[0, 1, 2], 1:[3, 4, 5]},
+// then the polynomial evaluation on a vector [a, b, c, d, e, f, g, h] will evaluate to [P0(a), P0(b), P0(c), P1(d), P1(e), P1(f), 0, 0]
 type PolynomialVector struct {
 	Value   []Polynomial
 	Mapping map[int][]int

@@ -76,7 +76,7 @@ func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKeys *Eval
 
 	btp.DFTEvaluator = float.NewDFTEvaluator(params, btp.Evaluator)
 
-	btp.Mod1Evaluator = float.NewMod1Evaluator(btp.Evaluator, btp.bootstrapperBase.mod1Parameters)
+	btp.Mod1Evaluator = float.NewMod1Evaluator(btp.Evaluator, float.NewPolynomialEvaluator(params, btp.Evaluator), btp.bootstrapperBase.mod1Parameters)
 
 	return
 }

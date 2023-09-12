@@ -1,4 +1,4 @@
-package float
+package float_test
 
 import (
 	"math/big"
@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/tuneinsight/lattigo/v4/circuits/float"
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -24,7 +25,7 @@ func TestHomomorphicDFT(t *testing.T) {
 
 	testDFTMatrixLiteralMarshalling(t)
 
-	for _, paramsLiteral := range testParametersLiteralFloat {
+	for _, paramsLiteral := range float.TestParametersLiteral {
 
 		var params ckks.Parameters
 		if params, err = ckks.NewParametersFromLiteral(paramsLiteral); err != nil {
@@ -45,9 +46,9 @@ func TestHomomorphicDFT(t *testing.T) {
 
 func testDFTMatrixLiteralMarshalling(t *testing.T) {
 	t.Run("Marshalling", func(t *testing.T) {
-		m := DFTMatrixLiteral{
+		m := float.DFTMatrixLiteral{
 			LogSlots:        15,
-			Type:            HomomorphicDecode,
+			Type:            float.HomomorphicDecode,
 			LevelStart:      12,
 			LogBSGSRatio:    2,
 			Levels:          []int{1, 1, 1},
@@ -58,7 +59,7 @@ func testDFTMatrixLiteralMarshalling(t *testing.T) {
 		data, err := m.MarshalBinary()
 		require.Nil(t, err)
 
-		mNew := new(DFTMatrixLiteral)
+		mNew := new(float.DFTMatrixLiteral)
 		if err := mNew.UnmarshalBinary(data); err != nil {
 			require.Nil(t, err)
 		}
@@ -116,9 +117,9 @@ func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T)
 			Levels[i] = 1
 		}
 
-		CoeffsToSlotsParametersLiteral := DFTMatrixLiteral{
+		CoeffsToSlotsParametersLiteral := float.DFTMatrixLiteral{
 			LogSlots:        LogSlots,
-			Type:            HomomorphicEncode,
+			Type:            float.HomomorphicEncode,
 			RepackImag2Real: true,
 			LevelStart:      params.MaxLevel(),
 			Levels:          Levels,
@@ -131,7 +132,7 @@ func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T)
 		decryptor := ckks.NewDecryptor(params, sk)
 
 		// Generates the encoding matrices
-		CoeffsToSlotMatrices, err := NewDFTMatrixFromLiteral(params, CoeffsToSlotsParametersLiteral, encoder)
+		CoeffsToSlotMatrices, err := float.NewDFTMatrixFromLiteral(params, CoeffsToSlotsParametersLiteral, encoder)
 		require.NoError(t, err)
 
 		// Gets Galois elements
@@ -143,7 +144,7 @@ func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T)
 
 		// Creates an evaluator with the rotation keys
 		eval := ckks.NewEvaluator(params, evk)
-		hdftEval := NewDFTEvaluator(params, eval)
+		hdftEval := float.NewDFTEvaluator(params, eval)
 
 		prec := params.EncodingPrecision()
 
@@ -320,9 +321,9 @@ func testHomomorphicDecoding(params ckks.Parameters, LogSlots int, t *testing.T)
 			Levels[i] = 1
 		}
 
-		SlotsToCoeffsParametersLiteral := DFTMatrixLiteral{
+		SlotsToCoeffsParametersLiteral := float.DFTMatrixLiteral{
 			LogSlots:        LogSlots,
-			Type:            HomomorphicDecode,
+			Type:            float.HomomorphicDecode,
 			RepackImag2Real: true,
 			LevelStart:      params.MaxLevel(),
 			Levels:          Levels,
@@ -335,7 +336,7 @@ func testHomomorphicDecoding(params ckks.Parameters, LogSlots int, t *testing.T)
 		decryptor := ckks.NewDecryptor(params, sk)
 
 		// Generates the encoding matrices
-		SlotsToCoeffsMatrix, err := NewDFTMatrixFromLiteral(params, SlotsToCoeffsParametersLiteral, encoder)
+		SlotsToCoeffsMatrix, err := float.NewDFTMatrixFromLiteral(params, SlotsToCoeffsParametersLiteral, encoder)
 		require.NoError(t, err)
 
 		// Gets the Galois elements
@@ -347,7 +348,7 @@ func testHomomorphicDecoding(params ckks.Parameters, LogSlots int, t *testing.T)
 
 		// Creates an evaluator with the rotation keys
 		eval := ckks.NewEvaluator(params, evk)
-		hdftEval := NewDFTEvaluator(params, eval)
+		hdftEval := float.NewDFTEvaluator(params, eval)
 
 		prec := params.EncodingPrecision()
 

@@ -1,4 +1,4 @@
-package float
+package float_test
 
 import (
 	"math"
@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tuneinsight/lattigo/v4/circuits/float"
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -46,9 +47,9 @@ func TestMod1(t *testing.T) {
 func testMod1Marhsalling(t *testing.T) {
 	t.Run("Marshalling", func(t *testing.T) {
 
-		evm := Mod1ParametersLiteral{
+		evm := float.Mod1ParametersLiteral{
 			LevelStart:      12,
-			SineType:        SinContinuous,
+			SineType:        float.SinContinuous,
 			LogMessageRatio: 8,
 			K:               14,
 			SineDegree:      127,
@@ -59,7 +60,7 @@ func testMod1Marhsalling(t *testing.T) {
 		data, err := evm.MarshalBinary()
 		assert.Nil(t, err)
 
-		evmNew := new(Mod1ParametersLiteral)
+		evmNew := new(float.Mod1ParametersLiteral)
 		if err := evmNew.UnmarshalBinary(data); err != nil {
 			assert.Nil(t, err)
 		}
@@ -78,9 +79,9 @@ func testMod1(params ckks.Parameters, t *testing.T) {
 
 	t.Run("SineContinuousWithArcSine", func(t *testing.T) {
 
-		evm := Mod1ParametersLiteral{
+		evm := float.Mod1ParametersLiteral{
 			LevelStart:      12,
-			SineType:        SinContinuous,
+			SineType:        float.SinContinuous,
 			LogMessageRatio: 8,
 			K:               14,
 			SineDegree:      127,
@@ -95,9 +96,9 @@ func testMod1(params ckks.Parameters, t *testing.T) {
 
 	t.Run("CosDiscrete", func(t *testing.T) {
 
-		evm := Mod1ParametersLiteral{
+		evm := float.Mod1ParametersLiteral{
 			LevelStart:      12,
-			SineType:        CosDiscrete,
+			SineType:        float.CosDiscrete,
 			LogMessageRatio: 8,
 			K:               12,
 			SineDegree:      30,
@@ -112,9 +113,9 @@ func testMod1(params ckks.Parameters, t *testing.T) {
 
 	t.Run("CosContinuous", func(t *testing.T) {
 
-		evm := Mod1ParametersLiteral{
+		evm := float.Mod1ParametersLiteral{
 			LevelStart:      12,
-			SineType:        CosContinuous,
+			SineType:        float.CosContinuous,
 			LogMessageRatio: 4,
 			K:               325,
 			SineDegree:      177,
@@ -128,9 +129,9 @@ func testMod1(params ckks.Parameters, t *testing.T) {
 	})
 }
 
-func evaluateMod1(evm Mod1ParametersLiteral, params ckks.Parameters, ecd *ckks.Encoder, enc *rlwe.Encryptor, eval *ckks.Evaluator, t *testing.T) ([]float64, *rlwe.Ciphertext) {
+func evaluateMod1(evm float.Mod1ParametersLiteral, params ckks.Parameters, ecd *ckks.Encoder, enc *rlwe.Encryptor, eval *ckks.Evaluator, t *testing.T) ([]float64, *rlwe.Ciphertext) {
 
-	mod1Parameters, err := NewMod1ParametersFromLiteral(params, evm)
+	mod1Parameters, err := float.NewMod1ParametersFromLiteral(params, evm)
 	require.NoError(t, err)
 
 	values, _, ciphertext := newTestVectorsMod1(params, enc, ecd, mod1Parameters, t)
@@ -150,7 +151,7 @@ func evaluateMod1(evm Mod1ParametersLiteral, params ckks.Parameters, ecd *ckks.E
 	require.NoError(t, eval.Rescale(ciphertext, ciphertext))
 
 	// EvalMod
-	ciphertext, err = NewMod1Evaluator(eval, NewPolynomialEvaluator(params, eval), mod1Parameters).EvaluateNew(ciphertext)
+	ciphertext, err = float.NewMod1Evaluator(eval, float.NewPolynomialEvaluator(params, eval), mod1Parameters).EvaluateNew(ciphertext)
 	require.NoError(t, err)
 
 	// PlaintextCircuit
@@ -175,7 +176,7 @@ func evaluateMod1(evm Mod1ParametersLiteral, params ckks.Parameters, ecd *ckks.E
 	return values, ciphertext
 }
 
-func newTestVectorsMod1(params ckks.Parameters, encryptor *rlwe.Encryptor, encoder *ckks.Encoder, evm Mod1Parameters, t *testing.T) (values []float64, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
+func newTestVectorsMod1(params ckks.Parameters, encryptor *rlwe.Encryptor, encoder *ckks.Encoder, evm float.Mod1Parameters, t *testing.T) (values []float64, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
 
 	logSlots := params.LogMaxDimensions().Cols
 

@@ -1,21 +1,22 @@
-package float
+package float_test
 
 import (
 	"math"
 	"math/big"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+	"github.com/tuneinsight/lattigo/v4/circuits/float"
+	"github.com/tuneinsight/lattigo/v4/circuits/float/bootstrapper"
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
-
-	"github.com/stretchr/testify/require"
 )
 
 func TestInverse(t *testing.T) {
 
-	paramsLiteral := testPrec90
+	paramsLiteral := float.TestPrec90
 
 	for _, ringType := range []ring.Type{ring.Standard, ring.ConjugateInvariant} {
 
@@ -39,9 +40,9 @@ func TestInverse(t *testing.T) {
 		dec := tc.decryptor
 		kgen := tc.kgen
 
-		btp := ckks.NewSecretKeyBootstrapper(params, sk)
+		btp := bootstrapper.NewSecretKeyBootstrapper(params, sk)
 
-		minimaxpolysign := NewMinimaxCompositePolynomial(CoeffsMinimaxCompositePolynomialSignAlpha30Err35Prec20x4Cheby)
+		minimaxpolysign := float.NewMinimaxCompositePolynomial(CoeffsMinimaxCompositePolynomialSignAlpha30Err35Prec20x4Cheby)
 
 		logmin := -30.0
 		logmax := 10.0
@@ -71,7 +72,7 @@ func TestInverse(t *testing.T) {
 				values[i][0].Quo(one, values[i][0])
 			}
 
-			invEval := NewInverseEvaluator(params, logmin, logmax, nil, evalInverse, nil, btp)
+			invEval := float.NewInverseEvaluator(params, logmin, logmax, nil, evalInverse, nil, btp)
 
 			var err error
 			if ciphertext, err = invEval.GoldschmidtDivisionNew(ciphertext, logmin); err != nil {
@@ -85,7 +86,7 @@ func TestInverse(t *testing.T) {
 
 			values, _, ct := newCKKSTestVectors(tc, enc, complex(0, 0), complex(max, 0), t)
 
-			invEval := NewInverseEvaluator(params, logmin, logmax, nil, evalInverse, nil, btp)
+			invEval := float.NewInverseEvaluator(params, logmin, logmax, nil, evalInverse, nil, btp)
 
 			cInv, err := invEval.EvaluatePositiveDomainNew(ct)
 			require.NoError(t, err)
@@ -112,7 +113,7 @@ func TestInverse(t *testing.T) {
 
 			values, _, ct := newCKKSTestVectors(tc, enc, complex(-max, 0), complex(0, 0), t)
 
-			invEval := NewInverseEvaluator(params, logmin, logmax, nil, evalInverse, nil, btp)
+			invEval := float.NewInverseEvaluator(params, logmin, logmax, nil, evalInverse, nil, btp)
 
 			cInv, err := invEval.EvaluateNegativeDomainNew(ct)
 			require.NoError(t, err)
@@ -139,7 +140,7 @@ func TestInverse(t *testing.T) {
 
 			values, _, ct := newCKKSTestVectors(tc, enc, complex(-max, 0), complex(max, 0), t)
 
-			invEval := NewInverseEvaluator(params, logmin, logmax, minimaxpolysign, evalInverse, evalMinimaxPoly, btp)
+			invEval := float.NewInverseEvaluator(params, logmin, logmax, minimaxpolysign, evalInverse, evalMinimaxPoly, btp)
 
 			cInv, err := invEval.EvaluateFullDomainNew(ct)
 			require.NoError(t, err)

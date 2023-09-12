@@ -103,7 +103,7 @@ func (eval Evaluator) ShallowCopy() *Evaluator {
 // inputs:
 //   - op0: an *rlwe.Ciphertext
 //   - op1:
-//   - rlwe.Operand[ring.Poly]
+//   - rlwe.ElementInterface[ring.Poly]
 //   - *big.Int, uint64, int64, int
 //   - []uint64 or []int64 (of size at most N where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
 //   - opOut: an *rlwe.Ciphertext
@@ -112,12 +112,12 @@ func (eval Evaluator) ShallowCopy() *Evaluator {
 // The procedure will return an error if opOut.Degree != op0.Degree + op1.Degree.
 func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
 	switch op1 := op1.(type) {
-	case rlwe.Operand[ring.Poly], []uint64:
+	case rlwe.ElementInterface[ring.Poly], []uint64:
 		return eval.Evaluator.MulScaleInvariant(op0, op1, opOut)
 	case uint64, int64, int:
 		return eval.Evaluator.Mul(op0, op1, op0)
 	default:
-		return fmt.Errorf("invalid op1.(Type), expected rlwe.Operand[ring.Poly], []uint64 or uint64, int64, int, but got %T", op1)
+		return fmt.Errorf("invalid op1.(Type), expected rlwe.ElementInterface[ring.Poly], []uint64 or uint64, int64, int, but got %T", op1)
 	}
 
 }
@@ -126,7 +126,7 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 // inputs:
 //   - op0: an *rlwe.Ciphertext
 //   - op1:
-//   - rlwe.Operand[ring.Poly]
+//   - rlwe.ElementInterface[ring.Poly]
 //   - *big.Int, uint64, int64, int
 //   - []uint64 or []int64 (of size at most N where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
 //   - opOut: an *rlwe.Ciphertext
@@ -134,12 +134,12 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 // The procedure will return an error if either op0.Degree or op1.Degree > 1.
 func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
 	switch op1 := op1.(type) {
-	case rlwe.Operand[ring.Poly], []uint64:
+	case rlwe.ElementInterface[ring.Poly], []uint64:
 		return eval.Evaluator.MulScaleInvariantNew(op0, op1)
 	case uint64, int64, int:
 		return eval.Evaluator.MulNew(op0, op1)
 	default:
-		return nil, fmt.Errorf("invalid op1.(Type), expected rlwe.Operand[ring.Poly], []uint64 or  uint64, int64, int, but got %T", op1)
+		return nil, fmt.Errorf("invalid op1.(Type), expected rlwe.ElementInterface[ring.Poly], []uint64 or  uint64, int64, int, but got %T", op1)
 	}
 }
 
@@ -147,7 +147,7 @@ func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe
 // inputs:
 //   - op0: an *rlwe.Ciphertext
 //   - op1:
-//   - rlwe.Operand[ring.Poly]
+//   - rlwe.ElementInterface[ring.Poly]
 //   - *big.Int, uint64, int64, int
 //   - []uint64 or []int64 (of size at most N where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
 //   - opOut: an *rlwe.Ciphertext
@@ -162,7 +162,7 @@ func (eval Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut 
 // inputs:
 //   - op0: an *rlwe.Ciphertext
 //   - op1:
-//   - rlwe.Operand[ring.Poly]
+//   - rlwe.ElementInterface[ring.Poly]
 //   - *big.Int, uint64, int64, int
 //   - []uint64 or []int64 (of size at most N where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
 //   - opOut: an *rlwe.Ciphertext

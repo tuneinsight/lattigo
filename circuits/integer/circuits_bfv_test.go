@@ -366,7 +366,7 @@ func newBFVTestVectorsLvl(level int, scale rlwe.Scale, tc *testContext, encrypto
 	return coeffs, plaintext, ciphertext
 }
 
-func verifyBFVTestVectors(tc *testContext, decryptor *rlwe.Decryptor, coeffs ring.Poly, element rlwe.Operand[ring.Poly], t *testing.T) {
+func verifyBFVTestVectors(tc *testContext, decryptor *rlwe.Decryptor, coeffs ring.Poly, element rlwe.ElementInterface[ring.Poly], t *testing.T) {
 
 	coeffsTest := make([]uint64, tc.params.MaxSlots())
 

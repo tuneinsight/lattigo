@@ -62,6 +62,9 @@ func NewInverseEvaluator(params ckks.Parameters, log2min, log2max float64, signM
 //  2. Compute |c * x| = sign(x * c) * (x * c), this is required for the next step, which can only accept positive values.
 //  3. Compute y' = 1/(|c * x|) with the iterative Goldschmidt division algorithm.
 //  4. Compute y = y' * c * sign(x * c)
+//
+// Note that the precision of sign(x * c) does not impact the circuit precision since this value ends up being both at
+// the numerator and denominator, thus cancelling itself.
 func (eval InverseEvaluator) EvaluateFullDomainNew(ct *rlwe.Ciphertext) (cInv *rlwe.Ciphertext, err error) {
 	return eval.evaluateNew(ct, true)
 }

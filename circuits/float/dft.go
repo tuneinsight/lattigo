@@ -230,7 +230,7 @@ func (eval *DFTEvaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices DFTMa
 		if ctImag != nil {
 			tmp = ctImag
 		} else {
-			tmp, err = rlwe.NewCiphertextAtLevelFromPoly(ctReal.Level(), eval.BuffCt.Value[:2])
+			tmp, err = rlwe.NewCiphertextAtLevelFromPoly(ctReal.Level(), eval.GetBuffCt().Value[:2])
 
 			if err != nil {
 				panic(err)

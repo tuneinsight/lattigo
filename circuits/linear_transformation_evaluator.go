@@ -12,66 +12,29 @@ import (
 // EvaluatorForLinearTransformation defines a set of common and scheme agnostic method necessary to instantiate an LinearTransformationEvaluator.
 type EvaluatorForLinearTransformation interface {
 	rlwe.ParameterProvider
-	Rescale(ctIn, ctOut *rlwe.Ciphertext) (err error)
-
-	// TODO: separated int
-	DecomposeNTT(levelQ, levelP, nbPi int, c2 ring.Poly, c2IsNTT bool, decompQP []ringqp.Poly)
+	Rescale(op1, op2 *rlwe.Ciphertext) (err error)
+	GetBuffQP() [6]ringqp.Poly
+	GetBuffCt() *rlwe.Ciphertext
+	GetBuffDecompQP() []ringqp.Poly
+	DecomposeNTT(level, levelP, pCount int, c1 ring.Poly, isNTT bool, BuffDecompQP []ringqp.Poly)
 	CheckAndGetGaloisKey(galEl uint64) (evk *rlwe.GaloisKey, err error)
 	GadgetProductLazy(levelQ int, cx ring.Poly, gadgetCt *rlwe.GadgetCiphertext, ct *rlwe.Element[ringqp.Poly])
 	GadgetProductHoistedLazy(levelQ int, BuffQPDecompQP []ringqp.Poly, gadgetCt *rlwe.GadgetCiphertext, ct *rlwe.Element[ringqp.Poly])
 	AutomorphismHoistedLazy(levelQ int, ctIn *rlwe.Ciphertext, c1DecompQP []ringqp.Poly, galEl uint64, ctQP *rlwe.Element[ringqp.Poly]) (err error)
 	ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q ring.Poly)
 	AutomorphismIndex(uint64) []uint64
-
-	GetEvaluatorBuffer() *rlwe.EvaluatorBuffers // TODO extract
 }
 
-// LinearTransformationEvaluator is an evaluator used to evaluate linear transformations on ciphertexts.
-type LinearTransformationEvaluator struct {
-	EvaluatorForLinearTransformation
-	*rlwe.EvaluatorBuffers
+type EvaluatorForDiagonalMatrix interface {
+	MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error)
+	MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error)
 }
 
-// NewLinearTransformationEvaluator instantiates a new LinearTransformationEvaluator from an EvaluatorForLinearTransformation.
-// The method is allocation free if the underlying EvaluatorForLinearTransformation returns a non-nil *rlwe.EvaluatorBuffers.
-func NewLinearTransformationEvaluator(eval EvaluatorForLinearTransformation) (linTransEval *LinearTransformationEvaluator) {
-	linTransEval = new(LinearTransformationEvaluator)
-	linTransEval.EvaluatorForLinearTransformation = eval
-	linTransEval.EvaluatorBuffers = eval.GetEvaluatorBuffer()
-	if linTransEval.EvaluatorBuffers == nil {
-		linTransEval.EvaluatorBuffers = rlwe.NewEvaluatorBuffers(*eval.GetRLWEParameters())
-	}
-	return
-}
-
-// EvaluateNew takes as input a ciphertext ctIn and a linear transformation M and evaluate and returns opOut: M(ctIn).
-func (eval LinearTransformationEvaluator) EvaluateNew(ctIn *rlwe.Ciphertext, linearTransformation LinearTransformation) (opOut *rlwe.Ciphertext, err error) {
-	cts, err := eval.EvaluateManyNew(ctIn, []LinearTransformation{linearTransformation})
-	return cts[0], err
-}
-
-// Evaluate takes as input a ciphertext ctIn, a linear transformation M and evaluates opOut: M(ctIn).
-func (eval LinearTransformationEvaluator) Evaluate(ctIn *rlwe.Ciphertext, linearTransformation LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
-	return eval.EvaluateMany(ctIn, []LinearTransformation{linearTransformation}, []*rlwe.Ciphertext{opOut})
-}
-
-// EvaluateManyNew takes as input a ciphertext ctIn and a list of linear transformations [M0, M1, M2, ...] and returns opOut:[M0(ctIn), M1(ctIn), M2(ctInt), ...].
-func (eval LinearTransformationEvaluator) EvaluateManyNew(ctIn *rlwe.Ciphertext, linearTransformations []LinearTransformation) (opOut []*rlwe.Ciphertext, err error) {
-
-	params := eval.GetRLWEParameters()
-	opOut = make([]*rlwe.Ciphertext, len(linearTransformations))
-	for i := range opOut {
-		opOut[i] = rlwe.NewCiphertext(params, 1, linearTransformations[i].Level)
-	}
-
-	return opOut, eval.EvaluateMany(ctIn, linearTransformations, opOut)
-}
-
-// EvaluateMany takes as input a ciphertext ctIn, a list of linear transformations [M0, M1, M2, ...] and a list of pre-allocated receiver opOut
+// EvaluateLinearTransformationsMany takes as input a ciphertext ctIn, a list of linear transformations [M0, M1, M2, ...] and a list of pre-allocated receiver opOut
 // and evaluates opOut: [M0(ctIn), M1(ctIn), M2(ctIn), ...]
-func (eval LinearTransformationEvaluator) EvaluateMany(ctIn *rlwe.Ciphertext, linearTransformations []LinearTransformation, opOut []*rlwe.Ciphertext) (err error) {
+func EvaluateLinearTransformationsMany(evalLT EvaluatorForLinearTransformation, evalDiag EvaluatorForDiagonalMatrix, ctIn *rlwe.Ciphertext, linearTransformations []LinearTransformation, opOut []*rlwe.Ciphertext) (err error) {
 
-	params := eval.GetRLWEParameters()
+	params := evalLT.GetRLWEParameters()
 
 	if len(opOut) < len(linearTransformations) {
 		return fmt.Errorf("output *rlwe.Ciphertext slice is too small")
@@ -88,14 +51,16 @@ func (eval LinearTransformationEvaluator) EvaluateMany(ctIn *rlwe.Ciphertext, li
 	}
 	level = utils.Min(level, ctIn.Level())
 
-	eval.DecomposeNTT(level, params.MaxLevelP(), params.PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
+	BuffDecompQP := evalLT.GetBuffDecompQP()
+
+	evalLT.DecomposeNTT(level, params.MaxLevelP(), params.PCount(), ctIn.Value[1], ctIn.IsNTT, BuffDecompQP)
 	for i, lt := range linearTransformations {
 		if lt.N1 == 0 {
-			if err = eval.MultiplyByDiagMatrix(ctIn, lt, eval.BuffDecompQP, opOut[i]); err != nil {
+			if err = evalDiag.MultiplyByDiagMatrix(ctIn, lt, BuffDecompQP, opOut[i]); err != nil {
 				return
 			}
 		} else {
-			if err = eval.MultiplyByDiagMatrixBSGS(ctIn, lt, eval.BuffDecompQP, opOut[i]); err != nil {
+			if err = evalDiag.MultiplyByDiagMatrixBSGS(ctIn, lt, BuffDecompQP, opOut[i]); err != nil {
 				return
 			}
 		}
@@ -103,30 +68,24 @@ func (eval LinearTransformationEvaluator) EvaluateMany(ctIn *rlwe.Ciphertext, li
 	return
 }
 
-// EvaluateSequentialNew takes as input a ciphertext ctIn and a list of linear transformations [M0, M1, M2, ...] and evaluates and returns opOut:...M2(M1(M0(ctIn))
-func (eval LinearTransformationEvaluator) EvaluateSequentialNew(ctIn *rlwe.Ciphertext, linearTransformations []LinearTransformation) (opOut *rlwe.Ciphertext, err error) {
-	params := eval.GetRLWEParameters()
-	opOut = rlwe.NewCiphertext(params, 1, linearTransformations[0].Level)
-	return opOut, eval.EvaluateSequential(ctIn, linearTransformations, opOut)
-}
+// EvaluateLinearTranformationSequential takes as input a ciphertext ctIn and a list of linear transformations [M0, M1, M2, ...] and evaluates opOut:...M2(M1(M0(ctIn))
+func EvaluateLinearTranformationSequential(evalLT EvaluatorForLinearTransformation, evalDiag EvaluatorForDiagonalMatrix, ctIn *rlwe.Ciphertext, linearTransformations []LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
 
-// EvaluateSequential takes as input a ciphertext ctIn and a list of linear transformations [M0, M1, M2, ...] and evaluates opOut:...M2(M1(M0(ctIn))
-func (eval LinearTransformationEvaluator) EvaluateSequential(ctIn *rlwe.Ciphertext, linearTransformations []LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
-
-	if err = eval.Evaluate(ctIn, linearTransformations[0], opOut); err != nil {
+	if err = EvaluateLinearTransformationsMany(evalLT, evalDiag, ctIn, linearTransformations[:1], []*rlwe.Ciphertext{opOut}); err != nil {
 		return
 	}
 
-	if err = eval.Rescale(opOut, opOut); err != nil {
+	if err = evalLT.Rescale(opOut, opOut); err != nil {
 		return
 	}
 
 	for i := 1; i < len(linearTransformations); i++ {
-		if err = eval.Evaluate(opOut, linearTransformations[i], opOut); err != nil {
+
+		if err = EvaluateLinearTransformationsMany(evalLT, evalDiag, opOut, linearTransformations[i:i+1], []*rlwe.Ciphertext{opOut}); err != nil {
 			return
 		}
 
-		if err = eval.Rescale(opOut, opOut); err != nil {
+		if err = evalLT.Rescale(opOut, opOut); err != nil {
 			return
 		}
 	}
@@ -139,7 +98,10 @@ func (eval LinearTransformationEvaluator) EvaluateSequential(ctIn *rlwe.Cipherte
 // respectively, each of size params.Beta().
 // The naive approach is used (single hoisting and no baby-step giant-step), which is faster than MultiplyByDiagMatrixBSGS
 // for matrix of only a few non-zero diagonals but uses more keys.
-func (eval LinearTransformationEvaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error) {
+func MultiplyByDiagMatrix(eval EvaluatorForLinearTransformation, ctIn *rlwe.Ciphertext, matrix LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error) {
+
+	BuffQP := eval.GetBuffQP()
+	BuffCt := eval.GetBuffCt()
 
 	*opOut.MetaData = *ctIn.MetaData
 	opOut.Scale = opOut.Scale.Mul(matrix.Scale)
@@ -158,21 +120,21 @@ func (eval LinearTransformationEvaluator) MultiplyByDiagMatrix(ctIn *rlwe.Cipher
 	QiOverF := params.QiOverflowMargin(levelQ)
 	PiOverF := params.PiOverflowMargin(levelP)
 
-	c0OutQP := ringqp.Poly{Q: opOut.Value[0], P: eval.BuffQP[5].Q}
-	c1OutQP := ringqp.Poly{Q: opOut.Value[1], P: eval.BuffQP[5].P}
+	c0OutQP := ringqp.Poly{Q: opOut.Value[0], P: BuffQP[5].Q}
+	c1OutQP := ringqp.Poly{Q: opOut.Value[1], P: BuffQP[5].P}
 
-	ct0TimesP := eval.BuffQP[0].Q // ct0 * P mod Q
-	tmp0QP := eval.BuffQP[1]
-	tmp1QP := eval.BuffQP[2]
+	ct0TimesP := BuffQP[0].Q // ct0 * P mod Q
+	tmp0QP := BuffQP[1]
+	tmp1QP := BuffQP[2]
 
 	cQP := &rlwe.Element[ringqp.Poly]{}
-	cQP.Value = []ringqp.Poly{eval.BuffQP[3], eval.BuffQP[4]}
+	cQP.Value = []ringqp.Poly{BuffQP[3], BuffQP[4]}
 	cQP.MetaData = &rlwe.MetaData{}
 	cQP.MetaData.IsNTT = true
 
-	ring.Copy(ctIn.Value[0], eval.BuffCt.Value[0])
-	ring.Copy(ctIn.Value[1], eval.BuffCt.Value[1])
-	ctInTmp0, ctInTmp1 := eval.BuffCt.Value[0], eval.BuffCt.Value[1]
+	ring.Copy(ctIn.Value[0], BuffCt.Value[0])
+	ring.Copy(ctIn.Value[1], BuffCt.Value[1])
+	ctInTmp0, ctInTmp1 := BuffCt.Value[0], BuffCt.Value[1]
 
 	ringQ.MulScalarBigint(ctInTmp0, ringP.ModulusAtLevel[levelP], ct0TimesP) // P*c0
 
@@ -254,9 +216,12 @@ func (eval LinearTransformationEvaluator) MultiplyByDiagMatrix(ctIn *rlwe.Cipher
 // respectively, each of size params.Beta().
 // The BSGS approach is used (double hoisting with baby-step giant-step), which is faster than MultiplyByDiagMatrix
 // for matrix with more than a few non-zero diagonals and uses significantly less keys.
-func (eval LinearTransformationEvaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error) {
+func MultiplyByDiagMatrixBSGS(eval EvaluatorForLinearTransformation, ctIn *rlwe.Ciphertext, matrix LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error) {
 
 	params := eval.GetRLWEParameters()
+
+	BuffQP := eval.GetBuffQP()
+	BuffCt := eval.GetBuffCt()
 
 	*opOut.MetaData = *ctIn.MetaData
 	opOut.Scale = opOut.Scale.Mul(matrix.Scale)
@@ -276,10 +241,10 @@ func (eval LinearTransformationEvaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ci
 	// Computes the N2 rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giant-step algorithm
 	index, _, rotN2 := BSGSIndex(utils.GetKeys(matrix.Vec), 1<<matrix.LogDimensions.Cols, matrix.N1)
 
-	ring.Copy(ctIn.Value[0], eval.BuffCt.Value[0])
-	ring.Copy(ctIn.Value[1], eval.BuffCt.Value[1])
+	ring.Copy(ctIn.Value[0], BuffCt.Value[0])
+	ring.Copy(ctIn.Value[1], BuffCt.Value[1])
 
-	ctInTmp0, ctInTmp1 := eval.BuffCt.Value[0], eval.BuffCt.Value[1]
+	ctInTmp0, ctInTmp1 := BuffCt.Value[0], BuffCt.Value[1]
 
 	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
 	ctInRotQP := map[int]*rlwe.Element[ringqp.Poly]{}
@@ -293,18 +258,18 @@ func (eval LinearTransformationEvaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ci
 	}
 
 	// Accumulator inner loop
-	tmp0QP := eval.BuffQP[1]
-	tmp1QP := eval.BuffQP[2]
+	tmp0QP := BuffQP[1]
+	tmp1QP := BuffQP[2]
 
 	// Accumulator outer loop
 	cQP := &rlwe.Element[ringqp.Poly]{}
-	cQP.Value = []ringqp.Poly{eval.BuffQP[3], eval.BuffQP[4]}
+	cQP.Value = []ringqp.Poly{BuffQP[3], BuffQP[4]}
 	cQP.MetaData = &rlwe.MetaData{}
 	cQP.IsNTT = true
 
 	// Result in QP
-	c0OutQP := ringqp.Poly{Q: opOut.Value[0], P: eval.BuffQP[5].Q}
-	c1OutQP := ringqp.Poly{Q: opOut.Value[1], P: eval.BuffQP[5].P}
+	c0OutQP := ringqp.Poly{Q: opOut.Value[0], P: BuffQP[5].Q}
+	c1OutQP := ringqp.Poly{Q: opOut.Value[1], P: BuffQP[5].P}
 
 	ringQ.MulScalarBigint(ctInTmp0, ringP.ModulusAtLevel[levelP], ctInTmp0) // P*c0
 	ringQ.MulScalarBigint(ctInTmp1, ringP.ModulusAtLevel[levelP], ctInTmp1) // P*c1

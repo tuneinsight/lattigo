@@ -275,14 +275,26 @@ func (eval Evaluator) WithKey(evk EvaluationKeySet) *Evaluator {
 	}
 }
 
-func (eval *Evaluator) AutomorphismIndex(galEl uint64) []uint64 {
+func (eval Evaluator) AutomorphismIndex(galEl uint64) []uint64 {
 	return eval.automorphismIndex[galEl]
 }
 
-func (eval *Evaluator) GetEvaluatorBuffer() *EvaluatorBuffers {
+func (eval Evaluator) GetEvaluatorBuffer() *EvaluatorBuffers {
 	return eval.EvaluatorBuffers
 }
 
-func (eval *Evaluator) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q ring.Poly) {
+func (eval Evaluator) GetBuffQP() [6]ringqp.Poly {
+	return eval.BuffQP
+}
+
+func (eval Evaluator) GetBuffCt() *Ciphertext {
+	return eval.BuffCt
+}
+
+func (eval Evaluator) GetBuffDecompQP() []ringqp.Poly {
+	return eval.BuffDecompQP
+}
+
+func (eval Evaluator) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q ring.Poly) {
 	eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, p1Q, p1P, p2Q)
 }

@@ -26,13 +26,6 @@ type LinearTransformationParameters circuits.LinearTransformationParameters
 
 type LinearTransformation circuits.LinearTransformation
 
-// NewLinearTransformationEvaluator instantiates a new LinearTransformationEvaluator from an EvaluatorForLinearTransformation.
-// The method is allocation free if the underlying EvaluatorForLinearTransformation returns a non-nil
-// *rlwe.EvaluatorBuffers.
-func NewLinearTransformationEvaluator(eval circuits.EvaluatorForLinearTransformation) (linTransEval *LinearTransformationEvaluator) {
-	return &LinearTransformationEvaluator{*circuits.NewLinearTransformationEvaluator(eval)}
-}
-
 func NewLinearTransformation(params rlwe.ParameterProvider, lt LinearTransformationParameters) LinearTransformation {
 	return LinearTransformation(circuits.NewLinearTransformation(params, circuits.LinearTransformationParameters(lt)))
 }
@@ -50,27 +43,53 @@ func GaloisElementsForLinearTransformation(params rlwe.ParameterProvider, lt Lin
 	return circuits.GaloisElementsForLinearTransformation(params, lt.DiagonalsIndexList, 1<<lt.LogDimensions.Cols, lt.LogBabyStepGianStepRatio)
 }
 
+// LinearTransformationEvaluator is a struct for evaluating linear transformations on rlwe.Ciphertexts.
 type LinearTransformationEvaluator struct {
-	circuits.LinearTransformationEvaluator
+	circuits.EvaluatorForLinearTransformation
+	circuits.EvaluatorForDiagonalMatrix
+}
+
+// NewLinearTransformationEvaluator instantiates a new LinearTransformationEvaluator from a circuit.EvaluatorForLinearTransformation.
+// The default *bgv.Evaluator is compliant to the circuit.EvaluatorForLinearTransformation interface.
+func NewLinearTransformationEvaluator(eval circuits.EvaluatorForLinearTransformation) (linTransEval *LinearTransformationEvaluator) {
+	return &LinearTransformationEvaluator{
+		EvaluatorForLinearTransformation: eval,
+		EvaluatorForDiagonalMatrix:       &defaultDiagonalMatrixEvaluator{eval},
+	}
+}
+
+// NewCustomLinearTransformationEvaluator instantiates a new LinearTransformationEvaluator from a
+// circuits.EvaluatorForLinearTransformation and circuits.EvaluatorForDiagonalMatrix.
+// This constructor is primarily indented for custom implementations.
+func NewCustomLinearTransformationEvaluator(evalLT circuits.EvaluatorForLinearTransformation, evalMat circuits.EvaluatorForDiagonalMatrix) (linTransEval *LinearTransformationEvaluator) {
+	return &LinearTransformationEvaluator{
+		EvaluatorForLinearTransformation: evalLT,
+		EvaluatorForDiagonalMatrix:       evalMat,
+	}
 }
 
 // EvaluateNew takes as input a ciphertext ctIn and a linear transformation M and evaluate and returns opOut: M(ctIn).
 func (eval LinearTransformationEvaluator) EvaluateNew(ctIn *rlwe.Ciphertext, linearTransformation LinearTransformation) (opOut *rlwe.Ciphertext, err error) {
-	return eval.LinearTransformationEvaluator.EvaluateNew(ctIn, circuits.LinearTransformation(linearTransformation))
+	ops, err := eval.EvaluateManyNew(ctIn, []LinearTransformation{linearTransformation})
+	if err != nil {
+		return nil, err
+	}
+	return ops[0], nil
 }
 
 // Evaluate takes as input a ciphertext ctIn, a linear transformation M and evaluates opOut: M(ctIn).
 func (eval LinearTransformationEvaluator) Evaluate(ctIn *rlwe.Ciphertext, linearTransformation LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
-	return eval.LinearTransformationEvaluator.Evaluate(ctIn, circuits.LinearTransformation(linearTransformation), opOut)
+	return circuits.EvaluateLinearTransformationsMany(eval.EvaluatorForLinearTransformation, eval.EvaluatorForDiagonalMatrix, ctIn, []circuits.LinearTransformation{circuits.LinearTransformation(linearTransformation)}, []*rlwe.Ciphertext{opOut})
 }
 
 // EvaluateManyNew takes as input a ciphertext ctIn and a list of linear transformations [M0, M1, M2, ...] and returns opOut:[M0(ctIn), M1(ctIn), M2(ctInt), ...].
 func (eval LinearTransformationEvaluator) EvaluateManyNew(ctIn *rlwe.Ciphertext, linearTransformations []LinearTransformation) (opOut []*rlwe.Ciphertext, err error) {
-	circuitLTs := make([]circuits.LinearTransformation, len(linearTransformations))
-	for i := range circuitLTs {
-		circuitLTs[i] = circuits.LinearTransformation(linearTransformations[i])
+	params := eval.GetRLWEParameters()
+	opOut = make([]*rlwe.Ciphertext, len(linearTransformations))
+	for i := range opOut {
+		opOut[i] = rlwe.NewCiphertext(params, 1, linearTransformations[i].Level)
 	}
-	return eval.LinearTransformationEvaluator.EvaluateManyNew(ctIn, circuitLTs)
+	return opOut, eval.EvaluateMany(ctIn, linearTransformations, opOut)
 }
 
 // EvaluateMany takes as input a ciphertext ctIn, a list of linear transformations [M0, M1, M2, ...] and a list of pre-allocated receiver opOut
@@ -80,16 +99,13 @@ func (eval LinearTransformationEvaluator) EvaluateMany(ctIn *rlwe.Ciphertext, li
 	for i := range circuitLTs {
 		circuitLTs[i] = circuits.LinearTransformation(linearTransformations[i])
 	}
-	return eval.LinearTransformationEvaluator.EvaluateMany(ctIn, circuitLTs, opOut)
+	return circuits.EvaluateLinearTransformationsMany(eval.EvaluatorForLinearTransformation, eval.EvaluatorForDiagonalMatrix, ctIn, circuitLTs, opOut)
 }
 
 // EvaluateSequentialNew takes as input a ciphertext ctIn and a list of linear transformations [M0, M1, M2, ...] and returns opOut:...M2(M1(M0(ctIn))
 func (eval LinearTransformationEvaluator) EvaluateSequentialNew(ctIn *rlwe.Ciphertext, linearTransformations []LinearTransformation) (opOut *rlwe.Ciphertext, err error) {
-	circuitLTs := make([]circuits.LinearTransformation, len(linearTransformations))
-	for i := range circuitLTs {
-		circuitLTs[i] = circuits.LinearTransformation(linearTransformations[i])
-	}
-	return eval.LinearTransformationEvaluator.EvaluateSequentialNew(ctIn, circuitLTs)
+	opOut = rlwe.NewCiphertext(eval.GetRLWEParameters(), 1, linearTransformations[0].Level)
+	return opOut, eval.EvaluateSequential(ctIn, linearTransformations, opOut)
 }
 
 // EvaluateSequential takes as input a ciphertext ctIn and a list of linear transformations [M0, M1, M2, ...] and returns opOut:...M2(M1(M0(ctIn))
@@ -98,23 +114,17 @@ func (eval LinearTransformationEvaluator) EvaluateSequential(ctIn *rlwe.Cipherte
 	for i := range circuitLTs {
 		circuitLTs[i] = circuits.LinearTransformation(linearTransformations[i])
 	}
-	return eval.LinearTransformationEvaluator.EvaluateSequential(ctIn, circuitLTs, opOut)
+	return circuits.EvaluateLinearTranformationSequential(eval.EvaluatorForLinearTransformation, eval.EvaluatorForDiagonalMatrix, ctIn, circuitLTs, opOut)
 }
 
-// MultiplyByDiagMatrix multiplies the Ciphertext "ctIn" by the plaintext matrix "matrix" and returns the result on the Ciphertext
-// "opOut". Memory buffers for the decomposed ciphertext BuffDecompQP, BuffDecompQP must be provided, those are list of poly of ringQ and ringP
-// respectively, each of size params.Beta().
-// The naive approach is used (single hoisting and no baby-step giant-step), which is faster than MultiplyByDiagMatrixBSGS
-// for matrix of only a few non-zero diagonals but uses more keys.
-func (eval LinearTransformationEvaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error) {
-	return eval.LinearTransformationEvaluator.MultiplyByDiagMatrix(ctIn, circuits.LinearTransformation(matrix), BuffDecompQP, opOut)
+type defaultDiagonalMatrixEvaluator struct {
+	circuits.EvaluatorForLinearTransformation
 }
 
-// MultiplyByDiagMatrixBSGS multiplies the Ciphertext "ctIn" by the plaintext matrix "matrix" and returns the result on the Ciphertext
-// "opOut". Memory buffers for the decomposed Ciphertext BuffDecompQP, BuffDecompQP must be provided, those are list of poly of ringQ and ringP
-// respectively, each of size params.Beta().
-// The BSGS approach is used (double hoisting with baby-step giant-step), which is faster than MultiplyByDiagMatrix
-// for matrix with more than a few non-zero diagonals and uses significantly less keys.
-func (eval LinearTransformationEvaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error) {
-	return eval.LinearTransformationEvaluator.MultiplyByDiagMatrixBSGS(ctIn, circuits.LinearTransformation(matrix), BuffDecompQP, opOut)
+func (eval defaultDiagonalMatrixEvaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix circuits.LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error) {
+	return circuits.MultiplyByDiagMatrix(eval.EvaluatorForLinearTransformation, ctIn, matrix, BuffDecompQP, opOut)
+}
+
+func (eval defaultDiagonalMatrixEvaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix circuits.LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error) {
+	return circuits.MultiplyByDiagMatrixBSGS(eval.EvaluatorForLinearTransformation, ctIn, matrix, BuffDecompQP, opOut)
 }

@@ -23,31 +23,42 @@ func NewPowerBasis(ct *rlwe.Ciphertext) circuits.PowerBasis {
 	return circuits.NewPowerBasis(ct, bignum.Monomial)
 }
 
-// NewPolynomialEvaluator instantiates a new PolynomialEvaluator.
-// eval can be a circuit.Evaluator, in which case it will use the default circuit.[...] polynomial
-// evaluation function, or it can be an interface implementing circuits.EvaluatorForPolynomial, in
-// which case it will use this interface to evaluate the polynomial.
+// NewPolynomialEvaluator instantiates a new PolynomialEvaluator from a circuit.Evaluator.
+// The default *bgv.Evaluator is compliant to the circuit.Evaluator interface.
 // InvariantTensoring is a boolean that specifies if the evaluator performes the invariant tensoring (BFV-style) or
 // the regular tensoring (BGB-style).
-func NewPolynomialEvaluator(params bgv.Parameters, eval interface{}, InvariantTensoring bool) *PolynomialEvaluator {
-	e := new(PolynomialEvaluator)
+func NewPolynomialEvaluator(params bgv.Parameters, eval circuits.Evaluator, InvariantTensoring bool) *PolynomialEvaluator {
+
+	var evalForPoly circuits.EvaluatorForPolynomial
 
 	switch eval := eval.(type) {
 	case *bgv.Evaluator:
 		if InvariantTensoring {
-			e.EvaluatorForPolynomial = &defaultCircuitEvaluatorForPolynomial{Evaluator: &scaleInvariantEvaluator{eval}}
+			evalForPoly = &defaultCircuitEvaluatorForPolynomial{Evaluator: &scaleInvariantEvaluator{eval}}
 		} else {
-			e.EvaluatorForPolynomial = &defaultCircuitEvaluatorForPolynomial{Evaluator: eval}
+			evalForPoly = &defaultCircuitEvaluatorForPolynomial{Evaluator: eval}
 		}
-	case circuits.EvaluatorForPolynomial:
-		e.EvaluatorForPolynomial = eval
 	default:
-		panic(fmt.Sprintf("invalid eval type: must be circuits.Evaluator or circuits.EvaluatorForPolynomial but is %T", eval))
+		evalForPoly = &defaultCircuitEvaluatorForPolynomial{Evaluator: eval}
 	}
 
-	e.InvariantTensoring = InvariantTensoring
-	e.Parameters = params
-	return e
+	return &PolynomialEvaluator{
+		Parameters:             params,
+		EvaluatorForPolynomial: evalForPoly,
+		InvariantTensoring:     InvariantTensoring,
+	}
+}
+
+// NewCustomPolynomialEvaluator instantiates a new PolynomialEvaluator from a circuit.EvaluatorForPolynomial.
+// This constructor is primarily indented for custom implementations.
+// InvariantTensoring is a boolean that specifies if the evaluator performes the invariant tensoring (BFV-style) or
+// the regular tensoring (BGB-style).
+func NewCustomPolynomialEvaluator(params bgv.Parameters, eval circuits.EvaluatorForPolynomial, InvariantTensoring bool) *PolynomialEvaluator {
+	return &PolynomialEvaluator{
+		Parameters:             params,
+		EvaluatorForPolynomial: eval,
+		InvariantTensoring:     InvariantTensoring,
+	}
 }
 
 // Evaluate evaluates a polynomial on the input Ciphertext in ceil(log2(deg+1)) levels.

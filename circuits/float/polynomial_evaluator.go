@@ -23,24 +23,22 @@ func NewPowerBasis(ct *rlwe.Ciphertext, basis bignum.Basis) circuits.PowerBasis 
 	return circuits.NewPowerBasis(ct, basis)
 }
 
-// NewPolynomialEvaluator instantiates a new PolynomialEvaluator.
-// eval can be a circuit.Evaluator, in which case it will use the default circuit.[...] polynomial
-// evaluation function, or it can be an interface implementing circuits.EvaluatorForPolynomial, in
-// which case it will use this interface to evaluate the polynomial.
-func NewPolynomialEvaluator(params ckks.Parameters, eval interface{}) *PolynomialEvaluator {
-	e := new(PolynomialEvaluator)
-
-	switch eval := eval.(type) {
-	case *ckks.Evaluator:
-		e.EvaluatorForPolynomial = &defaultCircuitEvaluatorForPolynomial{Evaluator: eval}
-	case circuits.EvaluatorForPolynomial:
-		e.EvaluatorForPolynomial = eval
-	default:
-		panic(fmt.Sprintf("invalid eval type: must be circuits.Evaluator or circuits.EvaluatorForPolynomial but is %T", eval))
+// NewPolynomialEvaluator instantiates a new PolynomialEvaluator from a circuit.Evaluator.
+// The default *ckks.Evaluator is compliant to the circuit.Evaluator interface.
+func NewPolynomialEvaluator(params ckks.Parameters, eval circuits.Evaluator) *PolynomialEvaluator {
+	return &PolynomialEvaluator{
+		Parameters:             params,
+		EvaluatorForPolynomial: &defaultCircuitEvaluatorForPolynomial{Evaluator: eval},
 	}
+}
 
-	e.Parameters = params
-	return e
+// NewCustomPolynomialEvaluator instantiates a new PolynomialEvaluator from a circuit.EvaluatorForPolynomial.
+// This constructor is primarily indented for custom implementations.
+func NewCustomPolynomialEvaluator(params ckks.Parameters, eval circuits.EvaluatorForPolynomial) *PolynomialEvaluator {
+	return &PolynomialEvaluator{
+		Parameters:             params,
+		EvaluatorForPolynomial: eval,
+	}
 }
 
 // Evaluate evaluates a polynomial on the input Ciphertext in ceil(log2(deg+1)) levels.

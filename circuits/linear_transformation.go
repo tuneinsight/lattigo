@@ -20,7 +20,7 @@ import (
 // where n is the number of plaintext slots.
 //
 // The diagonal representation of a linear transformations is defined by first expressing
-// the linear transformation through its nxn matrix and then reading the matrix diagonally.
+// the linear transformation through its nxn matrix and then traversing the matrix diagonally.
 //
 // For example, the following nxn for n=4 matrix:
 //
@@ -30,10 +30,11 @@ import (
 // | 3 0 1 2 |
 // | 2 3 0 1 |
 //
-// its diagonal representation is comprised of 3 non-zero diagonals at indexes [0, 1, 2]:
+// its diagonal traversal representation is comprised of 3 non-zero diagonals at indexes [0, 1, 2]:
 // 0: [1, 1, 1, 1]
 // 1: [2, 2, 2, 2]
 // 2: [3, 3, 3, 3]
+// 3: [0, 0, 0, 0] -> this diagonal is omitted as it is composed only of zero values.
 //
 // Note that negative indexes can be used and will be interpreted modulo the matrix dimension.
 //

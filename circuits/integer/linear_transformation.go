@@ -16,20 +16,30 @@ func (e intEncoder[T, U]) Encode(values []T, metadata *rlwe.MetaData, output U) 
 	return e.Embed(values, false, metadata, output)
 }
 
+// Diagonals is a wrapper of circuits.Diagonals.
+// See circuits.Diagonals for the documentation.
 type Diagonals[T Integer] circuits.Diagonals[T]
 
 func (m Diagonals[T]) DiagonalsIndexList() (indexes []int) {
 	return circuits.Diagonals[T](m).DiagonalsIndexList()
 }
 
+// LinearTransformationParameters is a wrapper of circuits.LinearTransformationParameters.
+// See circuits.LinearTransformationParameters for the documentation.
 type LinearTransformationParameters circuits.LinearTransformationParameters
 
+// LinearTransformation is a wrapper of circuits.LinearTransformation.
+// See circuits.LinearTransformation for the documentation.
 type LinearTransformation circuits.LinearTransformation
 
+// NewLinearTransformation instantiates a new LinearTransformation and is a wrapper of circuits.LinearTransformation.
+// See circuits.LinearTransformation for the documentation.
 func NewLinearTransformation(params rlwe.ParameterProvider, lt LinearTransformationParameters) LinearTransformation {
 	return LinearTransformation(circuits.NewLinearTransformation(params, circuits.LinearTransformationParameters(lt)))
 }
 
+// EncodeLinearTransformation is a method used to encode EncodeLinearTransformation and a wrapper of circuits.EncodeLinearTransformation.
+// See circuits.EncodeLinearTransformation for the documentation.
 func EncodeLinearTransformation[T Integer](params LinearTransformationParameters, ecd *bgv.Encoder, diagonals Diagonals[T], allocated LinearTransformation) (err error) {
 	return circuits.EncodeLinearTransformation[T](
 		circuits.LinearTransformationParameters(params),

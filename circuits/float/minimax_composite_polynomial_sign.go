@@ -28,14 +28,14 @@ var CoeffsSignX2Cheby = []string{"0", "1.125", "0", "-0.125"}
 var CoeffsSignX4Cheby = []string{"0", "1.1962890625", "0", "-0.2392578125", "0", "0.0478515625", "0", "-0.0048828125"}
 
 // GenMinimaxCompositePolynomialForSign generates the minimax composite polynomial
-// P(x) = pk(x) o pk-1(x) o ... o p1(x) o p0(x) of the sign function
-// in ther interval [min-e, -2^{-alpha}] U [2^{-alpha}, max+e] where alpha is
-// the desired distinguishing precision between two values and e an upperbound on
-// the scheme error.
+// P(x) = pk(x) o pk-1(x) o ... o p1(x) o p0(x) of the sign function in ther interval
+// [min-err, -2^{-alpha}] U [2^{-alpha}, max+err] where alpha is the desired distinguishing
+// precision between two values and err an upperbound on the scheme error.
 //
 // The sign function is defined as: -1 if -1 <= x < 0, 0 if x = 0, 1 if 0 < x <= 1.
 //
-// See GenMinimaxCompositePolynomial for additional informations.
+// See GenMinimaxCompositePolynomial for informations about how to instantiate and
+// parameterize each input value of the algorithm.
 func GenMinimaxCompositePolynomialForSign(prec uint, logalpha, logerr int, deg []int) {
 
 	coeffs := GenMinimaxCompositePolynomial(prec, logalpha, logerr, deg, bignum.Sign)
@@ -52,13 +52,14 @@ func GenMinimaxCompositePolynomialForSign(prec uint, logalpha, logerr int, deg [
 
 // GenMinimaxCompositePolynomialForStep generates the minimax composite polynomial
 // P(x) = pk(x) o pk-1(x) o ... o p1(x) o p0(x) of the step function
-// in ther interval [min-e, -2^{-alpha}] U [2^{-alpha}, max+e] where alpha is
-// the desired distinguishing precision between two values and e an upperbound on
+// in ther interval [min-err, -2^{-alpha}] U [2^{-alpha}, max+err] where alpha is
+// the desired distinguishing precision between two values and err an upperbound on
 // the scheme error.
 //
 // The step function is defined as: 0 if -1 <= x < 0 else 1.
 //
-// See GenMinimaxCompositePolynomial for additional informations.
+// See GenMinimaxCompositePolynomial for informations about how to instantiate and
+// parameterize each input value of the algorithm.
 func GenMinimaxCompositePolynomialForStep(prec uint, logalpha, logerr int, deg []int) {
 
 	coeffs := GenMinimaxCompositePolynomial(prec, logalpha, logerr, deg, bignum.Sign)
@@ -86,21 +87,23 @@ func GenMinimaxCompositePolynomialForStep(prec uint, logalpha, logerr int, deg [
 
 // GenMinimaxCompositePolynomial generates the minimax composite polynomial
 // P(x) = pk(x) o pk-1(x) o ... o p1(x) o p0(x) for the provided function in the interval
-// in ther interval [min-e, -2^{-alpha}] U [2^{-alpha}, max+e] where alpha is
-// the desired distinguishing precision between two values and e an upperbound on
+// in ther interval [min-err, -2^{-alpha}] U [2^{-alpha}, max+err] where alpha is
+// the desired distinguishing precision between two values and err an upperbound on
 // the scheme error.
 //
 // The user must provide the following inputs:
-//   - prec: the bit precision of the big.Float values, this will impact the speed of the algorithm. A too low precision can
-//     prevent convergence or induce a slope zero during the zero finding. A sign that the precision is too low is when
-//     the iteration continue without the error getting smaller.
+//   - prec: the bit precision of the big.Float values used by the algorithm to compute the polynomials.
+//     This will impact the speed of the algorithm.
+//     A too low precision canprevent convergence or induce a slope zero during the zero finding.
+//     A sign that the precision is too low is when the iteration continue without the error getting smaller.
 //   - logalpha: log2(alpha)
-//   - logerr: log2(e), the upperbound on the scheme precision. Usually this value should be smaller or equal to logalpha.
+//   - logerr: log2(err), the upperbound on the scheme precision. Usually this value should be smaller or equal to logalpha.
 //     Correctly setting this value is mandatory for correctness, because if x is outside of the interval
 //     (i.e. smaller than -1-e or greater than 1+e), then the values will explode during the evaluation.
 //     Note that it is not required to apply change of interval [-1, 1] -> [-1-e, 1+e] because the function to evaluate
 //     is the sign (i.e. it will evaluate to the same value).
-//   - deg: the degree of each polynomial, orderd as follow [deg(p0(x)), deg(p1(x)), ..., deg(pk(x))]
+//   - deg: the degree of each polynomial, orderd as follow [deg(p0(x)), deg(p1(x)), ..., deg(pk(x))].
+//     It is highly recommanded that deg(p0) <= deg(p1) <= ... <= deg(pk) for optimal approximation.
 //
 // The polynomials are returned in the Chebyshev basis and pre-scaled for
 // the interval [-1, 1] (no further scaling is required on the ciphertext).

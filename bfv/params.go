@@ -2,7 +2,6 @@ package bfv
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/tuneinsight/lattigo/v4/bgv"
 	"github.com/tuneinsight/lattigo/v4/ring"
@@ -55,13 +54,8 @@ type Parameters struct {
 }
 
 // Equal compares two sets of parameters for equality.
-func (p Parameters) Equal(other rlwe.ParameterProvider) bool {
-	switch other := other.(type) {
-	case Parameters:
-		return p.Parameters.Equal(other.Parameters)
-	}
-
-	panic(fmt.Errorf("cannot Equal: type do not match: %T != %T", p, other))
+func (p Parameters) Equal(other *Parameters) bool {
+	return p.Parameters.Equal(&other.Parameters)
 }
 
 // UnmarshalBinary decodes a []byte into a parameter set struct.
@@ -77,6 +71,7 @@ func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 func (p *ParametersLiteral) UnmarshalJSON(b []byte) (err error) {
 	var pl struct {
 		LogN             int
+		LogNthRoot       int
 		Q                []uint64
 		P                []uint64
 		LogQ             []int
@@ -93,6 +88,7 @@ func (p *ParametersLiteral) UnmarshalJSON(b []byte) (err error) {
 	}
 
 	p.LogN = pl.LogN
+	p.LogNthRoot = pl.LogNthRoot
 	p.Q, p.P, p.LogQ, p.LogP = pl.Q, pl.P, pl.LogQ, pl.LogP
 	if pl.Xs != nil {
 		p.Xs, err = ring.ParametersFromMap(pl.Xs)

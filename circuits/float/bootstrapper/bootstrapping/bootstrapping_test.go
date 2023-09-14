@@ -58,7 +58,10 @@ func TestBootstrapParametersMarshalling(t *testing.T) {
 	t.Run("Parameters", func(t *testing.T) {
 		paramSet := DefaultParametersSparse[0]
 
-		_, btpParams, err := NewParametersFromLiteral(paramSet.SchemeParams, paramSet.BootstrappingParams)
+		params, err := ckks.NewParametersFromLiteral(paramSet.SchemeParams)
+		require.Nil(t, err)
+
+		btpParams, err := NewParametersFromLiteral(params, paramSet.BootstrappingParams)
 		require.Nil(t, err)
 
 		data, err := btpParams.MarshalBinary()
@@ -68,30 +71,7 @@ func TestBootstrapParametersMarshalling(t *testing.T) {
 			require.Nil(t, err)
 		}
 
-		require.Equal(t, btpParams, *btpParamsNew)
-	})
-
-	t.Run("PrimeGeneration", func(t *testing.T) {
-
-		paramSet := DefaultParametersSparse[0]
-
-		paramstmp, err := ckks.NewParametersFromLiteral(paramSet.SchemeParams)
-
-		require.NoError(t, err)
-
-		ckksParamsLitV1, btpParamsV1, err := NewParametersFromLiteral(paramSet.SchemeParams, paramSet.BootstrappingParams)
-		require.NoError(t, err)
-
-		paramSet.SchemeParams.LogQ = nil
-		paramSet.SchemeParams.LogP = nil
-		paramSet.SchemeParams.Q = paramstmp.Q()
-		paramSet.SchemeParams.P = paramstmp.P()
-
-		ckksParamsLitV2, btpParamsV2, err := NewParametersFromLiteral(paramSet.SchemeParams, paramSet.BootstrappingParams)
-		require.NoError(t, err)
-
-		require.Equal(t, ckksParamsLitV1, ckksParamsLitV2)
-		require.Equal(t, btpParamsV1, btpParamsV2)
+		require.True(t, btpParams.Equal(btpParamsNew))
 	})
 }
 
@@ -107,6 +87,8 @@ func TestBootstrap(t *testing.T) {
 		paramSet.SchemeParams.LogN -= 3
 	}
 
+	paramSet.BootstrappingParams.LogN = utils.Pointy(paramSet.SchemeParams.LogN)
+
 	for _, LogSlots := range []int{1, paramSet.SchemeParams.LogN - 2, paramSet.SchemeParams.LogN - 1} {
 		for _, encapsulation := range []bool{true, false} {
 
@@ -118,26 +100,24 @@ func TestBootstrap(t *testing.T) {
 
 			paramsSetCpy.BootstrappingParams.LogSlots = &LogSlots
 
-			ckksParamsLit, btpParams, err := NewParametersFromLiteral(paramsSetCpy.SchemeParams, paramsSetCpy.BootstrappingParams)
-
-			if err != nil {
-				t.Log(err)
-				continue
+			if !encapsulation {
+				H, err := paramsSetCpy.BootstrappingParams.GetEphemeralSecretWeight()
+				require.NoError(t, err)
+				paramsSetCpy.SchemeParams.Xs = ring.Ternary{H: H}
+				paramsSetCpy.BootstrappingParams.EphemeralSecretWeight = utils.Pointy(0)
 			}
+
+			params, err := ckks.NewParametersFromLiteral(paramsSetCpy.SchemeParams)
+			require.NoError(t, err)
+
+			btpParams, err := NewParametersFromLiteral(params, paramsSetCpy.BootstrappingParams)
+			require.NoError(t, err)
 
 			// Insecure params for fast testing only
 			if !*flagLongTest {
 				// Corrects the message ratio to take into account the smaller number of slots and keep the same precision
 				btpParams.Mod1ParametersLiteral.LogMessageRatio += utils.Min(utils.Max(15-LogSlots, 0), 8)
 			}
-
-			if !encapsulation {
-				ckksParamsLit.Xs = ring.Ternary{H: btpParams.EphemeralSecretWeight}
-				btpParams.EphemeralSecretWeight = 0
-			}
-
-			params, err := ckks.NewParametersFromLiteral(ckksParamsLit)
-			require.NoError(t, err)
 
 			testbootstrap(params, btpParams, level, t)
 			runtime.GC()
@@ -157,16 +137,16 @@ func testbootstrap(params ckks.Parameters, btpParams Parameters, level int, t *t
 
 	t.Run(ParamsToString(params, btpParams.LogMaxSlots(), "Bootstrapping/FullCircuit/"+btpType), func(t *testing.T) {
 
-		kgen := ckks.NewKeyGenerator(params)
+		kgen := ckks.NewKeyGenerator(btpParams.Parameters)
 		sk := kgen.GenSecretKeyNew()
 		encoder := ckks.NewEncoder(params)
 
 		encryptor := ckks.NewEncryptor(params, sk)
 		decryptor := ckks.NewDecryptor(params, sk)
 
-		evk := GenEvaluationKeySetNew(btpParams, params, sk)
+		evk := btpParams.GenEvaluationKeySetNew(sk)
 
-		btp, err := NewBootstrapper(params, btpParams, evk)
+		btp, err := NewBootstrapper(btpParams, evk)
 		require.NoError(t, err)
 
 		values := make([]complex128, 1<<btpParams.LogMaxSlots())
@@ -235,7 +215,12 @@ func testBootstrapHighPrecision(paramSet defaultParametersLiteral, t *testing.T)
 			ReservedPrimeBitSize:   28,
 		}
 
-		ckksParamsLit, btpParams, err := NewParametersFromLiteral(paramSet.SchemeParams, paramSet.BootstrappingParams)
+		params, err := ckks.NewParametersFromLiteral(paramSet.SchemeParams)
+		if err != nil {
+			panic(err)
+		}
+
+		btpParams, err := NewParametersFromLiteral(params, paramSet.BootstrappingParams)
 
 		if err != nil {
 			t.Fatal(err)
@@ -244,12 +229,7 @@ func testBootstrapHighPrecision(paramSet defaultParametersLiteral, t *testing.T)
 		// Insecure params for fast testing only
 		if !*flagLongTest {
 			// Corrects the message ratio to take into account the smaller number of slots and keep the same precision
-			btpParams.Mod1ParametersLiteral.LogMessageRatio += utils.Min(utils.Max(15-ckksParamsLit.LogN-1, 0), 8)
-		}
-
-		params, err := ckks.NewParametersFromLiteral(ckksParamsLit)
-		if err != nil {
-			panic(err)
+			btpParams.Mod1ParametersLiteral.LogMessageRatio += utils.Min(utils.Max(16-params.LogN(), 0), 8)
 		}
 
 		btpType := "Encapsulation/"
@@ -260,15 +240,15 @@ func testBootstrapHighPrecision(paramSet defaultParametersLiteral, t *testing.T)
 
 		t.Run(ParamsToString(params, btpParams.LogMaxSlots(), "Bootstrapping/FullCircuit/"+btpType), func(t *testing.T) {
 
-			kgen := ckks.NewKeyGenerator(params)
+			kgen := ckks.NewKeyGenerator(btpParams.Parameters)
 			sk := kgen.GenSecretKeyNew()
 			encoder := ckks.NewEncoder(params, 164)
 			encryptor := ckks.NewEncryptor(params, sk)
 			decryptor := ckks.NewDecryptor(params, sk)
 
-			evk := GenEvaluationKeySetNew(btpParams, params, sk)
+			evk := btpParams.GenEvaluationKeySetNew(sk)
 
-			bootstrapper, err := NewBootstrapper(params, btpParams, evk)
+			bootstrapper, err := NewBootstrapper(btpParams, evk)
 			require.NoError(t, err)
 
 			values := make([]complex128, 1<<btpParams.LogMaxSlots())

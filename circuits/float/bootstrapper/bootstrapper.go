@@ -28,9 +28,6 @@ type Bootstrapper struct {
 	xPow2InvN2 []ring.Poly
 
 	evk BootstrappingKeys
-
-	skN1 *rlwe.SecretKey
-	skN2 *rlwe.SecretKey
 }
 
 type BootstrappingKeys struct {
@@ -65,51 +62,71 @@ func (b BootstrappingKeys) BinarySize() (dLen int) {
 	return
 }
 
-func GenBootstrappingKeys(paramsN1, paramsN2 ckks.Parameters, btpParamsN2 bootstrapping.Parameters, skN1 *rlwe.SecretKey, skN2 *rlwe.SecretKey) (BootstrappingKeys, error) {
-
-	if paramsN1.Equal(paramsN2) != skN1.Equal(skN2) {
-		return BootstrappingKeys{}, fmt.Errorf("cannot GenBootstrappingKeys: if paramsN1 == paramsN2 then must ensure skN1 == skN2")
-	}
+func GenBootstrappingKeys(paramsN1 ckks.Parameters, btpParamsN2 bootstrapping.Parameters, skN1 *rlwe.SecretKey) (BootstrappingKeys, error) {
 
 	var EvkN1ToN2, EvkN2ToN1 *rlwe.EvaluationKey
 	var EvkRealToCmplx *rlwe.EvaluationKey
 	var EvkCmplxToReal *rlwe.EvaluationKey
-	if !paramsN1.Equal(paramsN2) {
+	paramsN2 := btpParamsN2.Parameters
 
-		// Checks that the maximum level of paramsN1 is equal to the remaining level after the bootstrapping of paramsN2
-		if paramsN2.MaxLevel()-btpParamsN2.SlotsToCoeffsParameters.Depth(true)-btpParamsN2.Mod1ParametersLiteral.Depth()-btpParamsN2.CoeffsToSlotsParameters.Depth(true) < paramsN1.MaxLevel() {
-			return BootstrappingKeys{}, fmt.Errorf("cannot GenBootstrappingKeys: bootstrapping depth is too large, level after bootstrapping is smaller than paramsN1.MaxLevel()")
+	// Checks that the maximum level of paramsN1 is equal to the remaining level after the bootstrapping of paramsN2
+	if paramsN2.MaxLevel()-btpParamsN2.SlotsToCoeffsParameters.Depth(true)-btpParamsN2.Mod1ParametersLiteral.Depth()-btpParamsN2.CoeffsToSlotsParameters.Depth(true) < paramsN1.MaxLevel() {
+		return BootstrappingKeys{}, fmt.Errorf("cannot GenBootstrappingKeys: bootstrapping depth is too large, level after bootstrapping is smaller than paramsN1.MaxLevel()")
+	}
+
+	// Checks that the overlapping primes between paramsN1 and paramsN2 are the same, i.e.
+	// pN1: q0, q1, q2, ..., qL
+	// pN2: q0, q1, q2, ..., qL, [bootstrapping primes]
+	QN1 := paramsN1.Q()
+	QN2 := paramsN2.Q()
+
+	for i := range QN1 {
+		if QN1[i] != QN2[i] {
+			return BootstrappingKeys{}, fmt.Errorf("cannot GenBootstrappingKeys: paramsN1.Q() is not a subset of paramsN2.Q()")
+		}
+	}
+
+	kgen := ckks.NewKeyGenerator(paramsN2)
+
+	// Ephemeral secret-key used to generate the evaluation keys.
+	skN2 := rlwe.NewSecretKey(paramsN2)
+	buff := paramsN2.RingQ().NewPoly()
+	ringQ := paramsN2.RingQ()
+	ringP := paramsN2.RingP()
+
+	switch paramsN1.RingType() {
+	// In this case we need need generate the bridge switching keys between the two rings
+	case ring.ConjugateInvariant:
+
+		if paramsN1.LogN() != paramsN2.LogN()-1 {
+			return BootstrappingKeys{}, fmt.Errorf("cannot GenBootstrappingKeys: if paramsN1.RingType() == ring.ConjugateInvariant then must ensure that paramsN1.LogN()+1 == paramsN2.LogN()-1")
 		}
 
-		// Checks that the overlapping primes between paramsN1 and paramsN2 are the same, i.e.
-		// pN1: q0, q1, q2, ..., qL
-		// pN2: q0, q1, q2, ..., qL, [bootstrapping primes]
-		QN1 := paramsN1.Q()
-		QN2 := paramsN2.Q()
+		// R[X+X^-1]/(X^N +1) -> R[X]/(X^2N + 1)
+		ringQ.AtLevel(skN1.LevelQ()).UnfoldConjugateInvariantToStandard(skN1.Value.Q, skN2.Value.Q)
 
-		for i := range QN1 {
-			if QN1[i] != QN2[i] {
-				return BootstrappingKeys{}, fmt.Errorf("cannot GenBootstrappingKeys: paramsN1.Q() is not a subset of paramsN2.Q()")
-			}
-		}
+		// Extends basis Q0 -> QL
+		rlwe.ExtendBasisSmallNormAndCenterNTTMontgomery(ringQ, ringQ, skN2.Value.Q, buff, skN2.Value.Q)
 
-		kgen := ckks.NewKeyGenerator(paramsN2)
+		// Extends basis Q0 -> P
+		rlwe.ExtendBasisSmallNormAndCenterNTTMontgomery(ringQ, ringP, skN2.Value.Q, buff, skN2.Value.P)
 
-		switch paramsN1.RingType() {
-		// In this case we need need generate the bridge switching keys between the two rings
-		case ring.ConjugateInvariant:
+		EvkCmplxToReal, EvkRealToCmplx = kgen.GenEvaluationKeysForRingSwapNew(skN2, skN1)
 
-			if paramsN1.LogN() != paramsN2.LogN()-1 {
-				return BootstrappingKeys{}, fmt.Errorf("cannot GenBootstrappingKeys: if paramsN1.RingType() == ring.ConjugateInvariant then must ensure that paramsN1.LogN()+1 == paramsN2.LogN()-1")
-			}
+	// Only regular key-switching is required in this case
+	case ring.Standard:
 
-			EvkCmplxToReal, EvkRealToCmplx = kgen.GenEvaluationKeysForRingSwapNew(skN2, skN1)
+		// Maps the smaller key to the largest with Y = X^{N/n}.
+		ring.MapSmallDimensionToLargerDimensionNTT(skN1.Value.Q, skN2.Value.Q)
 
-		// Only regular key-switching is required in this case
-		case ring.Standard:
-			EvkN1ToN2 = kgen.GenEvaluationKeyNew(skN1, skN2)
-			EvkN2ToN1 = kgen.GenEvaluationKeyNew(skN2, skN1)
-		}
+		// Extends basis Q0 -> QL
+		rlwe.ExtendBasisSmallNormAndCenterNTTMontgomery(ringQ, ringQ, skN2.Value.Q, buff, skN2.Value.Q)
+
+		// Extends basis Q0 -> P
+		rlwe.ExtendBasisSmallNormAndCenterNTTMontgomery(ringQ, ringP, skN2.Value.Q, buff, skN2.Value.P)
+
+		EvkN1ToN2 = kgen.GenEvaluationKeyNew(skN1, skN2)
+		EvkN2ToN1 = kgen.GenEvaluationKeyNew(skN2, skN1)
 	}
 
 	return BootstrappingKeys{
@@ -117,35 +134,33 @@ func GenBootstrappingKeys(paramsN1, paramsN2 ckks.Parameters, btpParamsN2 bootst
 		EvkN2ToN1:        EvkN2ToN1,
 		EvkRealToCmplx:   EvkRealToCmplx,
 		EvkCmplxToReal:   EvkCmplxToReal,
-		EvkBootstrapping: bootstrapping.GenEvaluationKeySetNew(btpParamsN2, paramsN2, skN2),
+		EvkBootstrapping: btpParamsN2.GenEvaluationKeySetNew(skN2),
 	}, nil
 }
 
-func NewBootstrapper(paramsN1, paramsN2 ckks.Parameters, btpParamsN2 bootstrapping.Parameters, evk BootstrappingKeys) (rlwe.Bootstrapper, error) {
+func NewBootstrapper(paramsN1 ckks.Parameters, btpParamsN2 bootstrapping.Parameters, evk BootstrappingKeys) (rlwe.Bootstrapper, error) {
 
 	b := &Bootstrapper{}
 
-	if !paramsN1.Equal(paramsN2) {
+	paramsN2 := btpParamsN2.Parameters
 
-		switch paramsN1.RingType() {
-		case ring.Standard:
-			if evk.EvkN1ToN2 == nil || evk.EvkN2ToN1 == nil {
-				return nil, fmt.Errorf("cannot NewBootstrapper: evk.(BootstrappingKeys) is missing EvkN1ToN2 and EvkN2ToN1")
-			}
-
-		case ring.ConjugateInvariant:
-			if evk.EvkCmplxToReal == nil || evk.EvkRealToCmplx == nil {
-				return nil, fmt.Errorf("cannot NewBootstrapper: evk.(BootstrappingKeys) is missing EvkN1ToN2 and EvkN2ToN1")
-			}
-
-			var err error
-			if b.bridge, err = ckks.NewDomainSwitcher(paramsN2, evk.EvkCmplxToReal, evk.EvkRealToCmplx); err != nil {
-				return nil, fmt.Errorf("cannot NewBootstrapper: ckks.NewDomainSwitcher: %w", err)
-			}
-
-			// The switch to standard to conjugate invariant multiplies the scale by 2
-			btpParamsN2.SlotsToCoeffsParameters.Scaling = new(big.Float).SetFloat64(0.5)
+	switch paramsN1.RingType() {
+	case ring.Standard:
+		if evk.EvkN1ToN2 == nil || evk.EvkN2ToN1 == nil {
+			return nil, fmt.Errorf("cannot NewBootstrapper: evk.(BootstrappingKeys) is missing EvkN1ToN2 and EvkN2ToN1")
 		}
+	case ring.ConjugateInvariant:
+		if evk.EvkCmplxToReal == nil || evk.EvkRealToCmplx == nil {
+			return nil, fmt.Errorf("cannot NewBootstrapper: evk.(BootstrappingKeys) is missing EvkN1ToN2 and EvkN2ToN1")
+		}
+
+		var err error
+		if b.bridge, err = ckks.NewDomainSwitcher(paramsN2, evk.EvkCmplxToReal, evk.EvkRealToCmplx); err != nil {
+			return nil, fmt.Errorf("cannot NewBootstrapper: ckks.NewDomainSwitcher: %w", err)
+		}
+
+		// The switch to standard to conjugate invariant multiplies the scale by 2
+		btpParamsN2.SlotsToCoeffsParameters.Scaling = new(big.Float).SetFloat64(0.5)
 	}
 
 	b.paramsN1 = paramsN1
@@ -165,7 +180,7 @@ func NewBootstrapper(paramsN1, paramsN2 ckks.Parameters, btpParamsN2 bootstrappi
 	}
 
 	var err error
-	if b.bootstrapper, err = bootstrapping.NewBootstrapper(paramsN2, btpParamsN2, evk.EvkBootstrapping); err != nil {
+	if b.bootstrapper, err = bootstrapping.NewBootstrapper(btpParamsN2, evk.EvkBootstrapping); err != nil {
 		return nil, err
 	}
 

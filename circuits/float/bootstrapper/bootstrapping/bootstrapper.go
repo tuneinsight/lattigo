@@ -7,6 +7,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/circuits/float"
 	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
@@ -43,7 +44,7 @@ type EvaluationKeySet struct {
 }
 
 // NewBootstrapper creates a new Bootstrapper.
-func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKeys *EvaluationKeySet) (btp *Bootstrapper, err error) {
+func NewBootstrapper(btpParams Parameters, btpKeys *EvaluationKeySet) (btp *Bootstrapper, err error) {
 
 	if btpParams.Mod1ParametersLiteral.SineType == float.SinContinuous && btpParams.Mod1ParametersLiteral.DoubleAngle != 0 {
 		return nil, fmt.Errorf("cannot use double angle formul for SineType = Sin -> must use SineType = Cos")
@@ -60,6 +61,8 @@ func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKeys *Eval
 	if btpParams.Mod1ParametersLiteral.LevelStart-btpParams.Mod1ParametersLiteral.Depth() != btpParams.SlotsToCoeffsParameters.LevelStart {
 		return nil, fmt.Errorf("starting level and depth of SineEvalParameters inconsistent starting level of CoeffsToSlotsParameters")
 	}
+
+	params := btpParams.Parameters
 
 	btp = new(Bootstrapper)
 	if btp.bootstrapperBase, err = newBootstrapperBase(params, btpParams, btpKeys); err != nil {
@@ -86,13 +89,33 @@ func NewBootstrapper(params ckks.Parameters, btpParams Parameters, btpKeys *Eval
 //	EvaluationKeySet: struct compliant to the interface rlwe.EvaluationKeySetInterface.
 //	EvkDtS: *rlwe.EvaluationKey
 //	EvkStD: *rlwe.EvaluationKey
-func GenEvaluationKeySetNew(btpParams Parameters, ckksParams ckks.Parameters, sk *rlwe.SecretKey) *EvaluationKeySet {
+func (p Parameters) GenEvaluationKeySetNew(sk *rlwe.SecretKey) *EvaluationKeySet {
 
-	kgen := ckks.NewKeyGenerator(ckksParams)
+	ringQ := p.Parameters.RingQ()
+	ringP := p.Parameters.RingP()
 
-	EvkDtS, EvkStD := btpParams.GenEncapsulationEvaluationKeysNew(ckksParams, sk)
+	params := p.Parameters
 
-	evk := rlwe.NewMemEvaluationKeySet(kgen.GenRelinearizationKeyNew(sk), kgen.GenGaloisKeysNew(append(btpParams.GaloisElements(ckksParams), ckksParams.GaloisElementForComplexConjugation()), sk)...)
+	skExtended := rlwe.NewSecretKey(params)
+	buff := ringQ.NewPoly()
+
+	// Maps the smaller key to the largest with Y = X^{N/n}.
+	ring.MapSmallDimensionToLargerDimensionNTT(sk.Value.Q, skExtended.Value.Q)
+
+	// Extends basis Q0 -> QL
+	rlwe.ExtendBasisSmallNormAndCenterNTTMontgomery(ringQ, ringQ, skExtended.Value.Q, buff, skExtended.Value.Q)
+
+	// Extends basis Q0 -> P
+	rlwe.ExtendBasisSmallNormAndCenterNTTMontgomery(ringQ, ringP, skExtended.Value.Q, buff, skExtended.Value.P)
+
+	kgen := ckks.NewKeyGenerator(params)
+
+	EvkDtS, EvkStD := p.GenEncapsulationEvaluationKeysNew(skExtended)
+
+	rlk := kgen.GenRelinearizationKeyNew(skExtended)
+	gks := kgen.GenGaloisKeysNew(append(p.GaloisElements(params), params.GaloisElementForComplexConjugation()), skExtended)
+
+	evk := rlwe.NewMemEvaluationKeySet(rlk, gks...)
 	return &EvaluationKeySet{
 		MemEvaluationKeySet: evk,
 		EvkDtS:              EvkDtS,
@@ -101,7 +124,9 @@ func GenEvaluationKeySetNew(btpParams Parameters, ckksParams ckks.Parameters, sk
 }
 
 // GenEncapsulationEvaluationKeysNew generates the low level encapsulation EvaluationKeys for the bootstrapping.
-func (p *Parameters) GenEncapsulationEvaluationKeysNew(params ckks.Parameters, skDense *rlwe.SecretKey) (EvkDtS, EvkStD *rlwe.EvaluationKey) {
+func (p Parameters) GenEncapsulationEvaluationKeysNew(skDense *rlwe.SecretKey) (EvkDtS, EvkStD *rlwe.EvaluationKey) {
+
+	params := p.Parameters
 
 	if p.EphemeralSecretWeight == 0 {
 		return

@@ -188,7 +188,7 @@ func (kgen KeyGenerator) GenEvaluationKeysForRingSwapNew(skStd, skConjugateInvar
 	kgen.params.RingQ().AtLevel(levelQ).UnfoldConjugateInvariantToStandard(skConjugateInvariant.Value.Q, skCIMappedToStandard.Value.Q)
 
 	if kgen.params.PCount() != 0 {
-		kgen.extendQ2P2(kgen.params.MaxLevelP(), skCIMappedToStandard.Value.Q, kgen.buffQ[1], skCIMappedToStandard.Value.P)
+		ExtendBasisSmallNormAndCenterNTTMontgomery(kgen.params.RingQ(), kgen.params.RingP(), skCIMappedToStandard.Value.Q, kgen.buffQ[1], skCIMappedToStandard.Value.P)
 	}
 
 	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeyParameters(kgen.params, evkParams)
@@ -237,85 +237,14 @@ func (kgen KeyGenerator) GenEvaluationKey(skInput, skOutput *SecretKey, evk *Eva
 
 	// Extends the modulus P of skOutput to the one of skInput
 	if levelP := evk.LevelP(); levelP != -1 {
-		kgen.extendQ2P(ringQ, ringP.AtLevel(levelP), kgen.buffQP.Q, kgen.buffQ[0], kgen.buffQP.P)
+		ExtendBasisSmallNormAndCenterNTTMontgomery(ringQ, ringP.AtLevel(levelP), kgen.buffQP.Q, kgen.buffQ[0], kgen.buffQP.P)
 	}
 
 	// Maps the smaller key to the largest dimension with Y = X^{N/n}.
 	ring.MapSmallDimensionToLargerDimensionNTT(skInput.Value.Q, kgen.buffQ[0])
-	kgen.extendQ2P(ringQ, ringQ.AtLevel(skOutput.Value.Q.Level()), kgen.buffQ[0], kgen.buffQ[1], kgen.buffQ[0])
+	ExtendBasisSmallNormAndCenterNTTMontgomery(ringQ, ringQ.AtLevel(skOutput.Value.Q.Level()), kgen.buffQ[0], kgen.buffQ[1], kgen.buffQ[0])
 
 	kgen.genEvaluationKey(kgen.buffQ[0], kgen.buffQP, evk)
-}
-
-func (kgen KeyGenerator) extendQ2P2(levelP int, polQ, buff, polP ring.Poly) {
-	ringQ := kgen.params.RingQ().AtLevel(0)
-	ringP := kgen.params.RingP().AtLevel(levelP)
-
-	// Switches Q[0] out of the NTT and Montgomery domain.
-	ringQ.INTT(polQ, buff)
-	ringQ.IMForm(buff, buff)
-
-	// Reconstruct P from Q
-	Q := ringQ.SubRings[0].Modulus
-	QHalf := Q >> 1
-
-	P := ringP.ModuliChain()
-	N := ringQ.N()
-
-	var sign uint64
-	for j := 0; j < N; j++ {
-
-		coeff := buff.Coeffs[0][j]
-
-		sign = 1
-		if coeff > QHalf {
-			coeff = Q - coeff
-			sign = 0
-		}
-
-		for i := 0; i < levelP+1; i++ {
-			polP.Coeffs[i][j] = (coeff * sign) | (P[i]-coeff)*(sign^1)
-		}
-	}
-
-	ringP.NTT(polP, polP)
-	ringP.MForm(polP, polP)
-}
-
-func (kgen KeyGenerator) extendQ2P(rQ, rP *ring.Ring, polQ, buff, polP ring.Poly) {
-	rQ = rQ.AtLevel(0)
-
-	levelP := rP.Level()
-
-	// Switches Q[0] out of the NTT and Montgomery domain.
-	rQ.INTT(polQ, buff)
-	rQ.IMForm(buff, buff)
-
-	// Reconstruct P from Q
-	Q := rQ.SubRings[0].Modulus
-	QHalf := Q >> 1
-
-	P := rP.ModuliChain()
-	N := rQ.N()
-
-	var sign uint64
-	for j := 0; j < N; j++ {
-
-		coeff := buff.Coeffs[0][j]
-
-		sign = 1
-		if coeff > QHalf {
-			coeff = Q - coeff
-			sign = 0
-		}
-
-		for i := 0; i < levelP+1; i++ {
-			polP.Coeffs[i][j] = (coeff * sign) | (P[i]-coeff)*(sign^1)
-		}
-	}
-
-	rP.NTT(polP, polP)
-	rP.MForm(polP, polP)
 }
 
 func (kgen KeyGenerator) genEvaluationKey(skIn ring.Poly, skOut ringqp.Poly, evk *EvaluationKey) {

@@ -50,6 +50,7 @@ type ParameterProvider interface {
 // parameter creation (see NewParametersFromLiteral).
 type ParametersLiteral struct {
 	LogN         int
+	LogNthRoot   int                         `json:",omitempty"`
 	Q            []uint64                    `json:",omitempty"`
 	P            []uint64                    `json:",omitempty"`
 	LogQ         []int                       `json:",omitempty"`
@@ -189,9 +190,11 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (params Parameters, er
 		var q, p []uint64
 		switch paramDef.RingType {
 		case ring.Standard:
-			q, p, err = GenModuli(paramDef.LogN+1, paramDef.LogQ, paramDef.LogP) //2NthRoot
+			LogNthRoot := utils.Max(paramDef.LogN+1, paramDef.LogNthRoot)
+			q, p, err = GenModuli(LogNthRoot, paramDef.LogQ, paramDef.LogP) //2NthRoot
 		case ring.ConjugateInvariant:
-			q, p, err = GenModuli(paramDef.LogN+2, paramDef.LogQ, paramDef.LogP) //4NthRoot
+			LogNthRoot := utils.Max(paramDef.LogN+2, paramDef.LogNthRoot)
+			q, p, err = GenModuli(LogNthRoot, paramDef.LogQ, paramDef.LogP) //4NthRoot
 		default:
 			return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: invalid ring.Type, must be ring.ConjugateInvariant or ring.Standard")
 		}
@@ -265,6 +268,16 @@ func (p Parameters) N() int {
 // LogN returns the log of the degree of the polynomial ring
 func (p Parameters) LogN() int {
 	return p.logN
+}
+
+// NthRoot returns the NthRoot of the ring.
+func (p Parameters) NthRoot() int {
+	return int(p.RingQ().NthRoot())
+}
+
+// LogNthRoot returns the log2(NthRoot) of the ring.
+func (p Parameters) LogNthRoot() int {
+	return bits.Len64(uint64(p.NthRoot() - 1))
 }
 
 // DefaultScale returns the default scaling factor of the plaintext, if any.
@@ -580,22 +593,16 @@ func (p Parameters) SolveDiscreteLogGaloisElement(galEl uint64) (k int) {
 }
 
 // Equal checks two Parameter structs for equality.
-func (p Parameters) Equal(other ParameterProvider) (res bool) {
-
-	switch other := other.(type) {
-	case Parameters:
-		res = p.logN == other.logN
-		res = res && (p.xs.params == other.xs.params)
-		res = res && (p.xe.params == other.xe.params)
-		res = res && cmp.Equal(p.qi, other.qi)
-		res = res && cmp.Equal(p.pi, other.pi)
-		res = res && (p.ringType == other.ringType)
-		res = res && (p.defaultScale.Equal(other.defaultScale))
-		res = res && (p.nttFlag == other.nttFlag)
-		return
-	}
-
-	return false
+func (p Parameters) Equal(other *Parameters) (res bool) {
+	res = p.logN == other.logN
+	res = res && (p.xs.params == other.xs.params)
+	res = res && (p.xe.params == other.xe.params)
+	res = res && cmp.Equal(p.qi, other.qi)
+	res = res && cmp.Equal(p.pi, other.pi)
+	res = res && (p.ringType == other.ringType)
+	res = res && (p.defaultScale.Equal(other.defaultScale))
+	res = res && (p.nttFlag == other.nttFlag)
+	return
 }
 
 // MarshalBinary returns a []byte representation of the parameter set.

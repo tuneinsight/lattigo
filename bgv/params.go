@@ -33,6 +33,7 @@ const (
 // NewParametersFromLiteral).
 type ParametersLiteral struct {
 	LogN             int
+	LogNthRoot       int
 	Q                []uint64
 	P                []uint64
 	LogQ             []int `json:",omitempty"`
@@ -47,6 +48,7 @@ type ParametersLiteral struct {
 func (p ParametersLiteral) GetRLWEParametersLiteral() rlwe.ParametersLiteral {
 	return rlwe.ParametersLiteral{
 		LogN:         p.LogN,
+		LogNthRoot:   p.LogNthRoot,
 		Q:            p.Q,
 		P:            p.P,
 		LogQ:         p.LogQ,
@@ -84,7 +86,7 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 		return Parameters{}, fmt.Errorf("insecure parameters: t|Q")
 	}
 
-	if rlweParams.Equal(rlwe.Parameters{}) {
+	if rlweParams.Equal(&rlwe.Parameters{}) {
 		return Parameters{}, fmt.Errorf("provided RLWE parameters are invalid")
 	}
 
@@ -136,6 +138,7 @@ func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 func (p Parameters) ParametersLiteral() ParametersLiteral {
 	return ParametersLiteral{
 		LogN:             p.LogN(),
+		LogNthRoot:       p.LogNthRoot(),
 		Q:                p.Q(),
 		P:                p.P(),
 		Xe:               p.Xe(),
@@ -274,13 +277,8 @@ func (p Parameters) GaloisElementsForPack(logN int) []uint64 {
 }
 
 // Equal compares two sets of parameters for equality.
-func (p Parameters) Equal(other rlwe.ParameterProvider) bool {
-	switch other := other.(type) {
-	case Parameters:
-		return p.Parameters.Equal(other.Parameters) && (p.PlaintextModulus() == other.PlaintextModulus())
-	}
-
-	return false
+func (p Parameters) Equal(other *Parameters) bool {
+	return p.Parameters.Equal(&other.Parameters) && (p.PlaintextModulus() == other.PlaintextModulus())
 }
 
 // MarshalBinary returns a []byte representation of the parameter set.
@@ -313,6 +311,7 @@ func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 func (p *ParametersLiteral) UnmarshalJSON(b []byte) (err error) {
 	var pl struct {
 		LogN             int
+		LogNthRoot       int
 		Q                []uint64
 		P                []uint64
 		LogQ             []int
@@ -330,6 +329,7 @@ func (p *ParametersLiteral) UnmarshalJSON(b []byte) (err error) {
 	}
 
 	p.LogN = pl.LogN
+	p.LogNthRoot = pl.LogNthRoot
 	p.Q, p.P, p.LogQ, p.LogP = pl.Q, pl.P, pl.LogQ, pl.LogP
 	if pl.Xs != nil {
 		p.Xs, err = ring.ParametersFromMap(pl.Xs)

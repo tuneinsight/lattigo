@@ -385,7 +385,7 @@ func testEncryptor(tc *TestContext, level, bpw2 int, t *testing.T) {
 	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Encryptor/Encrypt/Pk/ShallowCopy"), func(t *testing.T) {
 		pkEnc1 := enc.WithKey(pk)
 		pkEnc2 := pkEnc1.ShallowCopy()
-		require.True(t, pkEnc1.params.Equal(pkEnc2.params))
+		require.True(t, pkEnc1.params.Equal(&pkEnc2.params))
 		require.True(t, pkEnc1.encKey == pkEnc2.encKey)
 		require.False(t, (pkEnc1.basisextender == pkEnc2.basisextender) && (pkEnc1.basisextender != nil) && (pkEnc2.basisextender != nil))
 		require.False(t, pkEnc1.encryptorBuffers == pkEnc2.encryptorBuffers)
@@ -439,7 +439,7 @@ func testEncryptor(tc *TestContext, level, bpw2 int, t *testing.T) {
 		skEnc1 := NewEncryptor(params, sk)
 		skEnc2 := skEnc1.ShallowCopy()
 
-		require.True(t, skEnc1.params.Equal(skEnc2.params))
+		require.True(t, skEnc1.params.Equal(&skEnc2.params))
 		require.True(t, skEnc1.encKey == skEnc2.encKey)
 		require.False(t, (skEnc1.basisextender == skEnc2.basisextender) && (skEnc1.basisextender != nil) && (skEnc2.basisextender != nil))
 		require.False(t, skEnc1.encryptorBuffers == skEnc2.encryptorBuffers)
@@ -451,7 +451,7 @@ func testEncryptor(tc *TestContext, level, bpw2 int, t *testing.T) {
 		sk2 := kgen.GenSecretKeyNew()
 		skEnc1 := NewEncryptor(params, sk)
 		skEnc2 := skEnc1.WithKey(sk2)
-		require.True(t, skEnc1.params.Equal(skEnc2.params))
+		require.True(t, skEnc1.params.Equal(&skEnc2.params))
 		require.True(t, skEnc1.encKey == sk)
 		require.True(t, skEnc2.encKey == sk2)
 		require.True(t, skEnc1.basisextender == skEnc2.basisextender)

@@ -167,7 +167,7 @@ func testParameters(tc *testContext, t *testing.T) {
 		require.Nil(t, err)
 		var p Parameters
 		require.Nil(t, p.UnmarshalBinary(bytes))
-		require.True(t, tc.params.Equal(p))
+		require.True(t, tc.params.Equal(&p))
 	})
 
 	t.Run(GetTestName("Parameters/Marshaller/JSON", tc.params, 0), func(t *testing.T) {
@@ -180,7 +180,7 @@ func testParameters(tc *testContext, t *testing.T) {
 		var paramsRec Parameters
 		err = json.Unmarshal(data, &paramsRec)
 		require.Nil(t, err)
-		require.True(t, tc.params.Equal(paramsRec))
+		require.True(t, tc.params.Equal(&paramsRec))
 
 		// checks that ckks.Parameters can be unmarshalled with log-moduli definition without error
 		dataWithLogModuli := []byte(fmt.Sprintf(`{"LogN":%d,"LogQ":[50,50],"LogP":[60], "PlaintextModulus":65537}`, tc.params.LogN()))

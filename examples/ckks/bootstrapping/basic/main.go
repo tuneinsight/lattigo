@@ -22,23 +22,28 @@ func main() {
 
 	flag.Parse()
 
+	LogN := 16
+	LogSlots := LogN - 1
+
+	if *flagShort {
+		LogN -= 3
+		LogSlots -= 3
+	}
+
 	// First we define the residual CKKS parameters. This is only a template that will be given
 	// to the constructor along with the specificities of the bootstrapping circuit we choose, to
 	// enable it to create the appropriate ckks.ParametersLiteral that enable the evaluation of the
 	// bootstrapping circuit on top of the residual moduli that we defined.
-	ckksParamsResidualLit := ckks.ParametersLiteral{
-		LogN:            16,                                                // Log2 of the ringdegree
+	params, err := ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
+		LogN:            LogN,                                              // Log2 of the ringdegree
 		LogQ:            []int{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40}, // Log2 of the ciphertext prime moduli
 		LogP:            []int{61, 61, 61, 61},                             // Log2 of the key-switch auxiliary prime moduli
 		LogDefaultScale: 40,                                                // Log2 of the scale
 		Xs:              ring.Ternary{H: 192},                              // Hamming weight of the secret
-	}
+	})
 
-	LogSlots := ckksParamsResidualLit.LogN - 2
-
-	if *flagShort {
-		ckksParamsResidualLit.LogN -= 3
-		LogSlots -= 3
+	if err != nil {
+		panic(err)
 	}
 
 	// Note that with H=192 and LogN=16, parameters are at least 128-bit if LogQP <= 1550.
@@ -50,6 +55,9 @@ func main() {
 	// if the plaintext values are uniformly distributed in [-1, 1] for both the real and imaginary part.
 	// See `/ckks/bootstrapping/parameters.go` for information about the optional fields.
 	btpParametersLit := bootstrapping.ParametersLiteral{
+		// We specify LogN to ensure that both the residual parameters and the bootstrapping parameters
+		// have the same LogN
+		LogN: &LogN,
 		// Since a ciphertext with message m and LogSlots = x is equivalent to a ciphertext with message m|m and LogSlots = x+1
 		// it is possible to run the bootstrapping on any ciphertext with LogSlots <= bootstrapping.LogSlots, however doing so
 		// will increase the runtime, so it is recommanded to have the LogSlots of the ciphertext and bootstrapping parameters
@@ -69,7 +77,7 @@ func main() {
 	// Now we generate the updated ckks.ParametersLiteral that contain our residual moduli and the moduli for
 	// the bootstrapping circuit, as well as the bootstrapping.Parameters that contain all the necessary information
 	// of the bootstrapping circuit.
-	ckksParamsLit, btpParams, err := bootstrapping.NewParametersFromLiteral(ckksParamsResidualLit, btpParametersLit)
+	btpParams, err := bootstrapping.NewParametersFromLiteral(params, btpParametersLit)
 	if err != nil {
 		panic(err)
 	}
@@ -77,12 +85,6 @@ func main() {
 	if *flagShort {
 		// Corrects the message ratio to take into account the smaller number of slots and keep the same precision
 		btpParams.Mod1ParametersLiteral.LogMessageRatio += 3
-	}
-
-	// This generate ckks.Parameters, with the NTT tables and other pre-computations from the ckks.ParametersLiteral (which is only a template).
-	params, err := ckks.NewParametersFromLiteral(ckksParamsLit)
-	if err != nil {
-		panic(err)
 	}
 
 	// Here we print some information about the generated ckks.Parameters
@@ -101,11 +103,12 @@ func main() {
 
 	fmt.Println()
 	fmt.Println("Generating bootstrapping keys...")
-	evk := bootstrapping.GenEvaluationKeySetNew(btpParams, params, sk)
+	// This only requires that Q[0] of sk matches Q[0] of btpParams
+	evk := btpParams.GenEvaluationKeySetNew(sk)
 	fmt.Println("Done")
 
 	var btp *bootstrapping.Bootstrapper
-	if btp, err = bootstrapping.NewBootstrapper(params, btpParams, evk); err != nil {
+	if btp, err = bootstrapping.NewBootstrapper(btpParams, evk); err != nil {
 		panic(err)
 	}
 

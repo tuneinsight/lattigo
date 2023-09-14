@@ -241,3 +241,43 @@ func NTTSparseAndMontgomery(r *ring.Ring, metadata *MetaData, pol ring.Poly) {
 		}
 	}
 }
+
+// ExtendBasisSmallNormAndCenterNTTMontgomery extends a small-norm polynomial polQ in R_Q to a polynomial
+// polP in R_P.
+// This method can be used to extend from Q0 to QL.
+// Input and output are in the NTT and Montgomery domain.
+func ExtendBasisSmallNormAndCenterNTTMontgomery(rQ, rP *ring.Ring, polQ, buff, polP ring.Poly) {
+	rQ = rQ.AtLevel(0)
+
+	levelP := rP.Level()
+
+	// Switches Q[0] out of the NTT and Montgomery domain.
+	rQ.INTT(polQ, buff)
+	rQ.IMForm(buff, buff)
+
+	// Reconstruct P from Q
+	Q := rQ.SubRings[0].Modulus
+	QHalf := Q >> 1
+
+	P := rP.ModuliChain()
+	N := rQ.N()
+
+	var sign uint64
+	for j := 0; j < N; j++ {
+
+		coeff := buff.Coeffs[0][j]
+
+		sign = 1
+		if coeff > QHalf {
+			coeff = Q - coeff
+			sign = 0
+		}
+
+		for i := 0; i < levelP+1; i++ {
+			polP.Coeffs[i][j] = (coeff * sign) | (P[i]-coeff)*(sign^1)
+		}
+	}
+
+	rP.NTT(polP, polP)
+	rP.MForm(polP, polP)
+}

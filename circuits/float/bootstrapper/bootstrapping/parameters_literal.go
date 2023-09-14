@@ -3,6 +3,7 @@ package bootstrapping
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v4/circuits/float"
@@ -26,6 +27,8 @@ import (
 // =====================================
 // Optional fields (with default values)
 // =====================================
+//
+// NumberOfPi: the number of auxiliary primes #Pi used during the key-switching operation. The default value is max(1, floor(sqrt(#Qi))).
 //
 // LogSlots: the maximum number of slots of the ciphertext. Default value: LogN-1.
 //
@@ -107,6 +110,8 @@ import (
 //
 // ArcSineDeg: the degree of the ArcSine Taylor polynomial, by default set to 0.
 type ParametersLiteral struct {
+	LogN                                        *int                  // Default: 16
+	NumberOfPi                                  *int                  // Default: max(1, floor(sqrt(#Qi)))
 	LogSlots                                    *int                  // Default: LogN-1
 	CoeffsToSlotsFactorizationDepthAndLogScales [][]int               // Default: [][]int{min(4, max(LogSlots, 1)) * 56}
 	SlotsToCoeffsFactorizationDepthAndLogScales [][]int               // Default: [][]int{min(3, max(LogSlots, 1)) * 39}
@@ -122,6 +127,8 @@ type ParametersLiteral struct {
 }
 
 const (
+	// DefaultLogN is the default ring degree for the bootstrapping.
+	DefaultLogN = 16
 	// DefaultCoeffsToSlotsFactorizationDepth is the default factorization depth CoeffsToSlots step.
 	DefaultCoeffsToSlotsFactorizationDepth = 4
 	// DefaultSlotsToCoeffsFactorizationDepth is the default factorization depth SlotsToCoeffs step.
@@ -157,7 +164,7 @@ type IterationsParameters struct {
 
 // MarshalBinary returns a JSON representation of the the target ParametersLiteral struct on a slice of bytes.
 // See `Marshal` from the `encoding/json` package.
-func (p *ParametersLiteral) MarshalBinary() (data []byte, err error) {
+func (p ParametersLiteral) MarshalBinary() (data []byte, err error) {
 	return json.Marshal(p)
 }
 
@@ -167,9 +174,41 @@ func (p *ParametersLiteral) UnmarshalBinary(data []byte) (err error) {
 	return json.Unmarshal(data, p)
 }
 
+// GetLogN returns the LogN field of the target ParametersLiteral.
+// The default value DefaultLogN is returned is the field is nil.
+func (p ParametersLiteral) GetLogN() (LogN int, err error) {
+	if v := p.LogN; v == nil {
+		LogN = DefaultLogN
+	} else {
+		LogN = *v
+	}
+
+	return
+}
+
+// GetNumberOfPi returns the number of #Pi (extended primes for the key-switching)
+// according to the number of #Qi (ciphertext primes).
+// The default value is max(1, floor(sqrt(#Qi))).
+func (p ParametersLiteral) GetNumberOfPi(NumberOfQi int) (NumberOfPi int, err error) {
+	if v := p.NumberOfPi; v == nil {
+		NumberOfPi = utils.Max(1, int(math.Sqrt(float64(NumberOfQi))))
+	} else {
+		NumberOfPi = *v
+	}
+
+	return
+}
+
 // GetLogSlots returns the LogSlots field of the target ParametersLiteral.
 // The default value LogN-1 is returned is the field is nil.
-func (p *ParametersLiteral) GetLogSlots(LogN int) (LogSlots int, err error) {
+func (p ParametersLiteral) GetLogSlots() (LogSlots int, err error) {
+
+	LogN, err := p.GetLogN()
+
+	if err != nil {
+		return 0, err
+	}
+
 	if v := p.LogSlots; v == nil {
 		LogSlots = LogN - 1
 
@@ -186,7 +225,7 @@ func (p *ParametersLiteral) GetLogSlots(LogN int) (LogSlots int, err error) {
 
 // GetCoeffsToSlotsFactorizationDepthAndLogScales returns a copy of the CoeffsToSlotsFactorizationDepthAndLogScales field of the target ParametersLiteral.
 // The default value constructed from DefaultC2SFactorization and DefaultC2SLogScale is returned if the field is nil.
-func (p *ParametersLiteral) GetCoeffsToSlotsFactorizationDepthAndLogScales(LogSlots int) (CoeffsToSlotsFactorizationDepthAndLogScales [][]int, err error) {
+func (p ParametersLiteral) GetCoeffsToSlotsFactorizationDepthAndLogScales(LogSlots int) (CoeffsToSlotsFactorizationDepthAndLogScales [][]int, err error) {
 	if p.CoeffsToSlotsFactorizationDepthAndLogScales == nil {
 		CoeffsToSlotsFactorizationDepthAndLogScales = make([][]int, utils.Min(DefaultCoeffsToSlotsFactorizationDepth, utils.Max(LogSlots, 1)))
 		for i := range CoeffsToSlotsFactorizationDepthAndLogScales {
@@ -209,7 +248,7 @@ func (p *ParametersLiteral) GetCoeffsToSlotsFactorizationDepthAndLogScales(LogSl
 
 // GetSlotsToCoeffsFactorizationDepthAndLogScales returns a copy of the SlotsToCoeffsFactorizationDepthAndLogScales field of the target ParametersLiteral.
 // The default value constructed from DefaultS2CFactorization and DefaultS2CLogScale is returned if the field is nil.
-func (p *ParametersLiteral) GetSlotsToCoeffsFactorizationDepthAndLogScales(LogSlots int) (SlotsToCoeffsFactorizationDepthAndLogScales [][]int, err error) {
+func (p ParametersLiteral) GetSlotsToCoeffsFactorizationDepthAndLogScales(LogSlots int) (SlotsToCoeffsFactorizationDepthAndLogScales [][]int, err error) {
 	if p.SlotsToCoeffsFactorizationDepthAndLogScales == nil {
 		SlotsToCoeffsFactorizationDepthAndLogScales = make([][]int, utils.Min(DefaultSlotsToCoeffsFactorizationDepth, utils.Max(LogSlots, 1)))
 		for i := range SlotsToCoeffsFactorizationDepthAndLogScales {
@@ -230,9 +269,9 @@ func (p *ParametersLiteral) GetSlotsToCoeffsFactorizationDepthAndLogScales(LogSl
 	return
 }
 
-// GetEvalModLogScale returns the EvalModLogScale field of the target ParametersLiteral.
+// GetEvalMod1LogScale returns the EvalModLogScale field of the target ParametersLiteral.
 // The default value DefaultEvalModLogScale is returned is the field is nil.
-func (p *ParametersLiteral) GetEvalModLogScale() (EvalModLogScale int, err error) {
+func (p ParametersLiteral) GetEvalMod1LogScale() (EvalModLogScale int, err error) {
 	if v := p.EvalModLogScale; v == nil {
 		EvalModLogScale = DefaultEvalModLogScale
 
@@ -249,7 +288,7 @@ func (p *ParametersLiteral) GetEvalModLogScale() (EvalModLogScale int, err error
 
 // GetIterationsParameters returns the IterationsParmaeters field of the target ParametersLiteral.
 // The default value is nil.
-func (p *ParametersLiteral) GetIterationsParameters() (Iterations *IterationsParameters, err error) {
+func (p ParametersLiteral) GetIterationsParameters() (Iterations *IterationsParameters, err error) {
 
 	if v := p.IterationsParameters; v == nil {
 		return nil, nil
@@ -275,13 +314,13 @@ func (p *ParametersLiteral) GetIterationsParameters() (Iterations *IterationsPar
 
 // GetSineType returns the SineType field of the target ParametersLiteral.
 // The default value DefaultSineType is returned is the field is nil.
-func (p *ParametersLiteral) GetSineType() (SineType float.SineType) {
+func (p ParametersLiteral) GetSineType() (SineType float.SineType) {
 	return p.SineType
 }
 
 // GetArcSineDegree returns the ArcSineDegree field of the target ParametersLiteral.
 // The default value DefaultArcSineDegree is returned is the field is nil.
-func (p *ParametersLiteral) GetArcSineDegree() (ArcSineDegree int, err error) {
+func (p ParametersLiteral) GetArcSineDegree() (ArcSineDegree int, err error) {
 	if v := p.ArcSineDegree; v == nil {
 		ArcSineDegree = 0
 	} else {
@@ -297,7 +336,7 @@ func (p *ParametersLiteral) GetArcSineDegree() (ArcSineDegree int, err error) {
 
 // GetLogMessageRatio returns the LogMessageRatio field of the target ParametersLiteral.
 // The default value DefaultLogMessageRatio is returned is the field is nil.
-func (p *ParametersLiteral) GetLogMessageRatio() (LogMessageRatio int, err error) {
+func (p ParametersLiteral) GetLogMessageRatio() (LogMessageRatio int, err error) {
 	if v := p.LogMessageRatio; v == nil {
 		LogMessageRatio = DefaultLogMessageRatio
 	} else {
@@ -313,7 +352,7 @@ func (p *ParametersLiteral) GetLogMessageRatio() (LogMessageRatio int, err error
 
 // GetK returns the K field of the target ParametersLiteral.
 // The default value DefaultK is returned is the field is nil.
-func (p *ParametersLiteral) GetK() (K int, err error) {
+func (p ParametersLiteral) GetK() (K int, err error) {
 	if v := p.K; v == nil {
 		K = DefaultK
 	} else {
@@ -329,7 +368,7 @@ func (p *ParametersLiteral) GetK() (K int, err error) {
 
 // GetDoubleAngle returns the DoubleAngle field of the target ParametersLiteral.
 // The default value DefaultDoubleAngle is returned is the field is nil.
-func (p *ParametersLiteral) GetDoubleAngle() (DoubleAngle int, err error) {
+func (p ParametersLiteral) GetDoubleAngle() (DoubleAngle int, err error) {
 
 	if v := p.DoubleAngle; v == nil {
 
@@ -352,7 +391,7 @@ func (p *ParametersLiteral) GetDoubleAngle() (DoubleAngle int, err error) {
 
 // GetSineDegree returns the SineDegree field of the target ParametersLiteral.
 // The default value DefaultSineDegree is returned is the field is nil.
-func (p *ParametersLiteral) GetSineDegree() (SineDegree int, err error) {
+func (p ParametersLiteral) GetSineDegree() (SineDegree int, err error) {
 	if v := p.SineDegree; v == nil {
 		SineDegree = DefaultSineDegree
 	} else {
@@ -367,7 +406,7 @@ func (p *ParametersLiteral) GetSineDegree() (SineDegree int, err error) {
 
 // GetEphemeralSecretWeight returns the EphemeralSecretWeight field of the target ParametersLiteral.
 // The default value DefaultEphemeralSecretWeight is returned is the field is nil.
-func (p *ParametersLiteral) GetEphemeralSecretWeight() (EphemeralSecretWeight int, err error) {
+func (p ParametersLiteral) GetEphemeralSecretWeight() (EphemeralSecretWeight int, err error) {
 	if v := p.EphemeralSecretWeight; v == nil {
 		EphemeralSecretWeight = DefaultEphemeralSecretWeight
 	} else {
@@ -383,7 +422,7 @@ func (p *ParametersLiteral) GetEphemeralSecretWeight() (EphemeralSecretWeight in
 // BitConsumption returns the expected consumption in bits of
 // bootstrapping circuit of the target ParametersLiteral.
 // The value is rounded up and thus will overestimate the value by up to 1 bit.
-func (p *ParametersLiteral) BitConsumption(LogSlots int) (logQ int, err error) {
+func (p ParametersLiteral) BitConsumption(LogSlots int) (logQ int, err error) {
 
 	var C2SLogPlaintextScale [][]int
 	if C2SLogPlaintextScale, err = p.GetCoeffsToSlotsFactorizationDepthAndLogScales(LogSlots); err != nil {
@@ -413,7 +452,7 @@ func (p *ParametersLiteral) BitConsumption(LogSlots int) (logQ int, err error) {
 	}
 
 	var EvalModLogPlaintextScale int
-	if EvalModLogPlaintextScale, err = p.GetEvalModLogScale(); err != nil {
+	if EvalModLogPlaintextScale, err = p.GetEvalMod1LogScale(); err != nil {
 		return
 	}
 

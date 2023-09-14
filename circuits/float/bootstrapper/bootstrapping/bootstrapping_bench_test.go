@@ -14,16 +14,16 @@ func BenchmarkBootstrap(b *testing.B) {
 
 	paramSet := DefaultParametersDense[0]
 
-	ckksParamsLit, btpParams, err := NewParametersFromLiteral(paramSet.SchemeParams, paramSet.BootstrappingParams)
-	require.Nil(b, err)
-
-	params, err := ckks.NewParametersFromLiteral(ckksParamsLit)
+	params, err := ckks.NewParametersFromLiteral(paramSet.SchemeParams)
 	require.NoError(b, err)
+
+	btpParams, err := NewParametersFromLiteral(params, paramSet.BootstrappingParams)
+	require.Nil(b, err)
 
 	kgen := ckks.NewKeyGenerator(params)
 	sk := kgen.GenSecretKeyNew()
 
-	btp, err := NewBootstrapper(params, btpParams, GenEvaluationKeySetNew(btpParams, params, sk))
+	btp, err := NewBootstrapper(btpParams, btpParams.GenEvaluationKeySetNew(sk))
 	require.NoError(b, err)
 
 	b.Run(ParamsToString(params, btpParams.LogMaxDimensions().Cols, "Bootstrap/"), func(b *testing.B) {

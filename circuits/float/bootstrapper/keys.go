@@ -41,29 +41,12 @@ func (b BootstrappingKeys) BinarySize() (dLen int) {
 	return
 }
 
-func (p Parameters) GenBootstrappingKeys(paramsN1 ckks.Parameters, skN1 *rlwe.SecretKey) (*BootstrappingKeys, error) {
+func (p Parameters) GenBootstrappingKeys(skN1 *rlwe.SecretKey) (*BootstrappingKeys, error) {
 
 	var EvkN1ToN2, EvkN2ToN1 *rlwe.EvaluationKey
 	var EvkRealToCmplx *rlwe.EvaluationKey
 	var EvkCmplxToReal *rlwe.EvaluationKey
 	paramsN2 := p.Parameters.Parameters
-
-	// Checks that the maximum level of paramsN1 is equal to the remaining level after the bootstrapping of paramsN2
-	if paramsN2.MaxLevel()-p.SlotsToCoeffsParameters.Depth(true)-p.Mod1ParametersLiteral.Depth()-p.CoeffsToSlotsParameters.Depth(true) < paramsN1.MaxLevel() {
-		return nil, fmt.Errorf("cannot GenBootstrappingKeys: bootstrapping depth is too large, level after bootstrapping is smaller than paramsN1.MaxLevel()")
-	}
-
-	// Checks that the overlapping primes between paramsN1 and paramsN2 are the same, i.e.
-	// pN1: q0, q1, q2, ..., qL
-	// pN2: q0, q1, q2, ..., qL, [bootstrapping primes]
-	QN1 := paramsN1.Q()
-	QN2 := paramsN2.Q()
-
-	for i := range QN1 {
-		if QN1[i] != QN2[i] {
-			return nil, fmt.Errorf("cannot GenBootstrappingKeys: paramsN1.Q() is not a subset of paramsN2.Q()")
-		}
-	}
 
 	kgen := ckks.NewKeyGenerator(paramsN2)
 
@@ -73,11 +56,11 @@ func (p Parameters) GenBootstrappingKeys(paramsN1 ckks.Parameters, skN1 *rlwe.Se
 	ringQ := paramsN2.RingQ()
 	ringP := paramsN2.RingP()
 
-	switch paramsN1.RingType() {
+	switch p.RingType {
 	// In this case we need need generate the bridge switching keys between the two rings
 	case ring.ConjugateInvariant:
 
-		if paramsN1.LogN() != paramsN2.LogN()-1 {
+		if skN1.Value.Q.N() != paramsN2.N()>>1 {
 			return nil, fmt.Errorf("cannot GenBootstrappingKeys: if paramsN1.RingType() == ring.ConjugateInvariant then must ensure that paramsN1.LogN()+1 == paramsN2.LogN()-1")
 		}
 

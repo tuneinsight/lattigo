@@ -59,7 +59,7 @@ func TestBootstrapping(t *testing.T) {
 		sk := ckks.NewKeyGenerator(btpParams.Parameters.Parameters).GenSecretKeyNew()
 
 		t.Log("Generating Bootstrapping Keys")
-		btpKeys, err := btpParams.GenBootstrappingKeys(params, sk)
+		btpKeys, err := btpParams.GenBootstrappingKeys(sk)
 		require.NoError(t, err)
 
 		bootstrapper, err := NewBootstrapper(params, btpParams, btpKeys)
@@ -139,7 +139,7 @@ func TestBootstrapping(t *testing.T) {
 		sk := ckks.NewKeyGenerator(params).GenSecretKeyNew()
 
 		t.Log("Generating Bootstrapping Keys")
-		btpKeys, err := btpParams.GenBootstrappingKeys(params, sk)
+		btpKeys, err := btpParams.GenBootstrappingKeys(sk)
 		require.Nil(t, err)
 
 		bootstrapper, err := NewBootstrapper(params, btpParams, btpKeys)
@@ -222,7 +222,7 @@ func TestBootstrapping(t *testing.T) {
 		sk := ckks.NewKeyGenerator(params).GenSecretKeyNew()
 
 		t.Log("Generating Bootstrapping Keys")
-		btpKeys, err := btpParams.GenBootstrappingKeys(params, sk)
+		btpKeys, err := btpParams.GenBootstrappingKeys(sk)
 		require.Nil(t, err)
 
 		bootstrapper, err := NewBootstrapper(params, btpParams, btpKeys)
@@ -302,7 +302,7 @@ func TestBootstrapping(t *testing.T) {
 		sk := ckks.NewKeyGenerator(params).GenSecretKeyNew()
 
 		t.Log("Generating Bootstrapping Keys")
-		btpKeys, err := btpParams.GenBootstrappingKeys(params, sk)
+		btpKeys, err := btpParams.GenBootstrappingKeys(sk)
 		require.Nil(t, err)
 
 		bootstrapper, err := NewBootstrapper(params, btpParams, btpKeys)

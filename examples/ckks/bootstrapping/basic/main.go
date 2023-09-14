@@ -93,8 +93,7 @@ func main() {
 
 	fmt.Println()
 	fmt.Println("Generating bootstrapping keys...")
-	// This only requires that Q[0] of sk matches Q[0] of btpParams
-	evk, err := btpParams.GenBootstrappingKeys(params, sk)
+	evk, err := btpParams.GenBootstrappingKeys(sk)
 	if err != nil {
 		panic(err)
 	}
@@ -133,8 +132,6 @@ func main() {
 	// CAUTION: the scale of the ciphertext MUST be equal (or very close) to params.DefaultScale()
 	// To equalize the scale, the function evaluator.SetScale(ciphertext, parameters.DefaultScale()) can be used at the expense of one level.
 	// If the ciphertext is is at level one or greater when given to the bootstrapper, this equalization is automatically done.
-	fmt.Println(ciphertext1.LogSlots())
-	fmt.Println()
 	fmt.Println("Bootstrapping...")
 	ciphertext2, err := btp.Bootstrap(ciphertext1)
 	if err != nil {

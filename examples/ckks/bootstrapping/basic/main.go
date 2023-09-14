@@ -9,10 +9,11 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/tuneinsight/lattigo/v4/circuits/float/bootstrapper/bootstrapping"
+	"github.com/tuneinsight/lattigo/v4/circuits/float/bootstrapper"
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
@@ -23,21 +24,21 @@ func main() {
 	flag.Parse()
 
 	LogN := 16
-	LogSlots := LogN - 1
 
 	if *flagShort {
 		LogN -= 3
-		LogSlots -= 3
 	}
 
-	// First we define the residual CKKS parameters. This is only a template that will be given
-	// to the constructor along with the specificities of the bootstrapping circuit we choose, to
-	// enable it to create the appropriate ckks.ParametersLiteral that enable the evaluation of the
-	// bootstrapping circuit on top of the residual moduli that we defined.
+	// First we define the residual CKKS parameters.
+	// For this example, we have a logQ = 55 + 10*40 and logP = 3*61
+	// These are the parameters that the regular circuit will use outside of the
+	// circuit bootstrapping.
+	// The bootstrapping circuit use its own ckks.Parameters which are automatically
+	// parameterized given the residual parameters and the bootsrappping parameters.
 	params, err := ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
 		LogN:            LogN,                                              // Log2 of the ringdegree
 		LogQ:            []int{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40}, // Log2 of the ciphertext prime moduli
-		LogP:            []int{61, 61, 61, 61},                             // Log2 of the key-switch auxiliary prime moduli
+		LogP:            []int{61, 61, 61},                                 // Log2 of the key-switch auxiliary prime moduli
 		LogDefaultScale: 40,                                                // Log2 of the scale
 		Xs:              ring.Ternary{H: 192},                              // Hamming weight of the secret
 	})
@@ -46,38 +47,26 @@ func main() {
 		panic(err)
 	}
 
-	// Note that with H=192 and LogN=16, parameters are at least 128-bit if LogQP <= 1550.
-	// Our default parameters have an expected logQP of 55 + 10*40 + 4*61 = 699, meaning
-	// that the depth of the bootstrapping shouldn't be larger than 1550-699 = 851.
+	// Note that with H=192 and LogN=16 the bootstrapping parameters are at least 128-bit if their LogQP <= 1550.
 
-	// For this first example, we do not specify any optional field of the bootstrapping
+	// For this first example, we do not specify any optional field of the bootstrapping parameters.
 	// Thus we expect the bootstrapping to give a precision of 27.25 bits with H=192 (and 23.8 with H=N/2)
 	// if the plaintext values are uniformly distributed in [-1, 1] for both the real and imaginary part.
 	// See `/ckks/bootstrapping/parameters.go` for information about the optional fields.
-	btpParametersLit := bootstrapping.ParametersLiteral{
+	btpParametersLit := bootstrapper.ParametersLiteral{
 		// We specify LogN to ensure that both the residual parameters and the bootstrapping parameters
 		// have the same LogN
-		LogN: &LogN,
-		// Since a ciphertext with message m and LogSlots = x is equivalent to a ciphertext with message m|m and LogSlots = x+1
-		// it is possible to run the bootstrapping on any ciphertext with LogSlots <= bootstrapping.LogSlots, however doing so
-		// will increase the runtime, so it is recommanded to have the LogSlots of the ciphertext and bootstrapping parameters
-		// be the same.
-		LogSlots: &LogSlots,
-	}
+		LogN: utils.Pointy(params.LogN()),
 
-	// The default bootstrapping parameters consume 822 bits which is smaller than the maximum
-	// allowed of 851 in our example, so the target security is easily met.
-	// We can print and verify the expected bit consumption of bootstrapping parameters with:
-	bits, err := btpParametersLit.BitConsumption(LogSlots)
-	if err != nil {
-		panic(err)
+		// We manually specify the number of auxiliary primes used by the evaluation keys of the bootstrapping
+		// circuit, so that the security target of LogQP is met.
+		NumberOfPi: utils.Pointy(4),
 	}
-	fmt.Printf("Bootstrapping depth (bits): %d\n", bits)
 
 	// Now we generate the updated ckks.ParametersLiteral that contain our residual moduli and the moduli for
 	// the bootstrapping circuit, as well as the bootstrapping.Parameters that contain all the necessary information
 	// of the bootstrapping circuit.
-	btpParams, err := bootstrapping.NewParametersFromLiteral(params, btpParametersLit)
+	btpParams, err := bootstrapper.NewParametersFromLiteral(params, btpParametersLit)
 	if err != nil {
 		panic(err)
 	}
@@ -87,10 +76,11 @@ func main() {
 		btpParams.Mod1ParametersLiteral.LogMessageRatio += 3
 	}
 
-	// Here we print some information about the generated ckks.Parameters
-	// We can notably check that the LogQP of the generated ckks.Parameters is equal to 699 + 822 = 1521.
-	// Not that this value can be overestimated by one bit.
-	fmt.Printf("CKKS parameters: logN=%d, logSlots=%d, H(%d; %d), sigma=%f, logQP=%f, levels=%d, scale=2^%f\n", params.LogN(), LogSlots, params.XsHammingWeight(), btpParams.EphemeralSecretWeight, params.Xe(), params.LogQP(), params.QCount(), math.Log2(params.DefaultScale().Float64()))
+	// Here we print some information about the residual parameters and the bootstrapping parameters
+	// We can notably check that the LogQP of the bootstrapping parameters is smaller than 1550, which ensures
+	// 128-bit of security as explained above.
+	fmt.Printf("Residual parameters: logN=%d, logSlots=%d, H=%d, sigma=%f, logQP=%f, levels=%d, scale=2^%d\n", params.LogN(), params.LogMaxSlots(), params.XsHammingWeight(), params.Xe(), params.LogQP(), params.MaxLevel(), params.LogDefaultScale())
+	fmt.Printf("Bootstrapping parameters: logN=%d, logSlots=%d, H(%d; %d), sigma=%f, logQP=%f, levels=%d, scale=2^%d\n", btpParams.LogN(), btpParams.LogMaxSlots(), btpParams.XsHammingWeight(), btpParams.EphemeralSecretWeight, btpParams.Xe(), btpParams.LogQP(), btpParams.QCount(), btpParams.LogDefaultScale())
 
 	// Scheme context and keys
 	kgen := ckks.NewKeyGenerator(params)
@@ -104,22 +94,24 @@ func main() {
 	fmt.Println()
 	fmt.Println("Generating bootstrapping keys...")
 	// This only requires that Q[0] of sk matches Q[0] of btpParams
-	evk := btpParams.GenEvaluationKeySetNew(sk)
+	evk, err := btpParams.GenBootstrappingKeys(params, sk)
+	if err != nil {
+		panic(err)
+	}
 	fmt.Println("Done")
 
-	var btp *bootstrapping.Bootstrapper
-	if btp, err = bootstrapping.NewBootstrapper(btpParams, evk); err != nil {
+	var btp *bootstrapper.Bootstrapper
+	if btp, err = bootstrapper.NewBootstrapper(params, btpParams, evk); err != nil {
 		panic(err)
 	}
 
 	// Generate a random plaintext with values uniformely distributed in [-1, 1] for the real and imaginary part.
-	valuesWant := make([]complex128, 1<<LogSlots)
+	valuesWant := make([]complex128, params.MaxSlots())
 	for i := range valuesWant {
 		valuesWant[i] = sampling.RandComplex128(-1, 1)
 	}
 
 	plaintext := ckks.NewPlaintext(params, params.MaxLevel())
-	plaintext.LogDimensions.Cols = LogSlots
 	if err := encoder.Encode(valuesWant, plaintext); err != nil {
 		panic(err)
 	}

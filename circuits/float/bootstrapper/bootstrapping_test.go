@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tuneinsight/lattigo/v4/circuits/float/bootstrapper/bootstrapping"
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -17,6 +16,13 @@ import (
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure bootstrapping). Overrides -short and requires -timeout=0.")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 
+var testPrec45 = ckks.ParametersLiteral{
+	LogN:            10,
+	LogQ:            []int{60, 40},
+	LogP:            []int{61},
+	LogDefaultScale: 40,
+}
+
 func TestBootstrapping(t *testing.T) {
 
 	// Check that the bootstrapper complies to the rlwe.Bootstrapper interface
@@ -24,19 +30,19 @@ func TestBootstrapping(t *testing.T) {
 
 	t.Run("BootstrapingWithoutRingDegreeSwitch", func(t *testing.T) {
 
-		paramSet := bootstrapping.DefaultParametersSparse[0]
-		paramSet.SchemeParams.LogQ = paramSet.SchemeParams.LogQ[:utils.Min(2, len(paramSet.SchemeParams.LogQ))]
+		schemeParamsLit := testPrec45
+		btpParamsLit := ParametersLiteral{}
 
-		if !*flagLongTest {
-			paramSet.SchemeParams.LogN = 13
+		if *flagLongTest {
+			schemeParamsLit.LogN = 16
 		}
 
-		params, err := ckks.NewParametersFromLiteral(paramSet.SchemeParams)
+		params, err := ckks.NewParametersFromLiteral(schemeParamsLit)
 		require.Nil(t, err)
 
-		paramSet.BootstrappingParams.LogN = utils.Pointy(params.LogN())
+		btpParamsLit.LogN = utils.Pointy(params.LogN())
 
-		btpParams, err := bootstrapping.NewParametersFromLiteral(params, paramSet.BootstrappingParams)
+		btpParams, err := NewParametersFromLiteral(params, btpParamsLit)
 		require.Nil(t, err)
 
 		// Insecure params for fast testing only
@@ -50,16 +56,14 @@ func TestBootstrapping(t *testing.T) {
 
 		t.Logf("ParamsN2: LogN=%d/LogSlots=%d/LogQP=%f", params.LogN(), params.LogMaxSlots(), params.LogQP())
 
-		sk := ckks.NewKeyGenerator(btpParams.Parameters).GenSecretKeyNew()
+		sk := ckks.NewKeyGenerator(btpParams.Parameters.Parameters).GenSecretKeyNew()
 
 		t.Log("Generating Bootstrapping Keys")
-		btpKeys, err := GenBootstrappingKeys(params, btpParams, sk)
+		btpKeys, err := btpParams.GenBootstrappingKeys(params, sk)
 		require.NoError(t, err)
 
-		bootstrapperInterface, err := NewBootstrapper(params, btpParams, btpKeys)
+		bootstrapper, err := NewBootstrapper(params, btpParams, btpKeys)
 		require.NoError(t, err)
-
-		bootstrapper := bootstrapperInterface.(*Bootstrapper)
 
 		ecd := ckks.NewEncoder(params)
 		enc := ckks.NewEncryptor(params, sk)
@@ -102,22 +106,22 @@ func TestBootstrapping(t *testing.T) {
 
 	t.Run("BootstrappingWithRingDegreeSwitch", func(t *testing.T) {
 
-		paramSet := bootstrapping.DefaultParametersSparse[0]
-		paramSet.SchemeParams.LogQ = paramSet.SchemeParams.LogQ[:utils.Min(2, len(paramSet.SchemeParams.LogQ))]
+		schemeParamsLit := testPrec45
+		btpParamsLit := ParametersLiteral{}
 
-		if !*flagLongTest {
-			paramSet.SchemeParams.LogN = 13
-			paramSet.SchemeParams.LogNthRoot = paramSet.SchemeParams.LogN + 1
+		if *flagLongTest {
+			schemeParamsLit.LogN = 16
 		}
 
-		paramSet.SchemeParams.LogN--
+		schemeParamsLit.LogNthRoot = schemeParamsLit.LogN + 1
+		schemeParamsLit.LogN--
 
-		params, err := ckks.NewParametersFromLiteral(paramSet.SchemeParams)
+		params, err := ckks.NewParametersFromLiteral(schemeParamsLit)
 		require.Nil(t, err)
 
-		paramSet.BootstrappingParams.LogN = utils.Pointy(params.LogN() + 1)
+		btpParamsLit.LogN = utils.Pointy(params.LogN() + 1)
 
-		btpParams, err := bootstrapping.NewParametersFromLiteral(params, paramSet.BootstrappingParams)
+		btpParams, err := NewParametersFromLiteral(params, btpParamsLit)
 		require.Nil(t, err)
 
 		// Insecure params for fast testing only
@@ -135,7 +139,7 @@ func TestBootstrapping(t *testing.T) {
 		sk := ckks.NewKeyGenerator(params).GenSecretKeyNew()
 
 		t.Log("Generating Bootstrapping Keys")
-		btpKeys, err := GenBootstrappingKeys(params, btpParams, sk)
+		btpKeys, err := btpParams.GenBootstrappingKeys(params, sk)
 		require.Nil(t, err)
 
 		bootstrapper, err := NewBootstrapper(params, btpParams, btpKeys)
@@ -186,22 +190,21 @@ func TestBootstrapping(t *testing.T) {
 
 	t.Run("BootstrappingPackedWithRingDegreeSwitch", func(t *testing.T) {
 
-		paramSet := bootstrapping.DefaultParametersSparse[0]
-		paramSet.SchemeParams.LogQ = paramSet.SchemeParams.LogQ[:utils.Min(2, len(paramSet.SchemeParams.LogQ))]
+		schemeParamsLit := testPrec45
+		btpParamsLit := ParametersLiteral{}
 
-		if !*flagLongTest {
-			paramSet.SchemeParams.LogN = 13
-			paramSet.SchemeParams.LogNthRoot = paramSet.SchemeParams.LogN + 1
+		if *flagLongTest {
+			schemeParamsLit.LogN = 16
 		}
 
-		paramSet.SchemeParams.LogN -= 5
+		btpParamsLit.LogN = utils.Pointy(schemeParamsLit.LogN)
+		schemeParamsLit.LogNthRoot = schemeParamsLit.LogN + 1
+		schemeParamsLit.LogN -= 3
 
-		params, err := ckks.NewParametersFromLiteral(paramSet.SchemeParams)
+		params, err := ckks.NewParametersFromLiteral(schemeParamsLit)
 		require.Nil(t, err)
 
-		paramSet.BootstrappingParams.LogN = utils.Pointy(params.LogN() + 5)
-
-		btpParams, err := bootstrapping.NewParametersFromLiteral(params, paramSet.BootstrappingParams)
+		btpParams, err := NewParametersFromLiteral(params, btpParamsLit)
 		require.Nil(t, err)
 
 		// Insecure params for fast testing only
@@ -219,7 +222,7 @@ func TestBootstrapping(t *testing.T) {
 		sk := ckks.NewKeyGenerator(params).GenSecretKeyNew()
 
 		t.Log("Generating Bootstrapping Keys")
-		btpKeys, err := GenBootstrappingKeys(params, btpParams, sk)
+		btpKeys, err := btpParams.GenBootstrappingKeys(params, sk)
 		require.Nil(t, err)
 
 		bootstrapper, err := NewBootstrapper(params, btpParams, btpKeys)
@@ -243,7 +246,7 @@ func TestBootstrapping(t *testing.T) {
 
 		pt := ckks.NewPlaintext(params, 0)
 
-		cts := make([]*rlwe.Ciphertext, 17)
+		cts := make([]*rlwe.Ciphertext, 7)
 		for i := range cts {
 
 			require.NoError(t, ecd.Encode(utils.RotateSlice(values, i), pt))
@@ -269,29 +272,26 @@ func TestBootstrapping(t *testing.T) {
 
 	t.Run("BootstrappingWithRingTypeSwitch", func(t *testing.T) {
 
-		paramSet := bootstrapping.DefaultParametersSparse[0]
-		paramSet.SchemeParams.LogQ = paramSet.SchemeParams.LogQ[:utils.Min(2, len(paramSet.SchemeParams.LogQ))]
-		paramSet.SchemeParams.RingType = ring.ConjugateInvariant
+		schemeParamsLit := testPrec45
+		schemeParamsLit.RingType = ring.ConjugateInvariant
+		btpParamsLit := ParametersLiteral{}
 
-		if !*flagLongTest {
-			paramSet.SchemeParams.LogN = 13
+		if *flagLongTest {
+			schemeParamsLit.LogN = 16
 		}
 
-		paramSet.SchemeParams.LogN--
+		btpParamsLit.LogN = utils.Pointy(schemeParamsLit.LogN)
+		schemeParamsLit.LogNthRoot = schemeParamsLit.LogN + 1
+		schemeParamsLit.LogN--
 
-		params, err := ckks.NewParametersFromLiteral(paramSet.SchemeParams)
+		params, err := ckks.NewParametersFromLiteral(schemeParamsLit)
 		require.Nil(t, err)
 
-		paramSet.BootstrappingParams.LogN = utils.Pointy(params.LogN() + 1)
-
-		btpParams, err := bootstrapping.NewParametersFromLiteral(params, paramSet.BootstrappingParams)
+		btpParams, err := NewParametersFromLiteral(params, btpParamsLit)
 		require.Nil(t, err)
 
 		// Insecure params for fast testing only
 		if !*flagLongTest {
-			btpParams.SlotsToCoeffsParameters.LogSlots = btpParams.LogN() - 1
-			btpParams.CoeffsToSlotsParameters.LogSlots = btpParams.LogN() - 1
-
 			// Corrects the message ratio to take into account the smaller number of slots and keep the same precision
 			btpParams.Mod1ParametersLiteral.LogMessageRatio += 16 - params.LogN()
 		}
@@ -302,13 +302,11 @@ func TestBootstrapping(t *testing.T) {
 		sk := ckks.NewKeyGenerator(params).GenSecretKeyNew()
 
 		t.Log("Generating Bootstrapping Keys")
-		btpKeys, err := GenBootstrappingKeys(params, btpParams, sk)
+		btpKeys, err := btpParams.GenBootstrappingKeys(params, sk)
 		require.Nil(t, err)
 
-		bootstrapperInterface, err := NewBootstrapper(params, btpParams, btpKeys)
+		bootstrapper, err := NewBootstrapper(params, btpParams, btpKeys)
 		require.Nil(t, err)
-
-		bootstrapper := bootstrapperInterface.(*Bootstrapper)
 
 		ecd := ckks.NewEncoder(params)
 		enc := ckks.NewEncryptor(params, sk)

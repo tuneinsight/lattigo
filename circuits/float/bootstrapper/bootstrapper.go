@@ -15,12 +15,9 @@ import (
 )
 
 type Bootstrapper struct {
+	Parameters
 	bridge       ckks.DomainSwitcher
 	bootstrapper *bootstrapping.Bootstrapper
-
-	paramsN1    ckks.Parameters
-	paramsN2    ckks.Parameters
-	btpParamsN2 bootstrapping.Parameters
 
 	xPow2N1    []ring.Poly
 	xPow2InvN1 []ring.Poly
@@ -30,11 +27,12 @@ type Bootstrapper struct {
 	evk *BootstrappingKeys
 }
 
-func NewBootstrapper(paramsN1 ckks.Parameters, btpParamsN2 Parameters, evk *BootstrappingKeys) (*Bootstrapper, error) {
+func NewBootstrapper(btpParams Parameters, evk *BootstrappingKeys) (*Bootstrapper, error) {
 
 	b := &Bootstrapper{}
 
-	paramsN2 := btpParamsN2.Parameters.Parameters
+	paramsN1 := btpParams.ResidualParameters
+	paramsN2 := btpParams.Parameters.Parameters
 
 	switch paramsN1.RingType() {
 	case ring.Standard:
@@ -52,27 +50,25 @@ func NewBootstrapper(paramsN1 ckks.Parameters, btpParamsN2 Parameters, evk *Boot
 		}
 
 		// The switch to standard to conjugate invariant multiplies the scale by 2
-		btpParamsN2.SlotsToCoeffsParameters.Scaling = new(big.Float).SetFloat64(0.5)
+		btpParams.SlotsToCoeffsParameters.Scaling = new(big.Float).SetFloat64(0.5)
 	}
 
-	b.paramsN1 = paramsN1
-	b.paramsN2 = paramsN2
-	b.btpParamsN2 = btpParamsN2.Parameters
+	b.Parameters = btpParams
 	b.evk = evk
 
-	b.xPow2N2 = rlwe.GenXPow2(b.paramsN2.RingQ().AtLevel(0), b.paramsN2.LogN(), false)
-	b.xPow2InvN2 = rlwe.GenXPow2(b.paramsN2.RingQ(), b.paramsN2.LogN(), true)
+	b.xPow2N2 = rlwe.GenXPow2(paramsN2.RingQ().AtLevel(0), paramsN2.LogN(), false)
+	b.xPow2InvN2 = rlwe.GenXPow2(paramsN2.RingQ(), paramsN2.LogN(), true)
 
-	if paramsN1.N() != b.paramsN2.N() {
+	if paramsN1.N() != paramsN2.N() {
 		b.xPow2N1 = b.xPow2N2
 		b.xPow2InvN1 = b.xPow2InvN2
 	} else {
-		b.xPow2N1 = rlwe.GenXPow2(b.paramsN1.RingQ().AtLevel(0), b.paramsN2.LogN(), false)
-		b.xPow2InvN1 = rlwe.GenXPow2(b.paramsN1.RingQ(), b.paramsN2.LogN(), true)
+		b.xPow2N1 = rlwe.GenXPow2(paramsN1.RingQ().AtLevel(0), paramsN2.LogN(), false)
+		b.xPow2InvN1 = rlwe.GenXPow2(paramsN1.RingQ(), paramsN2.LogN(), true)
 	}
 
 	var err error
-	if b.bootstrapper, err = bootstrapping.NewBootstrapper(btpParamsN2.Parameters, evk.EvkBootstrapping); err != nil {
+	if b.bootstrapper, err = bootstrapping.NewBootstrapper(btpParams.Parameters, evk.EvkBootstrapping); err != nil {
 		return nil, err
 	}
 
@@ -80,11 +76,11 @@ func NewBootstrapper(paramsN1 ckks.Parameters, btpParamsN2 Parameters, evk *Boot
 }
 
 func (b Bootstrapper) Depth() int {
-	return b.btpParamsN2.SlotsToCoeffsParameters.Depth(true) + b.btpParamsN2.Mod1ParametersLiteral.Depth() + b.btpParamsN2.CoeffsToSlotsParameters.Depth(true)
+	return b.Parameters.Parameters.MaxLevel() - b.ResidualParameters.MaxLevel()
 }
 
 func (b Bootstrapper) OutputLevel() int {
-	return b.paramsN2.MaxLevel() - b.Depth()
+	return b.ResidualParameters.MaxLevel()
 }
 
 func (b Bootstrapper) MinimumInputLevel() int {
@@ -104,7 +100,7 @@ func (b Bootstrapper) BootstrapMany(cts []*rlwe.Ciphertext) ([]*rlwe.Ciphertext,
 
 	var err error
 
-	switch b.paramsN1.RingType() {
+	switch b.ResidualParameters.RingType() {
 	case ring.ConjugateInvariant:
 
 		for i := 0; i < len(cts); i = i + 2 {
@@ -154,7 +150,7 @@ func (b Bootstrapper) BootstrapMany(cts []*rlwe.Ciphertext) ([]*rlwe.Ciphertext,
 	runtime.GC()
 
 	for i := range cts {
-		cts[i].Scale = b.paramsN1.DefaultScale()
+		cts[i].Scale = b.ResidualParameters.DefaultScale()
 	}
 
 	return cts, err

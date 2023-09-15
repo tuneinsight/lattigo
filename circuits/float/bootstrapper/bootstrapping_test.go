@@ -62,7 +62,7 @@ func TestBootstrapping(t *testing.T) {
 		btpKeys, err := btpParams.GenBootstrappingKeys(sk)
 		require.NoError(t, err)
 
-		bootstrapper, err := NewBootstrapper(params, btpParams, btpKeys)
+		bootstrapper, err := NewBootstrapper(btpParams, btpKeys)
 		require.NoError(t, err)
 
 		ecd := ckks.NewEncoder(params)
@@ -142,7 +142,7 @@ func TestBootstrapping(t *testing.T) {
 		btpKeys, err := btpParams.GenBootstrappingKeys(sk)
 		require.Nil(t, err)
 
-		bootstrapper, err := NewBootstrapper(params, btpParams, btpKeys)
+		bootstrapper, err := NewBootstrapper(btpParams, btpKeys)
 		require.Nil(t, err)
 
 		ecd := ckks.NewEncoder(params)
@@ -225,7 +225,7 @@ func TestBootstrapping(t *testing.T) {
 		btpKeys, err := btpParams.GenBootstrappingKeys(sk)
 		require.Nil(t, err)
 
-		bootstrapper, err := NewBootstrapper(params, btpParams, btpKeys)
+		bootstrapper, err := NewBootstrapper(btpParams, btpKeys)
 		require.Nil(t, err)
 
 		ecd := ckks.NewEncoder(params)
@@ -305,7 +305,7 @@ func TestBootstrapping(t *testing.T) {
 		btpKeys, err := btpParams.GenBootstrappingKeys(sk)
 		require.Nil(t, err)
 
-		bootstrapper, err := NewBootstrapper(params, btpParams, btpKeys)
+		bootstrapper, err := NewBootstrapper(btpParams, btpKeys)
 		require.Nil(t, err)
 
 		ecd := ckks.NewEncoder(params)

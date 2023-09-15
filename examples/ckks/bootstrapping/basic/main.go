@@ -152,7 +152,7 @@ func main() {
 
 	// Instantiates the bootstrapper
 	var btp *bootstrapper.Bootstrapper
-	if btp, err = bootstrapper.NewBootstrapper(params, btpParams, evk); err != nil {
+	if btp, err = bootstrapper.NewBootstrapper(btpParams, evk); err != nil {
 		panic(err)
 	}
 

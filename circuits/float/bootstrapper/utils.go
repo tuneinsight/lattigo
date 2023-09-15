@@ -12,8 +12,8 @@ import (
 
 func (b Bootstrapper) SwitchRingDegreeN1ToN2New(ctN1 *rlwe.Ciphertext) (ctN2 *rlwe.Ciphertext) {
 
-	if ctN1.Value[0].N() < b.paramsN2.N() {
-		ctN2 = ckks.NewCiphertext(b.paramsN2, 1, ctN1.Level())
+	if ctN1.Value[0].N() < b.Parameters.Parameters.Parameters.N() {
+		ctN2 = ckks.NewCiphertext(b.Parameters.Parameters.Parameters, 1, ctN1.Level())
 		if err := b.bootstrapper.ApplyEvaluationKey(ctN1, b.evk.EvkN1ToN2, ctN2); err != nil {
 			panic(err)
 		}
@@ -26,8 +26,8 @@ func (b Bootstrapper) SwitchRingDegreeN1ToN2New(ctN1 *rlwe.Ciphertext) (ctN2 *rl
 
 func (b Bootstrapper) SwitchRingDegreeN2ToN1New(ctN2 *rlwe.Ciphertext) (ctN1 *rlwe.Ciphertext) {
 
-	if ctN2.Value[0].N() > b.paramsN1.N() {
-		ctN1 = ckks.NewCiphertext(b.paramsN1, 1, ctN2.Level())
+	if ctN2.Value[0].N() > b.ResidualParameters.N() {
+		ctN1 = ckks.NewCiphertext(b.ResidualParameters, 1, ctN2.Level())
 		if err := b.bootstrapper.ApplyEvaluationKey(ctN2, b.evk.EvkN2ToN1, ctN1); err != nil {
 			panic(err)
 		}
@@ -39,7 +39,7 @@ func (b Bootstrapper) SwitchRingDegreeN2ToN1New(ctN2 *rlwe.Ciphertext) (ctN1 *rl
 }
 
 func (b Bootstrapper) ComplexToRealNew(ctCmplx *rlwe.Ciphertext) (ctReal *rlwe.Ciphertext) {
-	ctReal = ckks.NewCiphertext(b.paramsN1, 1, ctCmplx.Level())
+	ctReal = ckks.NewCiphertext(b.ResidualParameters, 1, ctCmplx.Level())
 	if err := b.bridge.ComplexToReal(b.bootstrapper.Evaluator, ctCmplx, ctReal); err != nil {
 		panic(err)
 	}
@@ -47,7 +47,7 @@ func (b Bootstrapper) ComplexToRealNew(ctCmplx *rlwe.Ciphertext) (ctReal *rlwe.C
 }
 
 func (b Bootstrapper) RealToComplexNew(ctReal *rlwe.Ciphertext) (ctCmplx *rlwe.Ciphertext) {
-	ctCmplx = ckks.NewCiphertext(b.paramsN2, 1, ctReal.Level())
+	ctCmplx = ckks.NewCiphertext(b.Parameters.Parameters.Parameters, 1, ctReal.Level())
 	if err := b.bridge.RealToComplex(b.bootstrapper.Evaluator, ctReal, ctCmplx); err != nil {
 		panic(err)
 	}
@@ -58,8 +58,8 @@ func (b Bootstrapper) PackAndSwitchN1ToN2(cts []*rlwe.Ciphertext) ([]*rlwe.Ciphe
 
 	var err error
 
-	if b.paramsN1.N() != b.paramsN2.N() {
-		if cts, err = b.Pack(cts, b.paramsN1, b.xPow2N1); err != nil {
+	if b.ResidualParameters.N() != b.Parameters.Parameters.Parameters.N() {
+		if cts, err = b.Pack(cts, b.ResidualParameters, b.xPow2N1); err != nil {
 			return nil, fmt.Errorf("cannot PackAndSwitchN1ToN2: PackN1: %w", err)
 		}
 
@@ -68,7 +68,7 @@ func (b Bootstrapper) PackAndSwitchN1ToN2(cts []*rlwe.Ciphertext) ([]*rlwe.Ciphe
 		}
 	}
 
-	if cts, err = b.Pack(cts, b.paramsN2, b.xPow2N2); err != nil {
+	if cts, err = b.Pack(cts, b.Parameters.Parameters.Parameters, b.xPow2N2); err != nil {
 		return nil, fmt.Errorf("cannot PackAndSwitchN1ToN2: PackN2: %w", err)
 	}
 
@@ -79,11 +79,11 @@ func (b Bootstrapper) UnpackAndSwitchN2Tn1(cts []*rlwe.Ciphertext, LogSlots, Nb 
 
 	var err error
 
-	if cts, err = b.UnPack(cts, b.paramsN2, LogSlots, Nb, b.xPow2InvN2); err != nil {
+	if cts, err = b.UnPack(cts, b.Parameters.Parameters.Parameters, LogSlots, Nb, b.xPow2InvN2); err != nil {
 		return nil, fmt.Errorf("cannot UnpackAndSwitchN2Tn1: UnpackN2: %w", err)
 	}
 
-	if b.paramsN1.N() != b.paramsN2.N() {
+	if b.ResidualParameters.N() != b.Parameters.Parameters.Parameters.N() {
 		for i := range cts {
 			cts[i] = b.SwitchRingDegreeN2ToN1New(cts[i])
 		}

@@ -7,7 +7,6 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/circuits/float"
 	"github.com/tuneinsight/lattigo/v4/ckks"
-	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
@@ -94,19 +93,20 @@ func (p Parameters) GenEvaluationKeySetNew(sk *rlwe.SecretKey) *EvaluationKeySet
 	ringQ := p.Parameters.RingQ()
 	ringP := p.Parameters.RingP()
 
+	if sk.Value.Q.N() != ringQ.N() {
+		panic(fmt.Sprintf("invalid secret key: secret key ring degree = %d does not match bootstrapping parameters ring degree = %d", sk.Value.Q.N(), ringQ.N()))
+	}
+
 	params := p.Parameters
 
 	skExtended := rlwe.NewSecretKey(params)
 	buff := ringQ.NewPoly()
 
-	// Maps the smaller key to the largest with Y = X^{N/n}.
-	ring.MapSmallDimensionToLargerDimensionNTT(sk.Value.Q, skExtended.Value.Q)
-
 	// Extends basis Q0 -> QL
-	rlwe.ExtendBasisSmallNormAndCenterNTTMontgomery(ringQ, ringQ, skExtended.Value.Q, buff, skExtended.Value.Q)
+	rlwe.ExtendBasisSmallNormAndCenterNTTMontgomery(ringQ, ringQ, sk.Value.Q, buff, skExtended.Value.Q)
 
 	// Extends basis Q0 -> P
-	rlwe.ExtendBasisSmallNormAndCenterNTTMontgomery(ringQ, ringP, skExtended.Value.Q, buff, skExtended.Value.P)
+	rlwe.ExtendBasisSmallNormAndCenterNTTMontgomery(ringQ, ringP, sk.Value.Q, buff, skExtended.Value.P)
 
 	kgen := ckks.NewKeyGenerator(params)
 

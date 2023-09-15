@@ -9,7 +9,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/ckks"
-	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -75,7 +74,7 @@ func TestBootstrapParametersMarshalling(t *testing.T) {
 	})
 }
 
-func TestBootstrap(t *testing.T) {
+func TestBootstrappingWithEncapsulation(t *testing.T) {
 
 	if runtime.GOARCH == "wasm" {
 		t.Skip("skipping bootstrapping tests for GOARCH=wasm")
@@ -90,38 +89,71 @@ func TestBootstrap(t *testing.T) {
 	paramSet.BootstrappingParams.LogN = utils.Pointy(paramSet.SchemeParams.LogN)
 
 	for _, LogSlots := range []int{1, paramSet.SchemeParams.LogN - 2, paramSet.SchemeParams.LogN - 1} {
-		for _, encapsulation := range []bool{true, false} {
+		paramsSetCpy := paramSet
 
-			paramsSetCpy := paramSet
+		level := utils.Min(1, len(paramSet.SchemeParams.LogQ))
 
-			level := utils.Min(1, len(paramSet.SchemeParams.LogQ))
+		paramsSetCpy.SchemeParams.LogQ = paramSet.SchemeParams.LogQ[:level+1]
 
-			paramsSetCpy.SchemeParams.LogQ = paramSet.SchemeParams.LogQ[:level+1]
+		paramsSetCpy.BootstrappingParams.LogSlots = &LogSlots
 
-			paramsSetCpy.BootstrappingParams.LogSlots = &LogSlots
+		params, err := ckks.NewParametersFromLiteral(paramsSetCpy.SchemeParams)
+		require.NoError(t, err)
 
-			if !encapsulation {
-				H, err := paramsSetCpy.BootstrappingParams.GetEphemeralSecretWeight()
-				require.NoError(t, err)
-				paramsSetCpy.SchemeParams.Xs = ring.Ternary{H: H}
-				paramsSetCpy.BootstrappingParams.EphemeralSecretWeight = utils.Pointy(0)
-			}
+		btpParams, err := NewParametersFromLiteral(params, paramsSetCpy.BootstrappingParams)
+		require.NoError(t, err)
 
-			params, err := ckks.NewParametersFromLiteral(paramsSetCpy.SchemeParams)
-			require.NoError(t, err)
-
-			btpParams, err := NewParametersFromLiteral(params, paramsSetCpy.BootstrappingParams)
-			require.NoError(t, err)
-
-			// Insecure params for fast testing only
-			if !*flagLongTest {
-				// Corrects the message ratio to take into account the smaller number of slots and keep the same precision
-				btpParams.Mod1ParametersLiteral.LogMessageRatio += utils.Min(utils.Max(15-LogSlots, 0), 8)
-			}
-
-			testbootstrap(params, btpParams, level, t)
-			runtime.GC()
+		// Insecure params for fast testing only
+		if !*flagLongTest {
+			// Corrects the message ratio to take into account the smaller number of slots and keep the same precision
+			btpParams.Mod1ParametersLiteral.LogMessageRatio += utils.Min(utils.Max(15-LogSlots, 0), 8)
 		}
+
+		testbootstrap(params, btpParams, level, t)
+		runtime.GC()
+	}
+
+	testBootstrapHighPrecision(paramSet, t)
+}
+
+func TestBootstrappingOriginal(t *testing.T) {
+
+	if runtime.GOARCH == "wasm" {
+		t.Skip("skipping bootstrapping tests for GOARCH=wasm")
+	}
+
+	paramSet := DefaultParametersDense[0]
+
+	if !*flagLongTest {
+		paramSet.SchemeParams.LogN -= 3
+	}
+
+	paramSet.BootstrappingParams.LogN = utils.Pointy(paramSet.SchemeParams.LogN)
+
+	for _, LogSlots := range []int{1, paramSet.SchemeParams.LogN - 2, paramSet.SchemeParams.LogN - 1} {
+
+		paramsSetCpy := paramSet
+
+		level := utils.Min(1, len(paramSet.SchemeParams.LogQ))
+
+		paramsSetCpy.SchemeParams.LogQ = paramSet.SchemeParams.LogQ[:level+1]
+
+		paramsSetCpy.BootstrappingParams.LogSlots = &LogSlots
+
+		params, err := ckks.NewParametersFromLiteral(paramsSetCpy.SchemeParams)
+		require.NoError(t, err)
+
+		btpParams, err := NewParametersFromLiteral(params, paramsSetCpy.BootstrappingParams)
+		require.NoError(t, err)
+
+		// Insecure params for fast testing only
+		if !*flagLongTest {
+			// Corrects the message ratio to take into account the smaller number of slots and keep the same precision
+			btpParams.Mod1ParametersLiteral.LogMessageRatio += utils.Min(utils.Max(15-LogSlots, 0), 8)
+		}
+
+		testbootstrap(params, btpParams, level, t)
+		runtime.GC()
 	}
 
 	testBootstrapHighPrecision(paramSet, t)
@@ -129,13 +161,7 @@ func TestBootstrap(t *testing.T) {
 
 func testbootstrap(params ckks.Parameters, btpParams Parameters, level int, t *testing.T) {
 
-	btpType := "Encapsulation/"
-
-	if btpParams.EphemeralSecretWeight == 0 {
-		btpType = "Original/"
-	}
-
-	t.Run(ParamsToString(params, btpParams.LogMaxSlots(), "Bootstrapping/FullCircuit/"+btpType), func(t *testing.T) {
+	t.Run(ParamsToString(params, btpParams.LogMaxSlots(), ""), func(t *testing.T) {
 
 		kgen := ckks.NewKeyGenerator(btpParams.Parameters)
 		sk := kgen.GenSecretKeyNew()
@@ -232,13 +258,7 @@ func testBootstrapHighPrecision(paramSet defaultParametersLiteral, t *testing.T)
 			btpParams.Mod1ParametersLiteral.LogMessageRatio += utils.Min(utils.Max(16-params.LogN(), 0), 8)
 		}
 
-		btpType := "Encapsulation/"
-
-		if btpParams.EphemeralSecretWeight == 0 {
-			btpType = "Original/"
-		}
-
-		t.Run(ParamsToString(params, btpParams.LogMaxSlots(), "Bootstrapping/FullCircuit/"+btpType), func(t *testing.T) {
+		t.Run(ParamsToString(params, btpParams.LogMaxSlots(), ""), func(t *testing.T) {
 
 			kgen := ckks.NewKeyGenerator(btpParams.Parameters)
 			sk := kgen.GenSecretKeyNew()

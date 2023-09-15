@@ -42,11 +42,7 @@ func NewParametersFromLiteral(residualParameters ckks.Parameters, btpLit Paramet
 	var err error
 
 	// Retrieve the LogN of the bootstrapping circuit
-	LogN, err := btpLit.GetLogN()
-
-	if err != nil {
-		return Parameters{}, err
-	}
+	LogN := btpLit.GetLogN()
 
 	// Retrive the NthRoot
 	var NthRoot uint64
@@ -251,13 +247,11 @@ func NewParametersFromLiteral(residualParameters ckks.Parameters, btpLit Paramet
 	}
 
 	// Retrieve the number of primes #Pi of the bootstrapping circuit
-	NumberOfPi, err := btpLit.GetNumberOfPi(C2SParams.LevelStart + 1)
-	if err != nil {
-		return Parameters{}, fmt.Errorf("cannot NewParametersFromLiteral: GetNumberOfPi: %w", err)
+	// and adds them to the list of bit-size
+	LogP := btpLit.GetLogP(C2SParams.LevelStart + 1)
+	for _, logpi := range LogP {
+		primesBitLenNew[logpi]++
 	}
-
-	// Adds them to the list of bit-size
-	primesBitLenNew[61] += NumberOfPi
 
 	// Map to store [bit-size][]primes
 	primesNew := map[int][]uint64{}
@@ -303,10 +297,10 @@ func NewParametersFromLiteral(residualParameters ckks.Parameters, btpLit Paramet
 	}
 
 	// Constructs the set of primes Pi
-	P = make([]uint64, NumberOfPi)
-	for i := range P {
-		P[i] = primesNew[61][0]
-		primesNew[61] = primesNew[61][1:]
+	P = make([]uint64, len(LogP))
+	for i, logpi := range LogP {
+		P[i] = primesNew[logpi][0]
+		primesNew[logpi] = primesNew[logpi][1:]
 	}
 
 	// Instantiates the ckks.Parameters of the bootstrapping circuit.
@@ -315,8 +309,8 @@ func NewParametersFromLiteral(residualParameters ckks.Parameters, btpLit Paramet
 		Q:               Q,
 		P:               P,
 		LogDefaultScale: residualParameters.LogDefaultScale(),
-		Xe:              residualParameters.Xe(),
-		Xs:              residualParameters.Xs(),
+		Xe:              btpLit.GetDefaultXs(),
+		Xs:              btpLit.GetDefaultXe(),
 	})
 
 	if err != nil {

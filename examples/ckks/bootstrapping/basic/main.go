@@ -1,6 +1,6 @@
-// Package main implements an example showcasing the basics of the bootstrapping for the CKKS scheme.
-// The CKKS bootstrapping is a circuit that homomorphically re-encrypts a ciphertext at level zero to a ciphertext at a higher level, enabling further computations.
-// Note that, unlike the BGV or BFV bootstrapping, the CKKS bootstrapping does not reduce the error in the ciphertext, but only enables further computations.
+// Package main implements an example showcasing the basics of the bootstrapping for encrypted floating point numbers (CKKS).
+// The bootstrapping is a circuit that homomorphically re-encrypts a ciphertext at level zero to a ciphertext at a higher level, enabling further computations.
+// Note that, unlike other bootstrappings (BGV/BFV/TFHE), the this bootstrapping does not reduce the error in the ciphertext, but only enables further computations.
 // Use the flag -short to run the examples fast but with insecure parameters.
 package main
 
@@ -11,7 +11,6 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/circuits/float/bootstrapper"
 	"github.com/tuneinsight/lattigo/v4/ckks"
-	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -23,64 +22,104 @@ func main() {
 
 	flag.Parse()
 
+	// Default LogN, which with the following defined parameters
+	// provides a security of 128-bit.
 	LogN := 16
 
 	if *flagShort {
 		LogN -= 3
 	}
 
-	// First we define the residual CKKS parameters.
-	// For this example, we have a logQ = 55 + 10*40 and logP = 3*61
-	// These are the parameters that the regular circuit will use outside of the
-	// circuit bootstrapping.
-	// The bootstrapping circuit use its own ckks.Parameters which are automatically
-	// parameterized given the residual parameters and the bootsrappping parameters.
+	//==============================
+	//=== 1) RESIDUAL PARAMETERS ===
+	//==============================
+
+	// First we must define the residual parameters.
+	// The residual parameters are the parameters used outside of the bootstrapping circuit.
+	// For this example, we have a LogN=16, logQ = 55 + 10*40 and logP = 3*61.
 	params, err := ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
 		LogN:            LogN,                                              // Log2 of the ringdegree
 		LogQ:            []int{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40}, // Log2 of the ciphertext prime moduli
 		LogP:            []int{61, 61, 61},                                 // Log2 of the key-switch auxiliary prime moduli
 		LogDefaultScale: 40,                                                // Log2 of the scale
-		Xs:              ring.Ternary{H: 192},                              // Hamming weight of the secret
 	})
 
 	if err != nil {
 		panic(err)
 	}
 
-	// Note that with H=192 and LogN=16 the bootstrapping parameters are at least 128-bit if their LogQP <= 1550.
+	//==========================================
+	//=== 2) BOOTSTRAPPING PARAMETERSLITERAL ===
+	//==========================================
 
-	// For this first example, we do not specify any optional field of the bootstrapping parameters.
+	// The bootstrapping circuit use its own Parameters which will be automatically
+	// instantiated given the residual parameters and the bootsrappping parameters.
+
+	// Note that the default bootstrapping parameters use LogN=16 and a ternary secret with H=192 non-zero coefficients
+	// which provides parmaeters which are at least 128-bit if their LogQP <= 1550.
+
+	// For this first example, we do not specify any circuit specific optional field in the bootstrapping parameters literal.
 	// Thus we expect the bootstrapping to give a precision of 27.25 bits with H=192 (and 23.8 with H=N/2)
 	// if the plaintext values are uniformly distributed in [-1, 1] for both the real and imaginary part.
-	// See `/ckks/bootstrapping/parameters.go` for information about the optional fields.
+	// See `circuits/float/bootstrapper/bootstrapping/parameters_literal.go` for detailed information about the optional fields.
 	btpParametersLit := bootstrapper.ParametersLiteral{
 		// We specify LogN to ensure that both the residual parameters and the bootstrapping parameters
-		// have the same LogN
+		// have the same LogN. This is not required, but we want it for this example.
 		LogN: utils.Pointy(params.LogN()),
 
-		// We manually specify the number of auxiliary primes used by the evaluation keys of the bootstrapping
-		// circuit, so that the security target of LogQP is met.
-		NumberOfPi: utils.Pointy(4),
+		// In this example we need manually specify the number of auxiliary primes (i.e. #Pi) used by the
+		// evaluation keys of the bootstrapping circuit, so that the size of LogQP  meets the security target.
+		LogP: []int{61, 61, 61, 61},
 	}
 
-	// Now we generate the updated ckks.ParametersLiteral that contain our residual moduli and the moduli for
-	// the bootstrapping circuit, as well as the bootstrapping.Parameters that contain all the necessary information
-	// of the bootstrapping circuit.
+	//===================================
+	//=== 3) BOOTSTRAPPING PARAMETERS ===
+	//===================================
+
+	// Now that the residual parameters and the bootstrapping parameters literals are defined, we can instantiate
+	// the bootstrapping parameters.
+	// The instantiated bootstrapping parameters store their own ckks.Parameter, which are the parameters of the
+	// ring used by the bootstrapping circuit.
+	// The bootstrapping parameters are a wrapper of ckks.Parameters, with additional information.
+	// They therefore has the same API as the ckks.Parameters and we can use this API to print some information.
 	btpParams, err := bootstrapper.NewParametersFromLiteral(params, btpParametersLit)
 	if err != nil {
 		panic(err)
 	}
 
 	if *flagShort {
-		// Corrects the message ratio to take into account the smaller number of slots and keep the same precision
+		// Corrects the message ratio Q0/|m(X)| to take into account the smaller number of slots and keep the same precision
 		btpParams.Mod1ParametersLiteral.LogMessageRatio += 3
 	}
 
-	// Here we print some information about the residual parameters and the bootstrapping parameters
+	// We print some information about the residual parameters.
+	fmt.Printf("Residual parameters: logN=%d, logSlots=%d, H=%d, sigma=%f, logQP=%f, levels=%d, scale=2^%d\n",
+		params.LogN(),
+		params.LogMaxSlots(),
+		params.XsHammingWeight(),
+		params.Xe(), params.LogQP(),
+		params.MaxLevel(),
+		params.LogDefaultScale())
+
+	// And some information about the bootstrapping parameters.
 	// We can notably check that the LogQP of the bootstrapping parameters is smaller than 1550, which ensures
 	// 128-bit of security as explained above.
-	fmt.Printf("Residual parameters: logN=%d, logSlots=%d, H=%d, sigma=%f, logQP=%f, levels=%d, scale=2^%d\n", params.LogN(), params.LogMaxSlots(), params.XsHammingWeight(), params.Xe(), params.LogQP(), params.MaxLevel(), params.LogDefaultScale())
-	fmt.Printf("Bootstrapping parameters: logN=%d, logSlots=%d, H(%d; %d), sigma=%f, logQP=%f, levels=%d, scale=2^%d\n", btpParams.LogN(), btpParams.LogMaxSlots(), btpParams.XsHammingWeight(), btpParams.EphemeralSecretWeight, btpParams.Xe(), btpParams.LogQP(), btpParams.QCount(), btpParams.LogDefaultScale())
+	fmt.Printf("Bootstrapping parameters: logN=%d, logSlots=%d, H(%d; %d), sigma=%f, logQP=%f, levels=%d, scale=2^%d\n",
+		btpParams.LogN(),
+		btpParams.LogMaxSlots(),
+		btpParams.XsHammingWeight(),
+		btpParams.EphemeralSecretWeight,
+		btpParams.Xe(),
+		btpParams.LogQP(),
+		btpParams.QCount(),
+		btpParams.LogDefaultScale())
+
+	//===========================
+	//=== 4) KEYGEN & ENCRYPT ===
+	//===========================
+
+	// Now that both the residual and bootstrapping parameters are instantiated, we can
+	// instantiate the usual necessary object to encode, encrypt and decrypt.
 
 	// Scheme context and keys
 	kgen := ckks.NewKeyGenerator(params)
@@ -93,12 +132,20 @@ func main() {
 
 	fmt.Println()
 	fmt.Println("Generating bootstrapping keys...")
+	// Note that passing the secret-key of the residual parameters is allowed if the ring degree
+	// is the same, as the key will be automatically extended to the moduli of the bootstrapping
+	// parameters.
 	evk, err := btpParams.GenBootstrappingKeys(sk)
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println("Done")
 
+	//========================
+	//=== 5) BOOTSTRAPPING ===
+	//========================
+
+	// Instantiates the bootstrapper
 	var btp *bootstrapper.Bootstrapper
 	if btp, err = bootstrapper.NewBootstrapper(params, btpParams, evk); err != nil {
 		panic(err)
@@ -138,6 +185,10 @@ func main() {
 		panic(err)
 	}
 	fmt.Println("Done")
+
+	//==================
+	//=== 6) DECRYPT ===
+	//==================
 
 	// Decrypt, print and compare with the plaintext values
 	fmt.Println()

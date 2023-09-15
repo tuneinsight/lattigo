@@ -7,6 +7,8 @@ import (
 	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v4/circuits/float"
+	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
@@ -110,20 +112,22 @@ import (
 //
 // ArcSineDeg: the degree of the ArcSine Taylor polynomial, by default set to 0.
 type ParametersLiteral struct {
-	LogN                                        *int                  // Default: 16
-	NumberOfPi                                  *int                  // Default: max(1, floor(sqrt(#Qi)))
-	LogSlots                                    *int                  // Default: LogN-1
-	CoeffsToSlotsFactorizationDepthAndLogScales [][]int               // Default: [][]int{min(4, max(LogSlots, 1)) * 56}
-	SlotsToCoeffsFactorizationDepthAndLogScales [][]int               // Default: [][]int{min(3, max(LogSlots, 1)) * 39}
-	EvalModLogScale                             *int                  // Default: 60
-	EphemeralSecretWeight                       *int                  // Default: 32
-	IterationsParameters                        *IterationsParameters // Default: nil (default starting level of 0 and 1 iteration)
-	SineType                                    float.SineType        // Default: ckks.CosDiscrete
-	LogMessageRatio                             *int                  // Default: 8
-	K                                           *int                  // Default: 16
-	SineDegree                                  *int                  // Default: 30
-	DoubleAngle                                 *int                  // Default: 3
-	ArcSineDegree                               *int                  // Default: 0
+	LogN                                        *int                        // Default: 16
+	LogP                                        []int                       // Default: 61 * max(1, floor(sqrt(#Qi)))
+	Xs                                          ring.DistributionParameters // Default: ring.Ternary{H: 192}
+	Xe                                          ring.DistributionParameters // Default: rlwe.DefaultXe
+	LogSlots                                    *int                        // Default: LogN-1
+	CoeffsToSlotsFactorizationDepthAndLogScales [][]int                     // Default: [][]int{min(4, max(LogSlots, 1)) * 56}
+	SlotsToCoeffsFactorizationDepthAndLogScales [][]int                     // Default: [][]int{min(3, max(LogSlots, 1)) * 39}
+	EvalModLogScale                             *int                        // Default: 60
+	EphemeralSecretWeight                       *int                        // Default: 32
+	IterationsParameters                        *IterationsParameters       // Default: nil (default starting level of 0 and 1 iteration)
+	SineType                                    float.SineType              // Default: ckks.CosDiscrete
+	LogMessageRatio                             *int                        // Default: 8
+	K                                           *int                        // Default: 16
+	SineDegree                                  *int                        // Default: 30
+	DoubleAngle                                 *int                        // Default: 3
+	ArcSineDegree                               *int                        // Default: 0
 }
 
 const (
@@ -157,6 +161,13 @@ const (
 	DefaultArcSineDegree = 0
 )
 
+var (
+	// DefaultXs is the default secret distribution of the bootstrapping parameters.
+	DefaultXs = ring.Ternary{H: 192}
+	// DefaultXe is the default error distribution of the bootstrapping parameters.
+	DefaultXe = rlwe.DefaultXe
+)
+
 type IterationsParameters struct {
 	BootstrappingPrecision []float64
 	ReservedPrimeBitSize   int
@@ -176,7 +187,7 @@ func (p *ParametersLiteral) UnmarshalBinary(data []byte) (err error) {
 
 // GetLogN returns the LogN field of the target ParametersLiteral.
 // The default value DefaultLogN is returned is the field is nil.
-func (p ParametersLiteral) GetLogN() (LogN int, err error) {
+func (p ParametersLiteral) GetLogN() (LogN int) {
 	if v := p.LogN; v == nil {
 		LogN = DefaultLogN
 	} else {
@@ -186,14 +197,41 @@ func (p ParametersLiteral) GetLogN() (LogN int, err error) {
 	return
 }
 
-// GetNumberOfPi returns the number of #Pi (extended primes for the key-switching)
-// according to the number of #Qi (ciphertext primes).
-// The default value is max(1, floor(sqrt(#Qi))).
-func (p ParametersLiteral) GetNumberOfPi(NumberOfQi int) (NumberOfPi int, err error) {
-	if v := p.NumberOfPi; v == nil {
-		NumberOfPi = utils.Max(1, int(math.Sqrt(float64(NumberOfQi))))
+// GetDefaultXs returns the Xs field of the target ParametersLiteral.
+// The default value DefaultXs is returned is the field is nil.
+func (p ParametersLiteral) GetDefaultXs() (Xs ring.DistributionParameters) {
+	if v := p.Xs; v == nil {
+		Xs = DefaultXs
 	} else {
-		NumberOfPi = *v
+		Xs = v
+	}
+
+	return
+}
+
+// GetDefaultXe returns the Xe field of the target ParametersLiteral.
+// The default value DefaultXe is returned is the field is nil.
+func (p ParametersLiteral) GetDefaultXe() (Xe ring.DistributionParameters) {
+	if v := p.Xe; v == nil {
+		Xe = DefaultXe
+	} else {
+		Xe = v
+	}
+
+	return
+}
+
+// GetLogP returns the list of bit-size of the primes Pi (extended primes for the key-switching)
+// according to the number of #Qi (ciphertext primes).
+// The default value is 61 * max(1, floor(sqrt(#Qi))).
+func (p ParametersLiteral) GetLogP(NumberOfQi int) (LogP []int) {
+	if v := p.LogP; v == nil {
+		LogP = make([]int, utils.Max(1, int(math.Sqrt(float64(NumberOfQi)))))
+		for i := range LogP {
+			LogP[i] = 61
+		}
+	} else {
+		LogP = v
 	}
 
 	return
@@ -203,11 +241,7 @@ func (p ParametersLiteral) GetNumberOfPi(NumberOfQi int) (NumberOfPi int, err er
 // The default value LogN-1 is returned is the field is nil.
 func (p ParametersLiteral) GetLogSlots() (LogSlots int, err error) {
 
-	LogN, err := p.GetLogN()
-
-	if err != nil {
-		return 0, err
-	}
+	LogN := p.GetLogN()
 
 	if v := p.LogSlots; v == nil {
 		LogSlots = LogN - 1

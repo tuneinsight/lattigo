@@ -309,8 +309,8 @@ func NewParametersFromLiteral(residualParameters ckks.Parameters, btpLit Paramet
 		Q:               Q,
 		P:               P,
 		LogDefaultScale: residualParameters.LogDefaultScale(),
-		Xe:              btpLit.GetDefaultXs(),
-		Xs:              btpLit.GetDefaultXe(),
+		Xs:              btpLit.GetDefaultXs(),
+		Xe:              btpLit.GetDefaultXe(),
 	})
 
 	if err != nil {

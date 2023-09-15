@@ -16,6 +16,11 @@ func NewPolynomial(poly bignum.Polynomial) Polynomial {
 // PolynomialVector is a type wrapping the type circuits.PolynomialVector.
 type PolynomialVector circuits.PolynomialVector
 
+// Depth returns the depth of the target PolynomialVector.
+func (p PolynomialVector) Depth() int {
+	return p.Value[0].Depth()
+}
+
 // NewPolynomialVector creates a new PolynomialVector from a list of bignum.Polynomial and a mapping
 // map[poly_index][slots_index] which stores which polynomial has to be evaluated on which slot.
 // Slots that are not referenced in this mapping will be evaluated to zero.

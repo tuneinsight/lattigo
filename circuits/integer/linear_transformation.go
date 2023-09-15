@@ -32,6 +32,11 @@ type LinearTransformationParameters circuits.LinearTransformationParameters
 // See circuits.LinearTransformation for the documentation.
 type LinearTransformation circuits.LinearTransformation
 
+// GaloisElements returns the list of Galois elements required to evaluate the linear transformation.
+func (lt LinearTransformation) GaloisElements(params rlwe.ParameterProvider) []uint64 {
+	return circuits.LinearTransformation(lt).GaloisElements(params)
+}
+
 // NewLinearTransformation instantiates a new LinearTransformation and is a wrapper of circuits.LinearTransformation.
 // See circuits.LinearTransformation for the documentation.
 func NewLinearTransformation(params rlwe.ParameterProvider, lt LinearTransformationParameters) LinearTransformation {

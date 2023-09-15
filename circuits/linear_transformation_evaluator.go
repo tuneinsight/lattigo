@@ -341,7 +341,7 @@ func MultiplyByDiagMatrixBSGS(eval EvaluatorForLinearTransformation, ctIn *rlwe.
 			var evk *rlwe.GaloisKey
 			var err error
 			if evk, err = eval.CheckAndGetGaloisKey(galEl); err != nil {
-				return fmt.Errorf("cannot MultiplyByDiagMatrix: Automorphism: CheckAndGetGaloisKey: %w", err)
+				return fmt.Errorf("cannot MultiplyByDiagMatrixBSGS: Automorphism: CheckAndGetGaloisKey: %w", err)
 			}
 
 			rotIndex := eval.AutomorphismIndex(galEl)

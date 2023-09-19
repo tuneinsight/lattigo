@@ -8,7 +8,6 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v4/utils"
-	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 type Integer interface {
@@ -55,9 +54,9 @@ func NewEncoder(parameters Parameters) *Encoder {
 	}
 
 	tInvModQ := make([]*big.Int, ringQ.ModuliChainLength())
+	TBig := new(big.Int).SetUint64(T)
 	for i := range moduli {
-		tInvModQ[i] = bignum.NewInt(T)
-		tInvModQ[i].ModInverse(tInvModQ[i], ringQ.ModulusAtLevel[i])
+		tInvModQ[i] = new(big.Int).ModInverse(TBig, ringQ.ModulusAtLevel[i])
 	}
 
 	var bufB []*big.Int
@@ -443,13 +442,14 @@ func (ecd Encoder) RingQ2T(level int, scaleDown bool, pQ, pT ring.Poly) {
 // Decode decodes a plaintext on a slice of []uint64 or []int64 mod PlaintextModulus of size at most N, where N is the smallest value satisfying PlaintextModulus = 1 mod 2N.
 func (ecd Encoder) Decode(pt *rlwe.Plaintext, values interface{}) (err error) {
 
-	if pt.IsNTT {
-		ecd.parameters.RingQ().AtLevel(pt.Level()).INTT(pt.Value, ecd.bufQ)
-	}
-
 	bufT := ecd.bufT
 
-	ecd.RingQ2T(pt.Level(), true, ecd.bufQ, bufT)
+	if pt.IsNTT {
+		ecd.parameters.RingQ().AtLevel(pt.Level()).INTT(pt.Value, ecd.bufQ)
+		ecd.RingQ2T(pt.Level(), true, ecd.bufQ, bufT)
+	} else {
+		ecd.RingQ2T(pt.Level(), true, pt.Value, bufT)
+	}
 
 	if pt.IsBatched {
 		return ecd.DecodeRingT(ecd.bufT, pt.Scale, values)

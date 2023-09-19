@@ -13,20 +13,20 @@ type SecretKeyBootstrapper struct {
 	*ckks.Encoder
 	*rlwe.Decryptor
 	*rlwe.Encryptor
-	sk      *rlwe.SecretKey
-	Values  []*bignum.Complex
-	Counter int // records the number of bootstrapping
+	sk       *rlwe.SecretKey
+	Values   []*bignum.Complex
+	Counter  int // records the number of bootstrapping
+	MinLevel int
 }
 
-func NewSecretKeyBootstrapper(params ckks.Parameters, sk *rlwe.SecretKey) rlwe.Bootstrapper {
+func NewSecretKeyBootstrapper(params ckks.Parameters, sk *rlwe.SecretKey) *SecretKeyBootstrapper {
 	return &SecretKeyBootstrapper{
-		params,
-		ckks.NewEncoder(params),
-		ckks.NewDecryptor(params, sk),
-		ckks.NewEncryptor(params, sk),
-		sk,
-		make([]*bignum.Complex, params.N()),
-		0}
+		Parameters: params,
+		Encoder:    ckks.NewEncoder(params),
+		Decryptor:  ckks.NewDecryptor(params, sk),
+		Encryptor:  ckks.NewEncryptor(params, sk),
+		sk:         sk,
+		Values:     make([]*bignum.Complex, params.N())}
 }
 
 func (d *SecretKeyBootstrapper) Bootstrap(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, error) {
@@ -57,7 +57,7 @@ func (d SecretKeyBootstrapper) Depth() int {
 }
 
 func (d SecretKeyBootstrapper) MinimumInputLevel() int {
-	return 0
+	return d.MinLevel
 }
 
 func (d SecretKeyBootstrapper) OutputLevel() int {

@@ -179,8 +179,12 @@ func (p *Polynomial) Evaluate(x interface{}) (y *Complex) {
 		xcmplx = ToComplex(x, x.Prec())
 	case *Complex:
 		xcmplx = ToComplex(x, x.Prec())
+	case complex128:
+		xcmplx = ToComplex(x, 64)
+	case float64:
+		xcmplx = ToComplex(x, 64)
 	default:
-		panic(fmt.Errorf("cannot Evaluate: accepted x.(type) are *big.Float and *Complex but x is %T", x))
+		panic(fmt.Errorf("cannot Evaluate: accepted x.(type) are *big.Float, *Complex, float64 and complex128 but x is %T", x))
 	}
 
 	coeffs := p.Coeffs

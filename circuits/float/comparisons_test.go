@@ -1,7 +1,6 @@
 package float_test
 
 import (
-	"math"
 	"math/big"
 	"testing"
 
@@ -10,7 +9,6 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 
 	"github.com/stretchr/testify/require"
 )
@@ -71,13 +69,11 @@ func TestComparisons(t *testing.T) {
 		eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(kgen.GenRelinearizationKeyNew(sk), galKeys...))
 		polyEval := float.NewPolynomialEvaluator(params, eval)
 
-		PWFEval := float.NewMinimaxCompositePolynomialEvaluator(params, eval, polyEval, btp)
+		MCPEval := float.NewMinimaxCompositePolynomialEvaluator(params, eval, polyEval, btp)
 
 		polys := float.NewMinimaxCompositePolynomial(CoeffsMinimaxCompositePolynomialSignAlpha30Err35Prec20x4Cheby)
 
-		CmpEval := float.NewComparisonEvaluator(PWFEval, polys)
-
-		threshold := bignum.NewFloat(math.Exp2(-30), params.EncodingPrecision())
+		CmpEval := float.NewComparisonEvaluator(MCPEval, polys)
 
 		t.Run(GetTestName(params, "Sign"), func(t *testing.T) {
 
@@ -94,14 +90,7 @@ func TestComparisons(t *testing.T) {
 			want := make([]*big.Float, params.MaxSlots())
 
 			for i := range have {
-
-				if new(big.Float).Abs(values[i][0]).Cmp(threshold) == -1 {
-					want[i] = new(big.Float).Set(values[i][0])
-				} else if values[i][0].Cmp(new(big.Float)) == -1 {
-					want[i] = bignum.NewFloat(-1, params.EncodingPrecision())
-				} else {
-					want[i] = bignum.NewFloat(1, params.EncodingPrecision())
-				}
+				want[i] = polys.Evaluate(values[i])[0]
 			}
 
 			ckks.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), nil, *printPrecisionStats, t)
@@ -121,15 +110,12 @@ func TestComparisons(t *testing.T) {
 
 			want := make([]*big.Float, params.MaxSlots())
 
-			for i := range have {
+			half := new(big.Float).SetFloat64(0.5)
 
-				if new(big.Float).Abs(values[i][0]).Cmp(threshold) == -1 {
-					want[i] = new(big.Float).Set(values[i][0])
-				} else if values[i][0].Cmp(new(big.Float)) == -1 {
-					want[i] = bignum.NewFloat(0, params.EncodingPrecision())
-				} else {
-					want[i] = bignum.NewFloat(1, params.EncodingPrecision())
-				}
+			for i := range have {
+				want[i] = polys.Evaluate(values[i])[0]
+				want[i].Mul(want[i], half)
+				want[i].Add(want[i], half)
 			}
 
 			ckks.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), nil, *printPrecisionStats, t)

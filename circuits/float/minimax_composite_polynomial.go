@@ -43,6 +43,16 @@ func (mcp MinimaxCompositePolynomial) MaxDepth() (depth int) {
 	return
 }
 
+func (mcp MinimaxCompositePolynomial) Evaluate(x interface{}) (y *bignum.Complex) {
+	y = mcp[0].Evaluate(x)
+
+	for _, p := range mcp[1:] {
+		y = p.Evaluate(y)
+	}
+
+	return
+}
+
 // CoeffsSignX2Cheby (from https://eprint.iacr.org/2019/1234.pdf) are the coefficients
 // of 1.5*x - 0.5*x^3 in Chebyshev basis.
 // Evaluating this polynomial on values already close to -1, or 1 ~doubles the number of

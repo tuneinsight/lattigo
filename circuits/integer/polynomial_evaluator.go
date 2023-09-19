@@ -110,19 +110,19 @@ type scaleInvariantEvaluator struct {
 	*bgv.Evaluator
 }
 
-func (polyEval scaleInvariantEvaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
+func (polyEval scaleInvariantEvaluator) Mul(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error) {
 	return polyEval.MulScaleInvariant(op0, op1, opOut)
 }
 
-func (polyEval scaleInvariantEvaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
+func (polyEval scaleInvariantEvaluator) MulRelin(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error) {
 	return polyEval.Evaluator.MulRelinScaleInvariant(op0, op1, opOut)
 }
 
-func (polyEval scaleInvariantEvaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
+func (polyEval scaleInvariantEvaluator) MulNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlwe.Ciphertext, err error) {
 	return polyEval.Evaluator.MulScaleInvariantNew(op0, op1)
 }
 
-func (polyEval scaleInvariantEvaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
+func (polyEval scaleInvariantEvaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlwe.Ciphertext, err error) {
 	return polyEval.Evaluator.MulRelinScaleInvariantNew(op0, op1)
 }
 

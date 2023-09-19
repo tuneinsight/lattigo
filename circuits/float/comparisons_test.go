@@ -35,7 +35,7 @@ var CoeffsMinimaxCompositePolynomialSignAlpha30Err35Prec20x4Cheby = [][]string{
 	float.CoeffsSignX4Cheby, // Quadruples the output precision (up to the scheme error)
 }
 
-func TestMinimaxCompositePolynomial(t *testing.T) {
+func TestComparisons(t *testing.T) {
 
 	paramsLiteral := float.TestPrec90
 
@@ -73,20 +73,23 @@ func TestMinimaxCompositePolynomial(t *testing.T) {
 
 		PWFEval := float.NewMinimaxCompositePolynomialEvaluator(params, eval, polyEval, btp)
 
+		polys := float.NewMinimaxCompositePolynomial(CoeffsMinimaxCompositePolynomialSignAlpha30Err35Prec20x4Cheby)
+
+		CmpEval := float.NewComparisonEvaluator(PWFEval, polys)
+
 		threshold := bignum.NewFloat(math.Exp2(-30), params.EncodingPrecision())
 
 		t.Run(GetTestName(params, "Sign"), func(t *testing.T) {
 
 			values, _, ct := newCKKSTestVectors(tc, enc, complex(-1, 0), complex(1, 0), t)
 
-			polys := float.NewMinimaxCompositePolynomial(CoeffsMinimaxCompositePolynomialSignAlpha30Err35Prec20x4Cheby)
-
-			ct, err = PWFEval.Evaluate(ct, polys)
+			var sign *rlwe.Ciphertext
+			sign, err = CmpEval.Sign(ct)
 			require.NoError(t, err)
 
 			have := make([]*big.Float, params.MaxSlots())
 
-			require.NoError(t, ecd.Decode(dec.DecryptNew(ct), have))
+			require.NoError(t, ecd.Decode(dec.DecryptNew(sign), have))
 
 			want := make([]*big.Float, params.MaxSlots())
 
@@ -94,10 +97,92 @@ func TestMinimaxCompositePolynomial(t *testing.T) {
 
 				if new(big.Float).Abs(values[i][0]).Cmp(threshold) == -1 {
 					want[i] = new(big.Float).Set(values[i][0])
-				} else if have[i].Cmp(new(big.Float)) == -1 {
+				} else if values[i][0].Cmp(new(big.Float)) == -1 {
 					want[i] = bignum.NewFloat(-1, params.EncodingPrecision())
 				} else {
 					want[i] = bignum.NewFloat(1, params.EncodingPrecision())
+				}
+			}
+
+			ckks.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		})
+
+		t.Run(GetTestName(params, "Step"), func(t *testing.T) {
+
+			values, _, ct := newCKKSTestVectors(tc, enc, complex(-1, 0), complex(1, 0), t)
+
+			var step *rlwe.Ciphertext
+			step, err = CmpEval.Step(ct)
+			require.NoError(t, err)
+
+			have := make([]*big.Float, params.MaxSlots())
+
+			require.NoError(t, ecd.Decode(dec.DecryptNew(step), have))
+
+			want := make([]*big.Float, params.MaxSlots())
+
+			for i := range have {
+
+				if new(big.Float).Abs(values[i][0]).Cmp(threshold) == -1 {
+					want[i] = new(big.Float).Set(values[i][0])
+				} else if values[i][0].Cmp(new(big.Float)) == -1 {
+					want[i] = bignum.NewFloat(0, params.EncodingPrecision())
+				} else {
+					want[i] = bignum.NewFloat(1, params.EncodingPrecision())
+				}
+			}
+
+			ckks.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		})
+
+		t.Run(GetTestName(params, "Max"), func(t *testing.T) {
+
+			values0, _, ct0 := newCKKSTestVectors(tc, enc, complex(-0.5, 0), complex(0.5, 0), t)
+			values1, _, ct1 := newCKKSTestVectors(tc, enc, complex(-0.5, 0), complex(0.5, 0), t)
+
+			var max *rlwe.Ciphertext
+			max, err = CmpEval.Max(ct0, ct1)
+			require.NoError(t, err)
+
+			have := make([]*big.Float, params.MaxSlots())
+
+			require.NoError(t, ecd.Decode(dec.DecryptNew(max), have))
+
+			want := make([]*big.Float, params.MaxSlots())
+
+			for i := range have {
+
+				if values0[i][0].Cmp(values1[i][0]) == -1 {
+					want[i] = values1[i][0]
+				} else {
+					want[i] = values0[i][0]
+				}
+			}
+
+			ckks.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		})
+
+		t.Run(GetTestName(params, "Min"), func(t *testing.T) {
+
+			values0, _, ct0 := newCKKSTestVectors(tc, enc, complex(-0.5, 0), complex(0.5, 0), t)
+			values1, _, ct1 := newCKKSTestVectors(tc, enc, complex(-0.5, 0), complex(0.5, 0), t)
+
+			var max *rlwe.Ciphertext
+			max, err = CmpEval.Min(ct0, ct1)
+			require.NoError(t, err)
+
+			have := make([]*big.Float, params.MaxSlots())
+
+			require.NoError(t, ecd.Decode(dec.DecryptNew(max), have))
+
+			want := make([]*big.Float, params.MaxSlots())
+
+			for i := range have {
+
+				if values0[i][0].Cmp(values1[i][0]) == 1 {
+					want[i] = values1[i][0]
+				} else {
+					want[i] = values0[i][0]
 				}
 			}
 

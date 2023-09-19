@@ -153,7 +153,7 @@ func (eval Evaluator) WithKey(evk rlwe.EvaluationKeySet) *Evaluator {
 // be automatically carried out to ensure that addition is performed between operands of the same scale.
 // This scale matching operation will increase the noise by a small factor.
 // For this reason it is preferable to ensure that all operands are already at the same scale when calling this method.
-func (eval Evaluator) Add(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
+func (eval Evaluator) Add(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error) {
 
 	ringQ := eval.parameters.RingQ()
 
@@ -293,7 +293,7 @@ func (eval Evaluator) newCiphertextBinary(op0, op1 rlwe.ElementInterface[ring.Po
 // be automatically carried out to ensure that addition is performed between operands of the same scale.
 // This scale matching operation will increase the noise by a small factor.
 // For this reason it is preferable to ensure that all operands are already at the same scale when calling this method.
-func (eval Evaluator) AddNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
+func (eval Evaluator) AddNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlwe.Ciphertext, err error) {
 
 	switch op1 := op1.(type) {
 	case rlwe.ElementInterface[ring.Poly]:
@@ -318,7 +318,7 @@ func (eval Evaluator) AddNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe
 // be automatically carried out to ensure that the subtraction is performed between operands of the same scale.
 // This scale matching operation will increase the noise by a small factor.
 // For this reason it is preferable to ensure that all operands are already at the same scale when calling this method.
-func (eval Evaluator) Sub(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
+func (eval Evaluator) Sub(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error) {
 
 	switch op1 := op1.(type) {
 	case rlwe.ElementInterface[ring.Poly]:
@@ -389,7 +389,7 @@ func (eval Evaluator) Sub(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 // be automatically carried out to ensure that the subtraction is performed between operands of the same scale.
 // This scale matching operation will increase the noise by a small factor.
 // For this reason it is preferable to ensure that all operands are already at the same scale when calling this method.
-func (eval Evaluator) SubNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
+func (eval Evaluator) SubNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlwe.Ciphertext, err error) {
 	switch op1 := op1.(type) {
 	case rlwe.ElementInterface[ring.Poly]:
 		opOut = eval.newCiphertextBinary(op0, op1)
@@ -423,7 +423,7 @@ func (eval Evaluator) DropLevel(op0 *rlwe.Ciphertext, levels int) {
 // If op1 is an rlwe.ElementInterface[ring.Poly]:
 //   - the level of opOut will be updated to min(op0.Level(), op1.Level())
 //   - the scale of opOut will be updated to op0.Scale * op1.Scale
-func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
+func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error) {
 
 	switch op1 := op1.(type) {
 	case rlwe.ElementInterface[ring.Poly]:
@@ -516,7 +516,7 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 //   - the degree of opOut will be op0.Degree() + op1.Degree()
 //   - the level of opOut will be to min(op0.Level(), op1.Level())
 //   - the scale of opOut will be to op0.Scale * op1.Scale
-func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
+func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlwe.Ciphertext, err error) {
 	switch op1 := op1.(type) {
 	case rlwe.ElementInterface[ring.Poly]:
 		opOut = NewCiphertext(eval.parameters, op0.Degree()+op1.Degree(), utils.Min(op0.Level(), op1.Level()))
@@ -545,7 +545,7 @@ func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe
 // If op1 is an rlwe.ElementInterface[ring.Poly]:
 //   - the level of opOut will be updated to min(op0.Level(), op1.Level())
 //   - the scale of opOut will be updated to op0.Scale * op1.Scale
-func (eval Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
+func (eval Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error) {
 	switch op1 := op1.(type) {
 	case rlwe.ElementInterface[ring.Poly]:
 
@@ -585,7 +585,7 @@ func (eval Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlw
 // If op1 is an rlwe.ElementInterface[ring.Poly]:
 //   - the level of opOut will be to min(op0.Level(), op1.Level())
 //   - the scale of opOut will be to op0.Scale * op1.Scale
-func (eval Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
+func (eval Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlwe.Ciphertext, err error) {
 	switch op1 := op1.(type) {
 	case rlwe.ElementInterface[ring.Poly]:
 		opOut = NewCiphertext(eval.parameters, 1, utils.Min(op0.Level(), op1.Level()))
@@ -702,7 +702,7 @@ func (eval Evaluator) tensorStandard(op0 *rlwe.Ciphertext, op1 *rlwe.Element[rin
 // If op1 is an rlwe.ElementInterface[ring.Poly]:
 //   - the level of opOut will be updated to min(op0.Level(), op1.Level())
 //   - the scale of opOut will be to op0.Scale * op1.Scale * (-Q mod T)^{-1} mod T
-func (eval Evaluator) MulScaleInvariant(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
+func (eval Evaluator) MulScaleInvariant(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error) {
 	switch op1 := op1.(type) {
 	case rlwe.ElementInterface[ring.Poly]:
 
@@ -776,7 +776,7 @@ func (eval Evaluator) MulScaleInvariant(op0 *rlwe.Ciphertext, op1 interface{}, o
 // If op1 is an rlwe.ElementInterface[ring.Poly]:
 //   - the level of opOut will be to min(op0.Level(), op1.Level())
 //   - the scale of opOut will be to op0.Scale * op1.Scale * (-Q mod PlaintextModulus)^{-1} mod PlaintextModulus
-func (eval Evaluator) MulScaleInvariantNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
+func (eval Evaluator) MulScaleInvariantNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlwe.Ciphertext, err error) {
 	switch op1 := op1.(type) {
 	case rlwe.ElementInterface[ring.Poly]:
 		opOut = NewCiphertext(eval.parameters, op0.Degree()+op1.Degree(), utils.Min(op0.Level(), op1.Level()))
@@ -804,7 +804,7 @@ func (eval Evaluator) MulScaleInvariantNew(op0 *rlwe.Ciphertext, op1 interface{}
 // If op1 is an rlwe.ElementInterface[ring.Poly]:
 //   - the level of opOut will be updated to min(op0.Level(), op1.Level())
 //   - the scale of opOut will be to op0.Scale * op1.Scale * (-Q mod PlaintextModulus)^{-1} mod PlaintextModulus
-func (eval Evaluator) MulRelinScaleInvariant(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
+func (eval Evaluator) MulRelinScaleInvariant(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error) {
 	switch op1 := op1.(type) {
 	case rlwe.ElementInterface[ring.Poly]:
 
@@ -883,7 +883,7 @@ func (eval Evaluator) MulRelinScaleInvariant(op0 *rlwe.Ciphertext, op1 interface
 // If op1 is an rlwe.ElementInterface[ring.Poly]:
 //   - the level of opOut will be to min(op0.Level(), op1.Level())
 //   - the scale of opOut will be to op0.Scale * op1.Scale * (-Q mod PlaintextModulus)^{-1} mod PlaintextModulus
-func (eval Evaluator) MulRelinScaleInvariantNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
+func (eval Evaluator) MulRelinScaleInvariantNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlwe.Ciphertext, err error) {
 	switch op1 := op1.(type) {
 	case rlwe.ElementInterface[ring.Poly]:
 		opOut = NewCiphertext(eval.parameters, 1, utils.Min(op0.Level(), op1.Level()))
@@ -1062,7 +1062,7 @@ func (eval Evaluator) quantize(level, levelQMul int, c2Q1, c2Q2 ring.Poly) {
 // be automatically carried out to ensure that addition is performed between operands of the same scale.
 // This scale matching operation will increase the noise by a small factor.
 // For this reason it is preferable to ensure that opOut.Scale == op1.Scale * op0.Scale when calling this method.
-func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
+func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error) {
 
 	switch op1 := op1.(type) {
 	case rlwe.ElementInterface[ring.Poly]:
@@ -1180,7 +1180,7 @@ func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, opOut *r
 // be automatically carried out to ensure that addition is performed between operands of the same scale.
 // This scale matching operation will increase the noise by a small factor.
 // For this reason it is preferable to ensure that opOut.Scale == op1.Scale * op0.Scale when calling this method.
-func (eval Evaluator) MulRelinThenAdd(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
+func (eval Evaluator) MulRelinThenAdd(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error) {
 	switch op1 := op1.(type) {
 	case rlwe.ElementInterface[ring.Poly]:
 		if op1.Degree() == 0 {

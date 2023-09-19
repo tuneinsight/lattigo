@@ -110,7 +110,7 @@ func (eval Evaluator) ShallowCopy() *Evaluator {
 //
 // The procedure will return an error if either op0 or op1 are have a degree higher than 1.
 // The procedure will return an error if opOut.Degree != op0.Degree + op1.Degree.
-func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
+func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error) {
 	switch op1 := op1.(type) {
 	case rlwe.ElementInterface[ring.Poly], []uint64:
 		return eval.Evaluator.MulScaleInvariant(op0, op1, opOut)
@@ -132,7 +132,7 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Cip
 //   - opOut: an *rlwe.Ciphertext
 //
 // The procedure will return an error if either op0.Degree or op1.Degree > 1.
-func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
+func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlwe.Ciphertext, err error) {
 	switch op1 := op1.(type) {
 	case rlwe.ElementInterface[ring.Poly], []uint64:
 		return eval.Evaluator.MulScaleInvariantNew(op0, op1)
@@ -154,7 +154,7 @@ func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe
 //
 // The procedure will return an error if either op0.Degree or op1.Degree > 1.
 // The procedure will return an error if the evaluator was not created with an relinearization key.
-func (eval Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut *rlwe.Ciphertext, err error) {
+func (eval Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlwe.Ciphertext, err error) {
 	return eval.Evaluator.MulRelinScaleInvariantNew(op0, op1)
 }
 
@@ -170,6 +170,6 @@ func (eval Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 interface{}) (opOut 
 // The procedure will return an error if either op0.Degree or op1.Degree > 1.
 // The procedure will return an error if opOut.Degree != op0.Degree + op1.Degree.
 // The procedure will return an error if the evaluator was not created with an relinearization key.
-func (eval Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error) {
+func (eval Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error) {
 	return eval.Evaluator.MulRelinScaleInvariant(op0, op1, opOut)
 }

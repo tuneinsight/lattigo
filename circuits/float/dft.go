@@ -18,9 +18,9 @@ import (
 type DFTEvaluatorInterface interface {
 	rlwe.ParameterProvider
 	circuits.EvaluatorForLinearTransformation
-	Add(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
-	Sub(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
-	Mul(op0 *rlwe.Ciphertext, op1 interface{}, opOut *rlwe.Ciphertext) (err error)
+	Add(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error)
+	Sub(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error)
+	Mul(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error)
 	Conjugate(op0 *rlwe.Ciphertext, opOut *rlwe.Ciphertext) (err error)
 	Rotate(op0 *rlwe.Ciphertext, k int, opOut *rlwe.Ciphertext) (err error)
 	Rescale(op0 *rlwe.Ciphertext, opOut *rlwe.Ciphertext) (err error)

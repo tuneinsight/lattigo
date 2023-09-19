@@ -59,9 +59,9 @@ func (eval MinimaxCompositePolynomialEvaluator) Evaluate(ct *rlwe.Ciphertext, mc
 		// half of the desired scale, so that (x + conj(x)/2) has the correct scale.
 		var targetScale rlwe.Scale
 		if params.RingType() == ring.Standard {
-			targetScale = res.Scale.Div(rlwe.NewScale(2))
+			targetScale = params.DefaultScale().Div(rlwe.NewScale(2))
 		} else {
-			targetScale = res.Scale
+			targetScale = params.DefaultScale()
 		}
 
 		// Evaluate the polynomial
@@ -85,6 +85,9 @@ func (eval MinimaxCompositePolynomialEvaluator) Evaluate(ct *rlwe.Ciphertext, mc
 			}
 		}
 	}
+
+	// Avoides float errors
+	res.Scale = ct.Scale
 
 	return
 }

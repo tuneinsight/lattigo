@@ -127,7 +127,7 @@ type LinearTransformation struct {
 
 // GaloisElements returns the list of Galois elements needed for the evaluation of the linear transformation.
 func (lt LinearTransformation) GaloisElements(params rlwe.ParameterProvider) (galEls []uint64) {
-	return GaloisElementsForLinearTransformation(params, utils.GetKeys(lt.Vec), lt.LogDimensions.Cols, lt.LogBabyStepGianStepRatio)
+	return GaloisElementsForLinearTransformation(params, utils.GetKeys(lt.Vec), 1<<lt.LogDimensions.Cols, lt.LogBabyStepGianStepRatio)
 }
 
 // NewLinearTransformation allocates a new LinearTransformation with zero values according to the parameters specified by the LinearTranfromationParameters.

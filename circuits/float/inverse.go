@@ -20,7 +20,7 @@ type EvaluatorForInverse interface {
 type InverseEvaluator struct {
 	EvaluatorForInverse
 	*MinimaxCompositePolynomialEvaluator
-	rlwe.Bootstrapper
+	circuits.Bootstrapper[rlwe.Ciphertext]
 	Parameters                     ckks.Parameters
 	Log2Min, Log2Max               float64
 	SignMinimaxCompositePolynomial MinimaxCompositePolynomial
@@ -37,7 +37,7 @@ type InverseEvaluator struct {
 //
 // A minimax composite polynomial (signMCP) for the sign function in the interval [-1-e, -2^{log2min}] U [2^{log2min}, 1+e]
 // (where e is an upperbound on the scheme error) is required for the full domain inverse.
-func NewInverseEvaluator(params ckks.Parameters, log2min, log2max float64, signMCP MinimaxCompositePolynomial, evalInv EvaluatorForInverse, evalPWF EvaluatorForMinimaxCompositePolynomial, btp rlwe.Bootstrapper) InverseEvaluator {
+func NewInverseEvaluator(params ckks.Parameters, log2min, log2max float64, signMCP MinimaxCompositePolynomial, evalInv EvaluatorForInverse, evalPWF EvaluatorForMinimaxCompositePolynomial, btp circuits.Bootstrapper[rlwe.Ciphertext]) InverseEvaluator {
 
 	var MCPEval *MinimaxCompositePolynomialEvaluator
 	if evalPWF != nil {
@@ -320,7 +320,7 @@ func (eval InverseEvaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, log2Min
 // The normalization factor is independant to each slot:
 //   - values smaller than 1 will have a normalizes factor that tends to 1
 //   - values greater than 1 will have a normalizes factor that tends to 1/x
-func (eval InverseEvaluator) IntervalNormalization(ct *rlwe.Ciphertext, log2Max float64, btp rlwe.Bootstrapper) (ctNorm, ctNormFac *rlwe.Ciphertext, err error) {
+func (eval InverseEvaluator) IntervalNormalization(ct *rlwe.Ciphertext, log2Max float64, btp circuits.Bootstrapper[rlwe.Ciphertext]) (ctNorm, ctNormFac *rlwe.Ciphertext, err error) {
 
 	ctNorm = ct.CopyNew()
 

@@ -3,6 +3,7 @@ package integer
 import (
 	"fmt"
 
+	"github.com/tuneinsight/lattigo/v4/bfv"
 	"github.com/tuneinsight/lattigo/v4/bgv"
 	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -37,6 +38,12 @@ func NewPolynomialEvaluator(params bgv.Parameters, eval circuits.Evaluator, Inva
 			evalForPoly = &defaultCircuitEvaluatorForPolynomial{Evaluator: &scaleInvariantEvaluator{eval}}
 		} else {
 			evalForPoly = &defaultCircuitEvaluatorForPolynomial{Evaluator: eval}
+		}
+	case *bfv.Evaluator:
+		if InvariantTensoring {
+			evalForPoly = &defaultCircuitEvaluatorForPolynomial{Evaluator: &scaleInvariantEvaluator{eval.Evaluator}}
+		} else {
+			evalForPoly = &defaultCircuitEvaluatorForPolynomial{Evaluator: eval.Evaluator}
 		}
 	default:
 		evalForPoly = &defaultCircuitEvaluatorForPolynomial{Evaluator: eval}

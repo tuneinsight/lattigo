@@ -10,16 +10,12 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
-func (btp *Bootstrapper) MinimumInputLevel() int {
-	return 0
+func (btp Bootstrapper) MinimumInputLevel() int {
+	return btp.params.LevelsConsummedPerRescaling()
 }
 
-func (btp *Bootstrapper) OutputLevel() int {
+func (btp Bootstrapper) OutputLevel() int {
 	return btp.params.MaxLevel() - btp.Depth()
-}
-
-func (btp *Bootstrapper) BootstrapMany(ctIn []*rlwe.Ciphertext) (ctOut []*rlwe.Ciphertext, err error) {
-	return
 }
 
 // Bootstrap re-encrypts a ciphertext to a ciphertext at MaxLevel - k where k is the depth of the bootstrapping circuit.

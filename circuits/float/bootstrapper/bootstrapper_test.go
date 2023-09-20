@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -26,7 +27,7 @@ var testPrec45 = ckks.ParametersLiteral{
 func TestBootstrapping(t *testing.T) {
 
 	// Check that the bootstrapper complies to the rlwe.Bootstrapper interface
-	var _ rlwe.Bootstrapper = (*Bootstrapper)(nil)
+	var _ circuits.Bootstrapper[rlwe.Ciphertext] = (*Bootstrapper)(nil)
 
 	t.Run("BootstrapingWithoutRingDegreeSwitch", func(t *testing.T) {
 
@@ -246,7 +247,7 @@ func TestBootstrapping(t *testing.T) {
 
 		pt := ckks.NewPlaintext(params, 0)
 
-		cts := make([]*rlwe.Ciphertext, 7)
+		cts := make([]rlwe.Ciphertext, 7)
 		for i := range cts {
 
 			require.NoError(t, ecd.Encode(utils.RotateSlice(values, i), pt))
@@ -254,7 +255,7 @@ func TestBootstrapping(t *testing.T) {
 			ct, err := enc.EncryptNew(pt)
 			require.NoError(t, err)
 
-			cts[i] = ct
+			cts[i] = *ct
 		}
 
 		if cts, err = bootstrapper.BootstrapMany(cts); err != nil {
@@ -266,7 +267,7 @@ func TestBootstrapping(t *testing.T) {
 			require.True(t, cts[i].Level() == params.MaxLevel())
 			require.True(t, cts[i].Scale.Equal(params.DefaultScale()))
 
-			verifyTestVectorsBootstrapping(params, ecd, dec, utils.RotateSlice(values, i), cts[i], t)
+			verifyTestVectorsBootstrapping(params, ecd, dec, utils.RotateSlice(values, i), &cts[i], t)
 		}
 	})
 

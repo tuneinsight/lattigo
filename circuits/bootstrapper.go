@@ -1,17 +1,17 @@
-package rlwe
+package circuits
 
 // Bootstrapper is a scheme independent generic interface to handle bootstrapping.
-type Bootstrapper interface {
+type Bootstrapper[T any] interface {
 
 	// Bootstrap defines a method that takes a single Ciphertext as input and applies
 	// an in place scheme-specific bootstrapping. The result is also returned.
 	// An error should notably be returned if ct.Level() < MinimumInputLevel().
-	Bootstrap(ct *Ciphertext) (*Ciphertext, error)
+	Bootstrap(ct *T) (*T, error)
 
 	// BootstrapMany defines a method that takes a slice of Ciphertexts as input and applies an
 	// in place scheme-specific bootstrapping to each Ciphertext. The result is also returned.
 	// An error should notably be returned if ct.Level() < MinimumInputLevel().
-	BootstrapMany(cts []*Ciphertext) ([]*Ciphertext, error)
+	BootstrapMany(cts []T) ([]T, error)
 
 	// Depth is the number of levels consumed by the bootstrapping circuit.
 	// This value is equivalent to params.MaxLevel() - OutputLevel().

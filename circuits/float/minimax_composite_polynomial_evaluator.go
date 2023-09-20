@@ -20,13 +20,13 @@ type EvaluatorForMinimaxCompositePolynomial interface {
 type MinimaxCompositePolynomialEvaluator struct {
 	EvaluatorForMinimaxCompositePolynomial
 	*PolynomialEvaluator
-	rlwe.Bootstrapper
+	circuits.Bootstrapper[rlwe.Ciphertext]
 	Parameters ckks.Parameters
 }
 
 // NewMinimaxCompositePolynomialEvaluator instantiates a new MinimaxCompositePolynomialEvaluator from an EvaluatorForMinimaxCompositePolynomial.
 // This method is allocation free.
-func NewMinimaxCompositePolynomialEvaluator(params ckks.Parameters, eval EvaluatorForMinimaxCompositePolynomial, polyEval *PolynomialEvaluator, bootstrapper rlwe.Bootstrapper) *MinimaxCompositePolynomialEvaluator {
+func NewMinimaxCompositePolynomialEvaluator(params ckks.Parameters, eval EvaluatorForMinimaxCompositePolynomial, polyEval *PolynomialEvaluator, bootstrapper circuits.Bootstrapper[rlwe.Ciphertext]) *MinimaxCompositePolynomialEvaluator {
 	return &MinimaxCompositePolynomialEvaluator{eval, polyEval, bootstrapper, params}
 }
 

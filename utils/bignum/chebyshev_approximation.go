@@ -72,7 +72,7 @@ func chebyshevNodes(n int, interval Interval) (nodes []*big.Float) {
 		up = Cos(up)
 		up.Mul(up, y)
 		up.Add(up, x)
-		nodes[k-1] = up
+		nodes[n-k] = up
 	}
 
 	return
@@ -109,7 +109,7 @@ func chebyCoeffs(nodes []*big.Float, fi []*Complex, interval Interval) (coeffs [
 	for i := 0; i < n; i++ {
 
 		u[0].Mul(nodes[i], two)
-		u[0].Sub(u[0], minusab)
+		u[0].Add(u[0], minusab)
 		u[0].Quo(u[0], bminusa)
 
 		Tprev := NewComplex().SetPrec(prec)

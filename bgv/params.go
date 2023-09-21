@@ -249,14 +249,22 @@ func (p Parameters) GaloisElementForRowRotation() uint64 {
 
 // GaloisElementsForInnerSum returns the list of Galois elements necessary to apply the method
 // `InnerSum` operation with parameters `batch` and `n`.
-func (p Parameters) GaloisElementsForInnerSum(batch, n int) []uint64 {
-	return rlwe.GaloisElementsForInnerSum(p, batch, n)
+func (p Parameters) GaloisElementsForInnerSum(batch, n int) (galEls []uint64) {
+	galEls = rlwe.GaloisElementsForInnerSum(p, batch, n)
+	if n > p.N()>>1 {
+		galEls = append(galEls, p.GaloisElementForRowRotation())
+	}
+	return
 }
 
 // GaloisElementsForReplicate returns the list of Galois elements necessary to perform the
 // `Replicate` operation with parameters `batch` and `n`.
-func (p Parameters) GaloisElementsForReplicate(batch, n int) []uint64 {
-	return rlwe.GaloisElementsForReplicate(p, batch, n)
+func (p Parameters) GaloisElementsForReplicate(batch, n int) (galEls []uint64) {
+	galEls = rlwe.GaloisElementsForReplicate(p, batch, n)
+	if n > p.N()>>1 {
+		galEls = append(galEls, p.GaloisElementForRowRotation())
+	}
+	return
 }
 
 // GaloisElementsForTrace returns the list of Galois elements requored for the for the `Trace` operation.

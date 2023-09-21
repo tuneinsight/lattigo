@@ -17,7 +17,7 @@ import (
 // plaintext times the gadget power matrix.
 type GadgetCiphertext struct {
 	BaseTwoDecomposition int
-	Value                structs.Matrix[vectorQP]
+	Value                structs.Matrix[VectorQP]
 }
 
 // NewGadgetCiphertext returns a new Ciphertext key with pre-allocated zero-value.
@@ -31,11 +31,11 @@ func NewGadgetCiphertext(params ParameterProvider, Degree, LevelQ, LevelP, BaseT
 	BaseRNSDecompositionVectorSize := p.BaseRNSDecompositionVectorSize(LevelQ, LevelP)
 	BaseTwoDecompositionVectorSize := p.BaseTwoDecompositionVectorSize(LevelQ, LevelP, BaseTwoDecomposition)
 
-	m := make(structs.Matrix[vectorQP], BaseRNSDecompositionVectorSize)
+	m := make(structs.Matrix[VectorQP], BaseRNSDecompositionVectorSize)
 	for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
-		m[i] = make([]vectorQP, BaseTwoDecompositionVectorSize[i])
+		m[i] = make([]VectorQP, BaseTwoDecompositionVectorSize[i])
 		for j := range m[i] {
-			m[i][j] = newVectorQP(params, Degree+1, LevelQ, LevelP)
+			m[i][j] = NewVectorQP(params, Degree+1, LevelQ, LevelP)
 		}
 	}
 

@@ -321,18 +321,16 @@ func (ecd Encoder) DecodeRingT(pT ring.Poly, scale rlwe.Scale, values interface{
 
 	tmp := ecd.bufT.Coeffs[0]
 
-	N := ringT.N()
-
 	switch values := values.(type) {
 	case []uint64:
-		for i := 0; i < N; i++ {
+		for i := range values {
 			values[i] = tmp[ecd.indexMatrix[i]]
 		}
 	case []int64:
 		modulus := int64(ecd.parameters.PlaintextModulus())
 		modulusHalf := modulus >> 1
 		var value int64
-		for i := 0; i < N; i++ {
+		for i := range values {
 			if value = int64(tmp[ecd.indexMatrix[i]]); value >= modulusHalf {
 				values[i] = value - modulus
 			} else {

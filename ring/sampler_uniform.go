@@ -59,6 +59,7 @@ func (u *UniformSampler) read(pol Poly, f func(a, b, c uint64) uint64) {
 		if _, err := prng.Read(u.randomBufferN); err != nil {
 			panic(err)
 		}
+		ptr = 0 // for the case where ptr == N
 	}
 
 	buffer := u.randomBufferN

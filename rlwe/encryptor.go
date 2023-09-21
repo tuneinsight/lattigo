@@ -433,9 +433,18 @@ func (enc Encryptor) encryptZeroSkFromC1QP(sk *SecretKey, ct Element[ringqp.Poly
 
 // WithPRNG returns this encryptor with prng as its source of randomness for the uniform
 // element c1.
-func (enc Encryptor) WithPRNG(prng sampling.PRNG) *Encryptor {
-	enc.uniformSampler = ringqp.NewUniformSampler(prng, *enc.params.RingQP())
-	return &enc
+// The returned encryptor isn't safe to use concurrently with the original encryptor.
+func (enc *Encryptor) WithPRNG(prng sampling.PRNG) *Encryptor {
+	return &Encryptor{
+		params:           enc.params,
+		encryptorBuffers: enc.encryptorBuffers,
+		encKey:           enc.encKey,
+		prng:             enc.prng,
+		xeSampler:        enc.xeSampler,
+		xsSampler:        enc.xsSampler,
+		basisextender:    enc.basisextender,
+		uniformSampler:   ringqp.NewUniformSampler(prng, *enc.params.RingQP()),
+	}
 }
 
 func (enc Encryptor) ShallowCopy() *Encryptor {

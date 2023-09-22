@@ -83,7 +83,8 @@ func (e2s EncToShareProtocol) AllocateShare(level int) (share drlwe.KeySwitchSha
 // which is written in secretShareOut and in the public masked-decryption share written in publicShareOut.
 // This protocol requires additional inputs which are :
 // logBound : the bit length of the masks
-// ct1      : the degree 1 element the ciphertext to share, i.e. ct1 = ckk.Ciphertext.Value[1].
+// ct: the ciphertext to share
+// publicShareOut is always returned in the NTT domain.
 // The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which EncToShare can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
 func (e2s EncToShareProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, ct *rlwe.Ciphertext, secretShareOut *drlwe.AdditiveShareBigint, publicShareOut *drlwe.KeySwitchShare) (err error) {
@@ -109,15 +110,10 @@ func (e2s EncToShareProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, ct *rl
 
 	boundHalf := new(big.Int).Rsh(bound, 1)
 
-	dslots := ct.Slots()
-	if ringQ.Type() == ring.Standard {
-		dslots *= 2
-	}
-
 	prng, _ := sampling.NewPRNG()
 
 	// Generate the mask in Z[Y] for Y = X^{N/(2*slots)}
-	for i := 0; i < dslots; i++ {
+	for i := 0; i < ringQ.N(); i++ {
 		e2s.maskBigint[i] = bignum.RandInt(prng, bound)
 		sign = e2s.maskBigint[i].Cmp(boundHalf)
 		if sign == 1 || sign == 0 {
@@ -131,10 +127,9 @@ func (e2s EncToShareProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, ct *rl
 	// Generates an encryption of zero and subtracts the mask
 	e2s.KeySwitchProtocol.GenShare(sk, e2s.zero, ct, publicShareOut)
 
-	ringQ.SetCoefficientsBigint(secretShareOut.Value[:dslots], e2s.buff)
+	ringQ.SetCoefficientsBigint(secretShareOut.Value, e2s.buff)
 
-	// Maps Y^{N/n} -> X^{N} in Montgomery and NTT
-	rlwe.NTTSparseAndMontgomery(ringQ, ct.MetaData, e2s.buff)
+	ringQ.NTT(e2s.buff, e2s.buff)
 
 	// Subtracts the mask to the encryption of zero
 	ringQ.Sub(publicShareOut.Value, e2s.buff, publicShareOut.Value)
@@ -159,28 +154,21 @@ func (e2s EncToShareProtocol) GetShare(secretShare *drlwe.AdditiveShareBigint, a
 	// Switches the LSSS RNS NTT ciphertext outside of the NTT domain
 	ringQ.INTT(e2s.buff, e2s.buff)
 
-	dslots := ct.Slots()
-	if ringQ.Type() == ring.Standard {
-		dslots *= 2
-	}
-
-	gap := ringQ.N() / dslots
-
 	// Switches the LSSS RNS ciphertext outside of the RNS domain
-	ringQ.PolyToBigintCentered(e2s.buff, gap, e2s.maskBigint)
+	ringQ.PolyToBigintCentered(e2s.buff, 1, e2s.maskBigint)
 
 	// Subtracts the last mask
 	if secretShare != nil {
 		a := secretShareOut.Value
 		b := e2s.maskBigint
 		c := secretShare.Value
-		for i := range secretShareOut.Value[:dslots] {
+		for i := range secretShareOut.Value {
 			a[i].Add(c[i], b[i])
 		}
 	} else {
 		a := secretShareOut.Value
 		b := e2s.maskBigint
-		for i := range secretShareOut.Value[:dslots] {
+		for i := range secretShareOut.Value {
 			a[i].Set(b[i])
 		}
 	}

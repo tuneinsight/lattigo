@@ -45,9 +45,8 @@ func NewLinearTransformation(params rlwe.ParameterProvider, lt LinearTransformat
 
 // EncodeLinearTransformation is a method used to encode EncodeLinearTransformation and a wrapper of circuits.EncodeLinearTransformation.
 // See circuits.EncodeLinearTransformation for the documentation.
-func EncodeLinearTransformation[T Float](params LinearTransformationParameters, ecd *ckks.Encoder, diagonals Diagonals[T], allocated LinearTransformation) (err error) {
+func EncodeLinearTransformation[T Float](ecd *ckks.Encoder, diagonals Diagonals[T], allocated LinearTransformation) (err error) {
 	return circuits.EncodeLinearTransformation[T](
-		circuits.LinearTransformationParameters(params),
 		&floatEncoder[T, ringqp.Poly]{ecd},
 		circuits.Diagonals[T](diagonals),
 		circuits.LinearTransformation(allocated))

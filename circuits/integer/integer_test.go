@@ -211,7 +211,7 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 		linTransf := NewLinearTransformation(params, ltparams)
 
 		// Encode on the linear transformation
-		require.NoError(t, EncodeLinearTransformation[uint64](ltparams, tc.encoder, diagonals, linTransf))
+		require.NoError(t, EncodeLinearTransformation[uint64](tc.encoder, diagonals, linTransf))
 
 		galEls := GaloisElementsForLinearTransformation(params, ltparams)
 
@@ -281,7 +281,7 @@ func testBGVLinearTransformation(tc *bgvTestContext, t *testing.T) {
 		linTransf := NewLinearTransformation(params, ltparams)
 
 		// Encode on the linear transformation
-		require.NoError(t, EncodeLinearTransformation[uint64](ltparams, tc.encoder, diagonals, linTransf))
+		require.NoError(t, EncodeLinearTransformation[uint64](tc.encoder, diagonals, linTransf))
 
 		galEls := GaloisElementsForLinearTransformation(params, ltparams)
 

@@ -687,7 +687,7 @@ func main() {
 	// Not that trying to encode a linear transformation with different non-zero diagonals,
 	// plaintext dimensions or baby-step giant-step ratio than the one used to allocate the
 	// rlwe.LinearTransformation will return an error.
-	if err := float.EncodeLinearTransformation[complex128](ltparams, ecd, diagonals, lt); err != nil {
+	if err := float.EncodeLinearTransformation[complex128](ecd, diagonals, lt); err != nil {
 		panic(err)
 	}
 

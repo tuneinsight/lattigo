@@ -237,7 +237,7 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 		linTransf := float.NewLinearTransformation(params, ltparams)
 
 		// Encode on the linear transformation
-		require.NoError(t, float.EncodeLinearTransformation[*bignum.Complex](ltparams, tc.encoder, diagonals, linTransf))
+		require.NoError(t, float.EncodeLinearTransformation[*bignum.Complex](tc.encoder, diagonals, linTransf))
 
 		galEls := float.GaloisElementsForLinearTransformation(params, ltparams)
 
@@ -298,7 +298,7 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 		linTransf := float.NewLinearTransformation(params, ltparams)
 
 		// Encode on the linear transformation
-		require.NoError(t, float.EncodeLinearTransformation[*bignum.Complex](ltparams, tc.encoder, diagonals, linTransf))
+		require.NoError(t, float.EncodeLinearTransformation[*bignum.Complex](tc.encoder, diagonals, linTransf))
 
 		galEls := float.GaloisElementsForLinearTransformation(params, ltparams)
 

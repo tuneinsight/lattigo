@@ -180,7 +180,7 @@ func NewDFTMatrixFromLiteral(params ckks.Parameters, d DFTMatrixLiteral, encoder
 
 			mat := NewLinearTransformation(params, ltparams)
 
-			if err := EncodeLinearTransformation[*bignum.Complex](ltparams, encoder, pVecDFT[idx], mat); err != nil {
+			if err := EncodeLinearTransformation[*bignum.Complex](encoder, pVecDFT[idx], mat); err != nil {
 				return DFTMatrix{}, fmt.Errorf("cannot NewDFTMatrixFromLiteral: %w", err)
 			}
 

@@ -176,27 +176,29 @@ func NewLinearTransformation(params rlwe.ParameterProvider, ltparams LinearTrans
 		},
 	}
 
-	return LinearTransformation{MetaData: metadata, LogBabyStepGianStepRatio: logBabyStepGianStepRatio, N1: N1, Level: levelQ, Vec: vec}
+	return LinearTransformation{
+		MetaData:                 metadata,
+		LogBabyStepGianStepRatio: logBabyStepGianStepRatio,
+		N1:                       N1,
+		Level:                    levelQ,
+		Vec:                      vec,
+	}
 }
 
 // EncodeLinearTransformation encodes on a pre-allocated LinearTransformation a set of non-zero diagonaes of a matrix representing a linear transformation.
-func EncodeLinearTransformation[T any](ltparams LinearTransformationParameters, encoder Encoder[T, ringqp.Poly], diagonals Diagonals[T], allocated LinearTransformation) (err error) {
+func EncodeLinearTransformation[T any](encoder Encoder[T, ringqp.Poly], diagonals Diagonals[T], allocated LinearTransformation) (err error) {
 
-	if allocated.LogDimensions != ltparams.LogDimensions {
-		return fmt.Errorf("cannot EncodeLinearTransformation: LogDimensions between allocated and parameters do not match (%v != %v)", allocated.LogDimensions, ltparams.LogDimensions)
-	}
-
-	rows := 1 << ltparams.LogDimensions.Rows
-	cols := 1 << ltparams.LogDimensions.Cols
+	rows := 1 << allocated.LogDimensions.Rows
+	cols := 1 << allocated.LogDimensions.Cols
 	N1 := allocated.N1
 
-	diags := ltparams.DiagonalsIndexList
+	diags := diagonals.DiagonalsIndexList()
 
 	buf := make([]T, rows*cols)
 
 	metaData := allocated.MetaData
 
-	metaData.Scale = ltparams.Scale
+	metaData.Scale = allocated.Scale
 
 	var v []T
 

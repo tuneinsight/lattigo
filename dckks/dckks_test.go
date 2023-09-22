@@ -15,6 +15,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/drlwe"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
@@ -95,8 +96,6 @@ func TestDCKKS(t *testing.T) {
 			for _, testSet := range []func(tc *testContext, t *testing.T){
 				testEncToShareProtocol,
 				testRefresh,
-				testRefreshAndTransform,
-				testRefreshAndTransformSwitchParams,
 			} {
 				testSet(tc, t)
 				runtime.GC()
@@ -171,11 +170,12 @@ func testEncToShareProtocol(tc *testContext, t *testing.T) {
 			secretShare    drlwe.AdditiveShareBigint
 		}
 
-		coeffs, _, ciphertext := newTestVectors(tc, tc.encryptorPk0, -1, 1)
+		params := tc.params
+
+		coeffs, _, ciphertext := newTestVectors(tc, tc.encryptorPk0, -1, 1, params.LogMaxSlots())
 
 		tc.evaluator.DropLevel(ciphertext, ciphertext.Level()-minLevel-1)
 
-		params := tc.params
 		P := make([]Party, tc.NParties)
 		var err error
 		for i := range P {
@@ -242,228 +242,64 @@ func testEncToShareProtocol(tc *testContext, t *testing.T) {
 
 func testRefresh(tc *testContext, t *testing.T) {
 
-	encryptorPk0 := tc.encryptorPk0
-	sk0Shards := tc.sk0Shards
-	decryptorSk0 := tc.decryptorSk0
-	params := tc.params
+	paramsIn := tc.params
 
-	t.Run(GetTestName("Refresh", tc.NParties, params), func(t *testing.T) {
+	// To get the precision of the linear transformations
+	_, logBound, _ := GetMinimumLevelForRefresh(128, paramsIn.DefaultScale(), tc.NParties, paramsIn.Q())
 
-		var minLevel int
-		var logBound uint
-		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForRefresh(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
-			t.Skip("Not enough levels to ensure correctness and 128 security")
-		}
-
-		type Party struct {
-			RefreshProtocol
-			s     *rlwe.SecretKey
-			share drlwe.RefreshShare
-		}
-
-		levelIn := minLevel
-		levelOut := params.MaxLevel()
-
-		RefreshParties := make([]*Party, tc.NParties)
-		for i := 0; i < tc.NParties; i++ {
-			p := new(Party)
-			var err error
-			if i == 0 {
-				p.RefreshProtocol, err = NewRefreshProtocol(params, logBound, params.Xe())
-				require.NoError(t, err)
-			} else {
-				p.RefreshProtocol = RefreshParties[0].RefreshProtocol.ShallowCopy()
-			}
-
-			p.s = sk0Shards[i]
-			p.share = p.AllocateShare(levelIn, levelOut)
-			RefreshParties[i] = p
-		}
-
-		P0 := RefreshParties[0]
-
-		for _, scale := range []float64{params.DefaultScale().Float64(), params.DefaultScale().Float64() * 128} {
-			t.Run(fmt.Sprintf("AtScale=%d", int(math.Round(math.Log2(scale)))), func(t *testing.T) {
-				coeffs, _, ciphertext := newTestVectorsAtScale(tc, encryptorPk0, -1, 1, rlwe.NewScale(scale))
-
-				// Brings ciphertext to minLevel + 1
-				tc.evaluator.DropLevel(ciphertext, ciphertext.Level()-minLevel-1)
-
-				crp := P0.SampleCRP(levelOut, tc.crs)
-
-				for i, p := range RefreshParties {
-
-					p.GenShare(p.s, logBound, ciphertext, crp, &p.share)
-
-					if i > 0 {
-						P0.AggregateShares(&p.share, &P0.share, &P0.share)
-					}
-				}
-
-				P0.Finalize(ciphertext, crp, P0.share, ciphertext)
-
-				ckks.VerifyTestVectors(params, tc.encoder, decryptorSk0, coeffs, ciphertext, params.LogDefaultScale(), nil, *printPrecisionStats, t)
-			})
-		}
-
+	t.Run(GetTestName("N->N/Transform=nil", tc.NParties, paramsIn), func(t *testing.T) {
+		testRefreshParameterized(tc, paramsIn, tc.sk0Shards, nil, t)
 	})
-}
 
-func testRefreshAndTransform(tc *testContext, t *testing.T) {
+	t.Run(GetTestName("N->2N/Transform=nil", tc.NParties, paramsIn), func(t *testing.T) {
 
-	var err error
-	encryptorPk0 := tc.encryptorPk0
-	sk0Shards := tc.sk0Shards
-	params := tc.params
-	decryptorSk0 := tc.decryptorSk0
-
-	t.Run(GetTestName("RefreshAndTransform", tc.NParties, params), func(t *testing.T) {
-
-		var minLevel int
-		var logBound uint
-		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForRefresh(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
-			t.Skip("Not enough levels to ensure correctness and 128 security")
-		}
-
-		type Party struct {
-			MaskedTransformProtocol
-			s     *rlwe.SecretKey
-			share drlwe.RefreshShare
-		}
-
-		coeffs, _, ciphertext := newTestVectors(tc, encryptorPk0, -1, 1)
-
-		// Drops the ciphertext to the minimum level that ensures correctness and 128-bit security
-		tc.evaluator.DropLevel(ciphertext, ciphertext.Level()-minLevel-1)
-
-		levelIn := minLevel
-		levelOut := params.MaxLevel()
-
-		RefreshParties := make([]*Party, tc.NParties)
-		for i := 0; i < tc.NParties; i++ {
-			p := new(Party)
-
-			if i == 0 {
-				if p.MaskedTransformProtocol, err = NewMaskedTransformProtocol(params, params, logBound, params.Xe()); err != nil {
-					t.Log(err)
-					t.Fail()
-				}
-			} else {
-				p.MaskedTransformProtocol = RefreshParties[0].MaskedTransformProtocol.ShallowCopy()
-			}
-
-			p.s = sk0Shards[i]
-			p.share = p.AllocateShare(levelIn, levelOut)
-			RefreshParties[i] = p
-		}
-
-		P0 := RefreshParties[0]
-		crp := P0.SampleCRP(levelOut, tc.crs)
-
-		transform := &MaskedTransformFunc{
-			Decode: true,
-			Func: func(coeffs []*bignum.Complex) {
-				for i := range coeffs {
-					coeffs[i][0].Mul(coeffs[i][0], bignum.NewFloat(0.9238795325112867, logBound))
-					coeffs[i][1].Mul(coeffs[i][1], bignum.NewFloat(0.7071067811865476, logBound))
-				}
-			},
-			Encode: true,
-		}
-
-		for i, p := range RefreshParties {
-			p.GenShare(p.s, p.s, logBound, ciphertext, crp, transform, &p.share)
-
-			if i > 0 {
-				P0.AggregateShares(&p.share, &P0.share, &P0.share)
-			}
-		}
-
-		P0.Transform(ciphertext, transform, crp, P0.share, ciphertext)
-
-		for i := range coeffs {
-			coeffs[i][0].Mul(coeffs[i][0], bignum.NewFloat(0.9238795325112867, logBound))
-			coeffs[i][1].Mul(coeffs[i][1], bignum.NewFloat(0.7071067811865476, logBound))
-		}
-
-		ckks.VerifyTestVectors(params, tc.encoder, decryptorSk0, coeffs, ciphertext, params.LogDefaultScale(), nil, *printPrecisionStats, t)
-	})
-}
-
-func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
-
-	var err error
-
-	encryptorPk0 := tc.encryptorPk0
-	sk0Shards := tc.sk0Shards
-	params := tc.params
-
-	t.Run(GetTestName("RefreshAndTransformAndSwitchParams", tc.NParties, params), func(t *testing.T) {
-
-		var minLevel int
-		var logBound uint
-		var ok bool
-		if minLevel, logBound, ok = GetMinimumLevelForRefresh(128, params.DefaultScale(), tc.NParties, params.Q()); ok != true || minLevel+1 > params.MaxLevel() {
-			t.Skip("Not enough levels to ensure correctness and 128 security")
-		}
-
-		type Party struct {
-			MaskedTransformProtocol
-			sIn   *rlwe.SecretKey
-			sOut  *rlwe.SecretKey
-			share drlwe.RefreshShare
-		}
-
-		coeffs, _, ciphertext := newTestVectors(tc, encryptorPk0, -1, 1)
-
-		// Drops the ciphertext to the minimum level that ensures correctness and 128-bit security
-		tc.evaluator.DropLevel(ciphertext, ciphertext.Level()-minLevel-1)
-
-		levelIn := minLevel
-
-		// Target parameters
 		var paramsOut ckks.Parameters
+		var err error
 		paramsOut, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
-			LogN:            params.LogN() + 1,
+			LogN:            paramsIn.LogN() + 1,
 			LogQ:            []int{54, 54, 54, 49, 49, 49, 49, 49, 49},
 			LogP:            []int{52, 52},
-			RingType:        params.RingType(),
-			LogDefaultScale: params.LogDefaultScale(),
+			RingType:        paramsIn.RingType(),
+			LogDefaultScale: paramsIn.LogDefaultScale(),
 		})
 
-		require.Nil(t, err)
+		require.NoError(t, err)
 
-		levelOut := paramsOut.MaxLevel()
+		kgenOut := rlwe.NewKeyGenerator(paramsOut)
 
-		RefreshParties := make([]*Party, tc.NParties)
-
-		kgenParamsOut := rlwe.NewKeyGenerator(paramsOut.Parameters)
-		skIdealOut := rlwe.NewSecretKey(paramsOut.Parameters)
-		for i := 0; i < tc.NParties; i++ {
-			p := new(Party)
-
-			if i == 0 {
-				if p.MaskedTransformProtocol, err = NewMaskedTransformProtocol(params, paramsOut, logBound, params.Xe()); err != nil {
-					t.Log(err)
-					t.Fail()
-				}
-			} else {
-				p.MaskedTransformProtocol = RefreshParties[0].MaskedTransformProtocol.ShallowCopy()
-			}
-
-			p.sIn = sk0Shards[i]
-
-			p.sOut = kgenParamsOut.GenSecretKeyNew() // New shared secret key in target parameters
-			paramsOut.RingQ().Add(skIdealOut.Value.Q, p.sOut.Value.Q, skIdealOut.Value.Q)
-
-			p.share = p.AllocateShare(levelIn, levelOut)
-			RefreshParties[i] = p
+		skOut := make([]*rlwe.SecretKey, tc.NParties)
+		for i := range skOut {
+			skOut[i] = kgenOut.GenSecretKeyNew()
 		}
 
-		P0 := RefreshParties[0]
-		crp := P0.SampleCRP(levelOut, tc.crs)
+		testRefreshParameterized(tc, paramsOut, skOut, nil, t)
+	})
+
+	t.Run(GetTestName("2N->N/Transform=nil", tc.NParties, tc.params), func(t *testing.T) {
+
+		var paramsOut ckks.Parameters
+		var err error
+		paramsOut, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
+			LogN:            paramsIn.LogN() - 1,
+			LogQ:            []int{54, 54, 54, 49, 49, 49, 49, 49, 49},
+			LogP:            []int{52, 52},
+			RingType:        paramsIn.RingType(),
+			LogDefaultScale: paramsIn.LogDefaultScale(),
+		})
+
+		require.NoError(t, err)
+
+		kgenOut := rlwe.NewKeyGenerator(paramsOut)
+
+		skOut := make([]*rlwe.SecretKey, tc.NParties)
+		for i := range skOut {
+			skOut[i] = kgenOut.GenSecretKeyNew()
+		}
+
+		testRefreshParameterized(tc, paramsOut, skOut, nil, t)
+	})
+
+	t.Run(GetTestName("N->N/Transform=true", tc.NParties, paramsIn), func(t *testing.T) {
 
 		transform := &MaskedTransformFunc{
 			Decode: true,
@@ -476,35 +312,172 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 			Encode: true,
 		}
 
-		for i, p := range RefreshParties {
-			p.GenShare(p.sIn, p.sOut, logBound, ciphertext, crp, transform, &p.share)
+		testRefreshParameterized(tc, paramsIn, tc.sk0Shards, transform, t)
+	})
 
-			if i > 0 {
-				P0.AggregateShares(&p.share, &P0.share, &P0.share)
-			}
+	t.Run(GetTestName("N->2N/Transform=true", tc.NParties, paramsIn), func(t *testing.T) {
+
+		var paramsOut ckks.Parameters
+		var err error
+		paramsOut, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
+			LogN:            paramsIn.LogN() + 1,
+			LogQ:            []int{54, 54, 54, 49, 49, 49, 49, 49, 49},
+			LogP:            []int{52, 52},
+			RingType:        paramsIn.RingType(),
+			LogDefaultScale: paramsIn.LogDefaultScale(),
+		})
+
+		require.NoError(t, err)
+
+		kgenOut := rlwe.NewKeyGenerator(paramsOut)
+
+		skOut := make([]*rlwe.SecretKey, tc.NParties)
+		for i := range skOut {
+			skOut[i] = kgenOut.GenSecretKeyNew()
 		}
 
-		P0.Transform(ciphertext, transform, crp, P0.share, ciphertext)
-
-		for i := range coeffs {
-			coeffs[i][0].Mul(coeffs[i][0], bignum.NewFloat(0.9238795325112867, logBound))
-			coeffs[i][1].Mul(coeffs[i][1], bignum.NewFloat(0.7071067811865476, logBound))
+		transform := &MaskedTransformFunc{
+			Decode: true,
+			Func: func(coeffs []*bignum.Complex) {
+				for i := range coeffs {
+					coeffs[i][0].Mul(coeffs[i][0], bignum.NewFloat(0.9238795325112867, logBound))
+					coeffs[i][1].Mul(coeffs[i][1], bignum.NewFloat(0.7071067811865476, logBound))
+				}
+			},
+			Encode: true,
 		}
 
-		ckks.VerifyTestVectors(paramsOut, ckks.NewEncoder(paramsOut), ckks.NewDecryptor(paramsOut, skIdealOut), coeffs, ciphertext, paramsOut.LogDefaultScale(), nil, *printPrecisionStats, t)
+		testRefreshParameterized(tc, paramsOut, skOut, transform, t)
+	})
+
+	t.Run(GetTestName("2N->N/Transform=true", tc.NParties, tc.params), func(t *testing.T) {
+
+		var paramsOut ckks.Parameters
+		var err error
+		paramsOut, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
+			LogN:            paramsIn.LogN() - 1,
+			LogQ:            []int{54, 54, 54, 49, 49, 49, 49, 49, 49},
+			LogP:            []int{52, 52},
+			RingType:        paramsIn.RingType(),
+			LogDefaultScale: paramsIn.LogDefaultScale(),
+		})
+
+		require.NoError(t, err)
+
+		kgenOut := rlwe.NewKeyGenerator(paramsOut)
+
+		skOut := make([]*rlwe.SecretKey, tc.NParties)
+		for i := range skOut {
+			skOut[i] = kgenOut.GenSecretKeyNew()
+		}
+
+		transform := &MaskedTransformFunc{
+			Decode: true,
+			Func: func(coeffs []*bignum.Complex) {
+				for i := range coeffs {
+					coeffs[i][0].Mul(coeffs[i][0], bignum.NewFloat(0.9238795325112867, logBound))
+					coeffs[i][1].Mul(coeffs[i][1], bignum.NewFloat(0.7071067811865476, logBound))
+				}
+			},
+			Encode: true,
+		}
+
+		testRefreshParameterized(tc, paramsOut, skOut, transform, t)
 	})
 }
 
-func newTestVectors(tc *testContext, encryptor *rlwe.Encryptor, a, b complex128) (values []*bignum.Complex, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
-	return newTestVectorsAtScale(tc, encryptor, a, b, tc.params.DefaultScale())
+func testRefreshParameterized(tc *testContext, paramsOut ckks.Parameters, skOut []*rlwe.SecretKey, transform *MaskedTransformFunc, t *testing.T) {
+
+	var err error
+
+	paramsIn := tc.params
+
+	encIn := tc.encryptorPk0
+
+	skIdealOut := rlwe.NewSecretKey(paramsOut)
+	for i := 0; i < tc.NParties; i++ {
+		paramsOut.RingQ().Add(skIdealOut.Value.Q, skOut[i].Value.Q, skIdealOut.Value.Q)
+	}
+
+	var minLevel int
+	var logBound uint
+	var ok bool
+	if minLevel, logBound, ok = GetMinimumLevelForRefresh(128, paramsIn.DefaultScale(), tc.NParties, paramsIn.Q()); ok != true || minLevel+1 > paramsIn.MaxLevel() {
+		t.Skip("Not enough levels to ensure correctness and 128 security")
+	}
+
+	type Party struct {
+		MaskedTransformProtocol
+		sIn   *rlwe.SecretKey
+		sOut  *rlwe.SecretKey
+		share drlwe.RefreshShare
+	}
+
+	coeffs, _, ciphertext := newTestVectors(tc, encIn, -1, 1, utils.Min(paramsIn.LogMaxSlots(), paramsOut.LogMaxSlots()))
+
+	// Drops the ciphertext to the minimum level that ensures correctness and 128-bit security
+	tc.evaluator.DropLevel(ciphertext, ciphertext.Level()-minLevel-1)
+
+	levelIn := minLevel
+
+	require.Nil(t, err)
+
+	levelOut := paramsOut.MaxLevel()
+
+	RefreshParties := make([]*Party, tc.NParties)
+
+	for i := 0; i < tc.NParties; i++ {
+		p := new(Party)
+
+		if i == 0 {
+			if p.MaskedTransformProtocol, err = NewMaskedTransformProtocol(paramsIn, paramsOut, logBound, paramsIn.Xe()); err != nil {
+				t.Log(err)
+				t.Fail()
+			}
+		} else {
+			p.MaskedTransformProtocol = RefreshParties[0].MaskedTransformProtocol.ShallowCopy()
+		}
+
+		p.sIn = tc.sk0Shards[i]
+		p.sOut = skOut[i]
+
+		p.share = p.AllocateShare(levelIn, levelOut)
+		RefreshParties[i] = p
+	}
+
+	P0 := RefreshParties[0]
+	crp := P0.SampleCRP(levelOut, tc.crs)
+
+	for i, p := range RefreshParties {
+		p.GenShare(p.sIn, p.sOut, logBound, ciphertext, crp, transform, &p.share)
+
+		if i > 0 {
+			P0.AggregateShares(&p.share, &P0.share, &P0.share)
+		}
+	}
+
+	P0.Transform(ciphertext, transform, crp, P0.share, ciphertext)
+
+	// Applies transform in plaintext
+
+	if transform != nil {
+		transform.Func(coeffs)
+	}
+
+	ckks.VerifyTestVectors(paramsOut, ckks.NewEncoder(paramsOut), ckks.NewDecryptor(paramsOut, skIdealOut), coeffs, ciphertext, paramsOut.LogDefaultScale(), nil, *printPrecisionStats, t)
 }
 
-func newTestVectorsAtScale(tc *testContext, encryptor *rlwe.Encryptor, a, b complex128, scale rlwe.Scale) (values []*bignum.Complex, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
+func newTestVectors(tc *testContext, encryptor *rlwe.Encryptor, a, b complex128, logSlots int) (values []*bignum.Complex, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
+	return newTestVectorsAtScale(tc, encryptor, a, b, tc.params.DefaultScale(), logSlots)
+}
+
+func newTestVectorsAtScale(tc *testContext, encryptor *rlwe.Encryptor, a, b complex128, scale rlwe.Scale, logSlots int) (values []*bignum.Complex, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
 
 	prec := tc.encoder.Prec()
 
 	pt = ckks.NewPlaintext(tc.params, tc.params.MaxLevel())
 	pt.Scale = scale
+	pt.LogDimensions.Cols = logSlots
 
 	values = make([]*bignum.Complex, pt.Slots())
 

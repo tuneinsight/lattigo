@@ -127,8 +127,8 @@ func (e2s EncToShareProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, ct *rl
 	// Generates an encryption of zero and subtracts the mask
 	e2s.KeySwitchProtocol.GenShare(sk, e2s.zero, ct, publicShareOut)
 
+	// Positional -> RNS -> NTT
 	ringQ.SetCoefficientsBigint(secretShareOut.Value, e2s.buff)
-
 	ringQ.NTT(e2s.buff, e2s.buff)
 
 	// Subtracts the mask to the encryption of zero
@@ -151,10 +151,8 @@ func (e2s EncToShareProtocol) GetShare(secretShare *drlwe.AdditiveShareBigint, a
 	// Adds the decryption share on the ciphertext and stores the result in a buff
 	ringQ.Add(aggregatePublicShare.Value, ct.Value[0], e2s.buff)
 
-	// Switches the LSSS RNS NTT ciphertext outside of the NTT domain
+	// INTT -> RNS -> Positional
 	ringQ.INTT(e2s.buff, e2s.buff)
-
-	// Switches the LSSS RNS ciphertext outside of the RNS domain
 	ringQ.PolyToBigintCentered(e2s.buff, 1, e2s.maskBigint)
 
 	// Subtracts the last mask
@@ -235,15 +233,9 @@ func (s2e ShareToEncProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.KeySwitchCR
 	ct.IsNTT = true
 	s2e.KeySwitchProtocol.GenShare(s2e.zero, sk, ct, c0ShareOut)
 
-	dslots := metadata.Slots()
-	if ringQ.Type() == ring.Standard {
-		dslots *= 2
-	}
-
-	ringQ.SetCoefficientsBigint(secretShare.Value[:dslots], s2e.tmp)
-
-	// Maps Y^{N/n} -> X^{N} in Montgomery and NTT
-	rlwe.NTTSparseAndMontgomery(ringQ, metadata, s2e.tmp)
+	// Positional -> RNS -> NTT
+	ringQ.SetCoefficientsBigint(secretShare.Value, s2e.tmp)
+	ringQ.NTT(s2e.tmp, s2e.tmp)
 
 	ringQ.Add(c0ShareOut.Value, s2e.tmp, c0ShareOut.Value)
 

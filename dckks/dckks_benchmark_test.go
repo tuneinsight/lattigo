@@ -113,7 +113,7 @@ func benchMaskedTransform(tc *testContext, b *testing.B) {
 		sk0Shards := tc.sk0Shards
 
 		type Party struct {
-			MaskedTransformProtocol
+			MaskedLinearTransformationProtocol
 			s     *rlwe.SecretKey
 			share drlwe.RefreshShare
 		}
@@ -121,13 +121,13 @@ func benchMaskedTransform(tc *testContext, b *testing.B) {
 		ciphertext := ckks.NewCiphertext(params, 1, minLevel)
 
 		p := new(Party)
-		p.MaskedTransformProtocol, _ = NewMaskedTransformProtocol(params, params, logBound, params.Xe())
+		p.MaskedLinearTransformationProtocol, _ = NewMaskedLinearTransformationProtocol(params, params, logBound, params.Xe())
 		p.s = sk0Shards[0]
 		p.share = p.AllocateShare(ciphertext.Level(), params.MaxLevel())
 
 		crp := p.SampleCRP(params.MaxLevel(), tc.crs)
 
-		transform := &MaskedTransformFunc{
+		transform := &MaskedLinearTransformationFunc{
 			Decode: true,
 			Func: func(coeffs []*bignum.Complex) {
 				for i := range coeffs {

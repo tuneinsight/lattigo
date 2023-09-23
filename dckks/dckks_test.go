@@ -301,7 +301,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName("N->N/Transform=true", tc.NParties, paramsIn), func(t *testing.T) {
 
-		transform := &MaskedTransformFunc{
+		transform := &MaskedLinearTransformationFunc{
 			Decode: true,
 			Func: func(coeffs []*bignum.Complex) {
 				for i := range coeffs {
@@ -336,7 +336,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 			skOut[i] = kgenOut.GenSecretKeyNew()
 		}
 
-		transform := &MaskedTransformFunc{
+		transform := &MaskedLinearTransformationFunc{
 			Decode: true,
 			Func: func(coeffs []*bignum.Complex) {
 				for i := range coeffs {
@@ -371,7 +371,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 			skOut[i] = kgenOut.GenSecretKeyNew()
 		}
 
-		transform := &MaskedTransformFunc{
+		transform := &MaskedLinearTransformationFunc{
 			Decode: true,
 			Func: func(coeffs []*bignum.Complex) {
 				for i := range coeffs {
@@ -386,7 +386,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 	})
 }
 
-func testRefreshParameterized(tc *testContext, paramsOut ckks.Parameters, skOut []*rlwe.SecretKey, transform *MaskedTransformFunc, t *testing.T) {
+func testRefreshParameterized(tc *testContext, paramsOut ckks.Parameters, skOut []*rlwe.SecretKey, transform *MaskedLinearTransformationFunc, t *testing.T) {
 
 	var err error
 
@@ -407,7 +407,7 @@ func testRefreshParameterized(tc *testContext, paramsOut ckks.Parameters, skOut 
 	}
 
 	type Party struct {
-		MaskedTransformProtocol
+		MaskedLinearTransformationProtocol
 		sIn   *rlwe.SecretKey
 		sOut  *rlwe.SecretKey
 		share drlwe.RefreshShare
@@ -430,12 +430,12 @@ func testRefreshParameterized(tc *testContext, paramsOut ckks.Parameters, skOut 
 		p := new(Party)
 
 		if i == 0 {
-			if p.MaskedTransformProtocol, err = NewMaskedTransformProtocol(paramsIn, paramsOut, logBound, paramsIn.Xe()); err != nil {
+			if p.MaskedLinearTransformationProtocol, err = NewMaskedLinearTransformationProtocol(paramsIn, paramsOut, logBound, paramsIn.Xe()); err != nil {
 				t.Log(err)
 				t.Fail()
 			}
 		} else {
-			p.MaskedTransformProtocol = RefreshParties[0].MaskedTransformProtocol.ShallowCopy()
+			p.MaskedLinearTransformationProtocol = RefreshParties[0].MaskedLinearTransformationProtocol.ShallowCopy()
 		}
 
 		p.sIn = tc.sk0Shards[i]

@@ -171,6 +171,17 @@ func (mltp MaskedLinearTransformationProtocol) GenShare(skIn, skOut *rlwe.Secret
 		return fmt.Errorf("cannot GenShare: crs level must be equal to ShareToEncShare")
 	}
 
+	if transform != nil {
+
+		if transform.Decode && !ct.IsBatched {
+			return fmt.Errorf("cannot GenShare: trying to decode a non-batched ciphertext (transform.Decode = true but ciphertext.IsBatched = false)")
+		}
+
+		if transform.Encode && !transform.Decode && ct.IsBatched {
+			return fmt.Errorf("cannot GenShare: trying to encode a batched ciphertext (transform.Decode = false, transform.Encode = true but ciphertext.IsBatched = true")
+		}
+	}
+
 	// Generates the decryption share
 	// Returns [M_i] on mltp.tmpMask and [a*s_i -M_i + e] on EncToShareShare
 	if err = mltp.e2s.GenShare(skIn, logBound, ct, &drlwe.AdditiveShareBigint{Value: mltp.tmpMaskIn}, &shareOut.EncToShareShare); err != nil {
@@ -221,6 +232,17 @@ func (mltp MaskedLinearTransformationProtocol) Transform(ct *rlwe.Ciphertext, tr
 		return fmt.Errorf("cannot Transform: crs level and s2e level must be the same")
 	}
 
+	if transform != nil {
+
+		if transform.Decode && !ct.IsBatched {
+			return fmt.Errorf("cannot Transform: trying to decode a non-batched ciphertext (transform.Decode = true but ciphertext.IsBatched = false)")
+		}
+
+		if transform.Encode && !transform.Decode && ct.IsBatched {
+			return fmt.Errorf("cannot Transform: trying to encode a batched ciphertext (transform.Decode = false, transform.Encode = true but ciphertext.IsBatched = true")
+		}
+	}
+
 	ringQ := mltp.s2e.params.RingQ().AtLevel(maxLevel)
 
 	// Returns -sum(M_i) + x (outside of the NTT domain)
@@ -264,6 +286,11 @@ func (mltp MaskedLinearTransformationProtocol) Transform(ct *rlwe.Ciphertext, tr
 	}
 
 	*ciphertextOut.MetaData = *ct.MetaData
+
+	if transform != nil {
+		ciphertextOut.IsBatched = transform.Encode
+	}
+
 	ciphertextOut.Scale = mltp.s2e.params.DefaultScale()
 
 	return

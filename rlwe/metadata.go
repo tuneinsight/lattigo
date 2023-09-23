@@ -230,6 +230,8 @@ func (m *PlaintextMetaData) UnmarshalJSON(p []byte) (err error) {
 		return err
 	} else if y == 1 {
 		m.IsBatched = true
+	}else{
+		m.IsBatched = false
 	}
 
 	logRows, err := hexconv(aux.LogDimensions[0])

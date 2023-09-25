@@ -42,7 +42,7 @@ func TestInverse(t *testing.T) {
 
 		btp := bootstrapper.NewSecretKeyBootstrapper(params, sk)
 
-		minimaxpolysign := float.NewMinimaxCompositePolynomial(CoeffsMinimaxCompositePolynomialSignAlpha30Err35Prec20x4Cheby)
+		minimaxpolysign := float.NewMinimaxCompositePolynomial(float.DefaultMinimaxCompositePolynomialForSign)
 
 		logmin := -30.0
 		logmax := 10.0

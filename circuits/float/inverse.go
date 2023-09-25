@@ -41,7 +41,7 @@ func NewInverseEvaluator(params ckks.Parameters, log2min, log2max float64, signM
 
 	var MCPEval *MinimaxCompositePolynomialEvaluator
 	if evalPWF != nil {
-		MCPEval = NewMinimaxCompositePolynomialEvaluator(params, evalPWF, NewPolynomialEvaluator(params, evalPWF), btp)
+		MCPEval = NewMinimaxCompositePolynomialEvaluator(params, evalPWF, btp)
 	}
 
 	return InverseEvaluator{

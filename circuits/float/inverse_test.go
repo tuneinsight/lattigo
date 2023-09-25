@@ -42,8 +42,6 @@ func TestInverse(t *testing.T) {
 
 		btp := bootstrapper.NewSecretKeyBootstrapper(params, sk)
 
-		minimaxpolysign := float.NewMinimaxCompositePolynomial(float.DefaultMinimaxCompositePolynomialForSign)
-
 		logmin := -30.0
 		logmax := 10.0
 
@@ -60,8 +58,7 @@ func TestInverse(t *testing.T) {
 
 		evk := rlwe.NewMemEvaluationKeySet(kgen.GenRelinearizationKeyNew(sk), galKeys...)
 
-		evalInverse := tc.evaluator.WithKey(evk)
-		evalMinimaxPoly := evalInverse
+		eval := tc.evaluator.WithKey(evk)
 
 		t.Run(GetTestName(params, "GoldschmidtDivisionNew"), func(t *testing.T) {
 
@@ -72,7 +69,7 @@ func TestInverse(t *testing.T) {
 				values[i][0].Quo(one, values[i][0])
 			}
 
-			invEval := float.NewInverseEvaluator(params, logmin, logmax, nil, evalInverse, nil, btp)
+			invEval := float.NewInverseEvaluator(params, eval, btp)
 
 			var err error
 			if ciphertext, err = invEval.GoldschmidtDivisionNew(ciphertext, logmin); err != nil {
@@ -86,9 +83,9 @@ func TestInverse(t *testing.T) {
 
 			values, _, ct := newCKKSTestVectors(tc, enc, complex(0, 0), complex(max, 0), t)
 
-			invEval := float.NewInverseEvaluator(params, logmin, logmax, nil, evalInverse, nil, btp)
+			invEval := float.NewInverseEvaluator(params, eval, btp)
 
-			cInv, err := invEval.EvaluatePositiveDomainNew(ct)
+			cInv, err := invEval.EvaluatePositiveDomainNew(ct, logmin, logmax)
 			require.NoError(t, err)
 
 			have := make([]*big.Float, params.MaxSlots())
@@ -113,9 +110,9 @@ func TestInverse(t *testing.T) {
 
 			values, _, ct := newCKKSTestVectors(tc, enc, complex(-max, 0), complex(0, 0), t)
 
-			invEval := float.NewInverseEvaluator(params, logmin, logmax, nil, evalInverse, nil, btp)
+			invEval := float.NewInverseEvaluator(params, eval, btp)
 
-			cInv, err := invEval.EvaluateNegativeDomainNew(ct)
+			cInv, err := invEval.EvaluateNegativeDomainNew(ct, logmin, logmax)
 			require.NoError(t, err)
 
 			have := make([]*big.Float, params.MaxSlots())
@@ -140,9 +137,9 @@ func TestInverse(t *testing.T) {
 
 			values, _, ct := newCKKSTestVectors(tc, enc, complex(-max, 0), complex(max, 0), t)
 
-			invEval := float.NewInverseEvaluator(params, logmin, logmax, minimaxpolysign, evalInverse, evalMinimaxPoly, btp)
+			invEval := float.NewInverseEvaluator(params, eval, btp)
 
-			cInv, err := invEval.EvaluateFullDomainNew(ct)
+			cInv, err := invEval.EvaluateFullDomainNew(ct, logmin, logmax, float.NewMinimaxCompositePolynomial(float.DefaultMinimaxCompositePolynomialForSign))
 			require.NoError(t, err)
 
 			have := make([]*big.Float, params.MaxSlots())

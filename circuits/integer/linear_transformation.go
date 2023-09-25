@@ -72,16 +72,6 @@ func NewLinearTransformationEvaluator(eval circuits.EvaluatorForLinearTransforma
 	}
 }
 
-// NewCustomLinearTransformationEvaluator instantiates a new LinearTransformationEvaluator from a
-// circuits.EvaluatorForLinearTransformation and circuits.EvaluatorForDiagonalMatrix.
-// This constructor is primarily indented for custom implementations.
-func NewCustomLinearTransformationEvaluator(evalLT circuits.EvaluatorForLinearTransformation, evalMat circuits.EvaluatorForDiagonalMatrix) (linTransEval *LinearTransformationEvaluator) {
-	return &LinearTransformationEvaluator{
-		EvaluatorForLinearTransformation: evalLT,
-		EvaluatorForDiagonalMatrix:       evalMat,
-	}
-}
-
 // EvaluateNew takes as input a ciphertext ctIn and a linear transformation M and evaluate and returns opOut: M(ctIn).
 func (eval LinearTransformationEvaluator) EvaluateNew(ctIn *rlwe.Ciphertext, linearTransformation LinearTransformation) (opOut *rlwe.Ciphertext, err error) {
 	ops, err := eval.EvaluateManyNew(ctIn, []LinearTransformation{linearTransformation})

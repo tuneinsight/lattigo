@@ -32,15 +32,6 @@ func NewPolynomialEvaluator(params ckks.Parameters, eval circuits.Evaluator) *Po
 	}
 }
 
-// NewCustomPolynomialEvaluator instantiates a new PolynomialEvaluator from a circuit.EvaluatorForPolynomial.
-// This constructor is primarily indented for custom implementations.
-func NewCustomPolynomialEvaluator(params ckks.Parameters, eval circuits.EvaluatorForPolynomial) *PolynomialEvaluator {
-	return &PolynomialEvaluator{
-		Parameters:             params,
-		EvaluatorForPolynomial: eval,
-	}
-}
-
 // Evaluate evaluates a polynomial on the input Ciphertext in ceil(log2(deg+1)) levels.
 // Returns an error if the input ciphertext does not have enough level to carry out the full polynomial evaluation.
 // Returns an error if something is wrong with the scale.

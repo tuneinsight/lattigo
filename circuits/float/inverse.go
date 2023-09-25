@@ -12,7 +12,7 @@ import (
 // EvaluatorForInverse defines a set of common and scheme agnostic
 // method that are necessary to instantiate an InverseEvaluator.
 type EvaluatorForInverse interface {
-	circuits.Evaluator
+	EvaluatorForMinimaxCompositePolynomial
 	SetScale(ct *rlwe.Ciphertext, scale rlwe.Scale) (err error)
 }
 
@@ -21,41 +21,21 @@ type InverseEvaluator struct {
 	EvaluatorForInverse
 	*MinimaxCompositePolynomialEvaluator
 	circuits.Bootstrapper[rlwe.Ciphertext]
-	Parameters                     ckks.Parameters
-	Log2Min, Log2Max               float64
-	SignMinimaxCompositePolynomial MinimaxCompositePolynomial
+	Parameters ckks.Parameters
 }
 
 // NewInverseEvaluator instantiates a new InverseEvaluator from an EvaluatorForInverse.
 // This method is allocation free.
-//
-// The evaluator can be used to compute the inverse of values:
-// EvaluateFullDomainNew: [-2^{log2max}, -2^{log2min}] U [2^{log2min}, 2^{log2max}]
-// EvaluatePositiveDomainNew: [2^{log2min}, 2^{log2max}]
-// EvaluateNegativeDomainNew: [-2^{log2max}, -2^{log2min}]
-// GoldschmidtDivisionNew: [0, 2]
-//
-// A minimax composite polynomial (signMCP) for the sign function in the interval [-1-e, -2^{log2min}] U [2^{log2min}, 1+e]
-// (where e is an upperbound on the scheme error) is required for the full domain inverse.
-func NewInverseEvaluator(params ckks.Parameters, log2min, log2max float64, signMCP MinimaxCompositePolynomial, evalInv EvaluatorForInverse, evalPWF EvaluatorForMinimaxCompositePolynomial, btp circuits.Bootstrapper[rlwe.Ciphertext]) InverseEvaluator {
-
-	var MCPEval *MinimaxCompositePolynomialEvaluator
-	if evalPWF != nil {
-		MCPEval = NewMinimaxCompositePolynomialEvaluator(params, evalPWF, btp)
-	}
-
+func NewInverseEvaluator(params ckks.Parameters, eval EvaluatorForInverse, btp circuits.Bootstrapper[rlwe.Ciphertext]) InverseEvaluator {
 	return InverseEvaluator{
-		EvaluatorForInverse:                 evalInv,
-		MinimaxCompositePolynomialEvaluator: MCPEval,
+		EvaluatorForInverse:                 eval,
+		MinimaxCompositePolynomialEvaluator: NewMinimaxCompositePolynomialEvaluator(params, eval, btp),
 		Bootstrapper:                        btp,
 		Parameters:                          params,
-		Log2Min:                             log2min,
-		Log2Max:                             log2max,
-		SignMinimaxCompositePolynomial:      signMCP,
 	}
 }
 
-// EvaluateFullDomainNew computes 1/x for x in [-max, -min] U [min, max].
+// EvaluateFullDomainNew computes 1/x for x in [-2^{log2max}, -2^{log2min}] U [2^{log2min}, 2^{log2max}].
 //  1. Reduce the interval from [-max, -min] U [min, max] to [-1, -min] U [min, 1] by computing an approximate
 //     inverse c such that |c * x| <= 1. For |x| > 1, c tends to 1/x while for |x| < c tends to 1.
 //     This is done by using the work Efficient Homomorphic Evaluation on Large Intervals (https://eprint.iacr.org/2022/280.pdf).
@@ -63,43 +43,54 @@ func NewInverseEvaluator(params ckks.Parameters, log2min, log2max float64, signM
 //  3. Compute y' = 1/(|c * x|) with the iterative Goldschmidt division algorithm.
 //  4. Compute y = y' * c * sign(x * c)
 //
-// Note that the precision of sign(x * c) does not impact the circuit precision since this value ends up being both at
+// The user can provide a minimax composite polynomial (signMinimaxPoly) for the sign function in the interval
+// [-1-e, -2^{log2min}] U [2^{log2min}, 1+e] (where e is an upperbound on the scheme error).
+// If no such polynomial is provided, then the DefaultMinimaxCompositePolynomialForSign is used by default.
+// Note that the precision of the output of sign(x * c) does not impact the circuit precision since this value ends up being both at
 // the numerator and denominator, thus cancelling itself.
-func (eval InverseEvaluator) EvaluateFullDomainNew(ct *rlwe.Ciphertext) (cInv *rlwe.Ciphertext, err error) {
-	return eval.evaluateNew(ct, true)
+func (eval InverseEvaluator) EvaluateFullDomainNew(ct *rlwe.Ciphertext, log2min, log2max float64, signMinimaxPoly ...MinimaxCompositePolynomial) (cInv *rlwe.Ciphertext, err error) {
+
+	var poly MinimaxCompositePolynomial
+	if len(signMinimaxPoly) == 1 {
+		poly = signMinimaxPoly[0]
+	} else {
+		poly = NewMinimaxCompositePolynomial(DefaultMinimaxCompositePolynomialForSign)
+	}
+
+	return eval.evaluateNew(ct, log2min, log2max, true, poly)
 }
 
-// EvaluatePositiveDomainNew computes 1/x for x in [min, max].
+// EvaluatePositiveDomainNew computes 1/x for x in [2^{log2min}, 2^{log2max}].
 //  1. Reduce the interval from [min, max] to [min, 1] by computing an approximate
 //     inverse c such that |c * x| <= 1. For |x| > 1, c tends to 1/x while for |x| < c tends to 1.
 //     This is done by using the work Efficient Homomorphic Evaluation on Large Intervals (https://eprint.iacr.org/2022/280.pdf).
 //  2. Compute y' = 1/(c * x) with the iterative Goldschmidt division algorithm.
 //  3. Compute y = y' * c
-func (eval InverseEvaluator) EvaluatePositiveDomainNew(ct *rlwe.Ciphertext) (cInv *rlwe.Ciphertext, err error) {
-	return eval.evaluateNew(ct, false)
+func (eval InverseEvaluator) EvaluatePositiveDomainNew(ct *rlwe.Ciphertext, log2min, log2max float64) (cInv *rlwe.Ciphertext, err error) {
+	return eval.evaluateNew(ct, log2min, log2max, false, nil)
 }
 
-// EvaluateNegativeDomainNew computes 1/x for x in [-max, -min].
+// EvaluateNegativeDomainNew computes 1/x for x in [-2^{log2max}, -2^{log2min}].
 //  1. Reduce the interval from [-max, -min] to [-1, -min] by computing an approximate
 //     inverse c such that |c * x| <= 1. For |x| > 1, c tends to 1/x while for |x| < c tends to 1.
 //     This is done by using the work Efficient Homomorphic Evaluation on Large Intervals (https://eprint.iacr.org/2022/280.pdf).
 //  2. Compute y' = 1/(c * x) with the iterative Goldschmidt division algorithm.
 //  3. Compute y = y' * c
-func (eval InverseEvaluator) EvaluateNegativeDomainNew(ct *rlwe.Ciphertext) (cInv *rlwe.Ciphertext, err error) {
+func (eval InverseEvaluator) EvaluateNegativeDomainNew(ct *rlwe.Ciphertext, log2min, log2max float64) (cInv *rlwe.Ciphertext, err error) {
 
 	var ctNeg *rlwe.Ciphertext
 	if ctNeg, err = eval.MulNew(ct, -1); err != nil {
 		return
 	}
 
-	if cInv, err = eval.EvaluatePositiveDomainNew(ctNeg); err != nil {
+	if cInv, err = eval.EvaluatePositiveDomainNew(ctNeg, log2min, log2max); err != nil {
 		return
 	}
 
 	return cInv, eval.Mul(cInv, -1, cInv)
 }
 
-func (eval InverseEvaluator) evaluateNew(ct *rlwe.Ciphertext, fulldomain bool) (cInv *rlwe.Ciphertext, err error) {
+func (eval InverseEvaluator) evaluateNew(ct *rlwe.Ciphertext, log2min, log2max float64, fulldomain bool, signMinimaxPoly MinimaxCompositePolynomial) (cInv *rlwe.Ciphertext, err error) {
 
 	params := eval.Parameters
 
@@ -111,9 +102,9 @@ func (eval InverseEvaluator) evaluateNew(ct *rlwe.Ciphertext, fulldomain bool) (
 
 	// If max > 1, then normalizes the ciphertext interval from  [-max, -min] U [min, max]
 	// to [-1, -min] U [min, 1], and returns the encrypted normalization factor.
-	if eval.Log2Max > 0 {
+	if log2max > 0 {
 
-		if cInv, normalizationfactor, err = eval.IntervalNormalization(ct, eval.Log2Max, btp); err != nil {
+		if cInv, normalizationfactor, err = eval.IntervalNormalization(ct, log2max, btp); err != nil {
 			return nil, fmt.Errorf("preprocessing: normalizationfactor: %w", err)
 		}
 
@@ -130,7 +121,7 @@ func (eval InverseEvaluator) evaluateNew(ct *rlwe.Ciphertext, fulldomain bool) (
 		}
 
 		// Computes the sign with precision [-1, -2^-a] U [2^-a, 1]
-		if sign, err = eval.MinimaxCompositePolynomialEvaluator.Evaluate(cInv, eval.SignMinimaxCompositePolynomial); err != nil {
+		if sign, err = eval.MinimaxCompositePolynomialEvaluator.Evaluate(cInv, signMinimaxPoly); err != nil {
 			return nil, fmt.Errorf("preprocessing: fulldomain: true -> sign: %w", err)
 		}
 
@@ -159,7 +150,7 @@ func (eval InverseEvaluator) evaluateNew(ct *rlwe.Ciphertext, fulldomain bool) (
 	}
 
 	// Computes the inverse of x in [min = 2^-a, 1]
-	if cInv, err = eval.GoldschmidtDivisionNew(cInv, eval.Log2Min); err != nil {
+	if cInv, err = eval.GoldschmidtDivisionNew(cInv, log2min); err != nil {
 		return nil, fmt.Errorf("division: GoldschmidtDivisionNew: %w", err)
 	}
 
@@ -212,15 +203,15 @@ func (eval InverseEvaluator) evaluateNew(ct *rlwe.Ciphertext, fulldomain bool) (
 	return cInv, nil
 }
 
-// GoldschmidtDivisionNew homomorphically computes 1/x.
-// input: ct: Enc(x) with values in the interval [0+minvalue, 2-minvalue].
+// GoldschmidtDivisionNew homomorphically computes 1/x in the domain [0, 2].
+// input: ct: Enc(x) with values in the interval [0+2^{-log2min}, 2-2^{-log2min}].
 // output: Enc(1/x - e), where |e| <= (1-x)^2^(#iterations+1) -> the bit-precision doubles after each iteration.
 // This method automatically estimates how many iterations are needed to
 // achieve the optimal precision, which is derived from the plaintext scale.
 // This method will return an error if the input ciphertext does not have enough
 // remaining level and if the InverseEvaluator was instantiated with no bootstrapper.
 // This method will return an error if something goes wrong with the bootstrapping or the rescaling operations.
-func (eval InverseEvaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, log2Min float64) (ctInv *rlwe.Ciphertext, err error) {
+func (eval InverseEvaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, log2min float64) (ctInv *rlwe.Ciphertext, err error) {
 
 	btp := eval.Bootstrapper
 
@@ -230,7 +221,7 @@ func (eval InverseEvaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, log2Min
 	prec := float64(params.N()/2) / ct.Scale.Float64()
 
 	// Estimates the number of iterations required to achieve the desired precision, given the interval [min, 2-min]
-	start := 1 - math.Exp2(log2Min)
+	start := 1 - math.Exp2(log2min)
 	var iters = 1
 	for start >= prec {
 		start *= start // Doubles the bit-precision at each iteration

@@ -56,18 +56,6 @@ func NewPolynomialEvaluator(params bgv.Parameters, eval circuits.Evaluator, Inva
 	}
 }
 
-// NewCustomPolynomialEvaluator instantiates a new PolynomialEvaluator from a circuit.EvaluatorForPolynomial.
-// This constructor is primarily indented for custom implementations.
-// InvariantTensoring is a boolean that specifies if the evaluator performes the invariant tensoring (BFV-style) or
-// the regular tensoring (BGB-style).
-func NewCustomPolynomialEvaluator(params bgv.Parameters, eval circuits.EvaluatorForPolynomial, InvariantTensoring bool) *PolynomialEvaluator {
-	return &PolynomialEvaluator{
-		Parameters:             params,
-		EvaluatorForPolynomial: eval,
-		InvariantTensoring:     InvariantTensoring,
-	}
-}
-
 // Evaluate evaluates a polynomial on the input Ciphertext in ceil(log2(deg+1)) levels.
 // Returns an error if the input ciphertext does not have enough level to carry out the full polynomial evaluation.
 // Returns an error if something is wrong with the scale.

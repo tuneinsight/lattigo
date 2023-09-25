@@ -19,7 +19,8 @@ type ComparisonEvaluator struct {
 // This polynomial will define the internal precision of all computation performed by this evaluator and it can be obtained with the function
 // GenMinimaxCompositePolynomialForSign.
 //
-// If no MinimaxCompositePolynomial is given, then it will use by default the variable DefaultMinimaxCompositePolynomialForSign.
+// It is highly recommended to use GenMinimaxCompositePolynomialForSign to generate an approximation optimized for the circuit requiring comparisons.
+// However, if no MinimaxCompositePolynomial is given, then it will use by default the variable DefaultMinimaxCompositePolynomialForSign.
 // See the doc of DefaultMinimaxCompositePolynomialForSign for additional information about the capabilities of this approximation.
 func NewComparisonEvaluator(eval *MinimaxCompositePolynomialEvaluator, signPoly ...MinimaxCompositePolynomial) *ComparisonEvaluator {
 

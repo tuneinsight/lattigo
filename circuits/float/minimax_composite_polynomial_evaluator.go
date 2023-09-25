@@ -19,7 +19,7 @@ type EvaluatorForMinimaxCompositePolynomial interface {
 // MinimaxCompositePolynomialEvaluator is an evaluator used to evaluate composite polynomials on ciphertexts.
 type MinimaxCompositePolynomialEvaluator struct {
 	EvaluatorForMinimaxCompositePolynomial
-	*PolynomialEvaluator
+	PolynomialEvaluator
 	circuits.Bootstrapper[rlwe.Ciphertext]
 	Parameters ckks.Parameters
 }
@@ -27,7 +27,7 @@ type MinimaxCompositePolynomialEvaluator struct {
 // NewMinimaxCompositePolynomialEvaluator instantiates a new MinimaxCompositePolynomialEvaluator.
 // This method is allocation free.
 func NewMinimaxCompositePolynomialEvaluator(params ckks.Parameters, eval EvaluatorForMinimaxCompositePolynomial, bootstrapper circuits.Bootstrapper[rlwe.Ciphertext]) *MinimaxCompositePolynomialEvaluator {
-	return &MinimaxCompositePolynomialEvaluator{eval, NewPolynomialEvaluator(params, eval), bootstrapper, params}
+	return &MinimaxCompositePolynomialEvaluator{eval, *NewPolynomialEvaluator(params, eval), bootstrapper, params}
 }
 
 func (eval MinimaxCompositePolynomialEvaluator) Evaluate(ct *rlwe.Ciphertext, mcp MinimaxCompositePolynomial) (res *rlwe.Ciphertext, err error) {

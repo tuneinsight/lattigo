@@ -11,30 +11,18 @@ import (
 )
 
 func (b Bootstrapper) SwitchRingDegreeN1ToN2New(ctN1 *rlwe.Ciphertext) (ctN2 *rlwe.Ciphertext) {
-
-	if ctN1.Value[0].N() < b.Parameters.Parameters.Parameters.N() {
-		ctN2 = ckks.NewCiphertext(b.Parameters.Parameters.Parameters, 1, ctN1.Level())
-		if err := b.bootstrapper.ApplyEvaluationKey(ctN1, b.evk.EvkN1ToN2, ctN2); err != nil {
-			panic(err)
-		}
-	} else {
-		ctN2 = ctN1.CopyNew()
+	ctN2 = ckks.NewCiphertext(b.Parameters.Parameters.Parameters, 1, ctN1.Level())
+	if err := b.bootstrapper.ApplyEvaluationKey(ctN1, b.evk.EvkN1ToN2, ctN2); err != nil {
+		panic(err)
 	}
-
 	return
 }
 
 func (b Bootstrapper) SwitchRingDegreeN2ToN1New(ctN2 *rlwe.Ciphertext) (ctN1 *rlwe.Ciphertext) {
-
-	if ctN2.Value[0].N() > b.ResidualParameters.N() {
-		ctN1 = ckks.NewCiphertext(b.ResidualParameters, 1, ctN2.Level())
-		if err := b.bootstrapper.ApplyEvaluationKey(ctN2, b.evk.EvkN2ToN1, ctN1); err != nil {
-			panic(err)
-		}
-	} else {
-		ctN1 = ctN2.CopyNew()
+	ctN1 = ckks.NewCiphertext(b.ResidualParameters, 1, ctN2.Level())
+	if err := b.bootstrapper.ApplyEvaluationKey(ctN2, b.evk.EvkN2ToN1, ctN1); err != nil {
+		panic(err)
 	}
-
 	return
 }
 
@@ -62,10 +50,10 @@ func (b Bootstrapper) PackAndSwitchN1ToN2(cts []rlwe.Ciphertext) ([]rlwe.Ciphert
 		if cts, err = b.Pack(cts, b.ResidualParameters, b.xPow2N1); err != nil {
 			return nil, fmt.Errorf("cannot PackAndSwitchN1ToN2: PackN1: %w", err)
 		}
+	}
 
-		for i := range cts {
-			cts[i] = *b.SwitchRingDegreeN1ToN2New(&cts[i])
-		}
+	for i := range cts {
+		cts[i] = *b.SwitchRingDegreeN1ToN2New(&cts[i])
 	}
 
 	if cts, err = b.Pack(cts, b.Parameters.Parameters.Parameters, b.xPow2N2); err != nil {
@@ -83,10 +71,8 @@ func (b Bootstrapper) UnpackAndSwitchN2Tn1(cts []rlwe.Ciphertext, LogSlots, Nb i
 		return nil, fmt.Errorf("cannot UnpackAndSwitchN2Tn1: UnpackN2: %w", err)
 	}
 
-	if b.ResidualParameters.N() != b.Parameters.Parameters.Parameters.N() {
-		for i := range cts {
-			cts[i] = *b.SwitchRingDegreeN2ToN1New(&cts[i])
-		}
+	for i := range cts {
+		cts[i] = *b.SwitchRingDegreeN2ToN1New(&cts[i])
 	}
 
 	for i := range cts {

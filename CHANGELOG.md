@@ -100,7 +100,6 @@ All notable changes to this library are documented in this file.
         - Removed the concept of rotation, everything is now defined in term of Galois elements.
         - Renamed many methods to better reflect there purpose and generalize them.
         - Added many methods related to plaintext parameters and noise.
-        - Added a method that prints the `LWE.Parameters` as defined by the lattice estimator of `https://github.com/malb/lattice-estimator`.
         - Removed the field `Pow2Base` which is now a parameter of the struct `EvaluationKey`.
     - Changes to the `Encryptor`:
         - `EncryptorPublicKey` and `EncryptorSecretKey` are now public.

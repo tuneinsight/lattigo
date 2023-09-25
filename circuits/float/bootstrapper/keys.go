@@ -67,54 +67,36 @@ func (b BootstrappingKeys) BinarySize() (dLen int) {
 //   - Galois keys
 //   - The encapsulation evaluation keys (https://eprint.iacr.org/2022/024)
 //
-// Note: These evaluation keys are generated under an ephemeral secret key using the distribution
-//
-//	specified in the  bootstrapping parameters.
-func (p Parameters) GenBootstrappingKeys(skN1 *rlwe.SecretKey) (*BootstrappingKeys, error) {
+// Note:
+//   - These evaluation keys are generated under an ephemeral secret key skN2 using the distribution
+//     specified in the bootstrapping parameters.
+//   - The ephemeral key used to generate the bootstrapping keys is returned by this method for debugging purposes.
+//   - !WARNING! The bootstrapping parameters use their own and independent cryptographic parameters (i.e. ckks.Parameters)
+//     and it is the user's responsibility to ensure that these parameters meet the target security and tweak them if necessary.
+func (p Parameters) GenBootstrappingKeys(skN1 *rlwe.SecretKey) (btpkeys *BootstrappingKeys, skN2 *rlwe.SecretKey, err error) {
 
 	var EvkN1ToN2, EvkN2ToN1 *rlwe.EvaluationKey
 	var EvkRealToCmplx *rlwe.EvaluationKey
 	var EvkCmplxToReal *rlwe.EvaluationKey
 	paramsN2 := p.Parameters.Parameters
 
-	var skN2 *rlwe.SecretKey
 	kgen := ckks.NewKeyGenerator(paramsN2)
 
 	// Ephemeral secret-key used to generate the evaluation keys.
-
-	ringQ := paramsN2.RingQ()
-	ringP := paramsN2.RingP()
+	skN2 = kgen.GenSecretKeyNew()
 
 	switch p.ResidualParameters.RingType() {
 	// In this case we need need generate the bridge switching keys between the two rings
 	case ring.ConjugateInvariant:
 
 		if skN1.Value.Q.N() != paramsN2.N()>>1 {
-			return nil, fmt.Errorf("cannot GenBootstrappingKeys: if paramsN1.RingType() == ring.ConjugateInvariant then must ensure that paramsN1.LogN()+1 == paramsN2.LogN()-1")
+			return nil, nil, fmt.Errorf("cannot GenBootstrappingKeys: if paramsN1.RingType() == ring.ConjugateInvariant then must ensure that paramsN1.LogN()+1 == paramsN2.LogN()-1")
 		}
-
-		skN2 = rlwe.NewSecretKey(paramsN2)
-		buff := paramsN2.RingQ().NewPoly()
-
-		// R[X+X^-1]/(X^N +1) -> R[X]/(X^2N + 1)
-		ringQ.AtLevel(skN1.LevelQ()).UnfoldConjugateInvariantToStandard(skN1.Value.Q, skN2.Value.Q)
-
-		// Extends basis Q0 -> QL
-		rlwe.ExtendBasisSmallNormAndCenterNTTMontgomery(ringQ, ringQ, skN2.Value.Q, buff, skN2.Value.Q)
-
-		// Extends basis Q0 -> P
-		rlwe.ExtendBasisSmallNormAndCenterNTTMontgomery(ringQ, ringP, skN2.Value.Q, buff, skN2.Value.P)
 
 		EvkCmplxToReal, EvkRealToCmplx = kgen.GenEvaluationKeysForRingSwapNew(skN2, skN1)
 
 	// Only regular key-switching is required in this case
-	case ring.Standard:
-
-		if skN1.Value.Q.N() == paramsN2.N() {
-			skN2 = skN1
-		} else {
-			skN2 = kgen.GenSecretKeyNew()
-		}
+	default:
 
 		EvkN1ToN2 = kgen.GenEvaluationKeyNew(skN1, skN2)
 		EvkN2ToN1 = kgen.GenEvaluationKeyNew(skN2, skN1)
@@ -126,5 +108,5 @@ func (p Parameters) GenBootstrappingKeys(skN1 *rlwe.SecretKey) (*BootstrappingKe
 		EvkRealToCmplx:   EvkRealToCmplx,
 		EvkCmplxToReal:   EvkCmplxToReal,
 		EvkBootstrapping: p.Parameters.GenEvaluationKeySetNew(skN2),
-	}, nil
+	}, skN2, nil
 }

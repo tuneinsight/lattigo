@@ -68,8 +68,8 @@ type Parameters struct {
 	logN         int
 	qi           []uint64
 	pi           []uint64
-	xe           distribution
-	xs           distribution
+	xe           Distribution
+	xs           Distribution
 	ringQ        *ring.Ring
 	ringP        *ring.Ring
 	ringType     ring.Type
@@ -116,11 +116,9 @@ func NewParameters(logn int, q, p []uint64, xs, xe DistributionLiteral, ringType
 		return Parameters{}, fmt.Errorf("cannot NewParameters: %w", err)
 	}
 
-	logQP := params.LogQP()
-
 	switch xs := xs.(type) {
 	case ring.Ternary, ring.DiscreteGaussian:
-		params.xs = newDistribution(xs.(ring.DistributionParameters), logn, logQP)
+		params.xs = NewDistribution(xs.(ring.DistributionParameters), logn)
 	default:
 		return Parameters{}, fmt.Errorf("secret distribution type must be Ternary or DiscretGaussian but is %T", xs)
 	}
@@ -130,7 +128,7 @@ func NewParameters(logn int, q, p []uint64, xs, xe DistributionLiteral, ringType
 
 	switch xe := xe.(type) {
 	case ring.Ternary, ring.DiscreteGaussian:
-		params.xe = newDistribution(xe.(ring.DistributionParameters), logn, logQP)
+		params.xe = NewDistribution(xe.(ring.DistributionParameters), logn)
 	default:
 		return Parameters{}, fmt.Errorf("error distribution type must be Ternary or DiscretGaussian but is %T", xe)
 	}
@@ -143,7 +141,7 @@ func NewParameters(logn int, q, p []uint64, xs, xe DistributionLiteral, ringType
 		warning = fmt.Errorf("warning secret standard HammingWeight is 0")
 	}
 
-	if params.xe.std <= 0 {
+	if params.xe.Std <= 0 {
 		if warning != nil {
 			warning = fmt.Errorf("%w; warning error standard deviation 0", warning)
 		} else {
@@ -240,8 +238,8 @@ func (p Parameters) ParametersLiteral() ParametersLiteral {
 		LogN:         p.logN,
 		Q:            Q,
 		P:            P,
-		Xe:           p.xe.params,
-		Xs:           p.xs.params,
+		Xe:           p.xe.DistributionParameters,
+		Xs:           p.xs.DistributionParameters,
 		RingType:     p.ringType,
 		DefaultScale: p.defaultScale,
 		NTTFlag:      p.nttFlag,
@@ -307,12 +305,12 @@ func (p Parameters) NTTFlag() bool {
 
 // Xs returns the Distribution of the secret
 func (p Parameters) Xs() ring.DistributionParameters {
-	return p.xs.params
+	return p.xs.DistributionParameters
 }
 
 // XsHammingWeight returns the expected Hamming weight of the secret.
 func (p Parameters) XsHammingWeight() int {
-	switch xs := p.xs.params.(type) {
+	switch xs := p.xs.DistributionParameters.(type) {
 	case ring.Ternary:
 		if xs.H != 0 {
 			return xs.H
@@ -328,12 +326,12 @@ func (p Parameters) XsHammingWeight() int {
 
 // Xe returns Distribution of the error
 func (p Parameters) Xe() ring.DistributionParameters {
-	return p.xe.params
+	return p.xe.DistributionParameters
 }
 
 // NoiseBound returns truncation bound for the error distribution.
 func (p Parameters) NoiseBound() float64 {
-	return p.xe.absBound
+	return p.xe.AbsBound
 }
 
 // NoiseFreshPK returns the standard deviation
@@ -345,7 +343,7 @@ func (p Parameters) NoiseFreshPK() (std float64) {
 	if p.RingP() != nil {
 		std *= 1 / 12.0
 	} else {
-		sigma := float64(p.xe.std)
+		sigma := p.xe.Std
 		std *= sigma * sigma
 	}
 
@@ -359,7 +357,7 @@ func (p Parameters) NoiseFreshPK() (std float64) {
 // NoiseFreshSK returns the standard deviation
 // of a fresh encryption with the secret key.
 func (p Parameters) NoiseFreshSK() (std float64) {
-	return float64(p.xe.std)
+	return p.xe.Std
 }
 
 // RingType returns the type of the underlying ring.
@@ -595,8 +593,8 @@ func (p Parameters) SolveDiscreteLogGaloisElement(galEl uint64) (k int) {
 // Equal checks two Parameter structs for equality.
 func (p Parameters) Equal(other *Parameters) (res bool) {
 	res = p.logN == other.logN
-	res = res && (p.xs.params == other.xs.params)
-	res = res && (p.xe.params == other.xe.params)
+	res = res && (p.xs.DistributionParameters == other.xs.DistributionParameters)
+	res = res && (p.xe.DistributionParameters == other.xe.DistributionParameters)
 	res = res && cmp.Equal(p.qi, other.qi)
 	res = res && cmp.Equal(p.pi, other.pi)
 	res = res && (p.ringType == other.ringType)
@@ -807,39 +805,4 @@ func (p *ParametersLiteral) UnmarshalJSON(b []byte) (err error) {
 	p.NTTFlag = pl.NTTFlag
 
 	return err
-}
-
-// LatticeEstimatorSageMathCell returns a string formated SageMath cell of the code
-// to run using the Lattice estimator (https://github.com/malb/lattice-estimator)
-// to estimate the security of the target Parameters.
-func LatticeEstimatorSageMathCell(p Parameters) string {
-
-	LogN := p.LogN()
-	LogQP := p.LogQP()
-	Xs := p.xs
-	Xe := p.xe
-
-	return fmt.Sprintf(`# 1) Clone https://github.com/malb/lattice-estimator
-# 2) Create a new SageMath notebook in the folder 
-# 3) Copy-past the following code in a new cell
-# ================================================================
-from estimator import *
-from estimator.nd import NoiseDistribution
-from estimator import LWE
-
-n = 1<<%d
-q = 1<<%d
-Xs = NoiseDistribution.(stddev=%f, mean=0, n=n, bounds=(%f, %f), density=%f, tag=%s)
-Xe = NoiseDistribution.(stddev=%f, mean=0, n=n, bounds=(%f, %f), density=%f, tag=%s)
-
-params = LWE.Parameters(n=n, q=q, Xs=Xs, Xe=Xe)
-
-print(params)
-
-LWE.estimate(params)
-`,
-		LogN,
-		int(math.Round(LogQP)),
-		Xs.std, Xs.bounds[0], Xs.bounds[1], Xs.density, Xs.params.Type(),
-		Xe.std, Xe.bounds[0], Xe.bounds[1], Xe.density, Xe.params.Type())
 }

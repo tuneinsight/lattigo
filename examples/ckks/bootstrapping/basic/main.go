@@ -59,6 +59,9 @@ func main() {
 	// The bootstrapping circuit use its own Parameters which will be automatically
 	// instantiated given the residual parameters and the bootsrappping parameters.
 
+	// !WARNING! The bootstrapping ckks parameters are not ensure to be 128-bit secure, it is the
+	// responsability of the user to check that the meet the security requirement and tweak them if necessary.
+
 	// Note that the default bootstrapping parameters use LogN=16 and a ternary secret with H=192 non-zero coefficients
 	// which provides parmaeters which are at least 128-bit if their LogQP <= 1550.
 
@@ -140,7 +143,7 @@ func main() {
 
 	fmt.Println()
 	fmt.Println("Generating bootstrapping keys...")
-	evk, err := btpParams.GenBootstrappingKeys(sk)
+	evk, _, err := btpParams.GenBootstrappingKeys(sk)
 	if err != nil {
 		panic(err)
 	}

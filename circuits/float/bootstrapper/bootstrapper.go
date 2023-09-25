@@ -14,6 +14,10 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
+// Bootstrapper is a struct storing the bootstrapping
+// parameters, the bootstrapping evaluation keys and
+// pre-computed constant necessary to carry out the
+// bootstrapping circuit.
 type Bootstrapper struct {
 	Parameters
 	bridge       ckks.DomainSwitcher
@@ -27,6 +31,8 @@ type Bootstrapper struct {
 	evk *BootstrappingKeys
 }
 
+// NewBootstrapper instantiates a new bootstrapper.Bootstrapper from a set of bootstrapper.Parameters
+// and a set of bootstrapper.BootstrappingKeys
 func NewBootstrapper(btpParams Parameters, evk *BootstrappingKeys) (*Bootstrapper, error) {
 
 	b := &Bootstrapper{}
@@ -75,18 +81,23 @@ func NewBootstrapper(btpParams Parameters, evk *BootstrappingKeys) (*Bootstrappe
 	return b, nil
 }
 
+// Depth returns the multiplicative depth (number of levels consummed) of the bootstrapping circuit.
 func (b Bootstrapper) Depth() int {
 	return b.Parameters.Parameters.MaxLevel() - b.ResidualParameters.MaxLevel()
 }
 
+// OutputLevel returns the output level after the evaluation of the bootstrapping circuit.
 func (b Bootstrapper) OutputLevel() int {
 	return b.ResidualParameters.MaxLevel()
 }
 
+// MinimumInputLevel returns the minimum level at which a ciphertext must be to be
+// bootstrapped.
 func (b Bootstrapper) MinimumInputLevel() int {
-	return 0
+	return b.LevelsConsummedPerRescaling()
 }
 
+// Bootstrap bootstraps a single ciphertext and returns the bootstrapped ciphertext.
 func (b Bootstrapper) Bootstrap(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, error) {
 	cts := []rlwe.Ciphertext{*ct}
 	cts, err := b.BootstrapMany(cts)
@@ -96,6 +107,7 @@ func (b Bootstrapper) Bootstrap(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, error) {
 	return &cts[0], nil
 }
 
+// BootstrapMany bootstraps a list of ciphertext and returns the list of bootstrapped ciphertexts.
 func (b Bootstrapper) BootstrapMany(cts []rlwe.Ciphertext) ([]rlwe.Ciphertext, error) {
 
 	var err error

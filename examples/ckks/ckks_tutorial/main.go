@@ -399,10 +399,10 @@ func main() {
 	fmt.Printf("Scale before rescaling: %f\n", ctScale)
 
 	// To control the growth of the scaling factor, we call the rescaling operation.
-	// This will consume one (or more) levels.
-	// The middle argument `Scale` tells the evaluator the minimum scale that the receiver operand must have.
-	// In other words, the evaluator will rescale the input operand until it reaches the given threshold or can't rescale further because the resulting
-	// scale would be smaller.
+	// Such rescaling operation should be called at the latest before the next multiplication.
+	// Each rescaling operation consumes a level, reducing the homomorphic capacity of the ciphertext.
+	// If a ciphertext reaches the level 0, it can no longer be rescaled and any further multiplication
+	// risks inducing a plaintext overflow.
 	if err = eval.Rescale(res, res); err != nil {
 		panic(err)
 	}

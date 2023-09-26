@@ -528,16 +528,16 @@ type EvaluationKeySet interface {
 
 // MemEvaluationKeySet is a basic in-memory implementation of the EvaluationKeySet interface.
 type MemEvaluationKeySet struct {
-	Rlk *RelinearizationKey
-	Gks structs.Map[uint64, GaloisKey]
+	RelinearizationKey *RelinearizationKey
+	GaloisKeys         structs.Map[uint64, GaloisKey]
 }
 
 // NewMemEvaluationKeySet returns a new EvaluationKeySet with the provided RelinearizationKey and GaloisKeys.
 func NewMemEvaluationKeySet(relinKey *RelinearizationKey, galoisKeys ...*GaloisKey) (eks *MemEvaluationKeySet) {
-	eks = &MemEvaluationKeySet{Gks: map[uint64]*GaloisKey{}}
-	eks.Rlk = relinKey
+	eks = &MemEvaluationKeySet{GaloisKeys: map[uint64]*GaloisKey{}}
+	eks.RelinearizationKey = relinKey
 	for _, k := range galoisKeys {
-		eks.Gks[k.GaloisElement] = k
+		eks.GaloisKeys[k.GaloisElement] = k
 	}
 	return eks
 }
@@ -545,7 +545,7 @@ func NewMemEvaluationKeySet(relinKey *RelinearizationKey, galoisKeys ...*GaloisK
 // GetGaloisKey retrieves the Galois key for the automorphism X^{i} -> X^{i*galEl}.
 func (evk MemEvaluationKeySet) GetGaloisKey(galEl uint64) (gk *GaloisKey, err error) {
 	var ok bool
-	if gk, ok = evk.Gks[galEl]; !ok {
+	if gk, ok = evk.GaloisKeys[galEl]; !ok {
 		return nil, fmt.Errorf("GaloiKey[%d] is nil", galEl)
 	}
 
@@ -556,14 +556,14 @@ func (evk MemEvaluationKeySet) GetGaloisKey(galEl uint64) (gk *GaloisKey, err er
 // for which a Galois key exists in the object.
 func (evk MemEvaluationKeySet) GetGaloisKeysList() (galEls []uint64) {
 
-	if evk.Gks == nil {
+	if evk.GaloisKeys == nil {
 		return []uint64{}
 	}
 
-	galEls = make([]uint64, len(evk.Gks))
+	galEls = make([]uint64, len(evk.GaloisKeys))
 
 	var i int
-	for galEl := range evk.Gks {
+	for galEl := range evk.GaloisKeys {
 		galEls[i] = galEl
 		i++
 	}
@@ -573,8 +573,8 @@ func (evk MemEvaluationKeySet) GetGaloisKeysList() (galEls []uint64) {
 
 // GetRelinearizationKey retrieves the RelinearizationKey.
 func (evk MemEvaluationKeySet) GetRelinearizationKey() (rk *RelinearizationKey, err error) {
-	if evk.Rlk != nil {
-		return evk.Rlk, nil
+	if evk.RelinearizationKey != nil {
+		return evk.RelinearizationKey, nil
 	}
 
 	return nil, fmt.Errorf("RelinearizationKey is nil")
@@ -583,13 +583,13 @@ func (evk MemEvaluationKeySet) GetRelinearizationKey() (rk *RelinearizationKey, 
 func (evk MemEvaluationKeySet) BinarySize() (size int) {
 
 	size++
-	if evk.Rlk != nil {
-		size += evk.Rlk.BinarySize()
+	if evk.RelinearizationKey != nil {
+		size += evk.RelinearizationKey.BinarySize()
 	}
 
 	size++
-	if evk.Gks != nil {
-		size += evk.Gks.BinarySize()
+	if evk.GaloisKeys != nil {
+		size += evk.GaloisKeys.BinarySize()
 	}
 
 	return
@@ -612,14 +612,14 @@ func (evk MemEvaluationKeySet) WriteTo(w io.Writer) (n int64, err error) {
 
 		var inc int64
 
-		if evk.Rlk != nil {
+		if evk.RelinearizationKey != nil {
 			if inc, err = buffer.WriteUint8(w, 1); err != nil {
 				return inc, err
 			}
 
 			n += inc
 
-			if inc, err = evk.Rlk.WriteTo(w); err != nil {
+			if inc, err = evk.RelinearizationKey.WriteTo(w); err != nil {
 				return n + inc, err
 			}
 
@@ -632,14 +632,14 @@ func (evk MemEvaluationKeySet) WriteTo(w io.Writer) (n int64, err error) {
 			n += inc
 		}
 
-		if evk.Gks != nil {
+		if evk.GaloisKeys != nil {
 			if inc, err = buffer.WriteUint8(w, 1); err != nil {
 				return inc, err
 			}
 
 			n += inc
 
-			if inc, err = evk.Gks.WriteTo(w); err != nil {
+			if inc, err = evk.GaloisKeys.WriteTo(w); err != nil {
 				return n + inc, err
 			}
 
@@ -686,11 +686,11 @@ func (evk *MemEvaluationKeySet) ReadFrom(r io.Reader) (n int64, err error) {
 
 		if hasKey == 1 {
 
-			if evk.Rlk == nil {
-				evk.Rlk = new(RelinearizationKey)
+			if evk.RelinearizationKey == nil {
+				evk.RelinearizationKey = new(RelinearizationKey)
 			}
 
-			if inc, err = evk.Rlk.ReadFrom(r); err != nil {
+			if inc, err = evk.RelinearizationKey.ReadFrom(r); err != nil {
 				return n + inc, err
 			}
 
@@ -705,11 +705,11 @@ func (evk *MemEvaluationKeySet) ReadFrom(r io.Reader) (n int64, err error) {
 
 		if hasKey == 1 {
 
-			if evk.Gks == nil {
-				evk.Gks = structs.Map[uint64, GaloisKey]{}
+			if evk.GaloisKeys == nil {
+				evk.GaloisKeys = structs.Map[uint64, GaloisKey]{}
 			}
 
-			if inc, err = evk.Gks.ReadFrom(r); err != nil {
+			if inc, err = evk.GaloisKeys.ReadFrom(r); err != nil {
 				return n + inc, err
 			}
 

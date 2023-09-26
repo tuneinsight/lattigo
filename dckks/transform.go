@@ -74,11 +74,15 @@ func (mltp MaskedLinearTransformationProtocol) WithParams(paramsOut ckks.Paramet
 		tmpMaskOut[i] = new(big.Int)
 	}
 
+	scale := paramsOut.DefaultScale().Value
+
+	defaultScale, _ := new(big.Float).SetPrec(mltp.prec).Set(&scale).Int(nil)
+
 	return MaskedLinearTransformationProtocol{
 		e2s:          mltp.e2s.ShallowCopy(),
 		s2e:          s2e,
 		prec:         mltp.prec,
-		defaultScale: mltp.defaultScale,
+		defaultScale: defaultScale,
 		tmpMaskIn:    tmpMaskIn,
 		tmpMaskOut:   tmpMaskOut,
 		encoder:      ckks.NewEncoder(paramsOut, mltp.prec),
@@ -327,7 +331,7 @@ func (mltp MaskedLinearTransformationProtocol) changeRing(maskIn []*big.Int) (ma
 	return
 }
 
-func (mltp MaskedLinearTransformationProtocol) applyTransformAndScale(transform *MaskedLinearTransformationFunc, scaleOut rlwe.Scale, mask []*big.Int) (err error) {
+func (mltp MaskedLinearTransformationProtocol) applyTransformAndScale(transform *MaskedLinearTransformationFunc, inputScale rlwe.Scale, mask []*big.Int) (err error) {
 
 	slots := mltp.s2e.params.MaxSlots()
 
@@ -389,7 +393,7 @@ func (mltp MaskedLinearTransformationProtocol) applyTransformAndScale(transform 
 	}
 
 	// Applies LT(M_i) * diffscale
-	inputScaleInt, _ := new(big.Float).SetPrec(256).Set(&scaleOut.Value).Int(nil)
+	inputScaleInt, _ := new(big.Float).SetPrec(256).Set(&inputScale.Value).Int(nil)
 
 	// Scales the mask by the ratio between the two scales
 	for i := range mask {

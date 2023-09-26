@@ -10,6 +10,7 @@ import (
 )
 
 // PolynomialEvaluator is a wrapper of the circuits.PolynomialEvaluator.
+// All fields of this struct are public, enabling custom instantiations.
 type PolynomialEvaluator struct {
 	Parameters ckks.Parameters
 	circuits.EvaluatorForPolynomial
@@ -25,6 +26,7 @@ func NewPowerBasis(ct *rlwe.Ciphertext, basis bignum.Basis) circuits.PowerBasis 
 
 // NewPolynomialEvaluator instantiates a new PolynomialEvaluator from a circuit.Evaluator.
 // The default *ckks.Evaluator is compliant to the circuit.Evaluator interface.
+// This method is allocation free.
 func NewPolynomialEvaluator(params ckks.Parameters, eval circuits.Evaluator) *PolynomialEvaluator {
 	return &PolynomialEvaluator{
 		Parameters:             params,

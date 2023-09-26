@@ -48,11 +48,9 @@ func TestComparisons(t *testing.T) {
 
 		eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(kgen.GenRelinearizationKeyNew(sk), galKeys...))
 
-		MCPEval := float.NewMinimaxCompositePolynomialEvaluator(params, eval, btp)
-
 		polys := float.NewMinimaxCompositePolynomial(float.DefaultMinimaxCompositePolynomialForSign)
 
-		CmpEval := float.NewComparisonEvaluator(MCPEval, polys)
+		CmpEval := float.NewComparisonEvaluator(params, eval, btp, polys)
 
 		t.Run(GetTestName(params, "Sign"), func(t *testing.T) {
 

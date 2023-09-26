@@ -49,7 +49,7 @@ func testMod1Marhsalling(t *testing.T) {
 
 		evm := float.Mod1ParametersLiteral{
 			LevelStart:      12,
-			SineType:        float.SinContinuous,
+			Mod1Type:        float.SinContinuous,
 			LogMessageRatio: 8,
 			K:               14,
 			SineDegree:      127,
@@ -81,7 +81,7 @@ func testMod1(params ckks.Parameters, t *testing.T) {
 
 		evm := float.Mod1ParametersLiteral{
 			LevelStart:      12,
-			SineType:        float.SinContinuous,
+			Mod1Type:        float.SinContinuous,
 			LogMessageRatio: 8,
 			K:               14,
 			SineDegree:      127,
@@ -98,7 +98,7 @@ func testMod1(params ckks.Parameters, t *testing.T) {
 
 		evm := float.Mod1ParametersLiteral{
 			LevelStart:      12,
-			SineType:        float.CosDiscrete,
+			Mod1Type:        float.CosDiscrete,
 			LogMessageRatio: 8,
 			K:               12,
 			SineDegree:      30,
@@ -115,7 +115,7 @@ func testMod1(params ckks.Parameters, t *testing.T) {
 
 		evm := float.Mod1ParametersLiteral{
 			LevelStart:      12,
-			SineType:        float.CosContinuous,
+			Mod1Type:        float.CosContinuous,
 			LogMessageRatio: 4,
 			K:               325,
 			SineDegree:      177,

@@ -129,7 +129,7 @@ func NewParametersFromLiteral(residualParameters ckks.Parameters, btpLit Paramet
 	}
 
 	// Type of polynomial approximation of x mod 1
-	SineType := btpLit.GetSineType()
+	Mod1Type := btpLit.GetMod1Type()
 
 	// Degree of the taylor series of arc sine
 	var ArcSineDegree int
@@ -164,7 +164,7 @@ func NewParametersFromLiteral(residualParameters ckks.Parameters, btpLit Paramet
 	// Parameters of the homomorphic modular reduction x mod 1
 	Mod1ParametersLiteral := float.Mod1ParametersLiteral{
 		LogScale:        EvalMod1LogScale,
-		SineType:        SineType,
+		Mod1Type:        Mod1Type,
 		SineDegree:      SineDegree,
 		DoubleAngle:     DoubleAngle,
 		K:               K,

@@ -9,18 +9,26 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
+// EvaluatorForMod1 defines a set of common and scheme agnostic
+// method that are necessary to instantiate a Mod1Evaluator.
+// The default ckks.Evaluator is compliant to this interface.
 type EvaluatorForMod1 interface {
 	circuits.Evaluator
 	DropLevel(*rlwe.Ciphertext, int)
 	GetParameters() *ckks.Parameters
 }
 
+// Mod1Evaluator is an evaluator providing an API for homomorphic evaluations of scaled x mod 1.
+// All fields of this struct are public, enabling custom instantiations.
 type Mod1Evaluator struct {
 	EvaluatorForMod1
 	PolynomialEvaluator *PolynomialEvaluator
 	Mod1Parameters      Mod1Parameters
 }
 
+// NewMod1Evaluator instantiates a new Mod1Evaluator evaluator.
+// The default ckks.Evaluator is compliant to the EvaluatorForMod1 interface.
+// This method is allocation free.
 func NewMod1Evaluator(eval EvaluatorForMod1, evalPoly *PolynomialEvaluator, Mod1Parameters Mod1Parameters) *Mod1Evaluator {
 	return &Mod1Evaluator{EvaluatorForMod1: eval, PolynomialEvaluator: evalPoly, Mod1Parameters: Mod1Parameters}
 }
@@ -72,7 +80,7 @@ func (eval Mod1Evaluator) EvaluateNew(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, er
 	}
 
 	// Division by 1/2^r and change of variable for the Chebyshev evaluation
-	if evm.sineType == CosDiscrete || evm.sineType == CosContinuous {
+	if evm.Mod1Type == CosDiscrete || evm.Mod1Type == CosContinuous {
 		offset := new(big.Float).Sub(&evm.sinePoly.B, &evm.sinePoly.A)
 		offset.Mul(offset, new(big.Float).SetFloat64(evm.scFac))
 		offset.Quo(new(big.Float).SetFloat64(-0.5), offset)

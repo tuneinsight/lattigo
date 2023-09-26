@@ -45,12 +45,12 @@ type EvaluationKeySet struct {
 // NewBootstrapper creates a new Bootstrapper.
 func NewBootstrapper(btpParams Parameters, btpKeys *EvaluationKeySet) (btp *Bootstrapper, err error) {
 
-	if btpParams.Mod1ParametersLiteral.SineType == float.SinContinuous && btpParams.Mod1ParametersLiteral.DoubleAngle != 0 {
-		return nil, fmt.Errorf("cannot use double angle formul for SineType = Sin -> must use SineType = Cos")
+	if btpParams.Mod1ParametersLiteral.Mod1Type == float.SinContinuous && btpParams.Mod1ParametersLiteral.DoubleAngle != 0 {
+		return nil, fmt.Errorf("cannot use double angle formul for Mod1Type = Sin -> must use Mod1Type = Cos")
 	}
 
-	if btpParams.Mod1ParametersLiteral.SineType == float.CosDiscrete && btpParams.Mod1ParametersLiteral.SineDegree < 2*(btpParams.Mod1ParametersLiteral.K-1) {
-		return nil, fmt.Errorf("SineType 'ckks.CosDiscrete' uses a minimum degree of 2*(K-1) but EvalMod degree is smaller")
+	if btpParams.Mod1ParametersLiteral.Mod1Type == float.CosDiscrete && btpParams.Mod1ParametersLiteral.SineDegree < 2*(btpParams.Mod1ParametersLiteral.K-1) {
+		return nil, fmt.Errorf("Mod1Type 'ckks.CosDiscrete' uses a minimum degree of 2*(K-1) but EvalMod degree is smaller")
 	}
 
 	if btpParams.CoeffsToSlotsParameters.LevelStart-btpParams.CoeffsToSlotsParameters.Depth(true) != btpParams.Mod1ParametersLiteral.LevelStart {

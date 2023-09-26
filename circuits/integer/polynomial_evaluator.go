@@ -10,6 +10,8 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
+// PolynomialEvaluator is a wrapper of the circuits.PolynomialEvaluator.
+// All fields of this struct are public, enabling custom instantiations.
 type PolynomialEvaluator struct {
 	circuits.EvaluatorForPolynomial
 	bgv.Parameters

@@ -3,31 +3,41 @@ package float
 import (
 	"math/big"
 
+	"github.com/tuneinsight/lattigo/v4/circuits"
+	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 // ComparisonEvaluator is an evaluator providing an API for homomorphic comparisons.
+// All fields of this struct are public, enabling custom instantiations.
 type ComparisonEvaluator struct {
 	MinimaxCompositePolynomialEvaluator
 	MinimaxCompositeSignPolynomial MinimaxCompositePolynomial
 }
 
-// NewComparisonEvaluator instantiates a new ComparisonEvaluator from a MinimaxCompositePolynomialEvaluator and an optional MinimaxCompositePolynomial.
-// The MinimaxCompositePolynomial must be a composite minimax approximation of the sign function: f(x) = 1 if x > 0, -1 if x < 0, else 0.
-// This polynomial will define the internal precision of all computation performed by this evaluator and it can be obtained with the function
-// GenMinimaxCompositePolynomialForSign.
+// NewComparisonEvaluator instantiates a new ComparisonEvaluator.
+// The default ckks.Evaluator is compliant with the EvaluatorForMinimaxCompositePolynomial interface.
+// The field circuits.Bootstrapper[rlwe.Ciphertext] can be nil if the parameter have enough level to support the computation.
 //
-// It is highly recommended to use GenMinimaxCompositePolynomialForSign to generate an approximation optimized for the circuit requiring comparisons.
-// However, if no MinimaxCompositePolynomial is given, then it will use by default the variable DefaultMinimaxCompositePolynomialForSign.
-// See the doc of DefaultMinimaxCompositePolynomialForSign for additional information about the capabilities of this approximation.
-func NewComparisonEvaluator(eval *MinimaxCompositePolynomialEvaluator, signPoly ...MinimaxCompositePolynomial) *ComparisonEvaluator {
-
+// Giving a MinimaxCompositePolynomial is optional, but it is highly recommended to provide one that is optimized
+// for the circuit requiring the comparisons as this polynomial will define the internal precision of all computation
+// performed by this evaluator.
+//
+// The MinimaxCompositePolynomial must be a composite minimax approximation of the sign function:
+// f(x) = 1 if x > 0, -1 if x < 0, else 0, in the interval [-1, 1].
+// Such composite polynomial can be obtained with the function GenMinimaxCompositePolynomialForSign.
+//
+// If no MinimaxCompositePolynomial is given, then it will use by default the variable DefaultMinimaxCompositePolynomialForSign.
+// See the doc of DefaultMinimaxCompositePolynomialForSign for additional information about the performance of this approximation.
+//
+// This method is allocation free if a MinimaxCompositePolynomial is given.
+func NewComparisonEvaluator(params ckks.Parameters, eval EvaluatorForMinimaxCompositePolynomial, bootstrapper circuits.Bootstrapper[rlwe.Ciphertext], signPoly ...MinimaxCompositePolynomial) *ComparisonEvaluator {
 	if len(signPoly) == 1 {
-		return &ComparisonEvaluator{*eval, signPoly[0]}
+		return &ComparisonEvaluator{*NewMinimaxCompositePolynomialEvaluator(params, eval, bootstrapper), signPoly[0]}
 	} else {
-		return &ComparisonEvaluator{*eval, NewMinimaxCompositePolynomial(DefaultMinimaxCompositePolynomialForSign)}
+		return &ComparisonEvaluator{*NewMinimaxCompositePolynomialEvaluator(params, eval, bootstrapper), NewMinimaxCompositePolynomial(DefaultMinimaxCompositePolynomialForSign)}
 	}
 }
 

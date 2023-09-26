@@ -2,7 +2,6 @@ package float
 
 import (
 	"fmt"
-	//"math/big"
 
 	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/ckks"
@@ -17,6 +16,7 @@ type EvaluatorForMinimaxCompositePolynomial interface {
 }
 
 // MinimaxCompositePolynomialEvaluator is an evaluator used to evaluate composite polynomials on ciphertexts.
+// All fields of this struct are publics, enabling custom instantiations.
 type MinimaxCompositePolynomialEvaluator struct {
 	EvaluatorForMinimaxCompositePolynomial
 	PolynomialEvaluator
@@ -25,11 +25,13 @@ type MinimaxCompositePolynomialEvaluator struct {
 }
 
 // NewMinimaxCompositePolynomialEvaluator instantiates a new MinimaxCompositePolynomialEvaluator.
+// The default ckks.Evaluator is compliant to the EvaluatorForMinimaxCompositePolynomial interface.
 // This method is allocation free.
 func NewMinimaxCompositePolynomialEvaluator(params ckks.Parameters, eval EvaluatorForMinimaxCompositePolynomial, bootstrapper circuits.Bootstrapper[rlwe.Ciphertext]) *MinimaxCompositePolynomialEvaluator {
 	return &MinimaxCompositePolynomialEvaluator{eval, *NewPolynomialEvaluator(params, eval), bootstrapper, params}
 }
 
+// Evaluate evaluates the provided MinimaxCompositePolynomial on the input ciphertext.
 func (eval MinimaxCompositePolynomialEvaluator) Evaluate(ct *rlwe.Ciphertext, mcp MinimaxCompositePolynomial) (res *rlwe.Ciphertext, err error) {
 
 	params := eval.Parameters

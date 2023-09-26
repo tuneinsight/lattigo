@@ -11,12 +11,14 @@ import (
 
 // EvaluatorForInverse defines a set of common and scheme agnostic
 // method that are necessary to instantiate an InverseEvaluator.
+// The default ckks.Evaluator is compliant to this interface.
 type EvaluatorForInverse interface {
 	EvaluatorForMinimaxCompositePolynomial
 	SetScale(ct *rlwe.Ciphertext, scale rlwe.Scale) (err error)
 }
 
 // InverseEvaluator is an evaluator used to evaluate the inverses of ciphertexts.
+// All fields of this struct are public, enabling custom instantiations.
 type InverseEvaluator struct {
 	EvaluatorForInverse
 	*MinimaxCompositePolynomialEvaluator
@@ -24,7 +26,9 @@ type InverseEvaluator struct {
 	Parameters ckks.Parameters
 }
 
-// NewInverseEvaluator instantiates a new InverseEvaluator from an EvaluatorForInverse.
+// NewInverseEvaluator instantiates a new InverseEvaluator.
+// The default ckks.Evaluator is compliant to the EvaluatorForInverse interface.
+// The field circuits.Bootstrapper[rlwe.Ciphertext] can be nil if the parameters have enough level to support the computation.
 // This method is allocation free.
 func NewInverseEvaluator(params ckks.Parameters, eval EvaluatorForInverse, btp circuits.Bootstrapper[rlwe.Ciphertext]) InverseEvaluator {
 	return InverseEvaluator{

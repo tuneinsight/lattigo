@@ -58,6 +58,7 @@ func GaloisElementsForLinearTransformation(params rlwe.ParameterProvider, lt Lin
 }
 
 // LinearTransformationEvaluator is a struct for evaluating linear transformations on rlwe.Ciphertexts.
+// All fields of this struct are public, enabling custom instantiations.
 type LinearTransformationEvaluator struct {
 	circuits.EvaluatorForLinearTransformation
 	circuits.EvaluatorForDiagonalMatrix

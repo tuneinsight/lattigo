@@ -14,8 +14,9 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
-// DFTEvaluatorInterface is an interface defining the set of methods required to instantiate a DFTEvaluator.
-type DFTEvaluatorInterface interface {
+// EvaluatorForDFT is an interface defining the set of methods required to instantiate a DFTEvaluator.
+// The default ckks.Evaluator is compliant to this interface.
+type EvaluatorForDFT interface {
 	rlwe.ParameterProvider
 	circuits.EvaluatorForLinearTransformation
 	Add(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error)
@@ -122,15 +123,19 @@ func (d *DFTMatrixLiteral) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, d)
 }
 
+// DFTEvaluator is an evaluator providing an API for homomorphic DFT.
+// All fields of this struct are public, enabling custom instantiations.
 type DFTEvaluator struct {
-	DFTEvaluatorInterface
+	EvaluatorForDFT
 	*LinearTransformationEvaluator
 	parameters ckks.Parameters
 }
 
-func NewDFTEvaluator(params ckks.Parameters, eval DFTEvaluatorInterface) *DFTEvaluator {
+// NewDFTEvaluator instantiates a new DFTEvaluator.
+// The default ckks.Evaluator is compliant to the EvaluatorForDFT interface.
+func NewDFTEvaluator(params ckks.Parameters, eval EvaluatorForDFT) *DFTEvaluator {
 	dfteval := new(DFTEvaluator)
-	dfteval.DFTEvaluatorInterface = eval
+	dfteval.EvaluatorForDFT = eval
 	dfteval.LinearTransformationEvaluator = NewLinearTransformationEvaluator(eval)
 	dfteval.parameters = params
 	return dfteval

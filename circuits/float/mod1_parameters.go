@@ -14,16 +14,15 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
-// SineType is the type of function used during the bootstrapping
-// for the homomorphic modular reduction
-type SineType uint64
+// Mod1Type is the type of function/approximation used to evaluate x mod 1.
+type Mod1Type uint64
 
-// Sin and Cos are the two proposed functions for SineType.
+// Sin and Cos are the two proposed functions for Mod1Type.
 // These trigonometric functions offer a good approximation of the function x mod 1 when the values are close to the origin.
 const (
-	CosDiscrete   = SineType(0) // Special approximation (Han and Ki) of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r); this method requires a minimum degree of 2*(K-1).
-	SinContinuous = SineType(1) // Standard Chebyshev approximation of (1/2pi) * sin(2pix) on the full interval
-	CosContinuous = SineType(2) // Standard Chebyshev approximation of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r) on the full interval
+	CosDiscrete   = Mod1Type(0) // Special approximation (Han and Ki) of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r); this method requires a minimum degree of 2*(K-1).
+	SinContinuous = Mod1Type(1) // Standard Chebyshev approximation of (1/2pi) * sin(2pix) on the full interval
+	CosContinuous = Mod1Type(2) // Standard Chebyshev approximation of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r) on the full interval
 )
 
 // Mod1ParametersLiteral a struct for the parameters of the mod 1 procedure.
@@ -33,7 +32,7 @@ const (
 type Mod1ParametersLiteral struct {
 	LevelStart      int      // Starting level of x mod 1
 	LogScale        int      // Log2 of the scaling factor used during x mod 1
-	SineType        SineType // Chose between [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
+	Mod1Type        Mod1Type // Chose between [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
 	LogMessageRatio int      // Log2 of the ratio between Q0 and m, i.e. Q[0]/|m|
 	K               int      // K parameter (interpolation in the range -K to K)
 	SineDegree      int      // Degree of the interpolation
@@ -56,13 +55,13 @@ func (evm *Mod1ParametersLiteral) UnmarshalBinary(data []byte) (err error) {
 // Depth returns the depth required to evaluate x mod 1.
 func (evm Mod1ParametersLiteral) Depth() (depth int) {
 
-	if evm.SineType == CosDiscrete { // this method requires a minimum degree of 2*K-1.
+	if evm.Mod1Type == CosDiscrete { // this method requires a minimum degree of 2*K-1.
 		depth += int(bits.Len64(uint64(utils.Max(evm.SineDegree, 2*evm.K-1))))
 	} else {
 		depth += int(bits.Len64(uint64(evm.SineDegree)))
 	}
 
-	if evm.SineType != SinContinuous {
+	if evm.Mod1Type != SinContinuous {
 		depth += evm.DoubleAngle
 	}
 
@@ -74,7 +73,7 @@ func (evm Mod1ParametersLiteral) Depth() (depth int) {
 type Mod1Parameters struct {
 	levelStart      int
 	LogDefaultScale int
-	sineType        SineType
+	Mod1Type        Mod1Type
 	LogMessageRatio int
 	doubleAngle     int
 	qDiff           float64
@@ -125,7 +124,7 @@ func NewMod1ParametersFromLiteral(params ckks.Parameters, evm Mod1ParametersLite
 	var sqrt2pi float64
 
 	doubleAngle := evm.DoubleAngle
-	if evm.SineType == SinContinuous {
+	if evm.Mod1Type == SinContinuous {
 		doubleAngle = 0
 	}
 
@@ -163,7 +162,7 @@ func NewMod1ParametersFromLiteral(params ckks.Parameters, evm Mod1ParametersLite
 		sqrt2pi = math.Pow(0.15915494309189535*qDiff, 1.0/scFac)
 	}
 
-	switch evm.SineType {
+	switch evm.Mod1Type {
 	case SinContinuous:
 
 		sinePoly = bignum.ChebyshevApproximation(sin2pi, bignum.Interval{
@@ -204,7 +203,7 @@ func NewMod1ParametersFromLiteral(params ckks.Parameters, evm Mod1ParametersLite
 		}
 
 	default:
-		return Mod1Parameters{}, fmt.Errorf("invalid SineType")
+		return Mod1Parameters{}, fmt.Errorf("invalid Mod1Type")
 	}
 
 	sqrt2piBig := new(big.Float).SetFloat64(sqrt2pi)
@@ -218,7 +217,7 @@ func NewMod1ParametersFromLiteral(params ckks.Parameters, evm Mod1ParametersLite
 	return Mod1Parameters{
 		levelStart:      evm.LevelStart,
 		LogDefaultScale: evm.LogScale,
-		sineType:        evm.SineType,
+		Mod1Type:        evm.Mod1Type,
 		LogMessageRatio: evm.LogMessageRatio,
 		doubleAngle:     doubleAngle,
 		qDiff:           qDiff,

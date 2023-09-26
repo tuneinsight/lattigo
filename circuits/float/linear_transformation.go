@@ -57,28 +57,20 @@ func GaloisElementsForLinearTransformation(params rlwe.ParameterProvider, lt Lin
 	return circuits.GaloisElementsForLinearTransformation(params, lt.DiagonalsIndexList, 1<<lt.LogDimensions.Cols, lt.LogBabyStepGianStepRatio)
 }
 
-// LinearTransformationEvaluator is a struct for evaluating linear transformations on rlwe.Ciphertexts.
+// LinearTransformationEvaluator is an evaluator providing an API to evaluate linear transformations on rlwe.Ciphertexts.
+// All fields of this struct are public, enabling custom instantiations.
 type LinearTransformationEvaluator struct {
 	circuits.EvaluatorForLinearTransformation
 	circuits.EvaluatorForDiagonalMatrix
 }
 
 // NewLinearTransformationEvaluator instantiates a new LinearTransformationEvaluator from a circuit.EvaluatorForLinearTransformation.
-// The default *bgv.Evaluator is compliant to the circuit.EvaluatorForLinearTransformation interface.
+// The default ckks.Evaluator is compliant to the circuits.EvaluatorForLinearTransformation interface.
+// This method is allocation free.
 func NewLinearTransformationEvaluator(eval circuits.EvaluatorForLinearTransformation) (linTransEval *LinearTransformationEvaluator) {
 	return &LinearTransformationEvaluator{
 		EvaluatorForLinearTransformation: eval,
 		EvaluatorForDiagonalMatrix:       &defaultDiagonalMatrixEvaluator{eval},
-	}
-}
-
-// NewCustomLinearTransformationEvaluator instantiates a new LinearTransformationEvaluator from a
-// circuits.EvaluatorForLinearTransformation and circuits.EvaluatorForDiagonalMatrix.
-// This constructor is primarily indented for custom implementations.
-func NewCustomLinearTransformationEvaluator(evalLT circuits.EvaluatorForLinearTransformation, evalMat circuits.EvaluatorForDiagonalMatrix) (linTransEval *LinearTransformationEvaluator) {
-	return &LinearTransformationEvaluator{
-		EvaluatorForLinearTransformation: evalLT,
-		EvaluatorForDiagonalMatrix:       evalMat,
 	}
 }
 

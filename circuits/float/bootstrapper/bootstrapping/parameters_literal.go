@@ -102,7 +102,7 @@ import (
 //		When using a small ratio (i.e. 2^4), for example if ct.PlaintextScale is close to Q[0] is small or if |m| is large, the ArcSine degree can be set to
 //	 a non zero value (i.e. 5 or 7). This will greatly improve the precision of the bootstrapping, at the expense of slightly increasing its depth.
 //
-// SineType: the type of approximation for the modular reduction polynomial. By default set to ckks.CosDiscrete.
+// Mod1Type: the type of approximation for the modular reduction polynomial. By default set to ckks.CosDiscrete.
 //
 // K: the range of the approximation interval, by default set to 16.
 //
@@ -122,7 +122,7 @@ type ParametersLiteral struct {
 	EvalModLogScale                             *int                        // Default: 60
 	EphemeralSecretWeight                       *int                        // Default: 32
 	IterationsParameters                        *IterationsParameters       // Default: nil (default starting level of 0 and 1 iteration)
-	SineType                                    float.SineType              // Default: ckks.CosDiscrete
+	Mod1Type                                    float.Mod1Type              // Default: ckks.CosDiscrete
 	LogMessageRatio                             *int                        // Default: 8
 	K                                           *int                        // Default: 16
 	SineDegree                                  *int                        // Default: 30
@@ -147,8 +147,8 @@ const (
 	DefaultEphemeralSecretWeight = 32
 	// DefaultIterations is the default number of bootstrapping iterations.
 	DefaultIterations = 1
-	// DefaultSineType is the default function and approximation technique for the homomorphic modular reduction polynomial.
-	DefaultSineType = float.CosDiscrete
+	// DefaultMod1Type is the default function and approximation technique for the homomorphic modular reduction polynomial.
+	DefaultMod1Type = float.CosDiscrete
 	// DefaultLogMessageRatio is the default ratio between Q[0] and |m|.
 	DefaultLogMessageRatio = 8
 	// DefaultK is the default interval [-K+1, K-1] for the polynomial approximation of the homomorphic modular reduction.
@@ -346,10 +346,10 @@ func (p ParametersLiteral) GetIterationsParameters() (Iterations *IterationsPara
 	}
 }
 
-// GetSineType returns the SineType field of the target ParametersLiteral.
-// The default value DefaultSineType is returned is the field is nil.
-func (p ParametersLiteral) GetSineType() (SineType float.SineType) {
-	return p.SineType
+// GetMod1Type returns the Mod1Type field of the target ParametersLiteral.
+// The default value DefaultMod1Type is returned is the field is nil.
+func (p ParametersLiteral) GetMod1Type() (Mod1Type float.Mod1Type) {
+	return p.Mod1Type
 }
 
 // GetArcSineDegree returns the ArcSineDegree field of the target ParametersLiteral.
@@ -406,7 +406,7 @@ func (p ParametersLiteral) GetDoubleAngle() (DoubleAngle int, err error) {
 
 	if v := p.DoubleAngle; v == nil {
 
-		switch p.GetSineType() {
+		switch p.GetMod1Type() {
 		case float.SinContinuous:
 			DoubleAngle = 0
 		default:

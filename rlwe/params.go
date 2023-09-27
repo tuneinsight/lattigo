@@ -270,7 +270,11 @@ func (p Parameters) LogN() int {
 
 // NthRoot returns the NthRoot of the ring.
 func (p Parameters) NthRoot() int {
-	return int(p.RingQ().NthRoot())
+	if p.RingQ() != nil {
+		return int(p.RingQ().NthRoot())
+	}
+
+	return 0
 }
 
 // LogNthRoot returns the log2(NthRoot) of the ring.

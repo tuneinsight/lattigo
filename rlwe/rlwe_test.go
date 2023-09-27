@@ -1229,7 +1229,7 @@ func testWriteAndRead(tc *TestContext, bpw2 int, t *testing.T) {
 		galEl := uint64(5)
 		buffer.RequireSerializerCorrect(t, &MemEvaluationKeySet{
 			RelinearizationKey: tc.kgen.GenRelinearizationKeyNew(tc.sk),
-			GaloisKeys: map[uint64]*GaloisKey{galEl: tc.kgen.GenGaloisKeyNew(galEl, tc.sk)},
+			GaloisKeys:         map[uint64]*GaloisKey{galEl: tc.kgen.GenGaloisKeyNew(galEl, tc.sk)},
 		})
 	})
 }

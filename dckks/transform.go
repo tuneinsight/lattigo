@@ -393,8 +393,14 @@ func (mltp MaskedLinearTransformationProtocol) applyTransformAndScale(transform 
 	}
 
 	// Applies LT(M_i) * diffscale
-	inputScaleInt, _ := new(big.Float).SetPrec(256).Set(&inputScale.Value).Int(nil)
+	inputScaleInt, d := new(big.Float).SetPrec(256).Set(&inputScale.Value).Int(nil)
 
+	// .Int truncates (i.e. does not round to the nearest integer)
+	// Thus we check if we are below, and if yes add 1, which acts as rounding to the nearest integer
+	if d == big.Below{
+		inputScaleInt.Add(inputScaleInt, new(big.Int).SetInt64(1))
+	}
+	
 	// Scales the mask by the ratio between the two scales
 	for i := range mask {
 		mask[i].Mul(mask[i], mltp.defaultScale)

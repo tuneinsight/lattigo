@@ -227,7 +227,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 	t.Run("PolyEval", func(t *testing.T) {
 
-		polyEval := NewPolynomialEvaluator(tc.params.Parameters, tc.evaluator.Evaluator, true)
+		polyEval := NewPolynomialEvaluator(tc.params.Parameters, tc.evaluator, true)
 
 		t.Run("Single", func(t *testing.T) {
 

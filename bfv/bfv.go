@@ -173,3 +173,8 @@ func (eval Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut
 func (eval Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error) {
 	return eval.Evaluator.MulRelinScaleInvariant(op0, op1, opOut)
 }
+
+// Rescale does nothing when instantiated with the BFV scheme.
+func (eval Evaluator) Rescale(op0, op1 *rlwe.Ciphertext) (err error) {
+	return nil
+}

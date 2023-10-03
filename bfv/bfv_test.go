@@ -540,53 +540,5 @@ func testEvaluator(tc *testContext, t *testing.T) {
 
 			})
 		}
-
-		for _, lvl := range tc.testLevel[:] {
-			t.Run(GetTestName("Rescale", tc.params, lvl), func(t *testing.T) {
-
-				ringT := tc.params.RingT()
-
-				values0, _, ciphertext0 := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorPk)
-
-				printNoise := func(msg string, values []uint64, ct *rlwe.Ciphertext) {
-					pt := NewPlaintext(tc.params, ct.Level())
-					pt.MetaData = ciphertext0.MetaData
-					require.NoError(t, tc.encoder.Encode(values0.Coeffs[0], pt))
-					ct, err := tc.evaluator.SubNew(ct, pt)
-					require.NoError(t, err)
-					vartmp, _, _ := rlwe.Norm(ct, tc.decryptor)
-					t.Logf("STD(noise) %s: %f\n", msg, vartmp)
-				}
-
-				if lvl != 0 {
-
-					values1, _, ciphertext1 := newTestVectorsLvl(lvl, tc.params.DefaultScale(), tc, tc.encryptorSk)
-
-					if *flagPrintNoise {
-						printNoise("0x", values0.Coeffs[0], ciphertext0)
-					}
-
-					for i := 0; i < lvl; i++ {
-						require.NoError(t, tc.evaluator.MulRelin(ciphertext0, ciphertext1, ciphertext0))
-
-						ringT.MulCoeffsBarrett(values0, values1, values0)
-
-						if *flagPrintNoise {
-							printNoise(fmt.Sprintf("%dx", i+1), values0.Coeffs[0], ciphertext0)
-						}
-
-					}
-
-					verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
-
-					require.Nil(t, tc.evaluator.Rescale(ciphertext0, ciphertext0))
-
-					verifyTestVectors(tc, tc.decryptor, values0, ciphertext0, t)
-
-				} else {
-					require.NotNil(t, tc.evaluator.Rescale(ciphertext0, ciphertext0))
-				}
-			})
-		}
 	})
 }

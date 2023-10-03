@@ -87,6 +87,10 @@ type CoefficientGetter struct {
 	Values []*bignum.Complex
 }
 
+func (c CoefficientGetter) Clone() *CoefficientGetter {
+	return &CoefficientGetter{Values: make([]*bignum.Complex, len(c.Values))}
+}
+
 func (c *CoefficientGetter) GetVectorCoefficient(pol circuits.PolynomialVector, k int) (values []*bignum.Complex) {
 
 	values = c.Values

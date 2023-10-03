@@ -91,7 +91,7 @@ func EvaluatePolynomial(eval EvaluatorForPolynomial, input interface{}, p interf
 	return opOut, err
 }
 
-type ctPoly struct {
+type BabyStep struct {
 	Degree int
 	Value  *rlwe.Ciphertext
 }
@@ -101,89 +101,119 @@ func EvaluatePatersonStockmeyerPolynomialVector[T any](eval Evaluator, poly Pate
 
 	split := len(poly.Value[0].Value)
 
-	tmp := make([]*ctPoly, split)
-
-	nbPoly := len(poly.Value)
+	babySteps := make([]*BabyStep, split)
 
 	// Small steps
-	for i := range tmp {
+	for i := range babySteps {
 
-		polyVec := PolynomialVector{
-			Value:   make([]Polynomial, nbPoly),
-			Mapping: poly.Mapping,
-		}
-
-		// Transposes the polynomial matrix
-		for j := 0; j < nbPoly; j++ {
-			polyVec.Value[j] = poly.Value[j].Value[i]
-		}
-
-		level := poly.Value[0].Value[i].Level
-		scale := poly.Value[0].Value[i].Scale
-
-		idx := split - i - 1
-		tmp[idx] = new(ctPoly)
-		tmp[idx].Degree = poly.Value[0].Value[i].Degree()
-		if tmp[idx].Value, err = EvaluatePolynomialVectorFromPowerBasis(eval, level, polyVec, cg, pb, scale); err != nil {
-			return nil, fmt.Errorf("cannot EvaluatePolynomialVectorFromPowerBasis: polynomial[%d]: %w", i, err)
+		// eval & cg are not thread-safe
+		if babySteps[split-i-1], err = EvaluateBabyStep(i, eval, poly, cg, pb); err != nil {
+			return nil, fmt.Errorf("cannot EvaluateBabyStep: %w", err)
 		}
 	}
 
 	// Loops as long as there is more than one sub-polynomial
-	for len(tmp) != 1 {
+	for len(babySteps) != 1 {
 
-		for i := 0; i < len(tmp); i++ {
-
-			// If we reach the end of the list it means we weren't able to combine
-			// the last two sub-polynomials which necessarily implies that that the
-			// last one has degree smaller than the previous one and that there is
-			// no next polynomial to combine it with.
-			// Therefore we update it's degree to the one of the previous one.
-			if i == len(tmp)-1 {
-				tmp[i].Degree = tmp[i-1].Degree
-
-				// If two consecutive sub-polynomials, from ascending degree order, have the
-				// same degree, we combine them.
-			} else if tmp[i].Degree == tmp[i+1].Degree {
-
-				even, odd := tmp[i], tmp[i+1]
-
-				deg := 1 << bits.Len64(uint64(tmp[i].Degree))
-
-				if err = EvaluateMonomial(even.Value, odd.Value, pb.Value[deg], eval); err != nil {
-					return nil, err
-				}
-
-				odd.Degree = 2*deg - 1
-				tmp[i] = nil
-
+		// Precomputes the ops to apply in the giant steps loop
+		giantsteps := make([]int, len(babySteps))
+		for i := 0; i < len(babySteps); i++ {
+			if i == len(babySteps)-1 {
+				giantsteps[i] = 2
+			} else if babySteps[i].Degree == babySteps[i+1].Degree {
+				giantsteps[i] = 1
 				i++
+			}
+		}
+
+		for i := 0; i < len(babySteps); i++ {
+
+			// eval is not thread-safe
+			if err = EvaluateGianStep(i, giantsteps, babySteps, eval, pb); err != nil {
+				return nil, err
 			}
 		}
 
 		// Discards processed sub-polynomials
 		var idx int
-		for i := range tmp {
-			if tmp[i] != nil {
-				tmp[idx] = tmp[i]
+		for i := range babySteps {
+			if babySteps[i] != nil {
+				babySteps[idx] = babySteps[i]
 				idx++
 			}
 		}
 
-		tmp = tmp[:idx]
+		babySteps = babySteps[:idx]
 	}
 
-	if tmp[0].Value.Degree() == 2 {
-		if err = eval.Relinearize(tmp[0].Value, tmp[0].Value); err != nil {
+	if babySteps[0].Value.Degree() == 2 {
+		if err = eval.Relinearize(babySteps[0].Value, babySteps[0].Value); err != nil {
 			return nil, fmt.Errorf("cannot EvaluatePatersonStockmeyerPolynomial: %w", err)
 		}
 	}
 
-	if err = eval.Rescale(tmp[0].Value, tmp[0].Value); err != nil {
+	if err = eval.Rescale(babySteps[0].Value, babySteps[0].Value); err != nil {
 		return nil, err
 	}
 
-	return tmp[0].Value, nil
+	return babySteps[0].Value, nil
+}
+
+func EvaluateBabyStep[T any](i int, eval Evaluator, poly PatersonStockmeyerPolynomialVector, cg CoefficientGetter[T], pb PowerBasis) (ct *BabyStep, err error) {
+
+	nbPoly := len(poly.Value)
+
+	polyVec := PolynomialVector{
+		Value:   make([]Polynomial, nbPoly),
+		Mapping: poly.Mapping,
+	}
+
+	// Transposes the polynomial matrix
+	for j := 0; j < nbPoly; j++ {
+		polyVec.Value[j] = poly.Value[j].Value[i]
+	}
+
+	level := poly.Value[0].Value[i].Level
+	scale := poly.Value[0].Value[i].Scale
+
+	ct = new(BabyStep)
+	ct.Degree = poly.Value[0].Value[i].Degree()
+	if ct.Value, err = EvaluatePolynomialVectorFromPowerBasis(eval, level, polyVec, cg, pb, scale); err != nil {
+		return ct, fmt.Errorf("cannot EvaluatePolynomialVectorFromPowerBasis: polynomial[%d]: %w", i, err)
+	}
+
+	return ct, nil
+}
+
+func EvaluateGianStep(i int, giantSteps []int, babySteps []*BabyStep, eval Evaluator, pb PowerBasis) (err error) {
+
+	// If we reach the end of the list it means we weren't able to combine
+	// the last two sub-polynomials which necessarily implies that that the
+	// last one has degree smaller than the previous one and that there is
+	// no next polynomial to combine it with.
+	// Therefore we update it's degree to the one of the previous one.
+	if giantSteps[i] == 2 {
+		babySteps[i].Degree = babySteps[i-1].Degree
+
+		// If two consecutive sub-polynomials, from ascending degree order, have the
+		// same degree, we combine them.
+	} else if giantSteps[i] == 1 {
+
+		even, odd := babySteps[i], babySteps[i+1]
+
+		deg := 1 << bits.Len64(uint64(babySteps[i].Degree))
+
+		if err = EvaluateMonomial(even.Value, odd.Value, pb.Value[deg], eval); err != nil {
+			return
+		}
+
+		odd.Degree = 2*deg - 1
+		babySteps[i] = nil
+
+		i++
+	}
+
+	return
 }
 
 // EvaluateMonomial evaluates a monomial of the form a + b * X^{pow} and writes the results in b.

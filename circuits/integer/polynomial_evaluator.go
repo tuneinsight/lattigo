@@ -43,7 +43,7 @@ func NewPolynomialEvaluator(params bgv.Parameters, eval circuits.Evaluator, Inva
 		}
 	case *bfv.Evaluator:
 		if InvariantTensoring {
-			evalForPoly = &defaultCircuitEvaluatorForPolynomial{Evaluator: &scaleInvariantEvaluator{eval.Evaluator}}
+			evalForPoly = &defaultCircuitEvaluatorForPolynomial{Evaluator: eval}
 		} else {
 			evalForPoly = &defaultCircuitEvaluatorForPolynomial{Evaluator: eval.Evaluator}
 		}

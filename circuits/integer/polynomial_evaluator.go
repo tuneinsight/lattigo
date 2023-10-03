@@ -154,6 +154,10 @@ func (c *CoefficientGetter) GetSingleCoefficient(pol circuits.Polynomial, k int)
 	return pol.Coeffs[k].Uint64()
 }
 
+func (c CoefficientGetter) ShallowCopy() circuits.CoefficientGetter[uint64] {
+	return &CoefficientGetter{Values: make([]uint64, len(c.Values))}
+}
+
 type defaultCircuitEvaluatorForPolynomial struct {
 	circuits.Evaluator
 }

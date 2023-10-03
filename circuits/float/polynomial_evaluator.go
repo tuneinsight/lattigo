@@ -114,6 +114,10 @@ func (c *CoefficientGetter) GetSingleCoefficient(pol circuits.Polynomial, k int)
 	return pol.Coeffs[k]
 }
 
+func (c CoefficientGetter) ShallowCopy() circuits.CoefficientGetter[*bignum.Complex] {
+	return &CoefficientGetter{Values: make([]*bignum.Complex, len(c.Values))}
+}
+
 type defaultCircuitEvaluatorForPolynomial struct {
 	circuits.Evaluator
 }

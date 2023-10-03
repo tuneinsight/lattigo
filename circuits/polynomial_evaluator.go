@@ -25,6 +25,9 @@ type CoefficientGetter[T any] interface {
 
 	// GetSingleCoefficient should return the k-th coefficient of Polynomial as the type T.
 	GetSingleCoefficient(pol Polynomial, k int) (value T)
+
+	// ShallowCopy should return a thread-safe copy of the original CoefficientGetter.
+	ShallowCopy() CoefficientGetter[T]
 }
 
 // EvaluatePolynomial is a generic and scheme agnostic method to evaluate polynomials on rlwe.Ciphertexts.

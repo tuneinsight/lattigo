@@ -32,26 +32,26 @@ func ReadAsUint8[T constraints.Float | constraints.Integer](r Reader, c *T) (n i
 	return ReadUint8(r, (*uint8)(unsafe.Pointer(c)))
 }
 
-// ReadAsuint64Slice reads a slice of uint64 from r and stores the result into c with pointer type casting into type T.
-func ReadAsuint64Slice[T constraints.Float | constraints.Integer](r Reader, c []T) (n int64, err error) {
+// ReadAsUint64Slice reads a slice of uint64 from r and stores the result into c with pointer type casting into type T.
+func ReadAsUint64Slice[T constraints.Float | constraints.Integer](r Reader, c []T) (n int64, err error) {
 	/* #nosec G103 -- behavior and consequences well understood */
 	return ReadUint64Slice(r, *(*[]uint64)(unsafe.Pointer(&c)))
 }
 
-// ReadAsuint32Slice reads a slice of uint32 from r and stores the result into c with pointer type casting into type T.
-func ReadAsuint32Slice[T constraints.Float | constraints.Integer](r Reader, c []T) (n int64, err error) {
+// ReadAsUint32Slice reads a slice of uint32 from r and stores the result into c with pointer type casting into type T.
+func ReadAsUint32Slice[T constraints.Float | constraints.Integer](r Reader, c []T) (n int64, err error) {
 	/* #nosec G103 -- behavior and consequences well understood */
 	return ReadUint32Slice(r, *(*[]uint32)(unsafe.Pointer(&c)))
 }
 
-// ReadAsuint16Slice reads a slice of uint16 from r and stores the result into c with pointer type casting into type T.
-func ReadAsuint16Slice[T constraints.Float | constraints.Integer](r Reader, c []T) (n int64, err error) {
+// ReadAsUint16Slice reads a slice of uint16 from r and stores the result into c with pointer type casting into type T.
+func ReadAsUint16Slice[T constraints.Float | constraints.Integer](r Reader, c []T) (n int64, err error) {
 	/* #nosec G103 -- behavior and consequences well understood */
 	return ReadUint16Slice(r, *(*[]uint16)(unsafe.Pointer(&c)))
 }
 
-// ReadAsuint8Slice reads a slice of uint8 from r and stores the result into c with pointer type casting into type T.
-func ReadAsuint8Slice[T constraints.Float | constraints.Integer](r Reader, c []T) (n int64, err error) {
+// ReadAsUint8Slice reads a slice of uint8 from r and stores the result into c with pointer type casting into type T.
+func ReadAsUint8Slice[T constraints.Float | constraints.Integer](r Reader, c []T) (n int64, err error) {
 	/* #nosec G103 -- behavior and consequences well understood */
 	return ReadUint8Slice(r, *(*[]uint8)(unsafe.Pointer(&c)))
 }

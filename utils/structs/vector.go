@@ -61,7 +61,7 @@ func (v Vector[T]) WriteTo(w io.Writer) (n int64, err error) {
 	case buffer.Writer:
 
 		var inc int64
-		if inc, err = buffer.WriteInt(w, len(v)); err != nil {
+		if inc, err = buffer.WriteAsUint64[int](w, len(v)); err != nil {
 			return inc, err
 		}
 		n += inc
@@ -103,7 +103,7 @@ func (v *Vector[T]) ReadFrom(r io.Reader) (n int64, err error) {
 		var size int
 		var inc int64
 
-		if inc, err = buffer.ReadInt(r, &size); err != nil {
+		if inc, err = buffer.ReadAsUint64[int](r, &size); err != nil {
 			return inc, fmt.Errorf("cannot read vector size: %w", err)
 		}
 		n += inc

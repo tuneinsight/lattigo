@@ -147,11 +147,11 @@ func (pol Poly) WriteTo(w io.Writer) (n int64, err error) {
 
 		var inc int64
 
-		if n, err = buffer.WriteInt(w, pol.N()); err != nil {
+		if n, err = buffer.WriteAsUint64(w, pol.N()); err != nil {
 			return n, err
 		}
 
-		if inc, err = buffer.WriteInt(w, pol.Level()); err != nil {
+		if inc, err = buffer.WriteAsUint64(w, pol.Level()); err != nil {
 			return n + inc, err
 		}
 
@@ -187,7 +187,7 @@ func (pol *Poly) ReadFrom(r io.Reader) (n int64, err error) {
 		var inc int64
 
 		var N int
-		if n, err = buffer.ReadInt(r, &N); err != nil {
+		if n, err = buffer.ReadAsUint64[int](r, &N); err != nil {
 			return n, fmt.Errorf("cannot ReadFrom: N: %w", err)
 		}
 
@@ -198,7 +198,7 @@ func (pol *Poly) ReadFrom(r io.Reader) (n int64, err error) {
 		}
 
 		var Level int
-		if inc, err = buffer.ReadInt(r, &Level); err != nil {
+		if inc, err = buffer.ReadAsUint64[int](r, &Level); err != nil {
 			return n + inc, fmt.Errorf("cannot ReadFrom: Level: %w", err)
 		}
 

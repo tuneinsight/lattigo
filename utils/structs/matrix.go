@@ -68,7 +68,7 @@ func (m Matrix[T]) WriteTo(w io.Writer) (n int64, err error) {
 	case buffer.Writer:
 
 		var inc int64
-		if inc, err = buffer.WriteInt(w, len(m)); err != nil {
+		if inc, err = buffer.WriteAsUint64[int](w, len(m)); err != nil {
 			return inc, err
 		}
 		n += inc
@@ -111,7 +111,7 @@ func (m *Matrix[T]) ReadFrom(r io.Reader) (n int64, err error) {
 		var size int
 		var inc int64
 
-		if n, err = buffer.ReadInt(r, &size); err != nil {
+		if n, err = buffer.ReadAsUint64[int](r, &size); err != nil {
 			return int64(n), fmt.Errorf("cannot read matrix size: %w", err)
 		}
 

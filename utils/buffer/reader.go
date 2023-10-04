@@ -5,8 +5,56 @@ import (
 	"fmt"
 	"unsafe"
 
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"golang.org/x/exp/constraints"
 )
+
+// ReadAsUint64 reads an uint64 from r and stores the result into c with pointer type casting into type T.
+func ReadAsUint64[T constraints.Float | constraints.Integer](r Reader, c *T) (n int64, err error) {
+	/* #nosec G103 -- behavior and consequences well understood */
+	return ReadUint64(r, (*uint64)(unsafe.Pointer(c)))
+}
+
+// ReadAsUint32 reads an uint32 from r and stores the result into c with pointer type casting into type T.
+func ReadAsUint32[T constraints.Float | constraints.Integer](r Reader, c *T) (n int64, err error) {
+	/* #nosec G103 -- behavior and consequences well understood */
+	return ReadUint32(r, (*uint32)(unsafe.Pointer(c)))
+}
+
+// ReadAsUint16 reads an uint16 from r and stores the result into c with pointer type casting into type T.
+func ReadAsUint16[T constraints.Float | constraints.Integer](r Reader, c *T) (n int64, err error) {
+	/* #nosec G103 -- behavior and consequences well understood */
+	return ReadUint16(r, (*uint16)(unsafe.Pointer(c)))
+}
+
+// ReadAsUint8 reads an uint8 from r and stores the result into c with pointer type casting into type T.
+func ReadAsUint8[T constraints.Float | constraints.Integer](r Reader, c *T) (n int64, err error) {
+	/* #nosec G103 -- behavior and consequences well understood */
+	return ReadUint8(r, (*uint8)(unsafe.Pointer(c)))
+}
+
+// ReadAsuint64Slice reads a slice of uint64 from r and stores the result into c with pointer type casting into type T.
+func ReadAsuint64Slice[T constraints.Float | constraints.Integer](r Reader, c []T) (n int64, err error) {
+	/* #nosec G103 -- behavior and consequences well understood */
+	return ReadUint64Slice(r, *(*[]uint64)(unsafe.Pointer(&c)))
+}
+
+// ReadAsuint32Slice reads a slice of uint32 from r and stores the result into c with pointer type casting into type T.
+func ReadAsuint32Slice[T constraints.Float | constraints.Integer](r Reader, c []T) (n int64, err error) {
+	/* #nosec G103 -- behavior and consequences well understood */
+	return ReadUint32Slice(r, *(*[]uint32)(unsafe.Pointer(&c)))
+}
+
+// ReadAsuint16Slice reads a slice of uint16 from r and stores the result into c with pointer type casting into type T.
+func ReadAsuint16Slice[T constraints.Float | constraints.Integer](r Reader, c []T) (n int64, err error) {
+	/* #nosec G103 -- behavior and consequences well understood */
+	return ReadUint16Slice(r, *(*[]uint16)(unsafe.Pointer(&c)))
+}
+
+// ReadAsuint8Slice reads a slice of uint8 from r and stores the result into c with pointer type casting into type T.
+func ReadAsuint8Slice[T constraints.Float | constraints.Integer](r Reader, c []T) (n int64, err error) {
+	/* #nosec G103 -- behavior and consequences well understood */
+	return ReadUint8Slice(r, *(*[]uint8)(unsafe.Pointer(&c)))
+}
 
 // Read reads a slice of bytes from r and copies it on c.
 func Read(r Reader, c []byte) (n int64, err error) {
@@ -16,18 +64,6 @@ func Read(r Reader, c []byte) (n int64, err error) {
 	}
 	copy(c, slice)
 	nint, err := r.Discard(len(c))
-	return int64(nint), err
-}
-
-// ReadInt reads an int values from r and stores the result into *c.
-func ReadInt(r Reader, c *int) (n int64, err error) {
-
-	if c == nil {
-		return 0, fmt.Errorf("cannot ReadInt: c is nil")
-	}
-
-	nint, err := ReadUint64(r, utils.PointyIntToPointUint64(c))
-
 	return int64(nint), err
 }
 
@@ -279,28 +315,4 @@ func ReadUint64Slice(r Reader, c []uint64) (n int64, err error) {
 	inc64, err = ReadUint64Slice(r, c[buffered:])
 
 	return n + inc64, err
-}
-
-// ReadFloat32 reads a float64 from r and stores the result into c.
-func ReadFloat32(r Reader, c *float32) (n int64, err error) {
-	/* #nosec G103 -- behavior and consequences well understood */
-	return ReadUint32(r, (*uint32)(unsafe.Pointer(c)))
-}
-
-// ReadFloat32Slice reads a slice of float32 from r and stores the result into c.
-func ReadFloat32Slice(r Reader, c []float32) (n int64, err error) {
-	/* #nosec G103 -- behavior and consequences well understood */
-	return ReadUint32Slice(r, *(*[]uint32)(unsafe.Pointer(&c)))
-}
-
-// ReadFloat64 reads a float64 from r and stores the result into c.
-func ReadFloat64(r Reader, c *float64) (n int64, err error) {
-	/* #nosec G103 -- behavior and consequences well understood */
-	return ReadUint64(r, (*uint64)(unsafe.Pointer(c)))
-}
-
-// ReadFloat64Slice reads a slice of float64 from r and stores the result into c.
-func ReadFloat64Slice(r Reader, c []float64) (n int64, err error) {
-	/* #nosec G103 -- behavior and consequences well understood */
-	return ReadUint64Slice(r, *(*[]uint64)(unsafe.Pointer(&c)))
 }

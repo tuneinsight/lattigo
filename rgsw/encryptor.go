@@ -1,7 +1,6 @@
 package rgsw
 
 import (
-	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 )
@@ -52,7 +51,7 @@ func (enc Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) (err error) {
 			if !pt.IsMontgomery {
 				ringQ.MForm(pt.Value, enc.buffQP.Q)
 			} else {
-				ring.CopyLvl(levelQ, enc.buffQP.Q, pt.Value)
+				pt.Value.CopyLvl(levelQ, enc.buffQP.Q)
 			}
 		}
 

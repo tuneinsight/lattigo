@@ -132,8 +132,9 @@ func MultiplyByDiagMatrix(eval EvaluatorForLinearTransformation, ctIn *rlwe.Ciph
 	cQP.MetaData = &rlwe.MetaData{}
 	cQP.MetaData.IsNTT = true
 
-	ring.Copy(ctIn.Value[0], BuffCt.Value[0])
-	ring.Copy(ctIn.Value[1], BuffCt.Value[1])
+	BuffCt.Value[0].CopyLvl(levelQ, ctIn.Value[0])
+	BuffCt.Value[1].CopyLvl(levelQ, ctIn.Value[1])
+
 	ctInTmp0, ctInTmp1 := BuffCt.Value[0], BuffCt.Value[1]
 
 	ringQ.MulScalarBigint(ctInTmp0, ringP.ModulusAtLevel[levelP], ct0TimesP) // P*c0
@@ -241,8 +242,8 @@ func MultiplyByDiagMatrixBSGS(eval EvaluatorForLinearTransformation, ctIn *rlwe.
 	// Computes the N2 rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giant-step algorithm
 	index, _, rotN2 := BSGSIndex(utils.GetKeys(matrix.Vec), 1<<matrix.LogDimensions.Cols, matrix.N1)
 
-	ring.Copy(ctIn.Value[0], BuffCt.Value[0])
-	ring.Copy(ctIn.Value[1], BuffCt.Value[1])
+	BuffCt.Value[0].CopyLvl(levelQ, ctIn.Value[0])
+	BuffCt.Value[1].CopyLvl(levelQ, ctIn.Value[1])
 
 	ctInTmp0, ctInTmp1 := BuffCt.Value[0], BuffCt.Value[1]
 
@@ -361,8 +362,8 @@ func MultiplyByDiagMatrixBSGS(eval EvaluatorForLinearTransformation, ctIn *rlwe.
 			// Else directly adds on ((cQP.Value[0].Q, cQP.Value[0].P), (cQP.Value[1].Q, cQP.Value[1].P))
 		} else {
 			if cnt0 == 0 {
-				ringqp.CopyLvl(levelQ, levelP, tmp0QP, c0OutQP)
-				ringqp.CopyLvl(levelQ, levelP, tmp1QP, c1OutQP)
+				c0OutQP.CopyLvl(levelQ, levelP, tmp0QP)
+				c1OutQP.CopyLvl(levelQ, levelP, tmp1QP)
 			} else {
 				ringQP.AddLazy(c0OutQP, tmp0QP, c0OutQP)
 				ringQP.AddLazy(c1OutQP, tmp1QP, c1OutQP)

@@ -121,7 +121,7 @@ func (switcher DomainSwitcher) RealToComplex(eval *Evaluator, ctIn, opOut *rlwe.
 	// Switches the RCKswitcher key [X+X^-1] to a CKswitcher key [X]
 	evalRLWE.GadgetProduct(level, opOut.Value[1], &switcher.ciToStd.GadgetCiphertext, ctTmp)
 	switcher.stdRingQ.AtLevel(level).Add(opOut.Value[0], evalRLWE.BuffQP[1].Q, opOut.Value[0])
-	ring.CopyLvl(level, evalRLWE.BuffQP[2].Q, opOut.Value[1])
+	opOut.Value[1].CopyLvl(level, evalRLWE.BuffQP[2].Q)
 	*opOut.MetaData = *ctIn.MetaData
 	return
 }

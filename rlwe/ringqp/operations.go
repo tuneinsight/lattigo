@@ -2,7 +2,6 @@ package ringqp
 
 import (
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // Add adds p1 to p2 coefficient-wise and writes the result on p3.
@@ -328,7 +327,7 @@ func (r Ring) ExtendBasisSmallNormAndCenter(polyInQ ring.Poly, levelP int, polyO
 	Q = r.RingQ.SubRings[0].Modulus
 	QHalf = Q >> 1
 
-	if !utils.Alias1D(polyInQ.Buff, polyOutQ.Buff) {
+	if !polyInQ.Equal(&polyOutQ) {
 		polyOutQ.Copy(polyInQ)
 	}
 

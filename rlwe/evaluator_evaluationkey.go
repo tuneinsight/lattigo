@@ -106,7 +106,7 @@ func (eval Evaluator) applyEvaluationKey(level int, ctIn *Ciphertext, evk *Evalu
 	ctTmp.MetaData = ctIn.MetaData
 	eval.GadgetProduct(level, ctIn.Value[1], &evk.GadgetCiphertext, ctTmp)
 	eval.params.RingQ().AtLevel(level).Add(ctIn.Value[0], ctTmp.Value[0], opOut.Value[0])
-	ring.CopyLvl(level, ctTmp.Value[1], opOut.Value[1])
+	opOut.Value[1].CopyLvl(level, ctTmp.Value[1])
 }
 
 // Relinearize applies the relinearization procedure on ct0 and returns the result in opOut.

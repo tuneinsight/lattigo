@@ -128,7 +128,7 @@ func (pcks PublicKeySwitchProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined Pu
 
 	pcks.params.RingQ().AtLevel(level).Add(ctIn.Value[0], combined.Value[0], opOut.Value[0])
 
-	ring.CopyLvl(level, combined.Value[1], opOut.Value[1])
+	opOut.Value[1].CopyLvl(level, combined.Value[1])
 }
 
 // ShallowCopy creates a shallow copy of PublicKeySwitchProtocol in which all the read-only data-structures are

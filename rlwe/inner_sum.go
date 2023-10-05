@@ -35,14 +35,14 @@ func (eval Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, opOut *Cipher
 		ringQ.NTT(ctIn.Value[0], ctInNTT.Value[0])
 		ringQ.NTT(ctIn.Value[1], ctInNTT.Value[1])
 	} else {
-		ring.CopyLvl(levelQ, ctIn.Value[0], ctInNTT.Value[0])
-		ring.CopyLvl(levelQ, ctIn.Value[1], ctInNTT.Value[1])
+		ctInNTT.Value[0].CopyLvl(levelQ, ctIn.Value[0])
+		ctInNTT.Value[1].CopyLvl(levelQ, ctIn.Value[1])
 	}
 
 	if n == 1 {
 		if ctIn != opOut {
-			ring.CopyLvl(levelQ, ctIn.Value[0], opOut.Value[0])
-			ring.CopyLvl(levelQ, ctIn.Value[1], opOut.Value[1])
+			opOut.Value[0].CopyLvl(levelQ, ctIn.Value[0])
+			opOut.Value[1].CopyLvl(levelQ, ctIn.Value[1])
 		}
 	} else {
 
@@ -114,8 +114,8 @@ func (eval Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, opOut *Cipher
 						ringQ.Add(opOut.Value[1], ctInNTT.Value[1], opOut.Value[1])
 
 					} else {
-						ring.CopyLvl(levelQ, ctInNTT.Value[0], opOut.Value[0])
-						ring.CopyLvl(levelQ, ctInNTT.Value[1], opOut.Value[1])
+						opOut.Value[0].CopyLvl(levelQ, ctInNTT.Value[0])
+						opOut.Value[1].CopyLvl(levelQ, ctInNTT.Value[1])
 					}
 				}
 			}

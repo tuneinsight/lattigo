@@ -5,15 +5,14 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 )
 
 // Vector is a struct wrapping a slice of components of type T.
 // T can be:
-// - uint, uint64, uint32, uint16, uint8/byte, int, int64, int32, int16, int8, float64, float32.
-// - Or any object that implements CopyNewer, CopyNewer, io.WriterTo or io.ReaderFrom depending on
-//   the method called.
+//   - uint, uint64, uint32, uint16, uint8/byte, int, int64, int32, int16, int8, float64, float32.
+//   - Or any object that implements CopyNewer, CopyNewer, io.WriterTo or io.ReaderFrom depending on
+//     the method called.
 type Vector[T any] []T
 
 // CopyNew returns a deep copy of the object.
@@ -258,8 +257,14 @@ func (v Vector[T]) Equal(other Vector[T]) (isEqual bool) {
 
 	var t T
 	switch any(t).(type) {
-	case uint, uint64, uint32, uint16, uint8, int, int64, int32, int16, int8, float64, float32:
-		return cmp.Equal([]T(v), []T(other))
+	case uint, uint64, int, int64, float64:
+		return buffer.EqualAsUint64Slice([]T(v), []T(other))
+	case uint32, int32, float32:
+		return buffer.EqualAsUint32Slice([]T(v), []T(other))
+	case uint16, int16:
+		return buffer.EqualAsUint16Slice([]T(v), []T(other))
+	case uint8, int8:
+		return buffer.EqualAsUint8Slice([]T(v), []T(other))
 	default:
 
 		if _, isEquatable := any(t).(Equatable[T]); !isEquatable {

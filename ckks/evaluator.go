@@ -96,7 +96,7 @@ func (eval Evaluator) Add(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 
 		if op0 != opOut {
 			for i := 1; i < len(opOut.Value); i++ {
-				copy(opOut.Value[i].Buff, op0.Value[i].Buff) // Resize step ensures identical size
+				opOut.Value[i].CopyLvl(level, op0.Value[i]) // Resize step ensures identical size
 			}
 		}
 
@@ -189,7 +189,7 @@ func (eval Evaluator) Sub(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 
 		if op0 != opOut {
 			for i := 1; i < len(opOut.Value); i++ {
-				copy(opOut.Value[i].Buff, op0.Value[i].Buff) // Resize step ensures identical size
+				opOut.Value[i].CopyLvl(level, op0.Value[i]) // Resize step ensures identical size
 			}
 		}
 
@@ -403,11 +403,11 @@ func (eval Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 *rlwe.E
 
 	if c0.Degree() > c1.Degree() && &tmp0.Element != opOut.El() {
 		for i := minDegree + 1; i < maxDegree+1; i++ {
-			ring.Copy(tmp0.Value[i], opOut.El().Value[i])
+			opOut.El().Value[i].CopyLvl(level, tmp0.Value[i])
 		}
 	} else if c1.Degree() > c0.Degree() && &tmp1.Element != opOut.El() {
 		for i := minDegree + 1; i < maxDegree+1; i++ {
-			ring.Copy(tmp1.Value[i], opOut.El().Value[i])
+			opOut.El().Value[i].CopyLvl(level, tmp1.Value[i])
 		}
 	}
 }

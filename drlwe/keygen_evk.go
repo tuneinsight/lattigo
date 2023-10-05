@@ -132,7 +132,7 @@ func (evkg EvaluationKeyGenProtocol) GenShare(skIn, skOut *rlwe.SecretKey, crp E
 		ringQ.MulScalarBigint(skIn.Value.Q, ringQP.RingP.ModulusAtLevel[levelP], evkg.buff[0].Q)
 	} else {
 		levelP = 0
-		ring.CopyLvl(levelQ, skIn.Value.Q, evkg.buff[0].Q)
+		evkg.buff[0].Q.CopyLvl(levelQ, skIn.Value.Q)
 	}
 
 	m := shareOut.Value

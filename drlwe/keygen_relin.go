@@ -133,7 +133,7 @@ func (ekg RelinearizationKeyGenProtocol) GenShareRoundOne(sk *rlwe.SecretKey, cr
 		ringQ.MulScalarBigint(sk.Value.Q, ringQP.RingP.ModulusAtLevel[levelP], ekg.buf[0].Q)
 	} else {
 		levelP = 0
-		ring.CopyLvl(levelQ, sk.Value.Q, ekg.buf[0].Q)
+		ekg.buf[0].Q.CopyLvl(levelQ, sk.Value.Q)
 	}
 
 	ringQ.IMForm(ekg.buf[0].Q, ekg.buf[0].Q)

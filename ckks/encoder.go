@@ -481,7 +481,7 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noiseFlo
 	if pt.IsNTT {
 		ecd.parameters.RingQ().AtLevel(pt.Level()).INTT(pt.Value, ecd.buff)
 	} else {
-		ring.CopyLvl(pt.Level(), pt.Value, ecd.buff)
+		ecd.buff.CopyLvl(pt.Level(), pt.Value)
 	}
 
 	if noiseFlooding != nil {

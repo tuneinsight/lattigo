@@ -2,30 +2,25 @@ package ring
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
+	"github.com/tuneinsight/lattigo/v4/utils/structs"
 )
 
 // Poly is the structure that contains the coefficients of a polynomial.
 type Poly struct {
-	Coeffs [][]uint64 // Dimension-2 slice of coefficients (re-slice of Buff)
-	Buff   []uint64   // Dimension-1 slice of coefficient
+	Coeffs structs.Matrix[uint64]
 }
 
 // NewPoly creates a new polynomial with N coefficients set to zero and Level+1 moduli.
 func NewPoly(N, Level int) (pol Poly) {
-	pol = Poly{}
-
-	pol.Buff = make([]uint64, N*(Level+1))
-	pol.Coeffs = make([][]uint64, Level+1)
-	for i := 0; i < Level+1; i++ {
-		pol.Coeffs[i] = pol.Buff[i*N : (i+1)*N]
+	Coeffs := make([][]uint64, Level+1)
+	for i := range Coeffs {
+		Coeffs[i] = make([]uint64, N)
 	}
-
-	return
+	return Poly{Coeffs: Coeffs}
 }
 
 // Resize resizes the level of the target polynomial to the provided level.
@@ -34,13 +29,12 @@ func NewPoly(N, Level int) (pol Poly) {
 func (pol *Poly) Resize(level int) {
 	N := pol.N()
 	if pol.Level() > level {
-		pol.Buff = pol.Buff[:N*(level+1)]
 		pol.Coeffs = pol.Coeffs[:level+1]
 	} else if level > pol.Level() {
-		pol.Buff = append(pol.Buff, make([]uint64, N*(level-pol.Level()))...)
-		pol.Coeffs = append(pol.Coeffs, make([][]uint64, level-pol.Level())...)
-		for i := 0; i < level+1; i++ {
-			pol.Coeffs[i] = pol.Buff[i*N : (i+1)*N]
+		prevLevel := pol.Level()
+		pol.Coeffs = append(pol.Coeffs, make([][]uint64, level-prevLevel)...)
+		for i := prevLevel + 1; i < level+1; i++ {
+			pol.Coeffs[i] = make([]uint64, N)
 		}
 	}
 }
@@ -60,42 +54,34 @@ func (pol Poly) Level() int {
 
 // Zero sets all coefficients of the target polynomial to 0.
 func (pol Poly) Zero() {
-	ZeroVec(pol.Buff)
+	for i := range pol.Coeffs {
+		ZeroVec(pol.Coeffs[i])
+	}
 }
 
 // CopyNew creates an exact copy of the target polynomial.
 func (pol Poly) CopyNew() *Poly {
-	cpy := NewPoly(pol.N(), pol.Level())
-	copy(cpy.Buff, pol.Buff)
-	return &cpy
-}
-
-// Copy copies the coefficients of p0 on p1 within the given Ring. It requires p1 to be at least as big p0.
-// Expects the degree of both polynomials to be identical.
-func Copy(p0, p1 Poly) {
-	copy(p1.Buff, p0.Buff)
-}
-
-// CopyLvl copies the coefficients of p0 on p1 within the given Ring.
-// Copies for up to level+1 moduli.
-// Expects the degree of both polynomials to be identical.
-func CopyLvl(level int, p0, p1 Poly) {
-	copy(p1.Buff[:p1.N()*(level+1)], p0.Buff)
-}
-
-// CopyValues copies the coefficients of p1 on the target polynomial.
-// Onyl copies minLevel(pol, p1) levels.
-// Expects the degree of both polynomials to be identical.
-func (pol *Poly) CopyValues(p1 Poly) {
-	if !utils.Alias1D(pol.Buff, p1.Buff) {
-		copy(pol.Buff, p1.Buff)
+	return &Poly{
+		Coeffs: pol.Coeffs.CopyNew(),
 	}
 }
 
 // Copy copies the coefficients of p1 on the target polynomial.
-// Onyl copies minLevel(pol, p1) levels.
+// This method does nothing if the underlying arrays are the same.
+// Expects the degree of both polynomials to be identical.
 func (pol *Poly) Copy(p1 Poly) {
-	pol.CopyValues(p1)
+	pol.CopyLvl(utils.Min(pol.Level(), p1.Level()), p1)
+}
+
+// CopyLvl copies the coefficients of p1 on the target polynomial.
+// This method does nothing if the underlying arrays are the same.
+// Expects the degree of both polynomials to be identical.
+func (pol *Poly) CopyLvl(level int, p1 Poly) {
+	for i := 0; i < level+1; i++ {
+		if !utils.Alias1D(pol.Coeffs[i], p1.Coeffs[i]) {
+			copy(pol.Coeffs[i], p1.Coeffs[i])
+		}
+	}
 }
 
 // Equal returns true if the receiver Poly is equal to the provided other Poly.
@@ -103,30 +89,12 @@ func (pol *Poly) Copy(p1 Poly) {
 // (i.e., it does not consider congruence as equality within the ring like
 // `Ring.Equal` does).
 func (pol Poly) Equal(other *Poly) bool {
-
-	if other == nil {
-		return false
-	}
-
-	if utils.Alias1D(pol.Buff, other.Buff) {
-		return true
-	}
-
-	if len(pol.Buff) == len(other.Buff) {
-		return utils.EqualSlice(pol.Buff, other.Buff)
-	}
-
-	return false
-}
-
-// polyBinarySize returns the size in bytes of the Poly object.
-func polyBinarySize(N, Level int) (size int) {
-	return 16 + N*(Level+1)<<3
+	return pol.Coeffs.Equal(other.Coeffs)
 }
 
 // BinarySize returns the serialized size of the object in bytes.
 func (pol Poly) BinarySize() (size int) {
-	return polyBinarySize(pol.N(), pol.Level())
+	return pol.Coeffs.BinarySize()
 }
 
 // WriteTo writes the object on an io.Writer. It implements the io.WriterTo
@@ -141,28 +109,12 @@ func (pol Poly) BinarySize() (size int) {
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
 func (pol Poly) WriteTo(w io.Writer) (n int64, err error) {
-
 	switch w := w.(type) {
 	case buffer.Writer:
-
-		var inc int64
-
-		if n, err = buffer.WriteAsUint64(w, pol.N()); err != nil {
-			return n, err
+		if n, err = pol.Coeffs.WriteTo(w); err != nil {
+			return
 		}
-
-		if inc, err = buffer.WriteAsUint64(w, pol.Level()); err != nil {
-			return n + inc, err
-		}
-
-		n += inc
-
-		if inc, err = buffer.WriteUint64Slice(w, pol.Buff); err != nil {
-			return n + inc, err
-		}
-
-		return n + inc, w.Flush()
-
+		return n, w.Flush()
 	default:
 		return pol.WriteTo(bufio.NewWriter(w))
 	}
@@ -180,55 +132,12 @@ func (pol Poly) WriteTo(w io.Writer) (n int64, err error) {
 //   - When reading from a var b []byte, it is preferable to pass a buffer.NewBuffer(b)
 //     as w (see lattigo/utils/buffer/buffer.go).
 func (pol *Poly) ReadFrom(r io.Reader) (n int64, err error) {
-
 	switch r := r.(type) {
 	case buffer.Reader:
-
-		var inc int64
-
-		var N int
-		if n, err = buffer.ReadAsUint64[int](r, &N); err != nil {
-			return n, fmt.Errorf("cannot ReadFrom: N: %w", err)
+		if n, err = pol.Coeffs.ReadFrom(r); err != nil {
+			return
 		}
-
-		n += inc
-
-		if N <= 0 {
-			return n, fmt.Errorf("error ReadFrom: N cannot be 0 or negative")
-		}
-
-		var Level int
-		if inc, err = buffer.ReadAsUint64[int](r, &Level); err != nil {
-			return n + inc, fmt.Errorf("cannot ReadFrom: Level: %w", err)
-		}
-
-		n += inc
-
-		if Level < 0 {
-			return n, fmt.Errorf("invalid encoding: Level cannot be negative")
-		}
-
-		if pol.Buff == nil || len(pol.Buff) != N*(Level+1) {
-			pol.Buff = make([]uint64, N*int(Level+1))
-		}
-
-		if inc, err = buffer.ReadUint64Slice(r, pol.Buff); err != nil {
-			return n + inc, fmt.Errorf("cannot ReadFrom: pol.Buff: %w", err)
-		}
-
-		n += inc
-
-		// Reslice
-		if len(pol.Coeffs) != Level+1 {
-			pol.Coeffs = make([][]uint64, Level+1)
-		}
-
-		for i := 0; i < Level+1; i++ {
-			pol.Coeffs[i] = pol.Buff[i*N : (i+1)*N]
-		}
-
 		return n, nil
-
 	default:
 		return pol.ReadFrom(bufio.NewReader(r))
 	}

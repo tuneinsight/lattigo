@@ -5,14 +5,15 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 )
 
 // Vector is a struct wrapping a doube slice of components of type T.
 // T can be:
-// - uint, uint64, uint32, uint16, uint8/byte, int, int64, int32, int16, int8, float64, float32.
-// - Or any object that implements CopyNewer, CopyNewer, BinarySizer, io.WriterTo or io.ReaderFrom 
-//   depending on the method called.
+//   - uint, uint64, uint32, uint16, uint8/byte, int, int64, int32, int16, int8, float64, float32.
+//   - Or any object that implements CopyNewer, CopyNewer, BinarySizer, io.WriterTo or io.ReaderFrom
+//     depending on the method called.
 type Matrix[T any] [][]T
 
 // CopyNew returns a deep copy of the object.
@@ -170,10 +171,15 @@ func (m *Matrix[T]) UnmarshalBinary(p []byte) (err error) {
 // Equal performs a deep equal.
 // If T is a struct, this method requires that T implements Equatable.
 func (m Matrix[T]) Equal(other Matrix[T]) bool {
-	
+
 	var t T
 	switch any(t).(type) {
 	case uint, uint64, uint32, uint16, uint8, int, int64, int32, int16, int8, float64, float32:
+
+		if utils.Alias2D[T]([][]T(m), [][]T(other)) {
+			return true
+		}
+
 	default:
 		if _, isEquatable := any(t).(Equatable[T]); !isEquatable {
 			panic(fmt.Errorf("matrix component of type %T does not comply to %T", t, new(Equatable[T])))

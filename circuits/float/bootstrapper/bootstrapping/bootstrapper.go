@@ -156,7 +156,6 @@ func (btp Bootstrapper) ShallowCopy() *Bootstrapper {
 		bootstrapperBase: btp.bootstrapperBase,
 		//DFTEvaluator: btp.DFTEvaluator.ShallowCopy(),
 		//Mod1Evaluator: btp.Mod1Evaluator.ShallowCopy(),
-
 	}
 }
 

@@ -507,7 +507,7 @@ func (r Ring) Equal(p1, p2 Poly) bool {
 	r.Reduce(p1, p1)
 	r.Reduce(p2, p2)
 
-	return utils.EqualSlice(p1.Buff, p2.Buff)
+	return p1.Equal(&p2)
 }
 
 // ringParametersLiteral is a struct to store the minimum information

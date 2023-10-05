@@ -54,7 +54,7 @@ func (d Decryptor) Decrypt(ct *Ciphertext, pt *Plaintext) {
 	*pt.MetaData = *ct.MetaData
 
 	if ct.IsNTT {
-		ring.CopyLvl(level, ct.Value[ct.Degree()], pt.Value)
+		pt.Value.CopyLvl(level, ct.Value[ct.Degree()])
 	} else {
 		ringQ.NTTLazy(ct.Value[ct.Degree()], pt.Value)
 	}

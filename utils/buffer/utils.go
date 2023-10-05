@@ -7,9 +7,11 @@ import (
 	"io"
 	"reflect"
 	"testing"
+	"unsafe"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/require"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // binarySerializer is a testing interface for byte encoding and decoding.
@@ -73,4 +75,119 @@ func RequireSerializerCorrect(t *testing.T, input binarySerializer) {
 
 	// Deep equal output = input
 	require.True(t, cmp.Equal(input, output))
+}
+
+// EqualAsUint64 casts &T to an *uint64 and performs a comparison.
+// User must ensure that T can be stored in an uint64.
+func EqualAsUint64[T any](a, b T) bool {
+	/* #nosec G103 -- behavior and consequences well understood */
+	return *(*uint64)(unsafe.Pointer(&a)) == *(*uint64)(unsafe.Pointer(&b))
+}
+
+// EqualAsUint64Slice casts &[]T into *[]uint64 and performs a comparison.
+// User must ensure that T can be stored in an uint64.
+func EqualAsUint64Slice[T any](a, b []T) bool {
+
+	/* #nosec G103 -- behavior and consequences well understood */
+	aU64 := *(*[]uint64)(unsafe.Pointer(&a))
+
+	/* #nosec G103 -- behavior and consequences well understood */
+	bU64 := *(*[]uint64)(unsafe.Pointer(&b))
+
+	if len(aU64) != len(bU64) {
+		return false
+	}
+
+	if utils.Alias1D(aU64, bU64) {
+		return true
+	}
+
+	for i := range aU64 {
+		if aU64[i] != bU64[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+// EqualAsUint32Slice casts &[]T into *[]uint32 and performs a comparison.
+// User must ensure that T can be stored in an uint32.
+func EqualAsUint32Slice[T any](a, b []T) bool {
+
+	/* #nosec G103 -- behavior and consequences well understood */
+	aU32 := *(*[]uint32)(unsafe.Pointer(&a))
+
+	/* #nosec G103 -- behavior and consequences well understood */
+	bU32 := *(*[]uint32)(unsafe.Pointer(&b))
+
+	if len(aU32) != len(bU32) {
+		return false
+	}
+
+	if utils.Alias1D(aU32, bU32) {
+		return true
+	}
+
+	for i := range aU32 {
+		if aU32[i] != bU32[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+// EqualAsUint16Slice casts &[]T into *[]uint16 and performs a comparison.
+// User must ensure that T can be stored in an uint16.
+func EqualAsUint16Slice[T any](a, b []T) bool {
+
+	/* #nosec G103 -- behavior and consequences well understood */
+	aU16 := *(*[]uint16)(unsafe.Pointer(&a))
+
+	/* #nosec G103 -- behavior and consequences well understood */
+	bU16 := *(*[]uint16)(unsafe.Pointer(&b))
+
+	if len(aU16) != len(bU16) {
+		return false
+	}
+
+	if utils.Alias1D(aU16, bU16) {
+		return true
+	}
+
+	for i := range aU16 {
+		if aU16[i] != bU16[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+// EqualAsUint8Slice casts &[]T into *[]uint8 and performs a comparison.
+// User must ensure that T can be stored in an uint8.
+func EqualAsUint8Slice[T any](a, b []T) bool {
+
+	/* #nosec G103 -- behavior and consequences well understood */
+	aU8 := *(*[]uint8)(unsafe.Pointer(&a))
+
+	/* #nosec G103 -- behavior and consequences well understood */
+	bU8 := *(*[]uint8)(unsafe.Pointer(&b))
+
+	if len(aU8) != len(bU8) {
+		return false
+	}
+
+	if utils.Alias1D(aU8, bU8) {
+		return true
+	}
+
+	for i := range aU8 {
+		if aU8[i] != bU8[i] {
+			return false
+		}
+	}
+
+	return true
 }

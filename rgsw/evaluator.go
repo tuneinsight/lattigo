@@ -67,8 +67,8 @@ func (eval Evaluator) ExternalProduct(op0 *rlwe.Ciphertext, op1 *Ciphertext, opO
 				eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c0QP.Q, c0QP.P, opOut.Value[0])
 				eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c1QP.Q, c1QP.P, opOut.Value[1])
 			} else {
-				opOut.Value[0].CopyValues(c0QP.Q)
-				opOut.Value[1].CopyValues(c1QP.Q)
+				opOut.Value[0].CopyLvl(levelQ, c0QP.Q)
+				opOut.Value[1].CopyLvl(levelQ, c1QP.Q)
 			}
 		}
 	} else {

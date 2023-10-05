@@ -84,7 +84,6 @@ func NewElementAtLevelFromPoly(level int, poly []ring.Poly) (*Element[ring.Poly]
 		}
 
 		Value[i].Coeffs = poly[i].Coeffs[:level+1]
-		Value[i].Buff = poly[i].Buff[:poly[i].N()*(level+1)]
 	}
 
 	return &Element[ring.Poly]{Value: Value}, nil

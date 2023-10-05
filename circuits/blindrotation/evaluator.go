@@ -94,8 +94,8 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, testPolyWithSlotIndex map[i
 		ringQLWE.INTT(ct.Value[0], acc.Value[0])
 		ringQLWE.INTT(ct.Value[1], acc.Value[1])
 	} else {
-		ring.CopyLvl(ct.Level(), ct.Value[0], acc.Value[0])
-		ring.CopyLvl(ct.Level(), ct.Value[1], acc.Value[1])
+		acc.Value[0].CopyLvl(ct.Level(), ct.Value[0])
+		acc.Value[1].CopyLvl(ct.Level(), ct.Value[1])
 	}
 
 	// Switch modulus from Q to 2N and ensure they are odd

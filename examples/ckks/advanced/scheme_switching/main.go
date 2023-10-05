@@ -221,8 +221,6 @@ func main() {
 	ctN12.LogDimensions = paramsN12.LogMaxDimensions()
 	ctN12.Scale = paramsN12.DefaultScale()
 
-	fmt.Println(ctN12.MetaData)
-
 	fmt.Printf("Homomorphic Encoding... ")
 	now = time.Now()
 	// Homomorphic Encoding: [BR(a), BR(c), BR(b), BR(d)] -> [(BR(a)+BR(b)i), (BR(c)+BR(d)i)]

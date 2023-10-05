@@ -39,7 +39,7 @@ func BenchmarkRing(b *testing.B) {
 
 func benchGenRing(tc *testParams, b *testing.B) {
 
-	b.Run(testString("GenRing/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("GenRing", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			if _, err := NewRing(tc.ringQ.N(), tc.ringQ.ModuliChain()); err != nil {
 				b.Error(err)
@@ -54,7 +54,7 @@ func benchMarshalling(tc *testParams, b *testing.B) {
 
 	p := tc.uniformSamplerQ.ReadNew()
 
-	b.Run(testString("Marshalling/MarshalPoly/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("Marshalling/MarshalPoly", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			if _, err = p.MarshalBinary(); err != nil {
 				b.Error(err)
@@ -67,7 +67,7 @@ func benchMarshalling(tc *testParams, b *testing.B) {
 		b.Error(err)
 	}
 
-	b.Run(testString("Marshalling/UnmarshalPoly/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("Marshalling/UnmarshalPoly", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			if err = p.UnmarshalBinary(data); err != nil {
 				b.Error(err)
@@ -80,7 +80,7 @@ func benchSampling(tc *testParams, b *testing.B) {
 
 	pol := tc.ringQ.NewPoly()
 
-	b.Run(testString("Sampling/Gaussian/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("Sampling/Gaussian", tc.ringQ), func(b *testing.B) {
 
 		sampler, err := NewSampler(tc.prng, tc.ringQ, &DiscreteGaussian{Sigma: DefaultSigma, Bound: DefaultBound}, false)
 		require.NoError(b, err)
@@ -90,7 +90,7 @@ func benchSampling(tc *testParams, b *testing.B) {
 		}
 	})
 
-	b.Run(testString("Sampling/Ternary/0.3/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("Sampling/Ternary/0.3", tc.ringQ), func(b *testing.B) {
 
 		sampler, err := NewSampler(tc.prng, tc.ringQ, Ternary{P: 1.0 / 3}, true)
 		require.NoError(b, err)
@@ -100,7 +100,7 @@ func benchSampling(tc *testParams, b *testing.B) {
 		}
 	})
 
-	b.Run(testString("Sampling/Ternary/0.5/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("Sampling/Ternary/0.5", tc.ringQ), func(b *testing.B) {
 
 		sampler, err := NewSampler(tc.prng, tc.ringQ, Ternary{P: 0.5}, true)
 		require.NoError(b, err)
@@ -110,7 +110,7 @@ func benchSampling(tc *testParams, b *testing.B) {
 		}
 	})
 
-	b.Run(testString("Sampling/Ternary/sparse128/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("Sampling/Ternary/sparse128", tc.ringQ), func(b *testing.B) {
 
 		sampler, err := NewSampler(tc.prng, tc.ringQ, Ternary{H: 128}, true)
 		require.NoError(b, err)
@@ -120,7 +120,7 @@ func benchSampling(tc *testParams, b *testing.B) {
 		}
 	})
 
-	b.Run(testString("Sampling/Uniform/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("Sampling/Uniform", tc.ringQ), func(b *testing.B) {
 
 		sampler, err := NewSampler(tc.prng, tc.ringQ, &Uniform{}, true)
 		require.NoError(b, err)
@@ -135,13 +135,13 @@ func benchMontgomery(tc *testParams, b *testing.B) {
 
 	p := tc.uniformSamplerQ.ReadNew()
 
-	b.Run(testString("Montgomery/MForm/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("Montgomery/MForm", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			tc.ringQ.MForm(p, p)
 		}
 	})
 
-	b.Run(testString("Montgomery/InvMForm/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("Montgomery/InvMForm", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			tc.ringQ.IMForm(p, p)
 		}
@@ -152,13 +152,13 @@ func benchNTT(tc *testParams, b *testing.B) {
 
 	p := tc.uniformSamplerQ.ReadNew()
 
-	b.Run(testString("NTT/Forward/Standard/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("NTT/Forward/Standard", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			tc.ringQ.NTT(p, p)
 		}
 	})
 
-	b.Run(testString("NTT/Backward/Standard/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("NTT/Backward/Standard", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			tc.ringQ.INTT(p, p)
 		}
@@ -166,13 +166,13 @@ func benchNTT(tc *testParams, b *testing.B) {
 
 	ringQConjugateInvariant, _ := NewRingConjugateInvariant(tc.ringQ.N(), tc.ringQ.ModuliChain())
 
-	b.Run(testString("NTT/Forward/ConjugateInvariant4NthRoot/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("NTT/Forward/ConjugateInvariant4NthRoot", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			ringQConjugateInvariant.NTT(p, p)
 		}
 	})
 
-	b.Run(testString("NTT/Backward/ConjugateInvariant4NthRoot/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("NTT/Backward/ConjugateInvariant4NthRoot", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			ringQConjugateInvariant.INTT(p, p)
 		}
@@ -184,25 +184,25 @@ func benchMulCoeffs(tc *testParams, b *testing.B) {
 	p0 := tc.uniformSamplerQ.ReadNew()
 	p1 := tc.uniformSamplerQ.ReadNew()
 
-	b.Run(testString("MulCoeffs/Montgomery/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("MulCoeffs/Montgomery", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			tc.ringQ.MulCoeffsMontgomery(p0, p1, p0)
 		}
 	})
 
-	b.Run(testString("MulCoeffs/MontgomeryLazy/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("MulCoeffs/MontgomeryLazy", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			tc.ringQ.MulCoeffsMontgomeryLazy(p0, p1, p0)
 		}
 	})
 
-	b.Run(testString("MulCoeffs/Barrett/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("MulCoeffs/Barrett", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			tc.ringQ.MulCoeffsBarrett(p0, p1, p0)
 		}
 	})
 
-	b.Run(testString("MulCoeffs/BarrettLazy/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("MulCoeffs/BarrettLazy", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			tc.ringQ.MulCoeffsBarrettLazy(p0, p1, p0)
 		}
@@ -214,7 +214,7 @@ func benchAddCoeffs(tc *testParams, b *testing.B) {
 	p0 := tc.uniformSamplerQ.ReadNew()
 	p1 := tc.uniformSamplerQ.ReadNew()
 
-	b.Run(testString("AddCoeffs/Add/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("AddCoeffs/Add", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			tc.ringQ.Add(p0, p1, p0)
 		}
@@ -232,13 +232,13 @@ func benchSubCoeffs(tc *testParams, b *testing.B) {
 	p0 := tc.uniformSamplerQ.ReadNew()
 	p1 := tc.uniformSamplerQ.ReadNew()
 
-	b.Run(testString("SubCoeffs/Sub/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("SubCoeffs/Sub", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			tc.ringQ.Sub(p0, p1, p0)
 		}
 	})
 
-	b.Run(testString("SubCoeffs/SubLazy/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("SubCoeffs/SubLazy", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			tc.ringQ.SubLazy(p0, p1, p0)
 		}
@@ -266,13 +266,13 @@ func benchMulScalar(tc *testParams, b *testing.B) {
 	scalarBigint := bignum.NewInt(rand1)
 	scalarBigint.Mul(scalarBigint, bignum.NewInt(rand2))
 
-	b.Run(testString("MulScalar/uint64/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("MulScalar/uint64", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			tc.ringQ.MulScalar(p, rand1, p)
 		}
 	})
 
-	b.Run(testString("MulScalar/big.Int/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("MulScalar/big.Int", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			tc.ringQ.MulScalarBigint(p, scalarBigint, p)
 		}
@@ -315,25 +315,25 @@ func benchDivByLastModulus(tc *testParams, b *testing.B) {
 
 	buff := tc.ringQ.NewPoly()
 
-	b.Run(testString("DivByLastModulus/Floor/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("DivByLastModulus/Floor", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			tc.ringQ.DivFloorByLastModulus(p0, p1)
 		}
 	})
 
-	b.Run(testString("DivByLastModulus/FloorNTT/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("DivByLastModulus/FloorNTT", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			tc.ringQ.DivFloorByLastModulusNTT(p0, buff, p1)
 		}
 	})
 
-	b.Run(testString("DivByLastModulus/Round/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("DivByLastModulus/Round", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			tc.ringQ.DivRoundByLastModulus(p0, p1)
 		}
 	})
 
-	b.Run(testString("DivByLastModulus/RoundNTT/", tc.ringQ), func(b *testing.B) {
+	b.Run(testString("DivByLastModulus/RoundNTT", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			tc.ringQ.DivRoundByLastModulusNTT(p0, buff, p1)
 		}

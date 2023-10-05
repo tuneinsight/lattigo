@@ -97,7 +97,7 @@ func (itp *Interpolator) Lagrange(x, y []uint64) (coeffs []uint64, err error) {
 
 	for i := 0; i < len(x); i++ {
 
-		copy(tmp.Buff, basis.Buff)
+		tmp.Copy(basis)
 
 		// If x[i] is a root of X^{N} + 1 mod T then it is not part
 		// of the Lagrange basis pre-computation, so all we need is

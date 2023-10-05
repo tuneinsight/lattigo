@@ -201,7 +201,7 @@ func (eval Evaluator) Add(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 
 		if op0 != opOut {
 			for i := 1; i < op0.Degree()+1; i++ {
-				ring.Copy(op0.Value[i], opOut.Value[i])
+				opOut.Value[i].CopyLvl(level, op0.Value[i])
 			}
 		}
 
@@ -253,7 +253,7 @@ func (eval Evaluator) evaluateInPlace(level int, el0 *rlwe.Ciphertext, el1 *rlwe
 	// If the inputs degrees differ, it copies the remaining degree on the receiver.
 	if largest != nil && largest != elOut.El() { // checks to avoid unnecessary work.
 		for i := smallest.Degree() + 1; i < largest.Degree()+1; i++ {
-			elOut.Value[i].Copy(largest.Value[i])
+			elOut.Value[i].CopyLvl(level, largest.Value[i])
 		}
 	}
 }

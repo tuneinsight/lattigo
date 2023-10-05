@@ -1,9 +1,5 @@
 package ring
 
-import (
-	"github.com/tuneinsight/lattigo/v4/utils"
-)
-
 // DivFloorByLastModulusNTT divides (floored) the polynomial by its last modulus.
 // The input must be in the NTT domain.
 // Output poly level must be equal or one less than input level.
@@ -37,8 +33,8 @@ func (r Ring) DivFloorByLastModulusManyNTT(nbRescales int, p0, buff, p1 Poly) {
 
 	if nbRescales == 0 {
 
-		if !utils.Alias1D(p0.Buff, p1.Buff) {
-			copy(p1.Buff, p0.Buff)
+		if !p0.Equal(&p1) {
+			p1.Copy(p0)
 		}
 
 	} else {
@@ -62,8 +58,8 @@ func (r Ring) DivFloorByLastModulusMany(nbRescales int, p0, buff, p1 Poly) {
 
 	if nbRescales == 0 {
 
-		if !utils.Alias1D(p0.Buff, p1.Buff) {
-			copy(p1.Buff, p0.Buff)
+		if !p0.Equal(&p1) {
+			p1.Copy(p0)
 		}
 
 	} else {
@@ -135,8 +131,8 @@ func (r Ring) DivRoundByLastModulusManyNTT(nbRescales int, p0, buff, p1 Poly) {
 
 	if nbRescales == 0 {
 
-		if !utils.Alias1D(p0.Buff, p1.Buff) {
-			copy(p1.Buff, p0.Buff)
+		if !p0.Equal(&p1) {
+			p1.Copy(p0)
 		}
 
 	} else {
@@ -165,8 +161,8 @@ func (r Ring) DivRoundByLastModulusMany(nbRescales int, p0, buff, p1 Poly) {
 
 	if nbRescales == 0 {
 
-		if !utils.Alias1D(p0.Buff, p1.Buff) {
-			copy(p1.Buff, p0.Buff)
+		if !p0.Equal(&p1) {
+			p1.Copy(p0)
 		}
 
 	} else {

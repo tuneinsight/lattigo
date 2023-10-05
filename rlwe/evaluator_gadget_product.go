@@ -66,8 +66,8 @@ func (eval Evaluator) ModDown(levelQ, levelP int, ctQP *Element[ringqp.Poly], ct
 		if ctQP.IsNTT {
 			if ct.IsNTT {
 				// NTT -> NTT
-				ring.CopyLvl(levelQ, ct.Value[0], ctQP.Value[0].Q)
-				ring.CopyLvl(levelQ, ct.Value[1], ctQP.Value[1].Q)
+				ctQP.Value[0].Q.CopyLvl(levelQ, ct.Value[0])
+				ctQP.Value[1].Q.CopyLvl(levelQ, ct.Value[1])
 			} else {
 				// NTT -> INTT
 				ringQP.RingQ.INTT(ctQP.Value[0].Q, ct.Value[0])
@@ -81,8 +81,8 @@ func (eval Evaluator) ModDown(levelQ, levelP int, ctQP *Element[ringqp.Poly], ct
 
 			} else {
 				// INTT -> INTT
-				ring.CopyLvl(levelQ, ct.Value[0], ctQP.Value[0].Q)
-				ring.CopyLvl(levelQ, ct.Value[1], ctQP.Value[1].Q)
+				ctQP.Value[0].Q.CopyLvl(levelQ, ct.Value[0])
+				ctQP.Value[1].Q.CopyLvl(levelQ, ct.Value[1])
 			}
 		}
 	}

@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"io"
 
-	//"github.com/google/go-cmp/cmp"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
@@ -56,25 +55,19 @@ func (p Poly) Equal(other *Poly) (v bool) {
 // Copy copies the coefficients of other on the target polynomial.
 // This method simply calls the Copy method for each of its sub-polynomials.
 func (p *Poly) Copy(other Poly) {
-	if p.Q.Level() != -1 && !utils.Alias1D(p.Q.Buff, other.Q.Buff) {
-		copy(p.Q.Buff, other.Q.Buff)
-	}
-
-	if p.P.Level() != -1 && !utils.Alias1D(p.P.Buff, other.P.Buff) {
-		copy(p.P.Buff, other.P.Buff)
-	}
+	p.CopyLvl(utils.Min(p.LevelQ(), other.LevelQ()), utils.Min(p.LevelP(), other.LevelP()), other)
 }
 
-// CopyLvl copies the values of p1 on p2.
+// CopyLvl copies the values of other on the target polynomial.
 // The operation is performed at levelQ for the ringQ and levelP for the ringP.
-func CopyLvl(levelQ, levelP int, p1, p2 Poly) {
+func (p *Poly) CopyLvl(levelQ, levelP int, other Poly) {
 
-	if p1.Q.Level() != -1 && p2.Q.Level() != -1 && !utils.Alias1D(p1.Q.Buff, p2.Q.Buff) {
-		ring.CopyLvl(levelQ, p1.Q, p2.Q)
+	if p.Q.Level() != -1 && other.Q.Level() != -1 {
+		p.Q.CopyLvl(levelQ, other.Q)
 	}
 
-	if p1.P.Level() != -1 && p2.Q.Level() != -1 && !utils.Alias1D(p1.P.Buff, p2.P.Buff) {
-		ring.CopyLvl(levelP, p1.P, p2.P)
+	if p.P.Level() != -1 && other.P.Level() != -1 {
+		p.P.CopyLvl(levelP, other.P)
 	}
 }
 
@@ -95,14 +88,7 @@ func (p *Poly) Resize(levelQ, levelP int) {
 // BinarySize returns the serialized size of the object in bytes.
 // It assumes that each coefficient takes 8 bytes.
 func (p Poly) BinarySize() (dataLen int) {
-	dataLen = 1
-	if p.Q.Level() != -1 {
-		dataLen += p.Q.BinarySize()
-	}
-	if p.P.Level() != -1 {
-		dataLen += p.P.BinarySize()
-	}
-	return dataLen
+	return p.Q.BinarySize() + p.P.BinarySize()
 }
 
 // WriteTo writes the object on an io.Writer. It implements the io.WriterTo
@@ -121,21 +107,7 @@ func (p Poly) WriteTo(w io.Writer) (n int64, err error) {
 	switch w := w.(type) {
 	case buffer.Writer:
 
-		var hasQP byte
-		if p.Q.Level() != -1 {
-			hasQP = hasQP | 2
-		}
-
-		if p.P.Level() != -1 {
-			hasQP = hasQP | 1
-		}
-
 		var inc int64
-		if inc, err = buffer.WriteUint8(w, hasQP); err != nil {
-			return n + inc, err
-		}
-
-		n += inc
 
 		if inc, err = p.Q.WriteTo(w); err != nil {
 			return n + inc, err
@@ -143,12 +115,12 @@ func (p Poly) WriteTo(w io.Writer) (n int64, err error) {
 
 		n += inc
 
-		if p.P.Level() != -1 {
-			if inc, err = p.P.WriteTo(w); err != nil {
-				return n + inc, err
-			}
-			n += inc
+		if inc, err = p.P.WriteTo(w); err != nil {
+			return n + inc, err
 		}
+
+		n += inc
+
 		return n, w.Flush()
 
 	default:
@@ -171,32 +143,19 @@ func (p *Poly) ReadFrom(r io.Reader) (n int64, err error) {
 	switch r := r.(type) {
 	case buffer.Reader:
 
-		var hasQP byte
 		var inc int64
-		if inc, err = buffer.ReadUint8(r, &hasQP); err != nil {
+
+		if inc, err = p.Q.ReadFrom(r); err != nil {
 			return n + inc, err
 		}
 
 		n += inc
 
-		if hasQP&2 == 2 {
-
-			if inc, err = p.Q.ReadFrom(r); err != nil {
-				return n + inc, err
-			}
-
-			n += inc
+		if inc, err = p.P.ReadFrom(r); err != nil {
+			return n + inc, err
 		}
 
-		if hasQP&1 == 1 {
-
-			var inc int64
-			if inc, err = p.P.ReadFrom(r); err != nil {
-				return n + inc, err
-			}
-
-			n += inc
-		}
+		n += inc
 
 		return
 

@@ -100,7 +100,7 @@ func (kgen KeyGenerator) GenRelinearizationKeyNew(sk *SecretKey, evkParams ...Ev
 
 // GenRelinearizationKey generates an EvaluationKey that will be used to relinearize Ciphertexts during multiplication.
 func (kgen KeyGenerator) GenRelinearizationKey(sk *SecretKey, rlk *RelinearizationKey) {
-	kgen.buffQP.Q.CopyValues(sk.Value.Q)
+	kgen.buffQP.Q.CopyLvl(rlk.LevelQ(), sk.Value.Q)
 	kgen.params.RingQ().AtLevel(rlk.LevelQ()).MulCoeffsMontgomery(kgen.buffQP.Q, sk.Value.Q, kgen.buffQP.Q)
 	kgen.genEvaluationKey(kgen.buffQP.Q, sk.Value, &rlk.EvaluationKey)
 }

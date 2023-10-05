@@ -178,9 +178,7 @@ func AddPolyTimesGadgetVectorToGadgetCiphertext(pt ring.Poly, cts []GadgetCipher
 		ringQ.MulScalarBigint(pt, ringQP.RingP.AtLevel(levelP).Modulus(), buff) // P * pt
 	} else {
 		levelP = 0
-		if !utils.Alias1D(pt.Buff, buff.Buff) {
-			ring.CopyLvl(levelQ, pt, buff) // 1 * pt
-		}
+		buff.CopyLvl(levelQ, pt) // 1 * pt
 	}
 
 	BaseRNSDecompositionVectorSize := len(cts[0].Value)

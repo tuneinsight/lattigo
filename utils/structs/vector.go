@@ -27,15 +27,15 @@ func (v Vector[T]) CopyNew() *Vector[T] {
 // BinarySize returns the serialized size of the object in bytes.
 func (v Vector[T]) BinarySize() (size int) {
 
-	var st *T
-	if s, isSizable := any(st).(BinarySizer); !isSizable {
-		panic(fmt.Errorf("vector component of type %T does not comply to %T", st, s))
+	if _, isSizable := any(new(T)).(BinarySizer); !isSizable {
+		panic(fmt.Errorf("vector component of type %T does not comply to %v", new(T), new(BinarySizer)))
 	}
 
 	size += 8
 	for i := range v {
 		size += any(&v[i]).(BinarySizer).BinarySize()
 	}
+
 	return
 }
 
@@ -52,9 +52,8 @@ func (v Vector[T]) BinarySize() (size int) {
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
 func (v Vector[T]) WriteTo(w io.Writer) (n int64, err error) {
 
-	var o *T
-	if wt, isWritable := any(o).(io.WriterTo); !isWritable {
-		return 0, fmt.Errorf("vector component of type %T does not comply to %T", o, wt)
+	if _, isWritable := any(new(T)).(io.WriterTo); !isWritable {
+		return 0, fmt.Errorf("vector component of type %T does not comply to %T", new(T), new(io.WriterTo))
 	}
 
 	switch w := w.(type) {
@@ -93,9 +92,8 @@ func (v Vector[T]) WriteTo(w io.Writer) (n int64, err error) {
 //     as w (see lattigo/utils/buffer/buffer.go).
 func (v *Vector[T]) ReadFrom(r io.Reader) (n int64, err error) {
 
-	var rt *T
-	if r, isReadable := any(rt).(io.ReaderFrom); !isReadable {
-		return 0, fmt.Errorf("vector component of type %T does not comply to %T", rt, r)
+	if _, isReadable := any(new(T)).(io.ReaderFrom); !isReadable {
+		return 0, fmt.Errorf("vector component of type %T does not comply to %T", new(T), new(io.ReaderFrom))
 	}
 
 	switch r := r.(type) {
@@ -141,14 +139,10 @@ func (v *Vector[T]) UnmarshalBinary(p []byte) (err error) {
 	return
 }
 
-type Equatable[T any] interface {
-	Equal(*T) bool
-}
-
 func (v Vector[T]) Equal(other Vector[T]) bool {
 
-	if d, isEquatable := any(new(T)).(Equatable[T]); !isEquatable {
-		panic(fmt.Errorf("vector component of type %T does not comply to %T", new(T), d))
+	if _, isEquatable := any(new(T)).(Equatable[T]); !isEquatable {
+		panic(fmt.Errorf("vector component of type %T does not comply to %T", new(T), new(Equatable[T])))
 	}
 
 	isEqual := true

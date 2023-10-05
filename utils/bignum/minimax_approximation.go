@@ -177,8 +177,11 @@ func (r *Remez) initialize() {
 
 		for _, inter := range r.Intervals {
 
+			/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
 			A := &inter.A
+			/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
 			B := &inter.B
+
 			nodes := inter.Nodes
 
 			for j := 0; j < nodes; j++ {

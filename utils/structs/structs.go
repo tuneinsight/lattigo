@@ -6,6 +6,10 @@ import (
 	"io"
 )
 
+type Equatable[T any] interface {
+	Equal(*T) bool
+}
+
 type CopyNewer[V any] interface {
 	CopyNew() *V
 }

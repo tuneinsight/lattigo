@@ -43,6 +43,7 @@ func main() {
 	values := make([]float64, params.MaxSlots())
 
 	// Source for sampling random plaintext values (not cryptographically secure)
+	/* #nosec G404 */
 	r := rand.New(rand.NewSource(0))
 
 	// Populates the vector of plaintext values

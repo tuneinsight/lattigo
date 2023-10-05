@@ -14,7 +14,7 @@ type Matrix[T any] [][]T
 func (m Matrix[T]) CopyNew() *Matrix[T] {
 
 	if c, isCopiable := any(new(T)).(CopyNewer[T]); !isCopiable {
-		panic(fmt.Errorf("vector component of type %T does not comply to %T", new(T), c))
+		panic(fmt.Errorf("matrix component of type %T does not comply to %T", new(T), c))
 	}
 
 	mcpy := Matrix[T](make([][]T, len(m)))
@@ -34,8 +34,8 @@ func (m Matrix[T]) CopyNew() *Matrix[T] {
 // BinarySize returns the serialized size of the object in bytes.
 func (m Matrix[T]) BinarySize() (size int) {
 
-	if s, isSizable := any(new(T)).(BinarySizer); !isSizable {
-		panic(fmt.Errorf("vector component of type %T does not comply to %T", new(T), s))
+	if _, isSizable := any(new(T)).(BinarySizer); !isSizable {
+		panic(fmt.Errorf("matrix component of type %T does not comply to %T", new(T), new(BinarySizer)))
 	}
 
 	size += 8
@@ -60,8 +60,8 @@ func (m Matrix[T]) BinarySize() (size int) {
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
 func (m Matrix[T]) WriteTo(w io.Writer) (n int64, err error) {
 
-	if w, isWritable := any(new(T)).(io.WriterTo); !isWritable {
-		return 0, fmt.Errorf("vector component of type %T does not comply to %T", new(T), w)
+	if _, isWritable := any(new(T)).(io.WriterTo); !isWritable {
+		return 0, fmt.Errorf("vector component of type %T does not comply to %T", new(T), new(io.WriterTo))
 	}
 
 	switch w := w.(type) {
@@ -101,8 +101,8 @@ func (m Matrix[T]) WriteTo(w io.Writer) (n int64, err error) {
 //     as w (see lattigo/utils/buffer/buffer.go).
 func (m *Matrix[T]) ReadFrom(r io.Reader) (n int64, err error) {
 
-	if r, isReadable := any(new(T)).(io.ReaderFrom); !isReadable {
-		return 0, fmt.Errorf("vector component of type %T does not comply to %T", new(T), r)
+	if _, isReadable := any(new(T)).(io.ReaderFrom); !isReadable {
+		return 0, fmt.Errorf("vector component of type %T does not comply to %T", new(T), new(io.ReaderFrom))
 	}
 
 	switch r := r.(type) {
@@ -151,8 +151,8 @@ func (m *Matrix[T]) UnmarshalBinary(p []byte) (err error) {
 
 func (m Matrix[T]) Equal(other Matrix[T]) bool {
 
-	if d, isEquatable := any(new(T)).(Equatable[T]); !isEquatable {
-		panic(fmt.Errorf("matrix component of type %T does not comply to %T", new(T), d))
+	if _, isEquatable := any(new(T)).(Equatable[T]); !isEquatable {
+		panic(fmt.Errorf("matrix component of type %T does not comply to %T", new(T), new(Equatable[T])))
 	}
 
 	isEqual := true

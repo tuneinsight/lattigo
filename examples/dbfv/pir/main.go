@@ -226,6 +226,7 @@ func cksphase(params bfv.Parameters, P []*party, result *rlwe.Ciphertext) *rlwe.
 	cksCombined := cks.AllocateShare(params.MaxLevel())
 	elapsedPCKSParty = runTimedParty(func() {
 		for _, pi := range P[1:] {
+			/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
 			cks.GenShare(pi.sk, zero, result, &pi.cksShare)
 		}
 	}, len(P)-1)
@@ -282,6 +283,7 @@ func ckgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.Public
 
 	elapsedCKGParty = runTimedParty(func() {
 		for _, pi := range P {
+			/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
 			ckg.GenShare(pi.sk, crp, &pi.ckgShare)
 		}
 	}, len(P))
@@ -317,18 +319,21 @@ func rkgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.Reline
 
 	elapsedRKGParty = runTimedParty(func() {
 		for _, pi := range P {
+			/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
 			rkg.GenShareRoundOne(pi.sk, crp, pi.rlkEphemSk, &pi.rkgShareOne)
 		}
 	}, len(P))
 
 	elapsedRKGCloud = runTimed(func() {
 		for _, pi := range P {
+			/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
 			rkg.AggregateShares(pi.rkgShareOne, rkgCombined1, &rkgCombined1)
 		}
 	})
 
 	elapsedRKGParty += runTimedParty(func() {
 		for _, pi := range P {
+			/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
 			rkg.GenShareRoundTwo(pi.rlkEphemSk, pi.sk, rkgCombined1, &pi.rkgShareTwo)
 		}
 	}, len(P))
@@ -336,6 +341,7 @@ func rkgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) *rlwe.Reline
 	rlk := rlwe.NewRelinearizationKey(params)
 	elapsedRKGCloud += runTimed(func() {
 		for _, pi := range P {
+			/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
 			rkg.AggregateShares(pi.rkgShareTwo, rkgCombined2, &rkgCombined2)
 		}
 		rkg.GenRelinearizationKey(rkgCombined1, rkgCombined2, rlk)
@@ -371,6 +377,7 @@ func gkgphase(params bfv.Parameters, crs sampling.PRNG, P []*party) (galKeys []*
 
 		elapsedGKGParty += runTimedParty(func() {
 			for _, pi := range P {
+				/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
 				if err := gkg.GenShare(pi.sk, galEl, crp, &pi.gkgShare); err != nil {
 					panic(err)
 				}

@@ -268,6 +268,7 @@ func main() {
 		for _, pi := range P {
 			for _, pj := range P {
 				share := shares[pj][pi]
+				/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
 				if err := pi.Thresholdizer.AggregateShares(pi.tsk, share, &pi.tsk); err != nil {
 					panic(err)
 				}

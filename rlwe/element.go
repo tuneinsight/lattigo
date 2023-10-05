@@ -159,7 +159,7 @@ func (op *Element[T]) Resize(degree, level int) {
 
 // CopyNew creates a deep copy of the object and returns it.
 func (op Element[T]) CopyNew() *Element[T] {
-	return &Element[T]{Value: *op.Value.CopyNew(), MetaData: op.MetaData.CopyNew()}
+	return &Element[T]{Value: op.Value.CopyNew(), MetaData: op.MetaData.CopyNew()}
 }
 
 // Copy copies the input element and its parameters on the target element.

@@ -4,62 +4,60 @@ import (
 	"encoding/binary"
 	"fmt"
 	"unsafe"
-
-	"golang.org/x/exp/constraints"
 )
 
 // WriteAsUint64 casts &T to an *uint64 and writes it to w.
 // User must ensure that T can be stored in an uint64.
-func WriteAsUint64[T constraints.Float | constraints.Integer](w Writer, c T) (n int64, err error) {
+func WriteAsUint64[T any](w Writer, c T) (n int64, err error) {
 	/* #nosec G103 -- behavior and consequences well understood */
 	return WriteUint64(w, *(*uint64)(unsafe.Pointer(&c)))
 }
 
 // WriteAsUint32 casts &T to an *uint32 and writes it to w.
 // User must ensure that T can be stored in an uint32.
-func WriteAsUint32[T constraints.Float | constraints.Integer](w Writer, c T) (n int64, err error) {
+func WriteAsUint32[T any](w Writer, c T) (n int64, err error) {
 	/* #nosec G103 -- behavior and consequences well understood */
 	return WriteUint32(w, *(*uint32)(unsafe.Pointer(&c)))
 }
 
 // WriteAsUint16 casts &T to an *uint16 and writes it to w.
 // User must ensure that T can be stored in an uint16.
-func WriteAsUint16[T constraints.Float | constraints.Integer](w Writer, c T) (n int64, err error) {
+func WriteAsUint16[T any](w Writer, c T) (n int64, err error) {
 	/* #nosec G103 -- behavior and consequences well understood */
 	return WriteUint16(w, *(*uint16)(unsafe.Pointer(&c)))
 }
 
 // WriteAsUint8 casts &T to an *uint8 and writes it to w.
 // User must ensure that T can be stored in an uint8.
-func WriteAsUint8[T constraints.Float | constraints.Integer](w Writer, c T) (n int64, err error) {
+func WriteAsUint8[T any](w Writer, c T) (n int64, err error) {
 	/* #nosec G103 -- behavior and consequences well understood */
 	return WriteUint8(w, *(*uint8)(unsafe.Pointer(&c)))
 }
 
 // WriteAsUint64Slice casts &[]T into *[]uint64 and writes it to w.
 // User must ensure that T can be stored in an uint64.
-func WriteAsUint64Slice[T constraints.Float | constraints.Integer](w Writer, c []T) (n int64, err error) {
+func WriteAsUint64Slice[T any](w Writer, c []T) (n int64, err error) {
 	/* #nosec G103 -- behavior and consequences well understood */
 	return WriteUint64Slice(w, *(*[]uint64)(unsafe.Pointer(&c)))
 }
 
 // WriteAsUint32Slice casts &[]T into *[]uint32 and writes it to w.
 // User must ensure that T can be stored in an uint32.
-func WriteAsUint32Slice[T constraints.Float | constraints.Integer](w Writer, c []T) (n int64, err error) {
+func WriteAsUint32Slice[T any](w Writer, c []T) (n int64, err error) {
 	/* #nosec G103 -- behavior and consequences well understood */
 	return WriteUint32Slice(w, *(*[]uint32)(unsafe.Pointer(&c)))
 }
 
 // WriteAsUint16Slice casts &[]T into *[]uint16 and writes it to w.
 // User must ensure that T can be stored in an uint16.
-func WriteAsUint16Slice[T constraints.Float | constraints.Integer](w Writer, c []T) (n int64, err error) {
+func WriteAsUint16Slice[T any](w Writer, c []T) (n int64, err error) {
 	/* #nosec G103 -- behavior and consequences well understood */
 	return WriteUint16Slice(w, *(*[]uint16)(unsafe.Pointer(&c)))
 }
 
 // WriteAsUint8Slice casts &[]T into *[]uint8 and writes it to w.
 // User must ensure that T can be stored in an uint8.
-func WriteAsUint8Slice[T constraints.Float | constraints.Integer](w Writer, c []T) (n int64, err error) {
+func WriteAsUint8Slice[T any](w Writer, c []T) (n int64, err error) {
 	/* #nosec G103 -- behavior and consequences well understood */
 	return WriteUint8Slice(w, *(*[]uint8)(unsafe.Pointer(&c)))
 }

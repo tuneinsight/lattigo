@@ -73,7 +73,7 @@ func (ct GadgetCiphertext) Equal(other *GadgetCiphertext) bool {
 
 // CopyNew creates a deep copy of the receiver Ciphertext and returns it.
 func (ct GadgetCiphertext) CopyNew() (ctCopy *GadgetCiphertext) {
-	return &GadgetCiphertext{BaseTwoDecomposition: ct.BaseTwoDecomposition, Value: *ct.Value.CopyNew()}
+	return &GadgetCiphertext{BaseTwoDecomposition: ct.BaseTwoDecomposition, Value: ct.Value.CopyNew()}
 }
 
 // BinarySize returns the serialized size of the object in bytes.

@@ -26,15 +26,15 @@ type EvaluatorForLinearTransformation interface {
 }
 
 type EvaluatorForDiagonalMatrix interface {
+	Decompose(levelQ int, ctIn *rlwe.Ciphertext, BuffDecompQP []ringqp.Poly)
+	GetPreRotatedCiphertextForDiagonalMatrixMultiplication(levelQ int, ctIn *rlwe.Ciphertext, BuffDecompQP []ringqp.Poly, rots []int, ctPreRot map[int]*rlwe.Element[ringqp.Poly]) (err error)
 	MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error)
-	MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error)
+	MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix LinearTransformation, ctInPreRot map[int]*rlwe.Element[ringqp.Poly], opOut *rlwe.Ciphertext) (err error)
 }
 
 // EvaluateLinearTransformationsMany takes as input a ciphertext ctIn, a list of linear transformations [M0, M1, M2, ...] and a list of pre-allocated receiver opOut
 // and evaluates opOut: [M0(ctIn), M1(ctIn), M2(ctIn), ...]
 func EvaluateLinearTransformationsMany(evalLT EvaluatorForLinearTransformation, evalDiag EvaluatorForDiagonalMatrix, ctIn *rlwe.Ciphertext, linearTransformations []LinearTransformation, opOut []*rlwe.Ciphertext) (err error) {
-
-	params := evalLT.GetRLWEParameters()
 
 	if len(opOut) < len(linearTransformations) {
 		return fmt.Errorf("output *rlwe.Ciphertext slice is too small")
@@ -53,18 +53,62 @@ func EvaluateLinearTransformationsMany(evalLT EvaluatorForLinearTransformation, 
 
 	BuffDecompQP := evalLT.GetBuffDecompQP()
 
-	evalLT.DecomposeNTT(level, params.MaxLevelP(), params.PCount(), ctIn.Value[1], ctIn.IsNTT, BuffDecompQP)
+	evalDiag.Decompose(level, ctIn, BuffDecompQP)
+
+	ctPreRot := map[int]*rlwe.Element[ringqp.Poly]{}
+
 	for i, lt := range linearTransformations {
+
 		if lt.N1 == 0 {
 			if err = evalDiag.MultiplyByDiagMatrix(ctIn, lt, BuffDecompQP, opOut[i]); err != nil {
 				return
 			}
 		} else {
-			if err = evalDiag.MultiplyByDiagMatrixBSGS(ctIn, lt, BuffDecompQP, opOut[i]); err != nil {
+
+			_, _, rotN2 := lt.BSGSIndex()
+
+			if err = evalDiag.GetPreRotatedCiphertextForDiagonalMatrixMultiplication(level, ctIn, BuffDecompQP, rotN2, ctPreRot); err != nil {
+				return
+			}
+
+			if err = evalDiag.MultiplyByDiagMatrixBSGS(ctIn, lt, ctPreRot, opOut[i]); err != nil {
 				return
 			}
 		}
 	}
+
+	return
+}
+
+// GetPreRotatedCiphertextForDiagonalMatrixMultiplication populates ctPreRot with the pre-rotated ciphertext for the rotations rots and deletes rotated ciphertexts that are not in rots.
+func GetPreRotatedCiphertextForDiagonalMatrixMultiplication(levelQ int, eval EvaluatorForLinearTransformation, ctIn *rlwe.Ciphertext, BuffDecompQP []ringqp.Poly, rots []int, ctPreRot map[int]*rlwe.Element[ringqp.Poly]) (err error) {
+
+	params := eval.GetRLWEParameters()
+	levelP := params.MaxLevelP()
+
+	rotsMap := map[int]bool{}
+
+	for _, i := range rots {
+		rotsMap[i] = true
+	}
+
+	// Cleans the map of non-required ciphertexts
+	for i := range ctPreRot {
+		if _, ok := rotsMap[i]; !ok {
+			delete(ctPreRot, i)
+		}
+	}
+
+	// Computes the rotation only for the ones that are not already present.
+	for _, i := range rots {
+		if _, ok := ctPreRot[i]; i != 0 && !ok {
+			ctPreRot[i] = rlwe.NewElementExtended(params, 1, levelQ, levelP)
+			if err = eval.AutomorphismHoistedLazy(levelQ, ctIn, BuffDecompQP, params.GaloisElement(i), ctPreRot[i]); err != nil {
+				return
+			}
+		}
+	}
+
 	return
 }
 
@@ -213,11 +257,11 @@ func MultiplyByDiagMatrix(eval EvaluatorForLinearTransformation, ctIn *rlwe.Ciph
 }
 
 // MultiplyByDiagMatrixBSGS multiplies the Ciphertext "ctIn" by the plaintext matrix "matrix" and returns the result on the Ciphertext
-// "opOut". Memory buffers for the decomposed Ciphertext BuffDecompQP, BuffDecompQP must be provided, those are list of poly of ringQ and ringP
-// respectively, each of size params.Beta().
+// "opOut".
+// ctInPreRotated can be obtained with GetPreRotatedCiphertextForDiagonalMatrixMultiplication.
 // The BSGS approach is used (double hoisting with baby-step giant-step), which is faster than MultiplyByDiagMatrix
 // for matrix with more than a few non-zero diagonals and uses significantly less keys.
-func MultiplyByDiagMatrixBSGS(eval EvaluatorForLinearTransformation, ctIn *rlwe.Ciphertext, matrix LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error) {
+func MultiplyByDiagMatrixBSGS(eval EvaluatorForLinearTransformation, ctIn *rlwe.Ciphertext, matrix LinearTransformation, ctInPreRot map[int]*rlwe.Element[ringqp.Poly], opOut *rlwe.Ciphertext) (err error) {
 
 	params := eval.GetRLWEParameters()
 
@@ -240,23 +284,12 @@ func MultiplyByDiagMatrixBSGS(eval EvaluatorForLinearTransformation, ctIn *rlwe.
 	PiOverF := params.PiOverflowMargin(levelP) >> 1
 
 	// Computes the N2 rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giant-step algorithm
-	index, _, rotN2 := BSGSIndex(utils.GetKeys(matrix.Vec), 1<<matrix.LogDimensions.Cols, matrix.N1)
+	index, _, _ := matrix.BSGSIndex()
 
 	BuffCt.Value[0].CopyLvl(levelQ, ctIn.Value[0])
 	BuffCt.Value[1].CopyLvl(levelQ, ctIn.Value[1])
 
 	ctInTmp0, ctInTmp1 := BuffCt.Value[0], BuffCt.Value[1]
-
-	// Pre-rotates ciphertext for the baby-step giant-step algorithm, does not divide by P yet
-	ctInRotQP := map[int]*rlwe.Element[ringqp.Poly]{}
-	for _, i := range rotN2 {
-		if i != 0 {
-			ctInRotQP[i] = rlwe.NewElementExtended(params, 1, levelQ, levelP)
-			if err = eval.AutomorphismHoistedLazy(levelQ, ctIn, BuffDecompQP, params.GaloisElement(i), ctInRotQP[i]); err != nil {
-				return
-			}
-		}
-	}
 
 	// Accumulator inner loop
 	tmp0QP := BuffQP[1]
@@ -286,7 +319,7 @@ func MultiplyByDiagMatrixBSGS(eval EvaluatorForLinearTransformation, ctIn *rlwe.
 		for _, i := range index[j] {
 
 			pt := matrix.Vec[j+i]
-			ct := ctInRotQP[i]
+			ct := ctInPreRot[i]
 
 			if i == 0 {
 				if cnt1 == 0 {

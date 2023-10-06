@@ -130,6 +130,11 @@ func (lt LinearTransformation) GaloisElements(params rlwe.ParameterProvider) (ga
 	return GaloisElementsForLinearTransformation(params, utils.GetKeys(lt.Vec), 1<<lt.LogDimensions.Cols, lt.LogBabyStepGianStepRatio)
 }
 
+// BSGSIndex returns the BSGSIndex of the target linear transformation.
+func (lt LinearTransformation) BSGSIndex() (index map[int][]int, n1, n2 []int) {
+	return BSGSIndex(utils.GetKeys(lt.Vec), 1<<lt.LogDimensions.Cols, lt.N1)
+}
+
 // NewLinearTransformation allocates a new LinearTransformation with zero values according to the parameters specified by the LinearTranfromationParameters.
 func NewLinearTransformation(params rlwe.ParameterProvider, ltparams LinearTransformationParameters) LinearTransformation {
 
@@ -225,7 +230,7 @@ func EncodeLinearTransformation[T any](encoder Encoder[T, ringqp.Poly], diagonal
 		}
 	} else {
 
-		index, _, _ := BSGSIndex(diags, cols, N1)
+		index, _, _ := allocated.BSGSIndex()
 
 		for j := range index {
 

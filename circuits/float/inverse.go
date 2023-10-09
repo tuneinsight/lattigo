@@ -7,6 +7,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // EvaluatorForInverse defines a set of common and scheme agnostic
@@ -231,6 +232,10 @@ func (eval InverseEvaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, log2min
 		start *= start // Doubles the bit-precision at each iteration
 		iters++
 	}
+
+	// Minimum of 3 iterations
+	// This minimum is set in the case where log2min is close to 0.
+	iters = utils.Max(iters, 3)
 
 	levelsPerRescaling := params.LevelsConsummedPerRescaling()
 

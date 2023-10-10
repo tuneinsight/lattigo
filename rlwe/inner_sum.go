@@ -3,11 +3,28 @@ package rlwe
 import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // InnerSum applies an optimized inner sum on the Ciphertext (log2(n) + HW(n) rotations with double hoisting).
-// The operation assumes that `ctIn` encrypts SlotCount/`batchSize` sub-vectors of size `batchSize` which it adds together (in parallel) in groups of `n`.
+// The operation assumes that `ctIn` encrypts Slots/`batchSize` sub-vectors of size `batchSize` and will add them together (in parallel) in groups of `n`.
 // It outputs in opOut a Ciphertext for which the "leftmost" sub-vector of each group is equal to the sum of the group.
+//
+// The inner sum is computed in a tree fashion. Example for batchSize=2 & n=4 (garbage slots are marked by 'x'):
+//
+// 1) [{a, b}, {c, d}, {e, f}, {g, h}, {a, b}, {c, d}, {e, f}, {g, h}]
+//
+//  2. [{a, b}, {c, d}, {e, f}, {g, h}, {a, b}, {c, d}, {e, f}, {g, h}]
+//     +
+//     [{c, d}, {e, f}, {g, h}, {x, x}, {c, d}, {e, f}, {g, h}, {x, x}] (rotate batchSize * 2^{0})
+//     =
+//     [{a+c, b+d}, {x, x}, {e+g, f+h}, {x, x}, {a+c, b+d}, {x, x}, {e+g, f+h}, {x, x}]
+//
+//  3. [{a+c, b+d}, {x, x}, {e+g, f+h}, {x, x}, {a+c, b+d}, {x, x}, {e+g, f+h}, {x, x}] (rotate batchSize * 2^{1})
+//     +
+//     [{e+g, f+h}, {x, x}, {x, x}, {x, x}, {e+g, f+h}, {x, x}, {x, x}, {x, x}] =
+//     =
+//     [{a+c+e+g, b+d+f+h}, {x, x}, {x, x}, {x, x}, {a+c+e+g, b+d+f+h}, {x, x}, {x, x}, {x, x}]
 func (eval Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, opOut *Ciphertext) (err error) {
 
 	params := eval.GetRLWEParameters()
@@ -130,6 +147,150 @@ func (eval Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, opOut *Cipher
 				}
 				ringQ.Add(ctInNTT.Value[0], cQ.Value[0], ctInNTT.Value[0])
 				ringQ.Add(ctInNTT.Value[1], cQ.Value[1], ctInNTT.Value[1])
+			}
+		}
+	}
+
+	if !ctIn.IsNTT {
+		ringQ.INTT(opOut.Value[0], opOut.Value[0])
+		ringQ.INTT(opOut.Value[1], opOut.Value[1])
+	}
+
+	return
+}
+
+// InnerFunction applies an user defined function on the Ciphertext with a tree-like combination requiring log2(n) + HW(n) rotations.
+//
+// InnerFunction with f = eval.Add(a, b, c) is equivalent to InnerSum (although slightly slower).
+//
+// The operation assumes that `ctIn` encrypts Slots/`batchSize` sub-vectors of size `batchSize` and will add them together (in parallel) in groups of `n`.
+// It outputs in opOut a Ciphertext for which the "leftmost" sub-vector of each group is equal to the pair-wise recursive evaluation of function over the group.
+//
+// The inner funcion is computed in a tree fashion. Example for batchSize=2 & n=4 (garbage slots are marked by 'x'):
+//
+// 1) [{a, b}, {c, d}, {e, f}, {g, h}, {a, b}, {c, d}, {e, f}, {g, h}]
+//
+//  2. [{a, b}, {c, d}, {e, f}, {g, h}, {a, b}, {c, d}, {e, f}, {g, h}]
+//     f
+//     [{c, d}, {e, f}, {g, h}, {x, x}, {c, d}, {e, f}, {g, h}, {x, x}] (rotate batchSize * 2^{0})
+//     =
+//     [{f(a, c), f(b, d)}, {f(c, e), f(d, f)}, {f(e, g), f(f, h)}, {x, x}, {f(a, c), f(b, d)}, {f(c, e), f(d, f)}, {f(e, g), f(f, h)}, {x, x}]
+//
+//  3. [{f(a, c), f(b, d)}, {x, x}, {f(e, g), f(f, h)}, {x, x}, {f(a, c), f(b, d)}, {x, x}, {f(e, g), f(f, h)}, {x, x}] (rotate batchSize * 2^{1})
+//     +
+//     [{f(e, g), f(f, h)}, {x, x}, {x, x}, {x, x}, {f(e, g), f(f, h)}, {x, x}, {x, x}, {x, x}] =
+//     =
+//     [{f(f(a,c),f(e,g)), f(f(b, d), f(f, h))}, {x, x}, {x, x}, {x, x}, {f(f(a,c),f(e,g)), f(f(b, d), f(f, h))}, {x, x}, {x, x}, {x, x}]
+func (eval Evaluator) InnerFunction(ctIn *Ciphertext, batchSize, n int, f func(a, b, c *Ciphertext) (err error), opOut *Ciphertext) (err error) {
+
+	params := eval.GetRLWEParameters()
+
+	levelQ := utils.Min(ctIn.Level(), opOut.Level())
+
+	ringQ := params.RingQ().AtLevel(levelQ)
+
+	opOut.Resize(opOut.Degree(), levelQ)
+	*opOut.MetaData = *ctIn.MetaData
+
+	P0 := params.RingQ().NewPoly()
+	P1 := params.RingQ().NewPoly()
+	P2 := params.RingQ().NewPoly()
+	P3 := params.RingQ().NewPoly()
+
+	ctInNTT := NewCiphertext(params, 1, levelQ)
+
+	*ctInNTT.MetaData = *ctIn.MetaData
+	ctInNTT.IsNTT = true
+
+	if !ctIn.IsNTT {
+		ringQ.NTT(ctIn.Value[0], ctInNTT.Value[0])
+		ringQ.NTT(ctIn.Value[1], ctInNTT.Value[1])
+	} else {
+		ctInNTT.Copy(ctIn)
+	}
+
+	if n == 1 {
+		opOut.Copy(ctIn)
+	} else {
+
+		// Accumulator mod Q
+		accQ, err := NewCiphertextAtLevelFromPoly(levelQ, []ring.Poly{P0, P1})
+		*accQ.MetaData = *ctInNTT.MetaData
+
+		if err != nil {
+			panic(err)
+		}
+
+		// Buffer mod Q
+		cQ, err := NewCiphertextAtLevelFromPoly(levelQ, []ring.Poly{P2, P3})
+		*cQ.MetaData = *ctInNTT.MetaData
+
+		if err != nil {
+			panic(err)
+		}
+
+		state := false
+		copy := true
+		// Binary reading of the input n
+		for i, j := 0, n; j > 0; i, j = i+1, j>>1 {
+
+			// If the binary reading scans a 1 (j is odd)
+			if j&1 == 1 {
+
+				k := n - (n & ((2 << i) - 1))
+				k *= batchSize
+
+				// If the rotation is not zero
+				if k != 0 {
+
+					rot := params.GaloisElement(k)
+
+					// opOutQ = f(opOutQ, Rotate(ctInNTT, k), opOutQ)
+					if copy {
+						if err = eval.Automorphism(ctInNTT, rot, accQ); err != nil {
+							return err
+						}
+						copy = false
+					} else {
+						if err = eval.Automorphism(ctInNTT, rot, cQ); err != nil {
+							return err
+						}
+
+						if err = f(accQ, cQ, accQ); err != nil {
+							return err
+						}
+					}
+
+					// j is even
+				} else {
+
+					state = true
+
+					// if n is not a power of two, then at least one j was odd, and thus the buffer opOutQ is not empty
+					if n&(n-1) != 0 {
+
+						opOut.Copy(accQ)
+
+						if err = f(opOut, ctInNTT, opOut); err != nil {
+							return err
+						}
+
+					} else {
+						opOut.Copy(ctInNTT)
+					}
+				}
+			}
+
+			if !state {
+
+				// ctInNTT = f(ctInNTT, Rotate(ctInNTT, 2^i), ctInNTT)
+				if err = eval.Automorphism(ctInNTT, params.GaloisElement((1<<i)*batchSize), cQ); err != nil {
+					return err
+				}
+
+				if err = f(ctInNTT, cQ, ctInNTT); err != nil {
+					return err
+				}
 			}
 		}
 	}

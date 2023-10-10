@@ -29,10 +29,12 @@ All notable changes to this library are documented in this file.
         - GoldschmidtDivision (x in [0, 2])
         - Full domain division (x in [-max, -min] U [min, max])
         - Sign and Step piece wise functions (x in [-1, 1] and [0, 1] respectively)
+        - Min/Max between values in [-0.5, 0.5]
     - `circuits/float/bootstrapper`: Package `bootstrapper` implements a generic bootstrapping wrapper of the package `bootstrapping`.
         - Bootstrapping batches of ciphertexts of smaller dimension and/or with sparse packing with depth-less packing/unpacking.
         - Bootstrapping for the Conjugate Invariant CKKS with optimal throughput.
     - `circuits/float/bootstrapper/bootstrapping`: Package `bootstrapping`implements the CKKS bootstrapping.
+        - Generate the bootstrapping parameters from the residual parameters
         - Improved the implementation of META-BTS, providing arbitrary precision bootstrapping from only one additional small prime.
         - Generalization of the bootstrapping parameters from predefined primes (previously only from LogQ)
     - `circuits/integer`: Package `integer` implements advanced homomorphic circuits for encrypted arithmetic modular arithmetic with integers.
@@ -103,7 +105,7 @@ All notable changes to this library are documented in this file.
         - Removed the field `Pow2Base` which is now a parameter of the struct `EvaluationKey`.
     - Changes to the `Encryptor`:
         - `EncryptorPublicKey` and `EncryptorSecretKey` are now public.
-        - Encryptors instantiated with a `rlwe.PublicKey` now can encrypt over `rlwe.ElementInterfaceQP` (i.e. generating of `rlwe.GadgetCiphertext` encryptions of zero with `rlwe.PublicKey`).
+        - Encryptors instantiated with a `rlwe.PublicKey` now can encrypt over `rlwe.ElementInterface[ringqp.Poly]` (i.e. generating of `rlwe.GadgetCiphertext` encryptions of zero with `rlwe.PublicKey`).
     - Changes to the `Decryptor`:
         - `NewDecryptor` returns a `*Decryptor` instead of an interface.
     - Changes to the `Evaluator`:
@@ -113,7 +115,7 @@ All notable changes to this library are documented in this file.
         - `Evaluator.Pack` is not recursive anymore and gives the option to zero (or not) slots which are not multiples of `X^{N/n}`.
         - Added the methods `CheckAndGetGaloisKey` and `CheckAndGetRelinearizationKey` to safely check and get the corresponding `EvaluationKeys`.
     - Changes to the Keys structs:
-        - Added `EvaluationKeySetInterface`, which enables users to provide custom loading/saving/persistence policies and implementation for the `EvaluationKeys`.
+        - Added `EvaluationKeySet`, which enables users to provide custom loading/saving/persistence policies and implementation for the `EvaluationKeys`.
         - `SwitchingKey` has been renamed `EvaluationKey` to better convey that theses are public keys used during the evaluation phase of a circuit. All methods and variables names have been accordingly renamed.
         - The struct `RotationKeySet` holding a map of `SwitchingKeys` has been replaced by the struct `GaloisKey` holding a single `EvaluationKey`.
         - The `RelinearizationKey` has been simplified to only store `s^2`, which is aligned with the capabilities of the schemes.
@@ -136,12 +138,12 @@ All notable changes to this library are documented in this file.
         - Substantially increased the test coverage of `rlwe` (both for the amount of operations but also parameters).
         - Substantially increased the number of benchmarked operations in `rlwe`.
     - Other changes:
-        - Added `Element` and `ElementExtended` which serve as a common underlying type for all cryptographic objects.
+        - Added generic `Element[T]` which serve as a common underlying type for all cryptographic objects.
         - The argument `level` is now optional for `NewCiphertext` and `NewPlaintext`.
         - `EvaluationKey` (and all parent structs) and `GadgetCiphertext` now takes an optional argument `rlwe.EvaluationKeyParameters` that allows to specify the level `Q` and `P` and the `BaseTwoDecomposition`.
         - Allocating zero `rlwe.EvaluationKey`, `rlwe.GaloisKey` and `rlwe.RelinearizationKey` now takes an optional struct `rlwe.EvaluationKeyParameters` specifying the levels `Q` and `P` and the `BaseTwoDecomposition` of the key.
         - Changed `[]*ring.Poly` to `structs.Vector[ring.Poly]` and `[]ringqp.Poly` to `structs.Vector[ringqp.Poly]`.
-        - Removed the struct `CiphertextQP` (replaced by `OperandQP`).
+        - Replaced the struct `CiphertextQP` by `Element[ringqp.Poly]`.
         - Added basic interfaces description for Parameters, Encryptor, PRNGEncryptor, Decryptor, Evaluator and PolynomialEvaluator.
         - Structs that can be serialized now all implement the method V Equal(V) bool.
         - Setting the Hamming weight of the secret or the standard deviation of the error through `NewParameters` to negative values will instantiate these fields as zero values and return a warning (as an error).
@@ -154,8 +156,6 @@ All notable changes to this library are documented in this file.
     - Added tests for encryption and external product.
 - RING: 
     - Changes to sampling:
-        - Added the package `ring/distribution` which defines distributions over polynomials, the syntax follows the one of the the lattice estimator of `https://github.com/malb/lattice-estimator`.
-        - Updated samplers to be parameterized with distributions defined by the `ring/distribution` package.
         - Updated Gaussian sampling to work with arbitrary size standard deviation and bounds.
         - Added `Sampler` interface.
     - Added finite field polynomial interpolation.

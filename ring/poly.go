@@ -68,9 +68,11 @@ func (pol Poly) CopyNew() *Poly {
 
 // Copy copies the coefficients of p1 on the target polynomial.
 // This method does nothing if the underlying arrays are the same.
-// Expects the degree of both polynomials to be identical.
+// This method will resize the target polynomial to the level of
+// the input polynomial.
 func (pol *Poly) Copy(p1 Poly) {
-	pol.CopyLvl(utils.Min(pol.Level(), p1.Level()), p1)
+	pol.Resize(p1.Level())
+	pol.CopyLvl(p1.Level(), p1)
 }
 
 // CopyLvl copies the coefficients of p1 on the target polynomial.

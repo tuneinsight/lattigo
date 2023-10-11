@@ -17,6 +17,12 @@ type Float interface {
 	float64 | complex128 | *big.Float | *bignum.Complex
 }
 
+// FloatSlice is an empty interface whose goal is to
+// indicate that the expected input should be []Float.
+// See Float for information on the type constraint.
+type FloatSlice interface {
+}
+
 // GaloisGen is an integer of order N/2 modulo M and that spans Z_M with the integer -1.
 // The j-th ring automorphism takes the root zeta to zeta^(5j).
 const GaloisGen uint64 = ring.GaloisGen
@@ -130,12 +136,12 @@ func (ecd Encoder) GetRLWEParameters() rlwe.Parameters {
 	return ecd.parameters.Parameters
 }
 
-// Encode encodes a set of values on the target plaintext.
+// Encode encodes a FloatSlice on the target plaintext.
 // Encoding is done at the level and scale of the plaintext.
 // Encoding domain is done according to the metadata of the plaintext.
 // User must ensure that 1 <= len(values) <= 2^pt.LogMaxDimensions < 2^logN.
-// The imaginary part of []complex128 will be discarded if ringType == ring.ConjugateInvariant.
-func (ecd Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
+// The imaginary part will be discarded if ringType == ring.ConjugateInvariant.
+func (ecd Encoder) Encode(values FloatSlice, pt *rlwe.Plaintext) (err error) {
 
 	if pt.IsBatched {
 		return ecd.Embed(values, pt.MetaData, pt.Value)
@@ -169,34 +175,24 @@ func (ecd Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 	return
 }
 
-// Decode decodes the input plaintext on a new slice of complex128.
-// This method is the same as .DecodeSlots(*).
-func (ecd Encoder) Decode(pt *rlwe.Plaintext, values interface{}) (err error) {
+// Decode decodes the input plaintext on a new FloatSlice.
+func (ecd Encoder) Decode(pt *rlwe.Plaintext, values FloatSlice) (err error) {
 	return ecd.DecodePublic(pt, values, nil)
 }
 
-// DecodePublic decodes the input plaintext on a new slice of complex128.
-// Adds, before the decoding step, noise following the given distribution parameters.
+// DecodePublic decodes the input plaintext on a FloatSlice.
+// It adds, before the decoding step (i.e. in the Ring) noise that follows the given distribution parameters.
 // If the underlying ringType is ConjugateInvariant, the imaginary part (and its related error) are zero.
-func (ecd Encoder) DecodePublic(pt *rlwe.Plaintext, values interface{}, noiseFlooding ring.DistributionParameters) (err error) {
+func (ecd Encoder) DecodePublic(pt *rlwe.Plaintext, values FloatSlice, noiseFlooding ring.DistributionParameters) (err error) {
 	return ecd.decodePublic(pt, values, noiseFlooding)
 }
 
-// Embed is a generic method to encode a set of values on the target polyOut interface.
+// Embed is a generic method to encode a FloatSlice on the target polyOut.
 // This method it as the core of the slot encoding.
-// values: values.(type) can be either []complex128, []*bignum.Complex, []float64 or []*big.Float.
-//
-//	The imaginary part of []complex128 or []*bignum.Complex will be discarded if ringType == ring.ConjugateInvariant.
-//
-// logslots: user must ensure that 1 <= len(values) <= 2^logSlots < 2^logN.
-// scale: the scaling factor used do discretize float64 to fixed point integers.
-// montgomery: if true then the value written on polyOut are put in the Montgomery domain.
-// polyOut: polyOut.(type) can be either ringqp.Poly or ring.Poly.
-//
-//	The encoding encoding is done at the level of polyOut.
-//
-// Values written on  polyOut are always in the NTT domain.
-func (ecd Encoder) Embed(values interface{}, metadata *rlwe.MetaData, polyOut interface{}) (err error) {
+// Values are encoded according to the provided metadata.
+// Accepted polyOut.(type) are ringqp.Poly and ring.Poly.
+// The imaginary part will be discarded if ringType == ring.ConjugateInvariant.
+func (ecd Encoder) Embed(values FloatSlice, metadata *rlwe.MetaData, polyOut interface{}) (err error) {
 	if ecd.prec <= 53 {
 		return ecd.embedDouble(values, metadata, polyOut)
 	}
@@ -204,7 +200,10 @@ func (ecd Encoder) Embed(values interface{}, metadata *rlwe.MetaData, polyOut in
 	return ecd.embedArbitrary(values, metadata, polyOut)
 }
 
-func (ecd Encoder) embedDouble(values interface{}, metadata *rlwe.MetaData, polyOut interface{}) (err error) {
+// embedDouble encode a FloatSlice on polyOut using FFT with complex128 arithmetic.
+// Values are encoded according to the provided metadata.
+// Accepted polyOut.(type) are ringqp.Poly and ring.Poly.
+func (ecd Encoder) embedDouble(values FloatSlice, metadata *rlwe.MetaData, polyOut interface{}) (err error) {
 
 	if maxLogCols := ecd.parameters.LogMaxDimensions().Cols; metadata.LogDimensions.Cols < 0 || metadata.LogDimensions.Cols > maxLogCols {
 		return fmt.Errorf("cannot Embed: logSlots (%d) must be greater or equal to %d and smaller than %d", metadata.LogDimensions.Cols, 0, maxLogCols)
@@ -322,7 +321,10 @@ func (ecd Encoder) embedDouble(values interface{}, metadata *rlwe.MetaData, poly
 	return
 }
 
-func (ecd Encoder) embedArbitrary(values interface{}, metadata *rlwe.MetaData, polyOut interface{}) (err error) {
+// embedArbitrary encode a FloatSlice on polyOut using FFT with *bignum.Complex arithmetic.
+// Values are encoded according to the provided metadata.
+// Accepted polyOut.(type) are ringqp.Poly and ring.Poly.
+func (ecd Encoder) embedArbitrary(values FloatSlice, metadata *rlwe.MetaData, polyOut interface{}) (err error) {
 
 	if maxLogCols := ecd.parameters.LogMaxDimensions().Cols; metadata.LogDimensions.Cols < 0 || metadata.LogDimensions.Cols > maxLogCols {
 		return fmt.Errorf("cannot Embed: logSlots (%d) must be greater or equal to %d and smaller than %d", metadata.LogDimensions.Cols, 0, maxLogCols)
@@ -453,7 +455,8 @@ func (ecd Encoder) embedArbitrary(values interface{}, metadata *rlwe.MetaData, p
 	return
 }
 
-func (ecd Encoder) plaintextToComplex(level int, scale rlwe.Scale, logSlots int, p ring.Poly, values interface{}) (err error) {
+// plaintextToComplex maps a CRT polynomial to a complex valued FloatSlice.
+func (ecd Encoder) plaintextToComplex(level int, scale rlwe.Scale, logSlots int, p ring.Poly, values FloatSlice) (err error) {
 
 	isreal := ecd.parameters.RingType() == ring.ConjugateInvariant
 	if level == 0 {
@@ -462,14 +465,17 @@ func (ecd Encoder) plaintextToComplex(level int, scale rlwe.Scale, logSlots int,
 	return polyToComplexCRT(p, ecd.bigintCoeffs, values, scale, logSlots, isreal, ecd.parameters.RingQ().AtLevel(level))
 }
 
-func (ecd Encoder) plaintextToFloat(level int, scale rlwe.Scale, logSlots int, p ring.Poly, values interface{}) (err error) {
+// plaintextToFloat maps a CRT polynomial to a real valued FloatSlice.
+func (ecd Encoder) plaintextToFloat(level int, scale rlwe.Scale, logSlots int, p ring.Poly, values FloatSlice) (err error) {
 	if level == 0 {
 		return ecd.polyToFloatNoCRT(p.Coeffs[0], values, scale, logSlots, ecd.parameters.RingQ().AtLevel(level))
 	}
 	return ecd.polyToFloatCRT(p, values, scale, logSlots, ecd.parameters.RingQ().AtLevel(level))
 }
 
-func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noiseFlooding ring.DistributionParameters) (err error) {
+// decodePublic decode a plaintext to a FloatSlice.
+// The method will add a flooding noise before the decoding process following the defined distribution if it is not nil.
+func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values FloatSlice, noiseFlooding ring.DistributionParameters) (err error) {
 
 	logSlots := pt.LogDimensions.Cols
 	slots := 1 << logSlots
@@ -637,7 +643,8 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values interface{}, noiseFlo
 	return
 }
 
-func (ecd Encoder) IFFT(values interface{}, logN int) (err error) {
+// IFFT evaluates the special 2^{LogN}-th encoding discrete Fourier transform on FloatSlice.
+func (ecd Encoder) IFFT(values FloatSlice, logN int) (err error) {
 	switch values := values.(type) {
 	case []complex128:
 		switch roots := ecd.roots.(type) {
@@ -665,7 +672,8 @@ func (ecd Encoder) IFFT(values interface{}, logN int) (err error) {
 
 }
 
-func (ecd Encoder) FFT(values interface{}, logN int) (err error) {
+// FFT evaluates the special 2^{LogN}-th decoding discrete Fourier transform on FloatSlice.
+func (ecd Encoder) FFT(values FloatSlice, logN int) (err error) {
 	switch values := values.(type) {
 	case []complex128:
 		switch roots := ecd.roots.(type) {
@@ -693,7 +701,8 @@ func (ecd Encoder) FFT(values interface{}, logN int) (err error) {
 	return
 }
 
-func polyToComplexNoCRT(coeffs []uint64, values interface{}, scale rlwe.Scale, logSlots int, isreal bool, ringQ *ring.Ring) (err error) {
+// polyToComplexNoCRT decodes a single-level CRT poly on a complex valued FloatSlice.
+func polyToComplexNoCRT(coeffs []uint64, values FloatSlice, scale rlwe.Scale, logSlots int, isreal bool, ringQ *ring.Ring) (err error) {
 
 	slots := 1 << logSlots
 	maxCols := int(ringQ.NthRoot() >> 2)
@@ -788,7 +797,8 @@ func polyToComplexNoCRT(coeffs []uint64, values interface{}, scale rlwe.Scale, l
 	return
 }
 
-func polyToComplexCRT(poly ring.Poly, bigintCoeffs []*big.Int, values interface{}, scale rlwe.Scale, logSlots int, isreal bool, ringQ *ring.Ring) (err error) {
+// polyToComplexNoCRT decodes a multiple-level CRT poly on a complex valued FloatSlice.
+func polyToComplexCRT(poly ring.Poly, bigintCoeffs []*big.Int, values FloatSlice, scale rlwe.Scale, logSlots int, isreal bool, ringQ *ring.Ring) (err error) {
 
 	maxCols := int(ringQ.NthRoot() >> 2)
 	slots := 1 << logSlots
@@ -895,7 +905,8 @@ func polyToComplexCRT(poly ring.Poly, bigintCoeffs []*big.Int, values interface{
 	return
 }
 
-func (ecd *Encoder) polyToFloatCRT(p ring.Poly, values interface{}, scale rlwe.Scale, logSlots int, r *ring.Ring) (err error) {
+// polyToFloatCRT decodes a multiple-level CRT poly on a real valued FloatSlice.
+func (ecd *Encoder) polyToFloatCRT(p ring.Poly, values FloatSlice, scale rlwe.Scale, logSlots int, r *ring.Ring) (err error) {
 
 	var slots int
 	switch values := values.(type) {
@@ -977,7 +988,8 @@ func (ecd *Encoder) polyToFloatCRT(p ring.Poly, values interface{}, scale rlwe.S
 	return
 }
 
-func (ecd *Encoder) polyToFloatNoCRT(coeffs []uint64, values interface{}, scale rlwe.Scale, logSlots int, r *ring.Ring) (err error) {
+// polyToFloatNoCRT decodes a single-level CRT poly on a real valued FloatSlice.
+func (ecd *Encoder) polyToFloatNoCRT(coeffs []uint64, values FloatSlice, scale rlwe.Scale, logSlots int, r *ring.Ring) (err error) {
 
 	Q := r.SubRings[0].Modulus
 
@@ -1071,6 +1083,8 @@ func (ecd *Encoder) polyToFloatNoCRT(coeffs []uint64, values interface{}, scale 
 	return
 }
 
+// ShallowCopy returns a lightweight copy of the target object
+// that can be used concurrently with the original object.
 func (ecd Encoder) ShallowCopy() *Encoder {
 
 	prng, err := sampling.NewPRNG()

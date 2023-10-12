@@ -62,7 +62,7 @@ func (ekg *RelinearizationKeyGenProtocol) ShallowCopy() RelinearizationKeyGenPro
 }
 
 // NewRelinearizationKeyGenProtocol creates a new RelinearizationKeyGen protocol struct.
-func NewRelinearizationKeyGenProtocol(params rlwe.Parameters) RelinearizationKeyGenProtocol {
+func NewRelinearizationKeyGenProtocol(params rlwe.ParameterProvider) RelinearizationKeyGenProtocol {
 	rkg := RelinearizationKeyGenProtocol{}
 	rkg.params = *params.GetRLWEParameters()
 

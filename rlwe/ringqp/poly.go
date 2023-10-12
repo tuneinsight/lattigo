@@ -79,7 +79,7 @@ func (p Poly) CopyNew() *Poly {
 // Resize resizes the levels of the target polynomial to the provided levels.
 // If the provided level is larger than the current level, then allocates zero
 // coefficients, otherwise dereferences the coefficients above the provided level.
-// Nil polynmials are unafected.
+// Nil polynomials are unaffected.
 func (p *Poly) Resize(levelQ, levelP int) {
 	p.Q.Resize(levelQ)
 	p.P.Resize(levelP)

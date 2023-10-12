@@ -46,7 +46,7 @@ type EvaluationKeySet struct {
 func NewBootstrapper(btpParams Parameters, btpKeys *EvaluationKeySet) (btp *Bootstrapper, err error) {
 
 	if btpParams.Mod1ParametersLiteral.Mod1Type == float.SinContinuous && btpParams.Mod1ParametersLiteral.DoubleAngle != 0 {
-		return nil, fmt.Errorf("cannot use double angle formul for Mod1Type = Sin -> must use Mod1Type = Cos")
+		return nil, fmt.Errorf("cannot use double angle formula for Mod1Type = Sin -> must use Mod1Type = Cos")
 	}
 
 	if btpParams.Mod1ParametersLiteral.Mod1Type == float.CosDiscrete && btpParams.Mod1ParametersLiteral.SineDegree < 2*(btpParams.Mod1ParametersLiteral.K-1) {
@@ -249,7 +249,7 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey *E
 		return
 	}
 
-	encoder = nil
+	encoder = nil // For the GC
 
 	return
 }

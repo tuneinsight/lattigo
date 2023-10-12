@@ -474,10 +474,11 @@ func (eval Evaluator) DropLevel(op0 *rlwe.Ciphertext, levels int) {
 }
 
 // Rescale divides op0 by the last prime of the moduli chain and repeats this procedure
-// params.LevelsConsummedPerRescaling() times.
+// params.LevelsConsumedPerRescaling() times.
+//
 // Returns an error if:
-// - Either op0 or opOut MetaData are nil
-// - The level of op0 is too low to enable a rescale
+//   - Either op0 or opOut MetaData are nil
+//   - The level of op0 is too low to enable a rescale
 func (eval Evaluator) Rescale(op0, opOut *rlwe.Ciphertext) (err error) {
 
 	if op0.MetaData == nil || opOut.MetaData == nil {
@@ -486,7 +487,7 @@ func (eval Evaluator) Rescale(op0, opOut *rlwe.Ciphertext) (err error) {
 
 	params := eval.GetParameters()
 
-	nbRescales := params.LevelsConsummedPerRescaling()
+	nbRescales := params.LevelsConsumedPerRescaling()
 
 	if op0.Level() <= nbRescales-1 {
 		return fmt.Errorf("cannot Rescale: input Ciphertext level is too low")
@@ -647,7 +648,7 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 
 			// If DefaultScalingFactor > 2^60, then multiple moduli are used per single rescale
 			// thus continues multiplying the scale with the appropriate number of moduli
-			for i := 1; i < eval.GetParameters().LevelsConsummedPerRescaling(); i++ {
+			for i := 1; i < eval.GetParameters().LevelsConsumedPerRescaling(); i++ {
 				scale = scale.Mul(rlwe.NewScale(ringQ.SubRings[level-i].Modulus))
 			}
 		}
@@ -686,7 +687,7 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 
 		// If DefaultScalingFactor > 2^60, then multiple moduli are used per single rescale
 		// thus continues multiplying the scale with the appropriate number of moduli
-		for i := 1; i < eval.GetParameters().LevelsConsummedPerRescaling(); i++ {
+		for i := 1; i < eval.GetParameters().LevelsConsumedPerRescaling(); i++ {
 			pt.Scale = pt.Scale.Mul(rlwe.NewScale(ringQ.SubRings[level-i].Modulus))
 		}
 
@@ -939,7 +940,7 @@ func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *
 			} else {
 				scaleRLWE = rlwe.NewScale(ringQ.SubRings[level].Modulus)
 
-				for i := 1; i < eval.GetParameters().LevelsConsummedPerRescaling(); i++ {
+				for i := 1; i < eval.GetParameters().LevelsConsumedPerRescaling(); i++ {
 					scaleRLWE = scaleRLWE.Mul(rlwe.NewScale(ringQ.SubRings[level-i].Modulus))
 				}
 
@@ -979,7 +980,7 @@ func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *
 
 			scaleRLWE = rlwe.NewScale(ringQ.SubRings[level].Modulus)
 
-			for i := 1; i < eval.GetParameters().LevelsConsummedPerRescaling(); i++ {
+			for i := 1; i < eval.GetParameters().LevelsConsumedPerRescaling(); i++ {
 				scaleRLWE = scaleRLWE.Mul(rlwe.NewScale(ringQ.SubRings[level-i].Modulus))
 			}
 

@@ -99,7 +99,7 @@ func (eval InverseEvaluator) evaluateNew(ct *rlwe.Ciphertext, log2min, log2max f
 
 	params := eval.Parameters
 
-	levelsPerRescaling := params.LevelsConsummedPerRescaling()
+	levelsPerRescaling := params.LevelsConsumedPerRescaling()
 
 	btp := eval.Bootstrapper
 
@@ -237,7 +237,7 @@ func (eval InverseEvaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, log2min
 	// This minimum is set in the case where log2min is close to 0.
 	iters = utils.Max(iters, 3)
 
-	levelsPerRescaling := params.LevelsConsummedPerRescaling()
+	levelsPerRescaling := params.LevelsConsumedPerRescaling()
 
 	if depth := iters * levelsPerRescaling; btp == nil && depth > ct.Level() {
 		return nil, fmt.Errorf("cannot GoldschmidtDivisionNew: ct.Level()=%d < depth=%d and rlwe.Bootstrapper is nil", ct.Level(), depth)
@@ -324,7 +324,7 @@ func (eval InverseEvaluator) IntervalNormalization(ct *rlwe.Ciphertext, log2Max 
 
 	ctNorm = ct.CopyNew()
 
-	levelsPerRescaling := eval.Parameters.LevelsConsummedPerRescaling()
+	levelsPerRescaling := eval.Parameters.LevelsConsumedPerRescaling()
 
 	L := 2.45 // Compression factor (experimental)
 

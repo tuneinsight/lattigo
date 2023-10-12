@@ -1,7 +1,7 @@
 package rlwe
 
 var (
-	// ExmpleParameterLogN14LogQP438 is an example parameters set with logN=14 and logQP=438
+	// ExampleParameterLogN14LogQP438 is an example parameters set with logN=14 and logQP=438
 	// offering 128-bit of security.
 	ExampleParametersLogN14LogQP438 = ParametersLiteral{
 		LogN:    14,

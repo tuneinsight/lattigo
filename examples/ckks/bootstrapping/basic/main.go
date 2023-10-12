@@ -39,7 +39,7 @@ func main() {
 	// First we must define the residual parameters.
 	// The residual parameters are the parameters used outside of the bootstrapping circuit.
 	// For this example, we have a LogN=16, logQ = 55 + 10*40 and logP = 3*61, so LogQP = 638.
-	// With LogN=16, LogQP=638 and H=192, these paramters achieve well over 128-bit of security.
+	// With LogN=16, LogQP=638 and H=192, these parameters achieve well over 128-bit of security.
 	params, err := ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
 		LogN:            LogN,                                              // Log2 of the ringdegree
 		LogQ:            []int{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40}, // Log2 of the ciphertext prime moduli
@@ -57,13 +57,13 @@ func main() {
 	//==========================================
 
 	// The bootstrapping circuit use its own Parameters which will be automatically
-	// instantiated given the residual parameters and the bootsrappping parameters.
+	// instantiated given the residual parameters and the bootstrapping parameters.
 
 	// !WARNING! The bootstrapping ckks parameters are not ensure to be 128-bit secure, it is the
-	// responsability of the user to check that the meet the security requirement and tweak them if necessary.
+	// responsibility of the user to check that the meet the security requirement and tweak them if necessary.
 
 	// Note that the default bootstrapping parameters use LogN=16 and a ternary secret with H=192 non-zero coefficients
-	// which provides parmaeters which are at least 128-bit if their LogQP <= 1550.
+	// which provides parameters which are at least 128-bit if their LogQP <= 1550.
 
 	// For this first example, we do not specify any circuit specific optional field in the bootstrapping parameters literal.
 	// Thus we expect the bootstrapping to give a precision of 27.25 bits with H=192 (and 23.8 with H=N/2)

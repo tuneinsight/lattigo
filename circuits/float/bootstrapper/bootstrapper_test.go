@@ -29,7 +29,7 @@ func TestBootstrapping(t *testing.T) {
 	// Check that the bootstrapper complies to the rlwe.Bootstrapper interface
 	var _ circuits.Bootstrapper[rlwe.Ciphertext] = (*Bootstrapper)(nil)
 
-	t.Run("BootstrapingWithoutRingDegreeSwitch", func(t *testing.T) {
+	t.Run("BootstrappingWithoutRingDegreeSwitch", func(t *testing.T) {
 
 		schemeParamsLit := testPrec45
 		btpParamsLit := ParametersLiteral{}
@@ -339,7 +339,7 @@ func TestBootstrapping(t *testing.T) {
 			require.True(t, ctLeftQ0.Level() == 0)
 			require.True(t, ctRightQ0.Level() == 0)
 
-			// Bootstrapps the ciphertext
+			// Bootstraps the ciphertext
 			ctLeftQL, ctRightQL, err := bootstrapper.refreshConjugateInvariant(ctLeftQ0, ctRightQ0)
 
 			require.NoError(t, err)

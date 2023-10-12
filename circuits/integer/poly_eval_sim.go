@@ -30,7 +30,7 @@ func (d simIntegerPolynomialEvaluator) Rescale(op0 *circuits.SimOperand) {
 	}
 }
 
-// Mul multiplies two circuits.SimOperand, stores the result the taret circuits.SimOperand and returns the result.
+// Mul multiplies two circuits.SimOperand, stores the result the target circuits.SimOperand and returns the result.
 func (d simIntegerPolynomialEvaluator) MulNew(op0, op1 *circuits.SimOperand) (opOut *circuits.SimOperand) {
 	opOut = new(circuits.SimOperand)
 	opOut.Level = utils.Min(op0.Level, op1.Level)

@@ -11,7 +11,7 @@ import (
 )
 
 func (btp Bootstrapper) MinimumInputLevel() int {
-	return btp.params.LevelsConsummedPerRescaling()
+	return btp.params.LevelsConsumedPerRescaling()
 }
 
 func (btp Bootstrapper) OutputLevel() int {

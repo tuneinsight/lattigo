@@ -89,7 +89,7 @@ All notable changes to this library are documented in this file.
 
     - Changes to the `Parameters`:
         - Replaced the default parameters by a single example parameter.
-        - Renamed the field `LogScale` of the `ParametrsLiteralStruct` to `LogPlaintextScale`.
+        - Renamed the field `LogScale` of the `ParametersLiteralStruct` to `LogPlaintextScale`.
 
     - Changes to the tests:
         - Test do not use the default parameters anymore but specific and optimized test parameters.

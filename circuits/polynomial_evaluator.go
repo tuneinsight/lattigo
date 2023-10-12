@@ -31,7 +31,7 @@ type CoefficientGetter[T any] interface {
 }
 
 // EvaluatePolynomial is a generic and scheme agnostic method to evaluate polynomials on rlwe.Ciphertexts.
-func EvaluatePolynomial(eval EvaluatorForPolynomial, input interface{}, p interface{}, targetScale rlwe.Scale, levelsConsummedPerRescaling int, SimEval SimEvaluator) (opOut *rlwe.Ciphertext, err error) {
+func EvaluatePolynomial(eval EvaluatorForPolynomial, input interface{}, p interface{}, targetScale rlwe.Scale, levelsConsumedPerRescaling int, SimEval SimEvaluator) (opOut *rlwe.Ciphertext, err error) {
 
 	var polyVec PolynomialVector
 	switch p := p.(type) {
@@ -58,7 +58,7 @@ func EvaluatePolynomial(eval EvaluatorForPolynomial, input interface{}, p interf
 		return nil, fmt.Errorf("cannot evaluatePolyVector: invalid input, must be either *rlwe.Ciphertext or *PowerBasis")
 	}
 
-	if level, depth := powerbasis.Value[1].Level(), levelsConsummedPerRescaling*polyVec.Value[0].Depth(); level < depth {
+	if level, depth := powerbasis.Value[1].Level(), levelsConsumedPerRescaling*polyVec.Value[0].Depth(); level < depth {
 		return nil, fmt.Errorf("%d levels < %d log(d) -> cannot evaluate poly", level, depth)
 	}
 

@@ -652,12 +652,12 @@ func main() {
 	//   - 2: [3, 3, 3, 3]
 	//
 
-	nonZeroDiagonales := []int{-15, -4, -1, 0, 1, 2, 3, 4, 15}
+	nonZeroDiagonals := []int{-15, -4, -1, 0, 1, 2, 3, 4, 15}
 
-	// We allocate the non-zero diagonales and populate them
+	// We allocate the non-zero diagonals and populate them
 	diagonals := make(float.Diagonals[complex128])
 
-	for _, i := range nonZeroDiagonales {
+	for _, i := range nonZeroDiagonals {
 		tmp := make([]complex128, Slots)
 
 		for j := range tmp {
@@ -726,7 +726,7 @@ func main() {
 	// See `examples/ckks/bootstrapping`
 
 	// ==========
-	// CONCURENCY
+	// CONCURRENCY
 	// ==========
 	//
 	// Lattigo does not implement low level concurrency yet.
@@ -741,7 +741,7 @@ func main() {
 
 // EvaluateLinearTransform evaluates a linear transform (i.e. matrix) on the input vector.
 // values: the input vector
-// diags: the non-zero diagonales of the linear transform
+// diags: the non-zero diagonals of the linear transform
 func EvaluateLinearTransform(values []complex128, diags map[int][]complex128) (res []complex128) {
 
 	slots := len(values)

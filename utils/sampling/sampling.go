@@ -1,4 +1,4 @@
-// Package sampling implements secure sanmpling bytes and integers.
+// Package sampling implements secure sampling of bytes and integers.
 package sampling
 
 import (

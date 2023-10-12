@@ -135,7 +135,7 @@ func (lt LinearTransformation) BSGSIndex() (index map[int][]int, n1, n2 []int) {
 	return BSGSIndex(utils.GetKeys(lt.Vec), 1<<lt.LogDimensions.Cols, lt.N1)
 }
 
-// NewLinearTransformation allocates a new LinearTransformation with zero values according to the parameters specified by the LinearTranfromationParameters.
+// NewLinearTransformation allocates a new LinearTransformation with zero values according to the parameters specified by the LinearTransformationParameters.
 func NewLinearTransformation(params rlwe.ParameterProvider, ltparams LinearTransformationParameters) LinearTransformation {
 
 	p := params.GetRLWEParameters()

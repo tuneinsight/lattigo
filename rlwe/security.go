@@ -9,11 +9,11 @@ const (
 	// DefaultNoise is the default standard deviation of the error
 	DefaultNoise = 3.2
 
-	// DefaultNoiseBound is the default bound (in number of standar deviation) of the noise bound
+	// DefaultNoiseBound is the default bound (in number of standard deviation) of the noise bound
 	DefaultNoiseBound = 19.2 // 6*3.2
 )
 
-// DefaultXe is the default discret Gaussian distribution.
+// DefaultXe is the default discrete Gaussian distribution.
 var DefaultXe = ring.DiscreteGaussian{Sigma: DefaultNoise, Bound: DefaultNoiseBound}
 
 var DefaultXs = ring.Ternary{P: 2 / 3.0}

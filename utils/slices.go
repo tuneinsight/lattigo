@@ -35,7 +35,7 @@ func MaxSlice[V constraints.Ordered](slice []V) (max V) {
 	return
 }
 
-// MinSlice returns the mininum value in the slice.
+// MinSlice returns the minimum value in the slice.
 func MinSlice[V constraints.Ordered](slice []V) (min V) {
 	for _, c := range slice {
 		min = Min(min, c)

@@ -19,7 +19,7 @@ type Polynomial struct {
 	Lead   bool       // Always set to true
 	Lazy   bool       // Flag for lazy-relinearization
 	Level  int        // Metadata for BSGS polynomial evaluation
-	Scale  rlwe.Scale // Metatata for BSGS polynomial evaluation
+	Scale  rlwe.Scale // Metadata for BSGS polynomial evaluation
 }
 
 // NewPolynomial returns an instantiated Polynomial for the

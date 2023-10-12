@@ -117,11 +117,11 @@ func (evkg EvaluationKeyGenProtocol) GenShare(skIn, skOut *rlwe.SecretKey, crp E
 	}
 
 	if shareOut.BaseRNSDecompositionVectorSize() != crp.BaseRNSDecompositionVectorSize() {
-		return fmt.Errorf("cannot GenSahre: crp.BaseRNSDecompositionVectorSize() != shareOut.BaseRNSDecompositionVectorSize()")
+		return fmt.Errorf("cannot GenShare: crp.BaseRNSDecompositionVectorSize() != shareOut.BaseRNSDecompositionVectorSize()")
 	}
 
 	if !utils.EqualSlice(shareOut.BaseTwoDecompositionVectorSize(), crp.BaseTwoDecompositionVectorSize()) {
-		return fmt.Errorf("cannot GenSahre: crp.BaseTwoDecompositionVectorSize() != shareOut.BaseTwoDecompositionVectorSize()")
+		return fmt.Errorf("cannot GenShare: crp.BaseTwoDecompositionVectorSize() != shareOut.BaseTwoDecompositionVectorSize()")
 	}
 
 	ringQP := evkg.params.RingQP().AtLevel(levelQ, levelP)

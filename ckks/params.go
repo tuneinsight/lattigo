@@ -205,10 +205,10 @@ func (p Parameters) PrecisionMode() PrecisionMode {
 	return p.precisionMode
 }
 
-// LevelsConsummedPerRescaling returns the number of levels (i.e. primes)
+// LevelsConsumedPerRescaling returns the number of levels (i.e. primes)
 // consumed per rescaling. This value is 1 if the precision mode is PREC64
 // and is 2 if the precision mode is PREC128.
-func (p Parameters) LevelsConsummedPerRescaling() int {
+func (p Parameters) LevelsConsumedPerRescaling() int {
 	switch p.precisionMode {
 	case PREC128:
 		return 2
@@ -218,9 +218,9 @@ func (p Parameters) LevelsConsummedPerRescaling() int {
 }
 
 // MaxDepth returns the maximum depth enabled by the parameters,
-// which is obtained as p.MaxLevel() / p.LevelsConsummedPerRescaling().
+// which is obtained as p.MaxLevel() / p.LevelsConsumedPerRescaling().
 func (p Parameters) MaxDepth() int {
-	return p.MaxLevel() / p.LevelsConsummedPerRescaling()
+	return p.MaxLevel() / p.LevelsConsumedPerRescaling()
 }
 
 // LogQLvl returns the size of the modulus Q in bits at a specific level

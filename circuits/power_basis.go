@@ -19,7 +19,7 @@ type PowerBasis struct {
 }
 
 // NewPowerBasis creates a new PowerBasis. It takes as input a ciphertext
-// and a basistype. The struct treats the input ciphertext as a monomial X and
+// and a basis type. The struct treats the input ciphertext as a monomial X and
 // can be used to generates power of this monomial X^{n} in the given BasisType.
 func NewPowerBasis(ct *rlwe.Ciphertext, basis bignum.Basis) (p PowerBasis) {
 	return PowerBasis{
@@ -28,7 +28,7 @@ func NewPowerBasis(ct *rlwe.Ciphertext, basis bignum.Basis) (p PowerBasis) {
 	}
 }
 
-// SplitDegree returns a * b = n such that |a-b| is minmized
+// SplitDegree returns a * b = n such that |a-b| is minimized
 // with a and/or b odd if possible.
 func SplitDegree(n int) (a, b int) {
 

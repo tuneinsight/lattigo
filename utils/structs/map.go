@@ -14,7 +14,7 @@ import (
 // The size of the map is limited to 2^32.
 type Map[K constraints.Integer, T any] map[K]*T
 
-// CopyNew creates a copy of the oject.
+// CopyNew creates a copy of the object.
 func (m Map[K, T]) CopyNew() *Map[K, T] {
 
 	if c, isCopiable := any(new(T)).(CopyNewer[T]); !isCopiable {

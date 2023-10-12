@@ -96,7 +96,7 @@ func (v Vector[T]) WriteTo(w io.Writer) (n int64, err error) {
 		case uint, uint64, int, int64, float64:
 
 			if inc, err = buffer.WriteAsUint64Slice[T](w, v); err != nil {
-				return n + inc, fmt.Errorf("buffer.WriteasUint64Slice[%T]: %w", t, err)
+				return n + inc, fmt.Errorf("buffer.WriteAsUint64Slice[%T]: %w", t, err)
 			}
 
 			n += inc

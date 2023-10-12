@@ -57,7 +57,7 @@ import (
 //	Be aware that doing so will impact the security, precision, and failure probability of the bootstrapping circuit.
 //	See https://eprint.iacr.org/2022/024 for more information.
 //
-// IterationsParamters : by treating the bootstrapping as a blackbox with precision logprec, we can construct a bootstrapping of precision ~k*logprec by iteration (see https://eprint.iacr.org/2022/1167).
+// IterationsParameters : by treating the bootstrapping as a black box with precision logprec, we can construct a bootstrapping of precision ~k*logprec by iteration (see https://eprint.iacr.org/2022/1167).
 // - BootstrappingPrecision: []float64, the list of iterations (after the initial bootstrapping) given by the expected precision of each previous iteration.
 // - ReservedPrimeBitSize: the size of the reserved prime for the scaling after the initial bootstrapping.
 //
@@ -320,7 +320,7 @@ func (p ParametersLiteral) GetEvalMod1LogScale() (EvalModLogScale int, err error
 	return
 }
 
-// GetIterationsParameters returns the IterationsParmaeters field of the target ParametersLiteral.
+// GetIterationsParameters returns the IterationsParameters field of the target ParametersLiteral.
 // The default value is nil.
 func (p ParametersLiteral) GetIterationsParameters() (Iterations *IterationsParameters, err error) {
 

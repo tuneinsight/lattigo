@@ -5,7 +5,7 @@ The BGV package provides a unified RNS-accelerated variant of the Fan-Vercautere
 
 ## Implementation Notes
 
-The proposed implementation is not standard and provides all the functionalities of the BFV and BGV schemes under a unfied scheme.
+The proposed implementation is not standard and provides all the functionalities of the BFV and BGV schemes under a unified scheme.
 This enabled by the equivalency between the LSB and MSB encoding when T is coprime to Q (Appendix A of <https://eprint.iacr.org/2013/372>).
 
 ### Intuition

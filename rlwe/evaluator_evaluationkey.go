@@ -12,7 +12,7 @@ import (
 // a homomorphic circuit to provide additional functionalities, like relinearization
 // or rotations.
 //
-// In a nutshell, an Evalutionkey encrypts a secret skIn under a secret skOut and
+// In a nutshell, an Evaluationkey encrypts a secret skIn under a secret skOut and
 // enables the public and non interactive re-encryption of any ciphertext encrypted
 // under skIn to a new ciphertext encrypted under skOut.
 //

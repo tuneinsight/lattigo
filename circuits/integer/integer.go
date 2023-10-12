@@ -1,4 +1,4 @@
-// Package integer implements advanced homomorphic circuit for encrypted arithmetic modular arithmetic with integers.
+// Package integer implements advanced homomorphic circuits for encrypted arithmetic modular arithmetic with integers.
 package integer
 
 import (

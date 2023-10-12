@@ -240,7 +240,7 @@ type GadgetPlaintext struct {
 }
 
 // NewGadgetPlaintext creates a new gadget plaintext from value, which can be either uint64, int64 or *ring.Poly.
-// Plaintext is returned in the NTT and Mongtomery domain.
+// Plaintext is returned in the NTT and Montgomery domain.
 func NewGadgetPlaintext(params Parameters, value interface{}, levelQ, levelP, baseTwoDecomposition int) (pt *GadgetPlaintext, err error) {
 
 	ringQ := params.RingQP().RingQ.AtLevel(levelQ)

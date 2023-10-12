@@ -15,10 +15,10 @@ import (
 )
 
 // This example showcases how lookup tables can complement the CKKS scheme to compute non-linear functions
-// such as sign. The example starts by homomorphically decoding the CKKS ciphertext from the canonical embeding
-// to the coefficient embeding. It then evaluates the Look-Up-Table (BlindRotation) on each coefficient and repacks the
+// such as sign. The example starts by homomorphically decoding the CKKS ciphertext from the canonical embedding
+// to the coefficient embedding. It then evaluates the Look-Up-Table (BlindRotation) on each coefficient and repacks the
 // outputs of each Blind Rotation in a single RLWE ciphertext. Finally, it homomorphically encodes the RLWE ciphertext back
-// to the canonical embeding of the CKKS scheme.
+// to the canonical embedding of the CKKS scheme.
 
 // ========================================
 // Functions to evaluate with BlindRotation
@@ -58,7 +58,7 @@ func main() {
 
 	// Starting RLWE params, size of these params
 	// determine the complexity of the BlindRotation:
-	// each BlindRotation takes ~N RGSW ciphertext-ciphetext mul.
+	// each BlindRotation takes ~N RGSW ciphertext-ciphertext mul.
 	// LogN = 12 & LogQP = ~103 -> >128-bit secure.
 	var paramsN12 ckks.Parameters
 	if paramsN12, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{

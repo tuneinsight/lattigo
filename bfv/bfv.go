@@ -27,7 +27,7 @@ func NewPlaintext(params Parameters, level ...int) (pt *rlwe.Plaintext) {
 }
 
 // NewCiphertext allocates a new rlwe.Ciphertext from the BFV parameters,
-// at the specified level and ciphertex degree. If the level argument is not
+// at the specified level and ciphertext degree. If the level argument is not
 // provided, the ciphertext is initialized at level params.MaxLevelQ().
 //
 // To create a ciphertext for encrypting a new message, the ciphertext should be

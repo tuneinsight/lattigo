@@ -13,10 +13,10 @@ import (
 // evaluation keys required by the bootstrapper.
 type BootstrappingKeys struct {
 	// EvkN1ToN2 is an evaluation key to switch from the residual parameters'
-	// ring degree (N1) to the bootstrapping parameters' ring degre (N2)
+	// ring degree (N1) to the bootstrapping parameters' ring degree (N2)
 	EvkN1ToN2 *rlwe.EvaluationKey
 	// EvkN2ToN1 is an evaluation key to switch from the bootstrapping parameters'
-	// ring degre (N2) to the residual parameters' ring degree (N1)
+	// ring degree (N2) to the residual parameters' ring degree (N1)
 	EvkN2ToN1 *rlwe.EvaluationKey
 	// EvkRealToCmplx is an evaluation key to switch from the standard ring to the
 	// conjugate invariant ring.
@@ -24,7 +24,7 @@ type BootstrappingKeys struct {
 	// EvkCmplxToReal is an evaluation key to switch from the conjugate invariant
 	// ring to the standard ring.
 	EvkCmplxToReal *rlwe.EvaluationKey
-	// EvkBootstrapping is a set of evaluation keys for the bootstraping circuit.
+	// EvkBootstrapping is a set of evaluation keys for the bootstrapping circuit.
 	EvkBootstrapping *bootstrapping.EvaluationKeySet
 }
 

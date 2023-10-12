@@ -9,7 +9,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/buffer"
 )
 
-// Matrix is a struct wrapping a doube slice of components of type T.
+// Matrix is a struct wrapping a double slice of components of type T.
 // T can be:
 //   - uint, uint64, uint32, uint16, uint8/byte, int, int64, int32, int16, int8, float64, float32.
 //   - Or any object that implements CopyNewer, CopyNewer, BinarySizer, io.WriterTo or io.ReaderFrom
@@ -33,7 +33,7 @@ func (m Matrix[T]) CopyNew() (mcpy Matrix[T]) {
 		}
 
 	default:
-		if _, isCopiable := any(t).(CopyNewer[T]); !isCopiable {
+		if _, isCopyable := any(t).(CopyNewer[T]); !isCopyable {
 			panic(fmt.Errorf("matrix component of type %T does not comply to %T", t, new(CopyNewer[T])))
 		}
 

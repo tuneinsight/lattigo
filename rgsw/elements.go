@@ -112,7 +112,7 @@ func (ct *Ciphertext) UnmarshalBinary(p []byte) (err error) {
 type Plaintext rlwe.GadgetPlaintext
 
 // NewPlaintext creates a new RGSW plaintext from value, which can be either uint64, int64 or *ring.Poly.
-// Plaintext is returned in the NTT and Mongtomery domain.
+// Plaintext is returned in the NTT and Montgomery domain.
 func NewPlaintext(params rlwe.Parameters, value interface{}, levelQ, levelP, BaseTwoDecomposition int) (*Plaintext, error) {
 	gct, err := rlwe.NewGadgetPlaintext(params, value, levelQ, levelP, BaseTwoDecomposition)
 	return &Plaintext{Value: gct.Value}, err

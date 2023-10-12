@@ -56,7 +56,7 @@ func (mcp MinimaxCompositePolynomial) Evaluate(x interface{}) (y *bignum.Complex
 // CoeffsSignX2Cheby (from https://eprint.iacr.org/2019/1234.pdf) are the coefficients
 // of 1.5*x - 0.5*x^3 in Chebyshev basis.
 // Evaluating this polynomial on values already close to -1, or 1 ~doubles the number of
-// of correct digigts.
+// of correct digits.
 // For example, if x = -0.9993209 then p(x) = -0.999999308
 // This polynomial can be composed after the minimax composite polynomial to double the
 // output precision (up to the scheme precision) each time it is evaluated.
@@ -65,20 +65,20 @@ var CoeffsSignX2Cheby = []string{"0", "1.125", "0", "-0.125"}
 // CoeffsSignX4Cheby (from https://eprint.iacr.org/2019/1234.pdf) are the coefficients
 // of 35/16 * x - 35/16 * x^3 + 21/16 * x^5 - 5/16 * x^7 in Chebyshev basis.
 // Evaluating this polynomial on values already close to -1, or 1 ~quadruples the number of
-// of correct digigts.
+// of correct digits.
 // For example, if x = -0.9993209 then p(x) = -0.9999999999990705
 // This polynomial can be composed after the minimax composite polynomial to quadruple the
 // output precision (up to the scheme precision) each time it is evaluated.
 var CoeffsSignX4Cheby = []string{"0", "1.1962890625", "0", "-0.2392578125", "0", "0.0478515625", "0", "-0.0048828125"}
 
 // GenMinimaxCompositePolynomialForSign generates the minimax composite polynomial
-// P(x) = pk(x) o pk-1(x) o ... o p1(x) o p0(x) of the sign function in ther interval
+// P(x) = pk(x) o pk-1(x) o ... o p1(x) o p0(x) of the sign function in their interval
 // [min-err, -2^{-alpha}] U [2^{-alpha}, max+err] where alpha is the desired distinguishing
 // precision between two values and err an upperbound on the scheme error.
 //
 // The sign function is defined as: -1 if -1 <= x < 0, 0 if x = 0, 1 if 0 < x <= 1.
 //
-// See GenMinimaxCompositePolynomial for informations about how to instantiate and
+// See GenMinimaxCompositePolynomial for information about how to instantiate and
 // parameterize each input value of the algorithm.
 func GenMinimaxCompositePolynomialForSign(prec uint, logalpha, logerr int, deg []int) {
 
@@ -96,14 +96,14 @@ func GenMinimaxCompositePolynomialForSign(prec uint, logalpha, logerr int, deg [
 
 // GenMinimaxCompositePolynomial generates the minimax composite polynomial
 // P(x) = pk(x) o pk-1(x) o ... o p1(x) o p0(x) for the provided function in the interval
-// in ther interval [min-err, -2^{-alpha}] U [2^{-alpha}, max+err] where alpha is
+// in their interval [min-err, -2^{-alpha}] U [2^{-alpha}, max+err] where alpha is
 // the desired distinguishing precision between two values and err an upperbound on
 // the scheme error.
 //
 // The user must provide the following inputs:
 //   - prec: the bit precision of the big.Float values used by the algorithm to compute the polynomials.
 //     This will impact the speed of the algorithm.
-//     A too low precision canprevent convergence or induce a slope zero during the zero finding.
+//     A too low precision can prevent convergence or induce a slope zero during the zero finding.
 //     A sign that the precision is too low is when the iteration continue without the error getting smaller.
 //   - logalpha: log2(alpha)
 //   - logerr: log2(err), the upperbound on the scheme precision. Usually this value should be smaller or equal to logalpha.
@@ -111,8 +111,8 @@ func GenMinimaxCompositePolynomialForSign(prec uint, logalpha, logerr int, deg [
 //     (i.e. smaller than -1-e or greater than 1+e), then the values will explode during the evaluation.
 //     Note that it is not required to apply change of interval [-1, 1] -> [-1-e, 1+e] because the function to evaluate
 //     is the sign (i.e. it will evaluate to the same value).
-//   - deg: the degree of each polynomial, orderd as follow [deg(p0(x)), deg(p1(x)), ..., deg(pk(x))].
-//     It is highly recommanded that deg(p0) <= deg(p1) <= ... <= deg(pk) for optimal approximation.
+//   - deg: the degree of each polynomial, ordered as follow [deg(p0(x)), deg(p1(x)), ..., deg(pk(x))].
+//     It is highly recommended that deg(p0) <= deg(p1) <= ... <= deg(pk) for optimal approximation.
 //
 // The polynomials are returned in the Chebyshev basis and pre-scaled for
 // the interval [-1, 1] (no further scaling is required on the ciphertext).
@@ -125,7 +125,7 @@ func GenMinimaxCompositePolynomialForSign(prec uint, logalpha, logerr int, deg [
 func GenMinimaxCompositePolynomial(prec uint, logalpha, logerr int, deg []int, f func(*big.Float) *big.Float) (coeffs [][]*big.Float) {
 	decimals := int(float64(logalpha)/math.Log2(10)+0.5) + 10
 
-	// Precision of the output value of the sign polynmial
+	// Precision of the output value of the sign polynomial
 	alpha := math.Exp2(-float64(logalpha))
 
 	// Expected upperbound scheme error
@@ -233,9 +233,9 @@ func GenMinimaxCompositePolynomial(prec uint, logalpha, logerr int, deg []int, f
 	return coeffs
 }
 
-// PrettyPrintCoefficients prints the coefficients formated.
+// PrettyPrintCoefficients prints the coefficients formatted.
 // If odd = true, even coefficients are zeroed.
-// If even = true, odd coefficnets are zeroed.
+// If even = true, odd coefficients are zeroed.
 func PrettyPrintCoefficients(decimals int, coeffs []*big.Float, odd, even, first bool) {
 	fmt.Printf("{")
 	for i, c := range coeffs {

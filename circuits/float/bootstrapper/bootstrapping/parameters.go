@@ -27,7 +27,7 @@ type Parameters struct {
 // a bootstrapping.ParametersLiteral struct.
 //
 // The residualParameters corresponds to the ckks.Parameters that are left after the bootstrapping circuit is evaluated.
-// These are entirely independant of the bootstrapping parameters with one exception: the ciphertext primes Qi must be
+// These are entirely independent of the bootstrapping parameters with one exception: the ciphertext primes Qi must be
 // congruent to 1 mod 2N of the bootstrapping parameters (note that the auxiliary primes Pi do not need to be).
 // This is required because the primes Qi of the residual parameters and the bootstrapping parameters are the same between
 // the two sets of parameters.
@@ -44,7 +44,7 @@ func NewParametersFromLiteral(residualParameters ckks.Parameters, btpLit Paramet
 	// Retrieve the LogN of the bootstrapping circuit
 	LogN := btpLit.GetLogN()
 
-	// Retrive the NthRoot
+	// Retrieve the NthRoot
 	var NthRoot uint64
 	switch residualParameters.RingType() {
 	case ring.ConjugateInvariant:
@@ -55,7 +55,7 @@ func NewParametersFromLiteral(residualParameters ckks.Parameters, btpLit Paramet
 			return Parameters{}, fmt.Errorf("cannot NewParametersFromLiteral: LogN of bootstrapping parameters must be greater than LogN of residual parameters if ringtype is ConjugateInvariant")
 		}
 
-		// Takes the greatest NthRoot between the residualParameters NthRoot and the bootstrapphg NthRoot
+		// Takes the greatest NthRoot between the residualParameters NthRoot and the bootstrapping NthRoot
 		NthRoot = utils.Max(uint64(residualParameters.N()<<2), uint64(2<<LogN))
 
 	default:
@@ -65,7 +65,7 @@ func NewParametersFromLiteral(residualParameters ckks.Parameters, btpLit Paramet
 			return Parameters{}, fmt.Errorf("cannot NewParametersFromLiteral: LogN of bootstrapping parameters must be greater or equal to LogN of residual parameters")
 		}
 
-		// Takes the greatest NthRoot between the residualParameters NthRoot and the bootstrapphg NthRoot
+		// Takes the greatest NthRoot between the residualParameters NthRoot and the bootstrapping NthRoot
 		NthRoot = utils.Max(uint64(residualParameters.N()<<1), uint64(2<<LogN))
 	}
 
@@ -200,7 +200,7 @@ func NewParametersFromLiteral(residualParameters ckks.Parameters, btpLit Paramet
 	// List of the prime-size of all primes required by the bootstrapping circuit.
 	LogQBootstrappingCircuit := []int{}
 
-	// appends the reserved prime first for multiple iteraiton, if any
+	// appends the reserved prime first for multiple iteration, if any
 	if hasReservedIterationPrime == 1 {
 		LogQBootstrappingCircuit = append(LogQBootstrappingCircuit, iterParams.ReservedPrimeBitSize)
 	}
@@ -290,7 +290,7 @@ func NewParametersFromLiteral(residualParameters ckks.Parameters, btpLit Paramet
 	Q = make([]uint64, len(residualParameters.Q()))
 	copy(Q, residualParameters.Q())
 
-	// Appends to the residual modli
+	// Appends to the residual moduli
 	for _, qi := range LogQBootstrappingCircuit {
 		Q = append(Q, primesNew[qi][0])
 		primesNew[qi] = primesNew[qi][1:]
@@ -427,7 +427,7 @@ func (p Parameters) GaloisElements(params ckks.Parameters) (galEls []uint64) {
 
 	logN := params.LogN()
 
-	// List of the rotation key values to needed for the bootstrapp
+	// List of the rotation key values to needed for the bootstrap
 	keys := make(map[uint64]bool)
 
 	//SubSum rotation needed X -> Y^slots rotations

@@ -28,7 +28,7 @@ func NewPowerBasis(ct *rlwe.Ciphertext) circuits.PowerBasis {
 
 // NewPolynomialEvaluator instantiates a new PolynomialEvaluator from a circuit.Evaluator.
 // The default *bgv.Evaluator is compliant to the circuit.Evaluator interface.
-// InvariantTensoring is a boolean that specifies if the evaluator performes the invariant tensoring (BFV-style) or
+// InvariantTensoring is a boolean that specifies if the evaluator performed the invariant tensoring (BFV-style) or
 // the regular tensoring (BGB-style).
 func NewPolynomialEvaluator(params bgv.Parameters, eval circuits.Evaluator, InvariantTensoring bool) *PolynomialEvaluator {
 
@@ -83,7 +83,7 @@ func (eval PolynomialEvaluator) Evaluate(ct *rlwe.Ciphertext, p interface{}, tar
 
 // EvaluateFromPowerBasis evaluates a polynomial using the provided PowerBasis, holding pre-computed powers of X.
 // This method is the same as Evaluate except that the encrypted input is a PowerBasis.
-// See Evaluate for additional informations.
+// See Evaluate for additional information.
 func (eval PolynomialEvaluator) EvaluateFromPowerBasis(pb circuits.PowerBasis, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 
 	var pcircuits interface{}

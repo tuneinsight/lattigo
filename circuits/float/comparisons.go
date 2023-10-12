@@ -147,7 +147,7 @@ func (eval ComparisonEvaluator) stepdiff(op0, op1 *rlwe.Ciphertext) (stepdiff *r
 	}
 
 	// Required for the scale matching before the last multiplication.
-	if diff.Level() < params.LevelsConsummedPerRescaling()*2 {
+	if diff.Level() < params.LevelsConsumedPerRescaling()*2 {
 		if diff, err = eval.Bootstrap(diff); err != nil {
 			return
 		}
@@ -160,7 +160,7 @@ func (eval ComparisonEvaluator) stepdiff(op0, op1 *rlwe.Ciphertext) (stepdiff *r
 	}
 
 	// Required for the following multiplication
-	if step.Level() < params.LevelsConsummedPerRescaling() {
+	if step.Level() < params.LevelsConsumedPerRescaling() {
 		if step, err = eval.Bootstrap(step); err != nil {
 			return
 		}
@@ -170,7 +170,7 @@ func (eval ComparisonEvaluator) stepdiff(op0, op1 *rlwe.Ciphertext) (stepdiff *r
 	level := utils.Min(diff.Level(), step.Level())
 
 	ratio := rlwe.NewScale(1)
-	for i := 0; i < params.LevelsConsummedPerRescaling(); i++ {
+	for i := 0; i < params.LevelsConsumedPerRescaling(); i++ {
 		ratio = ratio.Mul(rlwe.NewScale(params.Q()[level-i]))
 	}
 

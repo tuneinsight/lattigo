@@ -12,23 +12,23 @@ import (
 )
 
 type simEvaluator struct {
-	params                      ckks.Parameters
-	levelsConsummedPerRescaling int
+	params                     ckks.Parameters
+	levelsConsumedPerRescaling int
 }
 
 func (d simEvaluator) PolynomialDepth(degree int) int {
-	return d.levelsConsummedPerRescaling * (bits.Len64(uint64(degree)) - 1)
+	return d.levelsConsumedPerRescaling * (bits.Len64(uint64(degree)) - 1)
 }
 
 // Rescale rescales the target circuits.SimOperand n times and returns it.
 func (d simEvaluator) Rescale(op0 *circuits.SimOperand) {
-	for i := 0; i < d.levelsConsummedPerRescaling; i++ {
+	for i := 0; i < d.levelsConsumedPerRescaling; i++ {
 		op0.Scale = op0.Scale.Div(rlwe.NewScale(d.params.Q()[op0.Level]))
 		op0.Level--
 	}
 }
 
-// Mul multiplies two circuits.SimOperand, stores the result the taret circuits.SimOperand and returns the result.
+// Mul multiplies two circuits.SimOperand, stores the result the target circuits.SimOperand and returns the result.
 func (d simEvaluator) MulNew(op0, op1 *circuits.SimOperand) (opOut *circuits.SimOperand) {
 	opOut = new(circuits.SimOperand)
 	opOut.Level = utils.Min(op0.Level, op1.Level)
@@ -42,7 +42,7 @@ func (d simEvaluator) UpdateLevelAndScaleBabyStep(lead bool, tLevelOld int, tSca
 	tScaleNew = tScaleOld
 
 	if lead {
-		for i := 0; i < d.levelsConsummedPerRescaling; i++ {
+		for i := 0; i < d.levelsConsumedPerRescaling; i++ {
 			tScaleNew = tScaleNew.Mul(rlwe.NewScale(d.params.Q()[tLevelNew-i]))
 		}
 	}
@@ -57,17 +57,17 @@ func (d simEvaluator) UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, tSc
 	var qi *big.Int
 	if lead {
 		qi = bignum.NewInt(Q[tLevelOld])
-		for i := 1; i < d.levelsConsummedPerRescaling; i++ {
+		for i := 1; i < d.levelsConsumedPerRescaling; i++ {
 			qi.Mul(qi, bignum.NewInt(Q[tLevelOld-i]))
 		}
 	} else {
-		qi = bignum.NewInt(Q[tLevelOld+d.levelsConsummedPerRescaling])
-		for i := 1; i < d.levelsConsummedPerRescaling; i++ {
-			qi.Mul(qi, bignum.NewInt(Q[tLevelOld+d.levelsConsummedPerRescaling-i]))
+		qi = bignum.NewInt(Q[tLevelOld+d.levelsConsumedPerRescaling])
+		for i := 1; i < d.levelsConsumedPerRescaling; i++ {
+			qi.Mul(qi, bignum.NewInt(Q[tLevelOld+d.levelsConsumedPerRescaling-i]))
 		}
 	}
 
-	tLevelNew = tLevelOld + d.levelsConsummedPerRescaling
+	tLevelNew = tLevelOld + d.levelsConsumedPerRescaling
 	tScaleNew = tScaleOld.Mul(rlwe.NewScale(qi))
 	tScaleNew = tScaleNew.Div(xPowScale)
 
@@ -75,5 +75,5 @@ func (d simEvaluator) UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, tSc
 }
 
 func (d simEvaluator) GetPolynmialDepth(degree int) int {
-	return d.levelsConsummedPerRescaling * (bits.Len64(uint64(degree)) - 1)
+	return d.levelsConsumedPerRescaling * (bits.Len64(uint64(degree)) - 1)
 }

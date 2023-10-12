@@ -154,7 +154,7 @@ func NewDFTMatrixFromLiteral(params ckks.Parameters, d DFTMatrixLiteral, encoder
 	matrices := []LinearTransformation{}
 	pVecDFT := d.GenMatrices(params.LogN(), params.EncodingPrecision())
 
-	nbModuliPerRescale := params.LevelsConsummedPerRescaling()
+	nbModuliPerRescale := params.LevelsConsumedPerRescaling()
 
 	level := d.LevelStart
 	var idx int
@@ -622,7 +622,7 @@ func nextLevelfftIndexMap(vec map[int]bool, logL, N, nextLevel int, ltType DFTTy
 	return
 }
 
-// GenMatrices returns the ordered list of factors of the non-zero diagonales of the IDFT (encoding) or DFT (decoding) matrix.
+// GenMatrices returns the ordered list of factors of the non-zero diagonals of the IDFT (encoding) or DFT (decoding) matrix.
 func (d DFTMatrixLiteral) GenMatrices(LogN int, prec uint) (plainVector []Diagonals[*bignum.Complex]) {
 
 	logSlots := d.LogSlots
@@ -736,7 +736,7 @@ func (d DFTMatrixLiteral) GenMatrices(LogN int, prec uint) (plainVector []Diagon
 		}
 	}
 
-	// Spreads the scale accross the matrices
+	// Spreads the scale across the matrices
 	scaling = bignum.Pow(scaling, new(big.Float).Quo(new(big.Float).SetPrec(prec).SetFloat64(1), new(big.Float).SetPrec(prec).SetFloat64(float64(d.Depth(false)))))
 
 	for j := range plainVector {

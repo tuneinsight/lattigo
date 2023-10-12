@@ -1,4 +1,4 @@
-// Package float implements advanced homomorphic circuit for encrypted arithmetic over floating point numbers.
+// Package float implements advanced homomorphic circuits for encrypted arithmetic over floating point numbers.
 package float
 
 import (

@@ -54,14 +54,14 @@ func (eval PolynomialEvaluator) Evaluate(ct *rlwe.Ciphertext, p interface{}, tar
 		pcircuits = p
 	}
 
-	levelsConsummedPerRescaling := eval.Parameters.LevelsConsummedPerRescaling()
+	levelsConsumedPerRescaling := eval.Parameters.LevelsConsumedPerRescaling()
 
-	return circuits.EvaluatePolynomial(eval, ct, pcircuits, targetScale, levelsConsummedPerRescaling, &simEvaluator{eval.Parameters, levelsConsummedPerRescaling})
+	return circuits.EvaluatePolynomial(eval, ct, pcircuits, targetScale, levelsConsumedPerRescaling, &simEvaluator{eval.Parameters, levelsConsumedPerRescaling})
 }
 
 // EvaluateFromPowerBasis evaluates a polynomial using the provided PowerBasis, holding pre-computed powers of X.
 // This method is the same as Evaluate except that the encrypted input is a PowerBasis.
-// See Evaluate for additional informations.
+// See Evaluate for additional information.
 func (eval PolynomialEvaluator) EvaluateFromPowerBasis(pb circuits.PowerBasis, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 
 	var pcircuits interface{}
@@ -74,13 +74,13 @@ func (eval PolynomialEvaluator) EvaluateFromPowerBasis(pb circuits.PowerBasis, p
 		pcircuits = p
 	}
 
-	levelsConsummedPerRescaling := eval.Parameters.LevelsConsummedPerRescaling()
+	levelsConsumedPerRescaling := eval.Parameters.LevelsConsumedPerRescaling()
 
 	if _, ok := pb.Value[1]; !ok {
 		return nil, fmt.Errorf("cannot EvaluateFromPowerBasis: X^{1} is nil")
 	}
 
-	return circuits.EvaluatePolynomial(eval, pb, pcircuits, targetScale, levelsConsummedPerRescaling, &simEvaluator{eval.Parameters, levelsConsummedPerRescaling})
+	return circuits.EvaluatePolynomial(eval, pb, pcircuits, targetScale, levelsConsumedPerRescaling, &simEvaluator{eval.Parameters, levelsConsumedPerRescaling})
 }
 
 type CoefficientGetter struct {

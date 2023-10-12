@@ -38,10 +38,10 @@ func (eval MinimaxCompositePolynomialEvaluator) Evaluate(ct *rlwe.Ciphertext, mc
 
 	btp := eval.Bootstrapper
 
-	levelsConsummedPerRescaling := params.LevelsConsummedPerRescaling()
+	levelsConsumedPerRescaling := params.LevelsConsumedPerRescaling()
 
 	// Checks that the number of levels available after the bootstrapping is enough to evaluate all polynomials
-	if maxDepth := mcp.MaxDepth() * levelsConsummedPerRescaling; params.MaxLevel() < maxDepth+btp.MinimumInputLevel() {
+	if maxDepth := mcp.MaxDepth() * levelsConsumedPerRescaling; params.MaxLevel() < maxDepth+btp.MinimumInputLevel() {
 		return nil, fmt.Errorf("parameters do not enable the evaluation of the minimax composite polynomial, required levels is %d but parameters only provide %d levels", maxDepth+btp.MinimumInputLevel(), params.MaxLevel())
 	}
 
@@ -50,7 +50,7 @@ func (eval MinimaxCompositePolynomialEvaluator) Evaluate(ct *rlwe.Ciphertext, mc
 	for _, poly := range mcp {
 
 		// Checks that res has enough level to evaluate the next polynomial, else bootstrap
-		if res.Level() < poly.Depth()*params.LevelsConsummedPerRescaling()+btp.MinimumInputLevel() {
+		if res.Level() < poly.Depth()*params.LevelsConsumedPerRescaling()+btp.MinimumInputLevel() {
 			if res, err = btp.Bootstrap(res); err != nil {
 				return
 			}
@@ -88,7 +88,7 @@ func (eval MinimaxCompositePolynomialEvaluator) Evaluate(ct *rlwe.Ciphertext, mc
 		}
 	}
 
-	// Avoides float errors
+	// Avoids float errors
 	res.Scale = ct.Scale
 
 	return

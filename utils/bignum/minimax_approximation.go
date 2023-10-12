@@ -16,9 +16,9 @@ type Remez struct {
 	RemezParameters
 	Degree int
 
-	extrempoints      []point
-	localExtrempoints []point
-	nbextrempoints    int
+	extremePoints      []point
+	localExtremePoints []point
+	nbExtremePoints    int
 
 	MaxErr, MinErr *big.Float
 
@@ -87,17 +87,17 @@ func NewRemez(p RemezParameters) (r *Remez) {
 		r.Coeffs[i] = new(big.Float)
 	}
 
-	r.extrempoints = make([]point, 3*r.Degree)
+	r.extremePoints = make([]point, 3*r.Degree)
 
-	for i := range r.extrempoints {
-		r.extrempoints[i].x = new(big.Float)
-		r.extrempoints[i].y = new(big.Float)
+	for i := range r.extremePoints {
+		r.extremePoints[i].x = new(big.Float)
+		r.extremePoints[i].y = new(big.Float)
 	}
 
-	r.localExtrempoints = make([]point, 3*r.Degree)
-	for i := range r.localExtrempoints {
-		r.localExtrempoints[i].x = new(big.Float)
-		r.localExtrempoints[i].y = new(big.Float)
+	r.localExtremePoints = make([]point, 3*r.Degree)
+	for i := range r.localExtremePoints {
+		r.localExtremePoints[i].x = new(big.Float)
+		r.localExtremePoints[i].y = new(big.Float)
 	}
 
 	r.Matrix = make([][]*big.Float, r.Degree+2)
@@ -134,7 +134,7 @@ func (r *Remez) Approximate(maxIter int, threshold float64) {
 		r.getCoefficients()
 
 		// Finds the extreme points of p(x) - f(x) (where the absolute error is max)
-		r.findextrempoints()
+		r.findExtremePoints()
 
 		// Choose the new nodes based on the set of extreme points
 		r.chooseNewNodes()
@@ -271,9 +271,9 @@ func (r *Remez) getCoefficients() {
 	}
 }
 
-func (r *Remez) findextrempoints() {
+func (r *Remez) findExtremePoints() {
 
-	r.nbextrempoints = 0
+	r.nbExtremePoints = 0
 
 	// e = p(x) - f(x) over [a, b]
 	fErr := func(x *big.Float) (y *big.Float) {
@@ -284,17 +284,17 @@ func (r *Remez) findextrempoints() {
 
 		points := r.findLocalExtrempointsWithSlope(fErr, r.Intervals[j])
 
-		for i, j := r.nbextrempoints, 0; i < r.nbextrempoints+len(points); i, j = i+1, j+1 {
-			r.extrempoints[i].x.Set(points[j].x)
-			r.extrempoints[i].y.Set(points[j].y)
-			r.extrempoints[i].slopesign = points[j].slopesign
+		for i, j := r.nbExtremePoints, 0; i < r.nbExtremePoints+len(points); i, j = i+1, j+1 {
+			r.extremePoints[i].x.Set(points[j].x)
+			r.extremePoints[i].y.Set(points[j].y)
+			r.extremePoints[i].slopesign = points[j].slopesign
 		}
 
-		r.nbextrempoints += len(points)
+		r.nbExtremePoints += len(points)
 	}
 
 	// show error message
-	if r.nbextrempoints < r.Degree+2 {
+	if r.nbExtremePoints < r.Degree+2 {
 		panic("number of extrem points is smaller than deg + 2, some points have been missed, consider reducing the size of the initial scan step or the approximation degree")
 	}
 }
@@ -310,7 +310,7 @@ func (r *Remez) chooseNewNodes() {
 	newNodes := []point{}
 
 	// Retrieve the list of extrem points
-	extrempoints := r.extrempoints
+	extremePoints := r.extremePoints
 
 	// Resets max and min error
 	r.MaxErr.SetFloat64(0)
@@ -338,7 +338,7 @@ func (r *Remez) chooseNewNodes() {
 
 	// Tracks the total number of extreme points iterated on
 	ind := 0
-	for ind < r.nbextrempoints {
+	for ind < r.nbExtremePoints {
 
 		// If idxAdjSameSlope is empty then adds the next point
 		if len(idxAdjSameSlope) == 0 {
@@ -348,8 +348,8 @@ func (r *Remez) chooseNewNodes() {
 
 			// If the slope of two consecutive extreme points is not alternating in sign
 			// then adds the point index to the temporary array
-			if extrempoints[ind-1].slopesign*extrempoints[ind].slopesign == 1 {
-				mid := new(big.Float).Add(extrempoints[ind-1].x, extrempoints[ind].x)
+			if extremePoints[ind-1].slopesign*extremePoints[ind].slopesign == 1 {
+				mid := new(big.Float).Add(extremePoints[ind-1].x, extremePoints[ind].x)
 				mid.Quo(mid, new(big.Float).SetInt64(2))
 				idxAdjSameSlope = append(idxAdjSameSlope, ind)
 				ind++
@@ -362,15 +362,15 @@ func (r *Remez) chooseNewNodes() {
 				// absolute value
 				maxIdx := 0
 				for i := range idxAdjSameSlope {
-					if maxpoint.Cmp(new(big.Float).Abs(extrempoints[idxAdjSameSlope[i]].y)) == -1 {
-						maxpoint.Abs(extrempoints[idxAdjSameSlope[i]].y)
+					if maxpoint.Cmp(new(big.Float).Abs(extremePoints[idxAdjSameSlope[i]].y)) == -1 {
+						maxpoint.Abs(extremePoints[idxAdjSameSlope[i]].y)
 						maxIdx = idxAdjSameSlope[i]
 					}
 				}
 
 				// Adds to the new nodes the extreme points whose absolute value is the largest
 				// between all consecutive extreme points with the same slope sign
-				newNodes = append(newNodes, extrempoints[maxIdx])
+				newNodes = append(newNodes, extremePoints[maxIdx])
 				idxAdjSameSlope = []int{}
 			}
 		}
@@ -381,16 +381,16 @@ func (r *Remez) chooseNewNodes() {
 	maxpoint.SetInt64(0)
 	maxIdx := 0
 	for i := range idxAdjSameSlope {
-		if maxpoint.Cmp(new(big.Float).Abs(extrempoints[idxAdjSameSlope[i]].y)) == -1 {
-			maxpoint.Abs(extrempoints[idxAdjSameSlope[i]].y)
+		if maxpoint.Cmp(new(big.Float).Abs(extremePoints[idxAdjSameSlope[i]].y)) == -1 {
+			maxpoint.Abs(extremePoints[idxAdjSameSlope[i]].y)
 			maxIdx = idxAdjSameSlope[i]
 		}
 	}
 
-	newNodes = append(newNodes, extrempoints[maxIdx])
+	newNodes = append(newNodes, extremePoints[maxIdx])
 
 	if len(newNodes) < r.Degree+2 {
-		panic("number of alternating extrem points is less than deg+2, some points have been missed, consider reducing the size of the initial scan step or the approximation degree")
+		panic("number of alternating extreme points is less than deg+2, some points have been missed, consider reducing the size of the initial scan step or the approximation degree")
 	}
 
 	//=========================
@@ -497,7 +497,7 @@ func (r *Remez) chooseNewNodes() {
 // https://github.com/snu-ccl/FHE-MP-CNN/blob/main-3.6.6/cnn_ckks/common/MinicompFunc.cpp
 func (r *Remez) findLocalExtrempointsWithSlope(fErr func(*big.Float) (y *big.Float), interval Interval) []point {
 
-	extrempoints := r.localExtrempoints
+	extrempoints := r.localExtremePoints
 	prec := r.Prec
 	scan := r.ScanStep
 
@@ -530,7 +530,7 @@ func (r *Remez) findLocalExtrempointsWithSlope(fErr func(*big.Float) (y *big.Flo
 	fErrRight.Set(fErr(scanRight))
 
 	if slopeRight = fErrRight.Cmp(fErrLeft); slopeRight == 0 {
-		panic("slope 0 occured: consider increasing the precision")
+		panic("slope 0 occurred: consider increasing the precision")
 	}
 
 	for {
@@ -581,14 +581,14 @@ func (r *Remez) findLocalExtrempointsWithSlope(fErr func(*big.Float) (y *big.Flo
 		fErrRight.Set(fErr(scanRight))
 
 		if slopeRight = fErrRight.Cmp(fErrLeft); slopeRight == 0 {
-			panic("slope 0 occured: consider increasing the precision")
+			panic("slope 0 occurred: consider increasing the precision")
 		}
 
 		// Positive and negative slope (concave)
 		if slopeLeft == 1 && slopeRight == -1 {
 			findLocalMaximum(fErr, scanLeft, scanRight, prec, &extrempoints[nbextrempoints])
 			nbextrempoints++
-			// Negative and positive slope (convexe)
+			// Negative and positive slope (convex)
 		} else if slopeLeft == -1 && slopeRight == 1 {
 			findLocalMinimum(fErr, scanLeft, scanRight, prec, &extrempoints[nbextrempoints])
 			nbextrempoints++

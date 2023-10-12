@@ -114,7 +114,7 @@ func permuteMatrix(logN int) (perm []uint64) {
 	return perm
 }
 
-// GetRLWEParameters returns the underlying rlwe.Parametrs of the target object.
+// GetRLWEParameters returns the underlying rlwe.Parameters of the target object.
 func (ecd Encoder) GetRLWEParameters() *rlwe.Parameters {
 	return &ecd.parameters.Parameters
 }

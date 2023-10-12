@@ -14,11 +14,11 @@ const (
 	windowSize = 10
 )
 
-// BlindRotatationEvaluationKeySet is a interface implementing methods
+// BlindRotationEvaluationKeySet is a interface implementing methods
 // to load the blind rotation keys (RGSW) and automorphism keys
 // (via the rlwe.EvaluationKeySet interface).
 // Implementation of this interface must be safe for concurrent use.
-type BlindRotatationEvaluationKeySet interface {
+type BlindRotationEvaluationKeySet interface {
 
 	// GetBlindRotationKey should return RGSW(X^{s[i]})
 	GetBlindRotationKey(i int) (brk *rgsw.Ciphertext, err error)
@@ -28,22 +28,22 @@ type BlindRotatationEvaluationKeySet interface {
 	GetEvaluationKeySet() (evk rlwe.EvaluationKeySet, err error)
 }
 
-// MemBlindRotatationEvaluationKeySet is a basic in-memory implementation of the BlindRotatationEvaluationKeySet interface.
-type MemBlindRotatationEvaluationKeySet struct {
+// MemBlindRotationEvaluationKeySet is a basic in-memory implementation of the BlindRotationEvaluationKeySet interface.
+type MemBlindRotationEvaluationKeySet struct {
 	BlindRotationKeys []*rgsw.Ciphertext
 	AutomorphismKeys  []*rlwe.GaloisKey
 }
 
-func (evk MemBlindRotatationEvaluationKeySet) GetBlindRotationKey(i int) (*rgsw.Ciphertext, error) {
+func (evk MemBlindRotationEvaluationKeySet) GetBlindRotationKey(i int) (*rgsw.Ciphertext, error) {
 	return evk.BlindRotationKeys[i], nil
 }
 
-func (evk MemBlindRotatationEvaluationKeySet) GetEvaluationKeySet() (rlwe.EvaluationKeySet, error) {
+func (evk MemBlindRotationEvaluationKeySet) GetEvaluationKeySet() (rlwe.EvaluationKeySet, error) {
 	return rlwe.NewMemEvaluationKeySet(nil, evk.AutomorphismKeys...), nil
 }
 
 // GenEvaluationKeyNew generates a new Blind Rotation evaluation key
-func GenEvaluationKeyNew(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, paramsLWE rlwe.Parameters, skLWE *rlwe.SecretKey, evkParams ...rlwe.EvaluationKeyParameters) (key MemBlindRotatationEvaluationKeySet) {
+func GenEvaluationKeyNew(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, paramsLWE rlwe.Parameters, skLWE *rlwe.SecretKey, evkParams ...rlwe.EvaluationKeyParameters) (key MemBlindRotationEvaluationKeySet) {
 
 	skLWECopy := skLWE.CopyNew()
 	paramsLWE.RingQ().AtLevel(0).INTT(skLWECopy.Value.Q, skLWECopy.Value.Q)
@@ -99,5 +99,5 @@ func GenEvaluationKeyNew(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, par
 		BaseTwoDecomposition: utils.Pointy(BaseTwoDecomposition),
 	})
 
-	return MemBlindRotatationEvaluationKeySet{BlindRotationKeys: skiRGSW, AutomorphismKeys: gks}
+	return MemBlindRotationEvaluationKeySet{BlindRotationKeys: skiRGSW, AutomorphismKeys: gks}
 }

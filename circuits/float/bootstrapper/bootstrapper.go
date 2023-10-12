@@ -81,7 +81,7 @@ func NewBootstrapper(btpParams Parameters, evk *BootstrappingKeys) (*Bootstrappe
 	return b, nil
 }
 
-// Depth returns the multiplicative depth (number of levels consummed) of the bootstrapping circuit.
+// Depth returns the multiplicative depth (number of levels consumed) of the bootstrapping circuit.
 func (b Bootstrapper) Depth() int {
 	return b.Parameters.Parameters.MaxLevel() - b.ResidualParameters.MaxLevel()
 }
@@ -94,7 +94,7 @@ func (b Bootstrapper) OutputLevel() int {
 // MinimumInputLevel returns the minimum level at which a ciphertext must be to be
 // bootstrapped.
 func (b Bootstrapper) MinimumInputLevel() int {
-	return b.LevelsConsummedPerRescaling()
+	return b.LevelsConsumedPerRescaling()
 }
 
 // Bootstrap bootstraps a single ciphertext and returns the bootstrapped ciphertext.

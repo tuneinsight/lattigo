@@ -27,7 +27,7 @@ func obliviousRiding() {
 	//		26th USENIX Security Symposium, Vancouver, BC, Canada, August 2017.
 	//
 	// Each area is represented as a rectangular grid where each driver
-	// anyonymously signs in (i.e. the server only knows the driver is located
+	// anonymously signs in (i.e. the server only knows the driver is located
 	// in the area).
 	//
 	// First, the rider generates an ephemeral key pair (riderSk, riderPk), which she

@@ -29,19 +29,19 @@ type PublicKeySwitchShare struct {
 
 // NewPublicKeySwitchProtocol creates a new PublicKeySwitchProtocol object and will be used to re-encrypt a ciphertext ctx encrypted under a secret-shared key among j parties under a new
 // collective public-key.
-func NewPublicKeySwitchProtocol(params rlwe.Parameters, noiseFlooding ring.DistributionParameters) (pcks PublicKeySwitchProtocol, err error) {
+func NewPublicKeySwitchProtocol(params rlwe.ParameterProvider, noiseFlooding ring.DistributionParameters) (pcks PublicKeySwitchProtocol, err error) {
 	pcks = PublicKeySwitchProtocol{}
-	pcks.params = params
+	pcks.params = *params.GetRLWEParameters()
 	pcks.noise = noiseFlooding
 
-	pcks.buf = params.RingQ().NewPoly()
+	pcks.buf = pcks.params.RingQ().NewPoly()
 
 	prng, err := sampling.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
 
-	pcks.Encryptor = rlwe.NewEncryptor(params, nil)
+	pcks.Encryptor = rlwe.NewEncryptor(pcks.params, nil)
 
 	switch noiseFlooding.(type) {
 	case ring.DiscreteGaussian:
@@ -49,7 +49,7 @@ func NewPublicKeySwitchProtocol(params rlwe.Parameters, noiseFlooding ring.Distr
 		return pcks, fmt.Errorf("invalid distribution type, expected %T but got %T", ring.DiscreteGaussian{}, noiseFlooding)
 	}
 
-	pcks.noiseSampler, err = ring.NewSampler(prng, params.RingQ(), noiseFlooding, false)
+	pcks.noiseSampler, err = ring.NewSampler(prng, pcks.params.RingQ(), noiseFlooding, false)
 	if err != nil {
 		panic(err)
 	}

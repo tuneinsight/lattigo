@@ -27,9 +27,9 @@ type PublicKeyGenCRP struct {
 }
 
 // NewPublicKeyGenProtocol creates a new PublicKeyGenProtocol instance
-func NewPublicKeyGenProtocol(params rlwe.Parameters) PublicKeyGenProtocol {
+func NewPublicKeyGenProtocol(params rlwe.ParameterProvider) PublicKeyGenProtocol {
 	ckg := PublicKeyGenProtocol{}
-	ckg.params = params
+	ckg.params = *params.GetRLWEParameters()
 
 	var err error
 	prng, err := sampling.NewPRNG()
@@ -37,7 +37,7 @@ func NewPublicKeyGenProtocol(params rlwe.Parameters) PublicKeyGenProtocol {
 		panic(err)
 	}
 
-	ckg.gaussianSamplerQ, err = ring.NewSampler(prng, params.RingQ(), params.Xe(), false)
+	ckg.gaussianSamplerQ, err = ring.NewSampler(prng, ckg.params.RingQ(), ckg.params.Xe(), false)
 	if err != nil {
 		panic(err)
 	}

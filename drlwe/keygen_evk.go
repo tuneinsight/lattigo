@@ -43,22 +43,24 @@ func (evkg EvaluationKeyGenProtocol) ShallowCopy() EvaluationKeyGenProtocol {
 }
 
 // NewEvaluationKeyGenProtocol creates a EvaluationKeyGenProtocol instance.
-func NewEvaluationKeyGenProtocol(params rlwe.Parameters) (evkg EvaluationKeyGenProtocol) {
+func NewEvaluationKeyGenProtocol(params rlwe.ParameterProvider) (evkg EvaluationKeyGenProtocol) {
 
 	prng, err := sampling.NewPRNG()
 	if err != nil {
 		panic(err)
 	}
 
-	Xe, err := ring.NewSampler(prng, params.RingQ(), params.Xe(), false)
+	pRLWE := *params.GetRLWEParameters()
+
+	Xe, err := ring.NewSampler(prng, pRLWE.RingQ(), pRLWE.Xe(), false)
 	if err != nil {
 		panic(err)
 	}
 
 	return EvaluationKeyGenProtocol{
-		params:           params,
+		params:           pRLWE,
 		gaussianSamplerQ: Xe,
-		buff:             [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()},
+		buff:             [2]ringqp.Poly{pRLWE.RingQP().NewPoly(), pRLWE.RingQP().NewPoly()},
 	}
 }
 

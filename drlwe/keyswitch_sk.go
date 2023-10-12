@@ -59,9 +59,9 @@ type KeySwitchCRP struct {
 // NewKeySwitchProtocol creates a new KeySwitchProtocol that will be used to perform a collective key-switching on a ciphertext encrypted under a collective public-key, whose
 // secret-shares are distributed among j parties, re-encrypting the ciphertext under another public-key, whose secret-shares are also known to the
 // parties.
-func NewKeySwitchProtocol(params rlwe.Parameters, noiseFlooding ring.DistributionParameters) (KeySwitchProtocol, error) {
+func NewKeySwitchProtocol(params rlwe.ParameterProvider, noiseFlooding ring.DistributionParameters) (KeySwitchProtocol, error) {
 	cks := KeySwitchProtocol{}
-	cks.params = params
+	cks.params = *params.GetRLWEParameters()
 	prng, err := sampling.NewPRNG()
 	if err != nil {
 		panic(err)
@@ -71,7 +71,7 @@ func NewKeySwitchProtocol(params rlwe.Parameters, noiseFlooding ring.Distributio
 
 	switch noise := noiseFlooding.(type) {
 	case ring.DiscreteGaussian:
-		eFresh := params.NoiseFreshSK()
+		eFresh := cks.params.NoiseFreshSK()
 		eNoise := noise.Sigma
 		eSigma := math.Sqrt(eFresh*eFresh + eNoise*eNoise)
 		cks.noise = ring.DiscreteGaussian{Sigma: eSigma, Bound: 6 * eSigma}
@@ -79,13 +79,13 @@ func NewKeySwitchProtocol(params rlwe.Parameters, noiseFlooding ring.Distributio
 		return cks, fmt.Errorf("invalid distribution type, expected %T but got %T", ring.DiscreteGaussian{}, noise)
 	}
 
-	cks.noiseSampler, err = ring.NewSampler(prng, params.RingQ(), cks.noise, false)
+	cks.noiseSampler, err = ring.NewSampler(prng, cks.params.RingQ(), cks.noise, false)
 	if err != nil {
 		panic(err)
 	}
 
-	cks.buf = params.RingQ().NewPoly()
-	cks.bufDelta = params.RingQ().NewPoly()
+	cks.buf = cks.params.RingQ().NewPoly()
+	cks.bufDelta = cks.params.RingQ().NewPoly()
 	return cks, nil
 }
 

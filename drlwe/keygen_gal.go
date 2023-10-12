@@ -36,8 +36,8 @@ func (gkg GaloisKeyGenProtocol) ShallowCopy() GaloisKeyGenProtocol {
 }
 
 // NewGaloisKeyGenProtocol creates a GaloisKeyGenProtocol instance.
-func NewGaloisKeyGenProtocol(params rlwe.Parameters) (gkg GaloisKeyGenProtocol) {
-	return GaloisKeyGenProtocol{EvaluationKeyGenProtocol: NewEvaluationKeyGenProtocol(params), skOut: params.RingQP().NewPoly()}
+func NewGaloisKeyGenProtocol(params rlwe.ParameterProvider) (gkg GaloisKeyGenProtocol) {
+	return GaloisKeyGenProtocol{EvaluationKeyGenProtocol: NewEvaluationKeyGenProtocol(params), skOut: params.GetRLWEParameters().RingQP().NewPoly()}
 }
 
 // AllocateShare allocates a party's share in the GaloisKey Generation.

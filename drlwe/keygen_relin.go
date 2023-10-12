@@ -64,7 +64,7 @@ func (ekg *RelinearizationKeyGenProtocol) ShallowCopy() RelinearizationKeyGenPro
 // NewRelinearizationKeyGenProtocol creates a new RelinearizationKeyGen protocol struct.
 func NewRelinearizationKeyGenProtocol(params rlwe.Parameters) RelinearizationKeyGenProtocol {
 	rkg := RelinearizationKeyGenProtocol{}
-	rkg.params = params
+	rkg.params = *params.GetRLWEParameters()
 
 	var err error
 	prng, err := sampling.NewPRNG()
@@ -72,17 +72,17 @@ func NewRelinearizationKeyGenProtocol(params rlwe.Parameters) RelinearizationKey
 		panic(err)
 	}
 
-	rkg.gaussianSamplerQ, err = ring.NewSampler(prng, params.RingQ(), params.Xe(), false)
+	rkg.gaussianSamplerQ, err = ring.NewSampler(prng, rkg.params.RingQ(), rkg.params.Xe(), false)
 	if err != nil {
 		panic(err)
 	}
 
-	rkg.ternarySamplerQ, err = ring.NewSampler(prng, params.RingQ(), params.Xs(), false)
+	rkg.ternarySamplerQ, err = ring.NewSampler(prng, rkg.params.RingQ(), rkg.params.Xs(), false)
 	if err != nil {
 		panic(err)
 	}
 
-	rkg.buf = [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()}
+	rkg.buf = [2]ringqp.Poly{rkg.params.RingQP().NewPoly(), rkg.params.RingQP().NewPoly()}
 	return rkg
 }
 

@@ -58,18 +58,18 @@ type ShamirSecretShare struct {
 }
 
 // NewThresholdizer creates a new Thresholdizer instance from parameters.
-func NewThresholdizer(params rlwe.Parameters) Thresholdizer {
+func NewThresholdizer(params rlwe.ParameterProvider) Thresholdizer {
 
 	thr := Thresholdizer{}
-	thr.params = &params
-	thr.ringQP = params.RingQP()
+	thr.params = params.GetRLWEParameters()
+	thr.ringQP = thr.params.RingQP()
 
 	prng, err := sampling.NewPRNG()
 	if err != nil {
 		panic(fmt.Errorf("could not initialize PRNG: %s", err))
 	}
 
-	thr.usampler = ringqp.NewUniformSampler(prng, *params.RingQP())
+	thr.usampler = ringqp.NewUniformSampler(prng, *thr.params.RingQP())
 
 	return thr
 }

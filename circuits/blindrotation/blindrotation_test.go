@@ -49,7 +49,7 @@ func testBlindRotation(t *testing.T) {
 	var err error
 
 	// RLWE parameters of the BlindRotation
-	// N=1024, Q=0x7fff801 -> 2^131
+	// N=1024, Q=0x7fff801 -> 131 bit secure
 	paramsBR, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
 		LogN:    10,
 		Q:       []uint64{0x7fff801},
@@ -59,7 +59,7 @@ func testBlindRotation(t *testing.T) {
 	require.NoError(t, err)
 
 	// RLWE parameters of the samples
-	// N=512, Q=0x3001 -> 2^135
+	// N=512, Q=0x3001 -> 135 bit secure
 	paramsLWE, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
 		LogN:    9,
 		Q:       []uint64{0x3001},

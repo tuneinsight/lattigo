@@ -1,7 +1,8 @@
 package ckks
 
 var (
-	testPrec45 = ParametersLiteral{
+	// testInsecurePrec45 are insecure parameters used for the sole purpose of fast testing.
+	testInsecurePrec45 = ParametersLiteral{
 		LogN: 10,
 		Q: []uint64{
 			0x80000000080001,
@@ -19,7 +20,8 @@ var (
 		LogDefaultScale: 45,
 	}
 
-	testPrec90 = ParametersLiteral{
+	// testInsecurePrec90 are insecure parameters used for the sole purpose of fast testing.
+	testInsecurePrec90 = ParametersLiteral{
 		LogN: 10,
 		Q: []uint64{
 			0x80000000080001,
@@ -42,5 +44,5 @@ var (
 		LogDefaultScale: 90,
 	}
 
-	testParamsLiteral = []ParametersLiteral{testPrec45, testPrec90}
+	testParamsLiteral = []ParametersLiteral{testInsecurePrec45, testInsecurePrec90}
 )

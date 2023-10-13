@@ -2,7 +2,7 @@ package bfv
 
 var (
 
-	// These parameters are for test purpose only and are not 128-bit secure.
+	// testInsecure are insecure parameters used for the sole purpose of fast testing.
 	testInsecure = ParametersLiteral{
 		LogN: 10,
 		Q:    []uint64{0x3fffffa8001, 0x1000090001, 0x10000c8001, 0x10000f0001, 0xffff00001},

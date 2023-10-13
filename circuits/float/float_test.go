@@ -60,7 +60,7 @@ func TestFloat(t *testing.T) {
 			t.Fatal(err)
 		}
 	default:
-		testParams = float.TestParametersLiteral
+		testParams = testParametersLiteral
 	}
 
 	for _, ringType := range []ring.Type{ring.Standard, ring.ConjugateInvariant} {

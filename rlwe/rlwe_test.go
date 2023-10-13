@@ -35,7 +35,7 @@ func TestRLWE(t *testing.T) {
 
 	var err error
 
-	defaultParamsLiteral := testParamsLiteral
+	defaultParamsLiteral := testInsecure
 
 	if *flagParamString != "" {
 		var jsonParams TestParametersLiteral

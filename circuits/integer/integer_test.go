@@ -16,21 +16,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
-// func GetTestName(opname string, p Parameters, lvl int) string {
-// 	return fmt.Sprintf("%s/LogN=%d/logQ=%d/logP=%d/LogSlots=%dx%d/logT=%d/Qi=%d/Pi=%d/lvl=%d",
-// 		opname,
-// 		p.LogN(),
-// 		int(math.Round(p.LogQ())),
-// 		int(math.Round(p.LogP())),
-// 		p.LogMaxDimensions().Rows,
-// 		p.LogMaxDimensions().Cols,
-// 		int(math.Round(p.LogT())),
-// 		p.QCount(),
-// 		p.PCount(),
-// 		lvl)
-// }
-
-func TestBGV(t *testing.T) {
+func TestInteger(t *testing.T) {
 
 	var err error
 

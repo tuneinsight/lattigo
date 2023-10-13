@@ -1,4 +1,4 @@
-package dbgv
+package integer
 
 import (
 	"github.com/tuneinsight/lattigo/v4/bgv"

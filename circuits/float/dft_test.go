@@ -25,7 +25,7 @@ func TestHomomorphicDFT(t *testing.T) {
 
 	testDFTMatrixLiteralMarshalling(t)
 
-	for _, paramsLiteral := range float.TestParametersLiteral {
+	for _, paramsLiteral := range testParametersLiteral {
 
 		var params ckks.Parameters
 		if params, err = ckks.NewParametersFromLiteral(paramsLiteral); err != nil {

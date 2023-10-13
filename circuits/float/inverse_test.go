@@ -16,7 +16,7 @@ import (
 
 func TestInverse(t *testing.T) {
 
-	paramsLiteral := float.TestPrec90
+	paramsLiteral := testInsecurePrec90
 
 	for _, ringType := range []ring.Type{ring.Standard, ring.ConjugateInvariant} {
 

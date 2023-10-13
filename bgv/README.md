@@ -5,7 +5,7 @@ The BGV package provides a unified RNS-accelerated variant of the Fan-Vercautere
 
 ## Implementation Notes
 
-The proposed implementation is not standard and provides all the functionalities of the BFV and BGV schemes under a unified scheme.
+The proposed implementation provides all the functionalities of the BFV and BGV schemes under a unified scheme.
 This enabled by the equivalency between the LSB and MSB encoding when T is coprime to Q (Appendix A of <https://eprint.iacr.org/2013/372>).
 
 ### Intuition
@@ -31,7 +31,7 @@ T^{-1} \cdot [-as + m + eT, a]_{Q_{\ell}}\rightarrow[-bs + mT^{-1} + e, b]_{Q_{\
 2) Apply the Full-RNS CKKS-style rescaling (division by $q_{\ell} = Q_{\ell}/Q_{\ell-1}$):
 
 ```math
-q_{\ell}^{-1}\cdot[-bs + mT^{-1} + e, b]_{Q_{\ell}}\rceil\rightarrow[-cs + mq_{\ell}^{-1}T^{-1} + \lfloor e/q_{\ell} + e_{\textsf{round}}, c]_{Q_{\ell-1}}
+\lfloor q_{\ell}^{-1}\cdot[-bs + mT^{-1} + e, b]_{Q_{\ell}}\rceil\rightarrow[-cs + mq_{\ell}^{-1}T^{-1} + \lfloor e/q_{\ell}\rfloor + e_{\textsf{round}}, c]_{Q_{\ell-1}}
 ```
 
 3) Multiply the ciphertext by $T \mod Q_{\ell-1}$ (switch from MSB to LSB encoding)

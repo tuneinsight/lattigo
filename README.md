@@ -10,7 +10,6 @@ Lattigo is a Go module that implements Ring-Learning-With-Errors-based homomorph
 primitives and Multiparty-Homomorphic-Encryption-based secure protocols. The library features:
 - An implementation of the full-RNS BFV, BGV and CKKS schemes and their respective multiparty versions.
 - Comparable performance to state-of-the-art C++ libraries.
-- Dense-key and sparse-key efficient and high-precision bootstrapping procedures for full-RNS CKKS.
 - A pure Go implementation that enables cross-platform builds, including WASM compilation for
   browser clients.
 
@@ -21,32 +20,49 @@ is a common choice thanks to its natural concurrency model and portability.
 
 The library exposes the following packages:
 
-- `lattigo/ring`: Modular arithmetic operations for polynomials in the RNS basis, including: RNS
-  basis extension; RNS rescaling; number theoretic transform (NTT); uniform, Gaussian and ternary
-  sampling.
-
-- `lattigo/bfv`: The Full-RNS variant of the Brakerski-Fan-Vercauteren scale-invariant homomorphic
+- `lattigo/bfv`: A Full-RNS variant of the Brakerski-Fan-Vercauteren scale-invariant homomorphic
   encryption scheme. It provides modular arithmetic over the integers.
 
-- `lattigo/bgv`: The Full-RNS variant of the Brakerski-Gentry-Vaikuntanathan homomorphic
-  encryption scheme. It provides modular arithmetic over the integers.
+- `lattigo/bgv`: A Full-RNS generalization of the Brakerski-Fan-Vercauteren scale-invariant (BFV) and 
+  Brakerski-Gentry-Vaikuntanathan (BGV) homomorphic encryption schemes. It provides modular arithmetic over the integers.
 	
-- `lattigo/ckks`: The Full-RNS Homomorphic Encryption for Arithmetic for Approximate Numbers (HEAAN,
+- `lattigo/ckks`: A Full-RNS Homomorphic Encryption for Arithmetic for Approximate Numbers (HEAAN,
   a.k.a. CKKS) scheme. It provides approximate arithmetic over the complex numbers (in its classic
   variant) and over the real numbers (in its conjugate-invariant variant).
+
+- `lattigo/circuits`: Generic methods and interfaces for linear transformation and polynomial evaluation.
+  This package also contains the following sub-packages:
+  - `blindrotation`: Blind rotations (a.k.a lookup tables).
+  - `float`: Advanced arithmetic for CKKS.
+    - `bootstrapper`: Bootstrapping for CKKS.
+  - `integer`: Advanced arithmetic for BGV/BFV.
 
 - `lattigo/dbfv`, `lattigo/dbgv` and `lattigo/dckks`: Multiparty (a.k.a. distributed or threshold) 
   versions of the BFV, BGV and CKKS schemes that enable secure multiparty computation solutions with 
   secret-shared secret keys.
 
-- `lattigo/rlwe` and `lattigo/drlwe`: common base for generic RLWE-based multiparty homomorphic
-  encryption. It is imported by the `lattigo/bfv`, `lattigo/bgv` and `lattigo/ckks` packages.
+- `lattigo/drlwe`: Common base for generic RLWE-based multiparty homomorphic
+  encryption. It is imported by the `lattigo/dbfv`, `lattigo/dbgv` and `lattigo/dckks` packages.
+
+- `lattigo/rlwe`:  Common base for generic RLWE-based homomorphic encryption. 
+  It is imported by the `lattigo/bfv`, `lattigo/bgv` and `lattigo/ckks` packages.
+
+- `lattigo/rgsw`: A Full-RNS variant of Ring-GSW ciphertexts and the external product.
+
+- `lattigo/ring`: Modular arithmetic operations for polynomials in the RNS basis, including: RNS
+  basis extension; RNS rescaling; number theoretic transform (NTT); uniform, Gaussian and ternary
+  sampling.
 
 - `lattigo/examples`: Executable Go programs that demonstrate the use of the Lattigo library. Each
                       subpackage includes test files that further demonstrate the use of Lattigo
                       primitives.
 
-- `lattigo/utils`: Supporting structures and functions.
+- `lattigo/utils`: Generic utility methods. This package also contains the following sub-pacakges:
+  - `bignum`: Arbitrary precision linear algebra and polynomial approximation.
+  - `buffer`: Efficient methods to write/read on `io.Writer` and `io.Reader`.
+  - `factorization`: Various factorization algorithms for medium-sized integers.
+  - `sampling`: Secure bytes sampling.
+  - `structs`: Generic structs for maps, vectors and matrices, including serialization.
 
 ## Versions and Roadmap
 
@@ -86,20 +102,13 @@ us before doing so to make sure that the proposed changes are aligned with our d
 
 External pull requests only proposing small or trivial changes will be converted to an issue and closed.
 
-## Support and Issues
-
-The GitHub issues should only be used for bug reports and questions directly related to the use or the implementation of the library.
-Any other issue will be closed, and for this we recommend the use of [GitHub discussions](https://github.com/tuneinsight/lattigo/discussions) or other topic-specific forums instead.
-Any new issue regarding an unexpected behavior of the library or one of its packages must be accompanied 
-by a self-contained `main.go` reproducing the unwanted behavior.
-
 ## License
 
 Lattigo is licensed under the Apache 2.0 License. See [LICENSE](https://github.com/tuneinsight/lattigo/blob/master/LICENSE).
 
 ## Contact
 
-If you want to contribute to Lattigo, to contact us directly or to report a security issue, please do so using the following email: [lattigo@tuneinsight.com](mailto:lattigo@tuneinsight.com).
+If you want to contribute to Lattigo, have a feature proposal or request, to report a security issue or simply want to contact us directly, please do so using the following email: [lattigo@tuneinsight.com](mailto:lattigo@tuneinsight.com).
 
 ## Citing
 

@@ -149,7 +149,7 @@ func (g *GaussianSampler) read(pol Poly, f func(a, b, c uint64) uint64) {
 				norm, sign = g.normFloat64()
 
 				if v := norm * sigma; v <= bound {
-					coeffInt = uint64(norm*sigma + 0.5)
+					coeffInt = uint64(v + 0.5) // rounding
 					break
 				}
 			}

@@ -172,11 +172,11 @@ func SpecialFFTDoubleUL8(values []complex128, N, M int, rotGroup []int, roots []
 
 				for j, k := 0, i; j < lenh; j, k = j+8, k+8 {
 
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(values)%8 != 0 */
 					u := (*[8]complex128)(unsafe.Pointer(&values[k]))
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(values)%8 != 0 */
 					v := (*[8]complex128)(unsafe.Pointer(&values[k+lenh]))
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(values)%8 != 0 */
 					w := (*[8]int)(unsafe.Pointer(&rotGroup[j]))
 
 					v[0] *= roots[(w[0]&mask)<<logGap]
@@ -211,7 +211,7 @@ func SpecialFFTDoubleUL8(values []complex128, N, M int, rotGroup []int, roots []
 
 			for i := 0; i < N; i += 16 {
 
-				/* #nosec G103 -- behavior and consequences well understood */
+				/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(values)%8 != 0 */
 				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
 
 				u[8] *= psi0
@@ -242,7 +242,7 @@ func SpecialFFTDoubleUL8(values []complex128, N, M int, rotGroup []int, roots []
 
 			for i := 0; i < N; i += 16 {
 
-				/* #nosec G103 -- behavior and consequences well understood */
+				/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(values)%8 != 0 */
 				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
 
 				u[4] *= psi0
@@ -270,7 +270,7 @@ func SpecialFFTDoubleUL8(values []complex128, N, M int, rotGroup []int, roots []
 
 			for i := 0; i < N; i += 16 {
 
-				/* #nosec G103 -- behavior and consequences well understood */
+				/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(values)%8 != 0 */
 				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
 
 				u[2] *= psi0
@@ -297,7 +297,7 @@ func SpecialFFTDoubleUL8(values []complex128, N, M int, rotGroup []int, roots []
 
 			for i := 0; i < N; i += 16 {
 
-				/* #nosec G103 -- behavior and consequences well understood */
+				/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(values)%8 != 0 */
 				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
 
 				u[1] *= psi0
@@ -347,11 +347,11 @@ func SpecialiFFTDoubleUnrolled8(values []complex128, N, M int, rotGroup []int, r
 			for i := 0; i < N; i += len {
 				for j, k := 0, i; j < lenh; j, k = j+8, k+8 {
 
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(values)%8 != 0 */
 					u := (*[8]complex128)(unsafe.Pointer(&values[k]))
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(values)%8 != 0 */
 					v := (*[8]complex128)(unsafe.Pointer(&values[k+lenh]))
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(rotGroup)%8 != 0 */
 					w := (*[8]int)(unsafe.Pointer(&rotGroup[j]))
 
 					u[0], v[0] = u[0]+v[0], (u[0]-v[0])*roots[(lenq-(w[0]&mask))<<logGap]
@@ -377,7 +377,7 @@ func SpecialiFFTDoubleUnrolled8(values []complex128, N, M int, rotGroup []int, r
 
 			for i := 0; i < N; i += 16 {
 
-				/* #nosec G103 -- behavior and consequences well understood */
+				/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(rotGroup)%8 != 0  */
 				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
 
 				u[0], u[8] = u[0]+u[8], (u[0]-u[8])*psi0
@@ -399,7 +399,7 @@ func SpecialiFFTDoubleUnrolled8(values []complex128, N, M int, rotGroup []int, r
 
 			for i := 0; i < N; i += 16 {
 
-				/* #nosec G103 -- behavior and consequences well understood */
+				/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(rotGroup)%8 != 0  */
 				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
 
 				u[0], u[4] = u[0]+u[4], (u[0]-u[4])*psi0
@@ -418,7 +418,7 @@ func SpecialiFFTDoubleUnrolled8(values []complex128, N, M int, rotGroup []int, r
 
 			for i := 0; i < N; i += 16 {
 
-				/* #nosec G103 -- behavior and consequences well understood */
+				/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(rotGroup)%8 != 0  */
 				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
 
 				u[0], u[2] = u[0]+u[2], (u[0]-u[2])*psi0
@@ -436,7 +436,7 @@ func SpecialiFFTDoubleUnrolled8(values []complex128, N, M int, rotGroup []int, r
 
 			for i := 0; i < N; i += 16 {
 
-				/* #nosec G103 -- behavior and consequences well understood */
+				/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(rotGroup)%8 != 0  */
 				u := (*[16]complex128)(unsafe.Pointer(&values[i]))
 
 				u[0], u[1] = u[0]+u[1], (u[0]-u[1])*psi0

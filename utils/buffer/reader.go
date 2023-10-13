@@ -8,49 +8,49 @@ import (
 
 // ReadAsUint64 reads an uint64 from r and stores the result into c with pointer type casting into type T.
 func ReadAsUint64[T any](r Reader, c *T) (n int64, err error) {
-	/* #nosec G103 -- behavior and consequences well understood */
+	/* #nosec G103 -- behavior and consequences well understood, pointer type cast */
 	return ReadUint64(r, (*uint64)(unsafe.Pointer(c)))
 }
 
 // ReadAsUint32 reads an uint32 from r and stores the result into c with pointer type casting into type T.
 func ReadAsUint32[T any](r Reader, c *T) (n int64, err error) {
-	/* #nosec G103 -- behavior and consequences well understood */
+	/* #nosec G103 -- behavior and consequences well understood, pointer type cast */
 	return ReadUint32(r, (*uint32)(unsafe.Pointer(c)))
 }
 
 // ReadAsUint16 reads an uint16 from r and stores the result into c with pointer type casting into type T.
 func ReadAsUint16[T any](r Reader, c *T) (n int64, err error) {
-	/* #nosec G103 -- behavior and consequences well understood */
+	/* #nosec G103 -- behavior and consequences well understood, pointer type cast */
 	return ReadUint16(r, (*uint16)(unsafe.Pointer(c)))
 }
 
 // ReadAsUint8 reads an uint8 from r and stores the result into c with pointer type casting into type T.
 func ReadAsUint8[T any](r Reader, c *T) (n int64, err error) {
-	/* #nosec G103 -- behavior and consequences well understood */
+	/* #nosec G103 -- behavior and consequences well understood, pointer type cast */
 	return ReadUint8(r, (*uint8)(unsafe.Pointer(c)))
 }
 
 // ReadAsUint64Slice reads a slice of uint64 from r and stores the result into c with pointer type casting into type T.
 func ReadAsUint64Slice[T any](r Reader, c []T) (n int64, err error) {
-	/* #nosec G103 -- behavior and consequences well understood */
+	/* #nosec G103 -- behavior and consequences well understood, pointer type cast */
 	return ReadUint64Slice(r, *(*[]uint64)(unsafe.Pointer(&c)))
 }
 
 // ReadAsUint32Slice reads a slice of uint32 from r and stores the result into c with pointer type casting into type T.
 func ReadAsUint32Slice[T any](r Reader, c []T) (n int64, err error) {
-	/* #nosec G103 -- behavior and consequences well understood */
+	/* #nosec G103 -- behavior and consequences well understood, pointer type cast */
 	return ReadUint32Slice(r, *(*[]uint32)(unsafe.Pointer(&c)))
 }
 
 // ReadAsUint16Slice reads a slice of uint16 from r and stores the result into c with pointer type casting into type T.
 func ReadAsUint16Slice[T any](r Reader, c []T) (n int64, err error) {
-	/* #nosec G103 -- behavior and consequences well understood */
+	/* #nosec G103 -- behavior and consequences well understood, pointer type cast */
 	return ReadUint16Slice(r, *(*[]uint16)(unsafe.Pointer(&c)))
 }
 
 // ReadAsUint8Slice reads a slice of uint8 from r and stores the result into c with pointer type casting into type T.
 func ReadAsUint8Slice[T any](r Reader, c []T) (n int64, err error) {
-	/* #nosec G103 -- behavior and consequences well understood */
+	/* #nosec G103 -- behavior and consequences well understood, pointer type cast */
 	return ReadUint8Slice(r, *(*[]uint8)(unsafe.Pointer(&c)))
 }
 

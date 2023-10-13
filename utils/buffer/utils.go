@@ -80,7 +80,7 @@ func RequireSerializerCorrect(t *testing.T, input binarySerializer) {
 // EqualAsUint64 casts &T to an *uint64 and performs a comparison.
 // User must ensure that T can be stored in an uint64.
 func EqualAsUint64[T any](a, b T) bool {
-	/* #nosec G103 -- behavior and consequences well understood */
+	/* #nosec G103 -- behavior and consequences well understood, pointer type cast */
 	return *(*uint64)(unsafe.Pointer(&a)) == *(*uint64)(unsafe.Pointer(&b))
 }
 
@@ -88,10 +88,10 @@ func EqualAsUint64[T any](a, b T) bool {
 // User must ensure that T can be stored in an uint64.
 func EqualAsUint64Slice[T any](a, b []T) bool {
 
-	/* #nosec G103 -- behavior and consequences well understood */
+	/* #nosec G103 -- behavior and consequences well understood, pointer type cast */
 	aU64 := *(*[]uint64)(unsafe.Pointer(&a))
 
-	/* #nosec G103 -- behavior and consequences well understood */
+	/* #nosec G103 -- behavior and consequences well understood, pointer type cast */
 	bU64 := *(*[]uint64)(unsafe.Pointer(&b))
 
 	if len(aU64) != len(bU64) {
@@ -115,10 +115,10 @@ func EqualAsUint64Slice[T any](a, b []T) bool {
 // User must ensure that T can be stored in an uint32.
 func EqualAsUint32Slice[T any](a, b []T) bool {
 
-	/* #nosec G103 -- behavior and consequences well understood */
+	/* #nosec G103 -- behavior and consequences well understood, pointer type cast */
 	aU32 := *(*[]uint32)(unsafe.Pointer(&a))
 
-	/* #nosec G103 -- behavior and consequences well understood */
+	/* #nosec G103 -- behavior and consequences well understood, pointer type cast */
 	bU32 := *(*[]uint32)(unsafe.Pointer(&b))
 
 	if len(aU32) != len(bU32) {
@@ -142,10 +142,10 @@ func EqualAsUint32Slice[T any](a, b []T) bool {
 // User must ensure that T can be stored in an uint16.
 func EqualAsUint16Slice[T any](a, b []T) bool {
 
-	/* #nosec G103 -- behavior and consequences well understood */
+	/* #nosec G103 -- behavior and consequences well understood, pointer type cast */
 	aU16 := *(*[]uint16)(unsafe.Pointer(&a))
 
-	/* #nosec G103 -- behavior and consequences well understood */
+	/* #nosec G103 -- behavior and consequences well understood, pointer type cast */
 	bU16 := *(*[]uint16)(unsafe.Pointer(&b))
 
 	if len(aU16) != len(bU16) {
@@ -169,10 +169,10 @@ func EqualAsUint16Slice[T any](a, b []T) bool {
 // User must ensure that T can be stored in an uint8.
 func EqualAsUint8Slice[T any](a, b []T) bool {
 
-	/* #nosec G103 -- behavior and consequences well understood */
+	/* #nosec G103 -- behavior and consequences well understood, pointer type cast */
 	aU8 := *(*[]uint8)(unsafe.Pointer(&a))
 
-	/* #nosec G103 -- behavior and consequences well understood */
+	/* #nosec G103 -- behavior and consequences well understood, pointer type cast */
 	bU8 := *(*[]uint8)(unsafe.Pointer(&b))
 
 	if len(aU8) != len(bU8) {

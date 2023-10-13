@@ -260,14 +260,14 @@ func nttUnrolled16Lazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []u
 
 	for jx, jy := 0, t; jx < t; jx, jy = jx+8, jy+8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 != 0 */
 		xin := (*[8]uint64)(unsafe.Pointer(&p1[jx]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 != 0 */
 		yin := (*[8]uint64)(unsafe.Pointer(&p1[jy]))
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 != 0 */
 		xout := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 != 0 */
 		yout := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
 		V = MRedLazy(yin[0], F, Q, MRedConstant)
@@ -318,9 +318,9 @@ func nttUnrolled16Lazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []u
 
 					for jx, jy := j1, j1+t; jx < j2; jx, jy = jx+8, jy+8 {
 
-						/* #nosec G103 -- behavior and consequences well understood */
+						/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 != 0 */
 						x := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
-						/* #nosec G103 -- behavior and consequences well understood */
+						/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 != 0 */
 						y := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
 						x[0], y[0] = butterfly(x[0], y[0], F, twoQ, fourQ, Q, MRedConstant)
@@ -337,9 +337,9 @@ func nttUnrolled16Lazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []u
 
 					for jx, jy := j1, j1+t; jx < j2; jx, jy = jx+8, jy+8 {
 
-						/* #nosec G103 -- behavior and consequences well understood */
+						/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 != 0 */
 						x := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
-						/* #nosec G103 -- behavior and consequences well understood */
+						/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 != 0 */
 						y := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
 						V = MRedLazy(y[0], F, Q, MRedConstant)
@@ -375,9 +375,9 @@ func nttUnrolled16Lazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []u
 
 				for i, j1 := m, 0; i < 2*m; i, j1 = i+2, j1+4*t {
 
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(roots)%2 != 0 */
 					psi := (*[2]uint64)(unsafe.Pointer(&roots[i]))
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%16 != 0 */
 					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 					x[0], x[4] = butterfly(x[0], x[4], psi[0], twoQ, fourQ, Q, MRedConstant)
@@ -394,9 +394,9 @@ func nttUnrolled16Lazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []u
 
 				for i, j1 := m, 0; i < 2*m; i, j1 = i+2, j1+4*t {
 
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(roots)%2 != 0 */
 					psi := (*[2]uint64)(unsafe.Pointer(&roots[i]))
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%16 != 0 */
 					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 					V = MRedLazy(x[4], psi[0], Q, MRedConstant)
@@ -433,9 +433,9 @@ func nttUnrolled16Lazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []u
 
 				for i, j1 := m, 0; i < 2*m; i, j1 = i+4, j1+8*t {
 
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(roots)%4 != 0 */
 					psi := (*[4]uint64)(unsafe.Pointer(&roots[i]))
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%16 != 0 */
 					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 					x[0], x[2] = butterfly(x[0], x[2], psi[0], twoQ, fourQ, Q, MRedConstant)
@@ -451,9 +451,9 @@ func nttUnrolled16Lazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []u
 
 				for i, j1 := m, 0; i < 2*m; i, j1 = i+4, j1+8*t {
 
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(roots)%4 != 0 */
 					psi := (*[4]uint64)(unsafe.Pointer(&roots[i]))
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%16 != 0 */
 					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 					V = MRedLazy(x[2], psi[0], Q, MRedConstant)
@@ -486,9 +486,9 @@ func nttUnrolled16Lazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []u
 
 			for i, j1 := m, 0; i < 2*m; i, j1 = i+8, j1+16 {
 
-				/* #nosec G103 -- behavior and consequences well understood */
+				/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(roots)%8 != 0 */
 				psi := (*[8]uint64)(unsafe.Pointer(&roots[i]))
-				/* #nosec G103 -- behavior and consequences well understood */
+				/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%16 != 0 */
 				x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 				x[0], x[1] = butterfly(x[0], x[1], psi[0], twoQ, fourQ, Q, MRedConstant)
@@ -606,11 +606,11 @@ func inttLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []
 
 	for i, j := h, 0; i < 2*h; i, j = i+8, j+16 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(roots)%8 != 0 */
 		psi := (*[8]uint64)(unsafe.Pointer(&roots[i]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%16 != 0 */
 		xin := (*[16]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%16 != 0 */
 		xout := (*[16]uint64)(unsafe.Pointer(&p2[j]))
 
 		xout[0], xout[1] = invbutterfly(xin[0], xin[1], psi[0], twoQ, fourQ, Q, MRedConstant)
@@ -637,9 +637,9 @@ func inttLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []
 
 				for jx, jy := j1, j1+t; jx < j2; jx, jy = jx+8, jy+8 {
 
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 != 0 */
 					x := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 != 0 */
 					y := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
 					x[0], y[0] = invbutterfly(x[0], y[0], F, twoQ, fourQ, Q, MRedConstant)
@@ -657,9 +657,9 @@ func inttLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []
 
 			for i, j1 := h, 0; i < 2*h; i, j1 = i+2, j1+4*t {
 
-				/* #nosec G103 -- behavior and consequences well understood */
+				/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(roots)%2 != 0 */
 				psi := (*[2]uint64)(unsafe.Pointer(&roots[i]))
-				/* #nosec G103 -- behavior and consequences well understood */
+				/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%16 != 0 */
 				x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 				x[0], x[4] = invbutterfly(x[0], x[4], psi[0], twoQ, fourQ, Q, MRedConstant)
@@ -676,9 +676,9 @@ func inttLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []
 
 			for i, j1 := h, 0; i < 2*h; i, j1 = i+4, j1+8*t {
 
-				/* #nosec G103 -- behavior and consequences well understood */
+				/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(roots)%4 != 0 */
 				psi := (*[4]uint64)(unsafe.Pointer(&roots[i]))
-				/* #nosec G103 -- behavior and consequences well understood */
+				/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%16 != 0 */
 				x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 				x[0], x[2] = invbutterfly(x[0], x[2], psi[0], twoQ, fourQ, Q, MRedConstant)
@@ -785,14 +785,14 @@ func nttConjugateInvariantLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstant
 
 	for jx, jy := 1, N-8; jx < (N>>1)-7; jx, jy = jx+8, jy-8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 != 0 */
 		xin := (*[8]uint64)(unsafe.Pointer(&p1[jx]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 != 0 */
 		yin := (*[8]uint64)(unsafe.Pointer(&p1[jy]))
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 != 0 */
 		xout := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 != 0 */
 		yout := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
 		xout[0], yout[7] = xin[0]+twoQ-MRedLazy(yin[7], F, Q, MRedConstant), yin[7]+twoQ-MRedLazy(xin[0], F, Q, MRedConstant)
@@ -806,13 +806,13 @@ func nttConjugateInvariantLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstant
 	}
 
 	j := (N >> 1) - 7
-	/* #nosec G103 -- behavior and consequences well understood */
+	/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 != 0 */
 	xin := (*[7]uint64)(unsafe.Pointer(&p1[j]))
-	/* #nosec G103 -- behavior and consequences well understood */
+	/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 != 0 */
 	yin := (*[7]uint64)(unsafe.Pointer(&p1[N-j-6]))
-	/* #nosec G103 -- behavior and consequences well understood */
+	/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 != 0 */
 	xout := (*[7]uint64)(unsafe.Pointer(&p2[j]))
-	/* #nosec G103 -- behavior and consequences well understood */
+	/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 != 0 */
 	yout := (*[7]uint64)(unsafe.Pointer(&p2[N-j-6]))
 
 	xout[0], yout[6] = xin[0]+twoQ-MRedLazy(yin[6], F, Q, MRedConstant), yin[6]+twoQ-MRedLazy(xin[0], F, Q, MRedConstant)
@@ -844,9 +844,9 @@ func nttConjugateInvariantLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstant
 
 					for jx, jy := j1, j1+t; jx < j2; jx, jy = jx+8, jy+8 {
 
-						/* #nosec G103 -- behavior and consequences well understood */
+						/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 != 0 */
 						x := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
-						/* #nosec G103 -- behavior and consequences well understood */
+						/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 != 0 */
 						y := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
 						x[0], y[0] = butterfly(x[0], y[0], F, twoQ, fourQ, Q, MRedConstant)
@@ -863,9 +863,9 @@ func nttConjugateInvariantLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstant
 
 					for jx, jy := j1, j1+t; jx < j2; jx, jy = jx+8, jy+8 {
 
-						/* #nosec G103 -- behavior and consequences well understood */
+						/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 != 0 */
 						x := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
-						/* #nosec G103 -- behavior and consequences well understood */
+						/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 != 0 */
 						y := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
 						V = MRedLazy(y[0], F, Q, MRedConstant)
@@ -901,9 +901,9 @@ func nttConjugateInvariantLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstant
 
 				for i, j1 := m, 0; i < h+m; i, j1 = i+2, j1+4*t {
 
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(roots)%2 != 0 */
 					psi := (*[2]uint64)(unsafe.Pointer(&roots[i]))
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%16 != 0 */
 					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 					x[0], x[4] = butterfly(x[0], x[4], psi[0], twoQ, fourQ, Q, MRedConstant)
@@ -920,9 +920,9 @@ func nttConjugateInvariantLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstant
 
 				for i, j1 := m, 0; i < h+m; i, j1 = i+2, j1+4*t {
 
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(roots)%2 != 0 */
 					psi := (*[2]uint64)(unsafe.Pointer(&roots[i]))
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%16 != 0 */
 					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 					V = MRedLazy(x[4], psi[0], Q, MRedConstant)
@@ -958,9 +958,9 @@ func nttConjugateInvariantLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstant
 
 				for i, j1 := m, 0; i < h+m; i, j1 = i+4, j1+8*t {
 
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(roots)%4 != 0 */
 					psi := (*[4]uint64)(unsafe.Pointer(&roots[i]))
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%16 != 0 */
 					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 					x[0], x[2] = butterfly(x[0], x[2], psi[0], twoQ, fourQ, Q, MRedConstant)
@@ -976,9 +976,9 @@ func nttConjugateInvariantLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstant
 
 				for i, j1 := m, 0; i < h+m; i, j1 = i+4, j1+8*t {
 
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(roots)%4 != 0 */
 					psi := (*[4]uint64)(unsafe.Pointer(&roots[i]))
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%16 != 0 */
 					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 					V = MRedLazy(x[2], psi[0], Q, MRedConstant)
@@ -1013,9 +1013,9 @@ func nttConjugateInvariantLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstant
 
 				for i, j1 := m, 0; i < h+m; i, j1 = i+8, j1+16 {
 
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(roots)%8 != 0 */
 					psi := (*[8]uint64)(unsafe.Pointer(&roots[i]))
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%16 != 0 */
 					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 					x[0], x[1] = butterfly(x[0], x[1], psi[0], twoQ, fourQ, Q, MRedConstant)
@@ -1031,9 +1031,9 @@ func nttConjugateInvariantLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstant
 
 				for i, j1 := m, 0; i < h+m; i, j1 = i+8, j1+16 {
 
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(roots)%16 != 0 */
 					psi := (*[8]uint64)(unsafe.Pointer(&roots[i]))
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%16 != 0 */
 					x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 					V = MRedLazy(x[1], psi[0], Q, MRedConstant)
@@ -1151,11 +1151,11 @@ func inttConjugateInvariantLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstan
 
 	for i, j := N, 0; i < h+N; i, j = i+8, j+16 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(roots)%8 != 0 */
 		psi := (*[8]uint64)(unsafe.Pointer(&roots[i]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%16 != 0 */
 		xin := (*[16]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%16 != 0 */
 		xout := (*[16]uint64)(unsafe.Pointer(&p2[j]))
 
 		xout[0], xout[1] = invbutterfly(xin[0], xin[1], psi[0], twoQ, fourQ, Q, MRedConstant)
@@ -1185,9 +1185,9 @@ func inttConjugateInvariantLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstan
 
 				for jx, jy := j1, j1+t; jx < j2; jx, jy = jx+8, jy+8 {
 
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 					x := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
-					/* #nosec G103 -- behavior and consequences well understood */
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 					y := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
 					x[0], y[0] = invbutterfly(x[0], y[0], F, twoQ, fourQ, Q, MRedConstant)
@@ -1207,9 +1207,9 @@ func inttConjugateInvariantLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstan
 
 			for i := m; i < h+m; i = i + 2 {
 
-				/* #nosec G103 -- behavior and consequences well understood */
+				/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(roots)%2 */
 				psi := (*[2]uint64)(unsafe.Pointer(&roots[i]))
-				/* #nosec G103 -- behavior and consequences well understood */
+				/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%16 */
 				x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 				x[0], x[4] = invbutterfly(x[0], x[4], psi[0], twoQ, fourQ, Q, MRedConstant)
@@ -1228,9 +1228,9 @@ func inttConjugateInvariantLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstan
 
 			for i := m; i < h+m; i = i + 4 {
 
-				/* #nosec G103 -- behavior and consequences well understood */
+				/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(roots)%4 */
 				psi := (*[4]uint64)(unsafe.Pointer(&roots[i]))
-				/* #nosec G103 -- behavior and consequences well understood */
+				/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%16 */
 				x := (*[16]uint64)(unsafe.Pointer(&p2[j1]))
 
 				x[0], x[2] = invbutterfly(x[0], x[2], psi[0], twoQ, fourQ, Q, MRedConstant)
@@ -1253,9 +1253,9 @@ func inttConjugateInvariantLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstan
 
 	for jx, jy := 1, N-8; jx < (N>>1)-7; jx, jy = jx+8, jy-8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		xout := (*[8]uint64)(unsafe.Pointer(&p2[jx]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		yout := (*[8]uint64)(unsafe.Pointer(&p2[jy]))
 
 		xout[0], yout[7] = xout[0]+twoQ-MRedLazy(yout[7], F, Q, MRedConstant), yout[7]+twoQ-MRedLazy(xout[0], F, Q, MRedConstant)
@@ -1269,9 +1269,9 @@ func inttConjugateInvariantLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstan
 	}
 
 	j := (N >> 1) - 7
-	/* #nosec G103 -- behavior and consequences well understood */
+	/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 	xout := (*[7]uint64)(unsafe.Pointer(&p2[j]))
-	/* #nosec G103 -- behavior and consequences well understood */
+	/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 	yout := (*[7]uint64)(unsafe.Pointer(&p2[N-j-6]))
 
 	xout[0], yout[6] = xout[0]+twoQ-MRedLazy(yout[6], F, Q, MRedConstant), yout[6]+twoQ-MRedLazy(xout[0], F, Q, MRedConstant)

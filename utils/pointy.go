@@ -17,6 +17,6 @@ func Pointy[T Number](x T) *T {
 
 // PointyIntToPointUint64 converts *int to *uint64.
 func PointyIntToPointUint64(x *int) *uint64 {
-	/* #nosec G103 -- behavior and consequences well understood */
+	/* #nosec G103 -- behavior and consequences well understood, pointer type cast */
 	return (*uint64)(unsafe.Pointer(uintptr(unsafe.Pointer(x))))
 }

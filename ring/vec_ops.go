@@ -10,11 +10,11 @@ func addvec(p1, p2, p3 []uint64, modulus uint64) {
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
 		z[0] = CRed(x[0]+y[0], modulus)
@@ -34,11 +34,11 @@ func addlazyvec(p1, p2, p3 []uint64) {
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
 		z[0] = x[0] + y[0]
@@ -58,11 +58,11 @@ func subvec(p1, p2, p3 []uint64, modulus uint64) {
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
 		z[0] = CRed((x[0]+modulus)-y[0], modulus)
@@ -82,11 +82,11 @@ func sublazyvec(p1, p2, p3 []uint64, modulus uint64) {
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
 		z[0] = x[0] + modulus - y[0]
@@ -106,9 +106,9 @@ func negvec(p1, p2 []uint64, modulus uint64) {
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
 		z[0] = modulus - x[0]
@@ -128,9 +128,9 @@ func reducevec(p1, p2 []uint64, modulus uint64, brc []uint64) {
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
 		z[0] = BRedAdd(x[0], modulus, brc)
@@ -150,9 +150,9 @@ func reducelazyvec(p1, p2 []uint64, modulus uint64, brc []uint64) {
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
 		z[0] = BRedAddLazy(x[0], modulus, brc)
@@ -172,11 +172,11 @@ func mulcoeffslazyvec(p1, p2, p3 []uint64) {
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
 		z[0] = x[0] * y[0]
@@ -196,11 +196,11 @@ func mulcoeffslazythenaddlazyvec(p1, p2, p3 []uint64) {
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
 		z[0] += x[0] * y[0]
@@ -220,11 +220,11 @@ func mulcoeffsbarrettvec(p1, p2, p3 []uint64, modulus uint64, brc []uint64) {
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
 		z[0] = BRed(x[0], y[0], modulus, brc)
@@ -244,11 +244,11 @@ func mulcoeffsbarrettlazyvec(p1, p2, p3 []uint64, modulus uint64, brc []uint64) 
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
 		z[0] = BRedLazy(x[0], y[0], modulus, brc)
@@ -268,11 +268,11 @@ func mulcoeffsthenaddvec(p1, p2, p3 []uint64, modulus uint64, brc []uint64) {
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
 		z[0] = CRed(z[0]+BRed(x[0], y[0], modulus, brc), modulus)
@@ -292,11 +292,11 @@ func mulcoeffsbarrettthenaddlazyvec(p1, p2, p3 []uint64, modulus uint64, brc []u
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
 		z[0] += BRed(x[0], y[0], modulus, brc)
@@ -315,11 +315,11 @@ func mulcoeffsmontgomeryvec(p1, p2, p3 []uint64, modulus, mrc uint64) {
 	N := len(p1)
 
 	for j := 0; j < N; j = j + 8 {
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
 		z[0] = MRed(x[0], y[0], modulus, mrc)
@@ -339,11 +339,11 @@ func mulcoeffsmontgomerylazyvec(p1, p2, p3 []uint64, modulus, mrc uint64) {
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
 		z[0] = MRedLazy(x[0], y[0], modulus, mrc)
@@ -362,11 +362,11 @@ func mulcoeffsmontgomerythenaddvec(p1, p2, p3 []uint64, modulus, mrc uint64) {
 	N := len(p1)
 
 	for j := 0; j < N; j = j + 8 {
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
 		z[0] = CRed(z[0]+MRed(x[0], y[0], modulus, mrc), modulus)
@@ -386,11 +386,11 @@ func mulcoeffsmontgomerythenaddlazyvec(p1, p2, p3 []uint64, modulus, mrc uint64)
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
 		z[0] += MRed(x[0], y[0], modulus, mrc)
@@ -410,11 +410,11 @@ func mulcoeffsmontgomerylazythenaddlazyvec(p1, p2, p3 []uint64, modulus, mrc uin
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
 		z[0] += MRedLazy(x[0], y[0], modulus, mrc)
@@ -434,11 +434,11 @@ func mulcoeffsmontgomerythensubvec(p1, p2, p3 []uint64, modulus, mrc uint64) {
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
 		z[0] = CRed(z[0]+(modulus-MRed(x[0], y[0], modulus, mrc)), modulus)
@@ -458,11 +458,11 @@ func mulcoeffsmontgomerythensublazyvec(p1, p2, p3 []uint64, modulus, mrc uint64)
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
 		z[0] += (modulus - MRed(x[0], y[0], modulus, mrc))
@@ -483,11 +483,11 @@ func mulcoeffsmontgomerylazythensublazyvec(p1, p2, p3 []uint64, modulus, mrc uin
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
 		z[0] += twomodulus - MRedLazy(x[0], y[0], modulus, mrc)
@@ -508,11 +508,11 @@ func mulcoeffsmontgomerylazythenNegvec(p1, p2, p3 []uint64, modulus, mrc uint64)
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
 		z[0] = twomodulus - MRedLazy(x[0], y[0], modulus, mrc)
@@ -532,11 +532,11 @@ func addlazythenmulscalarmontgomeryvec(p1, p2 []uint64, scalarMont uint64, p3 []
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
 		z[0] = MRed(x[0]+y[0], scalarMont, modulus, mrc)
@@ -556,9 +556,9 @@ func addscalarlazythenmulscalarmontgomeryvec(p1 []uint64, scalar0, scalarMont1 u
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
 		z[0] = MRed(x[0]+scalar0, scalarMont1, modulus, mrc)
@@ -578,9 +578,9 @@ func addscalarvec(p1 []uint64, scalar uint64, p2 []uint64, modulus uint64) {
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
 		z[0] = CRed(x[0]+scalar, modulus)
@@ -600,9 +600,9 @@ func addscalarlazyvec(p1 []uint64, scalar uint64, p2 []uint64) {
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
 		z[0] = x[0] + scalar
@@ -623,9 +623,9 @@ func addscalarlazythenNegTwoModuluslazyvec(p1 []uint64, scalar uint64, p2 []uint
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
 		z[0] = scalar + twomodulus - x[0]
@@ -645,9 +645,9 @@ func subscalarvec(p1 []uint64, scalar uint64, p2 []uint64, modulus uint64) {
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
 		z[0] = CRed(x[0]+modulus-scalar, modulus)
@@ -667,9 +667,9 @@ func mulscalarmontgomeryvec(p1 []uint64, scalarMont uint64, p2 []uint64, modulus
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
 		z[0] = MRed(x[0], scalarMont, modulus, mrc)
@@ -689,9 +689,9 @@ func mulscalarmontgomerylazyvec(p1 []uint64, scalarMont uint64, p2 []uint64, mod
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
 		z[0] = MRedLazy(x[0], scalarMont, modulus, mrc)
@@ -711,9 +711,9 @@ func mulscalarmontgomerythenaddvec(p1 []uint64, scalarMont uint64, p2 []uint64, 
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
 		z[0] = CRed(z[0]+MRed(x[0], scalarMont, modulus, mrc), modulus)
@@ -733,9 +733,9 @@ func mulscalarmontgomerythenaddscalarvec(p1 []uint64, scalar0, scalarMont1 uint6
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
 		z[0] = CRed(MRed(x[0], scalarMont1, modulus, mrc)+scalar0, modulus)
@@ -756,11 +756,11 @@ func subthenmulscalarmontgomeryTwoModulusvec(p1, p2 []uint64, scalarMont uint64,
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
 		z[0] = MRed(twomodulus-y[0]+x[0], scalarMont, modulus, mrc)
@@ -781,9 +781,9 @@ func mformvec(p1, p2 []uint64, modulus uint64, brc []uint64) {
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
 		z[0] = MForm(x[0], modulus, brc)
@@ -803,9 +803,9 @@ func mformlazyvec(p1, p2 []uint64, modulus uint64, brc []uint64) {
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
 		z[0] = MFormLazy(x[0], modulus, brc)
@@ -825,9 +825,9 @@ func imformvec(p1, p2 []uint64, modulus, mrc uint64) {
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
 		z[0] = IMForm(x[0], modulus, mrc)
@@ -850,7 +850,7 @@ func ZeroVec(p1 []uint64) {
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p1[j]))
 
 		z[0] = 0
@@ -873,9 +873,9 @@ func MaskVec(p1 []uint64, w int, mask uint64, p2 []uint64) {
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
 		z[0] = (x[0] >> w) & mask

@@ -162,11 +162,11 @@ func (itp *Interpolator) Lagrange(x, y []uint64) (coeffs []uint64, err error) {
 func subScalarMontgomeryAndMulCoeffsMontgomery(p1 []uint64, a uint64, p2, p3 []uint64, t, mredParams uint64) {
 	for j := 0; j < len(p1); j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 != 0 */
 		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 != 0 */
 		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 != 0 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
 		z[0] = MRedLazy(x[0]+t-a, y[0], t, mredParams)

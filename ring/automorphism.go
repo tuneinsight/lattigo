@@ -54,12 +54,12 @@ func (r Ring) AutomorphismNTTWithIndex(polIn Poly, index []uint64, polOut Poly) 
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(index)%8 != 0  */
 		x := (*[8]uint64)(unsafe.Pointer(&index[j]))
 
 		for i := 0; i < level+1; i++ {
 
-			/* #nosec G103 -- behavior and consequences well understood */
+			/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(polOut.Coeffs)%8 != 0 */
 			z := (*[8]uint64)(unsafe.Pointer(&polOut.Coeffs[i][j]))
 			y := polIn.Coeffs[i]
 
@@ -86,12 +86,12 @@ func (r Ring) AutomorphismNTTWithIndexThenAddLazy(polIn Poly, index []uint64, po
 
 	for j := 0; j < N; j = j + 8 {
 
-		/* #nosec G103 -- behavior and consequences well understood */
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(index)%8 != 0 */
 		x := (*[8]uint64)(unsafe.Pointer(&index[j]))
 
 		for i := 0; i < level+1; i++ {
 
-			/* #nosec G103 -- behavior and consequences well understood */
+			/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(polOut.Coeffs)%8 != 0 */
 			z := (*[8]uint64)(unsafe.Pointer(&polOut.Coeffs[i][j]))
 			y := polIn.Coeffs[i]
 

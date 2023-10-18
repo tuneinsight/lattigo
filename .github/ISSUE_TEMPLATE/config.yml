@@ -1,6 +1,8 @@
 blank_issues_enabled: true
 contact_links:
-  - name: Report a Vulnerability
-    about: To report a vulnerability please contact us directly using the following email: lattigo@tuneinsight.com.
   - name: Feature Proposal/Request
-    about: We do not use GitHub Issues for features proposals or requests. If you have a proposal or would like to make a request for a feature, please contact us directly using the following email: lattigo@tuneinsight.com.
+    url: https://tuneinsight.com/lattigo/contact
+    about: We do not use GitHub Issues for features proposals or requests. If you have a proposal or would like to make a request for a feature, please contact us directly.
+  - name: General Question
+    url: https://github.com/tuneinsight/lattigo/discussions
+    about: Ask a question that is not necessiraly related to the use or implementation of the library.

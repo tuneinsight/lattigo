@@ -1,7 +1,7 @@
 ---
-name: Bug Report
-about: Report a reproducible bug
-title: 'affected/package:'
+name: Bug/Regression
+about: Report a reproducible bug or regression
+title: 'Bug/Regression [<package>]:'
 labels: bug
 assignees: ''
 
@@ -22,6 +22,7 @@ Please make sure you have answered all the following questions before submitting
 ### What actually happened?
 
 ### Reproducibility
+
 <!--
 Please provide a short self-contained main.go that reproduces the issue, along with the go.mod and go.sum if necessary.
 -->

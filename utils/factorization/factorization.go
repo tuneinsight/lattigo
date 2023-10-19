@@ -10,9 +10,8 @@ import (
 func IsPrime(m *big.Int) bool {
 	if m.Cmp(new(big.Int).SetUint64(0xffffffffffffffff)) == -1 {
 		return m.ProbablyPrime(0)
-	} else {
-		return m.ProbablyPrime(64)
 	}
+	return m.ProbablyPrime(64)
 }
 
 // GetFactors returns all the prime factors of m.

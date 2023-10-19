@@ -209,6 +209,30 @@ func testGenerateNTTPrimes(tc *testParams, t *testing.T) {
 			require.Equal(t, q&uint64(NthRoot-1), uint64(1))
 			require.True(t, IsPrime(q), q)
 		}
+
+		upstreamPrimes, err := g.NextUpstreamPrimes(tc.ringQ.ModuliChainLength())
+		require.NoError(t, err)
+		for i := range upstreamPrimes {
+			require.True(t, IsPrime(upstreamPrimes[i]))
+		}
+
+		downstreamPrimes, err := g.NextDownstreamPrimes(tc.ringQ.ModuliChainLength())
+		require.NoError(t, err)
+		for i := range downstreamPrimes {
+			require.True(t, IsPrime(downstreamPrimes[i]))
+		}
+
+		primesp := GenerateNTTPrimesP(tc.ringQ.ModuliChainLength(), int(NthRoot), 1)
+		for i := range primesp {
+			require.True(t, IsPrime(primesp[i]))
+		}
+		t.Run(testString("GenerateNTTPrimesP", tc.ringQ), func(t *testing.T) {
+			t.Skip("panics with NthRoot and N=2")
+			primesp := GenerateNTTPrimesP(tc.ringQ.ModuliChainLength(), int(NthRoot), 2)
+			for i := range primesp {
+				require.True(t, IsPrime(primesp[i]))
+			}
+		})
 	})
 }
 

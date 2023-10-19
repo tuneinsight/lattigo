@@ -99,7 +99,7 @@ func (n *NTTFriendlyPrimesGenerator) NextUpstreamPrime() (uint64, error) {
 	for {
 		if CheckNextPrime {
 
-			// Stops if the next prime would overlap with primes of the next bit-size or if an uint64 overflow would occure.
+			// Stops if the next prime would overlap with primes of the next bit-size or if an uint64 overflow would occur.
 			if math.Log2(float64(NextPrime))-Size >= 0.5 {
 
 				n.CheckNextPrime = false
@@ -135,7 +135,7 @@ func (n *NTTFriendlyPrimesGenerator) NextDownstreamPrime() (uint64, error) {
 
 		if CheckPrevPrime {
 
-			// Stops if the next prime would overlap with the primes of the previous bit-size or if an uint64 overflow would occure.
+			// Stops if the next prime would overlap with the primes of the previous bit-size or if an uint64 overflow would occur.
 			if Size-math.Log2(float64(PrevPrime)) >= 0.5 || PrevPrime < NthRoot {
 
 				n.CheckPrevPrime = false

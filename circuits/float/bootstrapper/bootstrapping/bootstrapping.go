@@ -144,7 +144,8 @@ func (btp Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext
 	return
 }
 
-func currentMessageRatioIsGreaterOrEqualToLastPrimeTimesTargetMessageRatio(ct *rlwe.Ciphertext, msgRatio float64, r *ring.Ring) bool {
+// checks if the current message ratio is greater or equal to the last prime times the target message ratio.
+func checkMessageRatio(ct *rlwe.Ciphertext, msgRatio float64, r *ring.Ring) bool {
 	level := ct.Level()
 	currentMessageRatio := rlwe.NewScale(r.ModulusAtLevel[level])
 	currentMessageRatio = currentMessageRatio.Div(ct.Scale)
@@ -159,7 +160,7 @@ func (btp Bootstrapper) scaleDownToQ0OverMessageRatio(ctIn *rlwe.Ciphertext) (*r
 	r := params.RingQ()
 
 	// Removes unecessary primes
-	for ctIn.Level() != 0 && currentMessageRatioIsGreaterOrEqualToLastPrimeTimesTargetMessageRatio(ctIn, btp.Mod1Parameters.MessageRatio(), r) {
+	for ctIn.Level() != 0 && checkMessageRatio(ctIn, btp.Mod1Parameters.MessageRatio(), r) {
 		ctIn.Resize(ctIn.Degree(), ctIn.Level()-1)
 	}
 

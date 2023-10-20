@@ -227,39 +227,3 @@ func (n *NTTFriendlyPrimesGenerator) NextAlternatingPrime() (uint64, error) {
 		}
 	}
 }
-
-// GenerateNTTPrimesP generates "levels" different NthRoot NTT-friendly
-// primes starting from 2**LogP and downward.
-// Special case were primes close to 2^{LogP} but with a smaller bit-size than LogP are sought.
-func GenerateNTTPrimesP(logP, NthRoot, n int) (primes []uint64) {
-
-	var x, Ppow2 uint64
-
-	primes = []uint64{}
-
-	Ppow2 = uint64(1 << logP)
-
-	x = Ppow2 + 1
-
-	for {
-
-		// We start by subtracting 2N to ensure that the prime bit-length is smaller than LogP
-
-		if x > uint64(NthRoot) {
-
-			x -= uint64(NthRoot)
-
-			if IsPrime(x) {
-
-				primes = append(primes, x)
-
-				if len(primes) == n {
-					return primes
-				}
-			}
-
-		} else {
-			panic("generateNTTPrimesP error: cannot generate enough primes for the given parameters")
-		}
-	}
-}

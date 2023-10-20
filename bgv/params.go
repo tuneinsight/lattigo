@@ -96,7 +96,12 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 
 	var ringQMul *ring.Ring
 	nbQiMul := int(math.Ceil(float64(rlweParams.RingQ().ModulusAtLevel[rlweParams.MaxLevel()].BitLen()+rlweParams.LogN()) / 61.0))
-	if ringQMul, err = ring.NewRing(rlweParams.N(), ring.GenerateNTTPrimesP(61, 2*rlweParams.N(), nbQiMul)); err != nil {
+	g := ring.NewNTTFriendlyPrimesGenerator(61, uint64(rlweParams.NthRoot()))
+	primes, err := g.NextDownstreamPrimes(nbQiMul)
+	if err != nil {
+		return Parameters{}, err
+	}
+	if ringQMul, err = ring.NewRing(rlweParams.N(), primes); err != nil {
 		return Parameters{}, err
 	}
 

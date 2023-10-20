@@ -91,7 +91,7 @@ func (g *GaussianSampler) read(pol Poly, f func(a, b, c uint64) uint64) {
 	coeffs := pol.Coeffs
 
 	// If the standard deviation is greager than float64 precision
-	// and the bound ins greater than uint64, we switch to an approximation
+	// and the bound is greater than uint64, we switch to an approximation
 	// using arbitrary precision.
 	//
 	// The approximation of the large norm sampling is done by sampling

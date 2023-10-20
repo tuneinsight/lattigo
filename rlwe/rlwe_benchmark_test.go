@@ -23,7 +23,7 @@ func BenchmarkRLWE(b *testing.B) {
 		defaultParamsLiteral = []TestParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
-	for _, paramsLit := range defaultParamsLiteral {
+	for _, paramsLit := range defaultParamsLiteral[:] {
 
 		var params Parameters
 		if params, err = NewParametersFromLiteral(paramsLit.ParametersLiteral); err != nil {

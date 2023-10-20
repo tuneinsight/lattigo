@@ -200,10 +200,6 @@ func (eval Evaluator) gadgetProductSinglePAndBitDecompLazy(levelQ int, cx ring.P
 
 	mask := uint64(((1 << pw2) - 1))
 
-	if mask == 0 {
-		mask = 0xFFFFFFFFFFFFFFFF
-	}
-
 	cw := eval.BuffDecompQP[0].Q.Coeffs[0]
 	cwNTT := eval.BuffBitDecomp
 
@@ -212,23 +208,42 @@ func (eval Evaluator) gadgetProductSinglePAndBitDecompLazy(levelQ int, cx ring.P
 
 	el := gadgetCt.Value
 
+	c2QP := eval.BuffDecompQP[0]
+
 	// Re-encryption with CRT decomposition for the Qi
 	var reduce int
 	for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
-		for j := 0; j < BaseTwoDecompositionVectorSize[i]; j++ {
 
-			ring.MaskVec(cxInvNTT.Coeffs[i], j*pw2, mask, cw)
+		// Only centers the coefficients if the mask is 0
+		// As centering doesn't help reduce the noise if
+		// the power of two decomposition is applied on top
+		// of the RNS decomposition
+		if mask == 0 {
+			eval.Decomposer.DecomposeAndSplit(levelQ, levelP, levelP+1, i, cxInvNTT, c2QP.Q, c2QP.P)
+		}
+
+		for j := 0; j < BaseTwoDecompositionVectorSize[i]; j++ {
 
 			if i == 0 && j == 0 {
 				for u, s := range ringQ.SubRings[:levelQ+1] {
-					s.NTTLazy(cw, cwNTT)
+					if mask == 0 {
+						s.NTTLazy(c2QP.Q.Coeffs[u], cwNTT)
+					} else {
+						ring.MaskVec(cxInvNTT.Coeffs[i], j*pw2, mask, cw)
+						s.NTTLazy(cw, cwNTT)
+					}
 					s.MulCoeffsMontgomeryLazy(el[i][j][0].Q.Coeffs[u], cwNTT, ct.Value[0].Q.Coeffs[u])
 					s.MulCoeffsMontgomeryLazy(el[i][j][1].Q.Coeffs[u], cwNTT, ct.Value[1].Q.Coeffs[u])
 				}
 
 				if ringP != nil {
 					for u, s := range ringP.SubRings[:levelP+1] {
-						s.NTTLazy(cw, cwNTT)
+						if mask == 0 {
+							s.NTTLazy(c2QP.P.Coeffs[u], cwNTT)
+						} else {
+							ring.MaskVec(cxInvNTT.Coeffs[i], j*pw2, mask, cw)
+							s.NTTLazy(cw, cwNTT)
+						}
 						s.MulCoeffsMontgomeryLazy(el[i][j][0].P.Coeffs[u], cwNTT, ct.Value[0].P.Coeffs[u])
 						s.MulCoeffsMontgomeryLazy(el[i][j][1].P.Coeffs[u], cwNTT, ct.Value[1].P.Coeffs[u])
 					}
@@ -236,14 +251,24 @@ func (eval Evaluator) gadgetProductSinglePAndBitDecompLazy(levelQ int, cx ring.P
 
 			} else {
 				for u, s := range ringQ.SubRings[:levelQ+1] {
-					s.NTTLazy(cw, cwNTT)
+					if mask == 0 {
+						s.NTTLazy(c2QP.Q.Coeffs[u], cwNTT)
+					} else {
+						ring.MaskVec(cxInvNTT.Coeffs[i], j*pw2, mask, cw)
+						s.NTTLazy(cw, cwNTT)
+					}
 					s.MulCoeffsMontgomeryLazyThenAddLazy(el[i][j][0].Q.Coeffs[u], cwNTT, ct.Value[0].Q.Coeffs[u])
 					s.MulCoeffsMontgomeryLazyThenAddLazy(el[i][j][1].Q.Coeffs[u], cwNTT, ct.Value[1].Q.Coeffs[u])
 				}
 
 				if ringP != nil {
 					for u, s := range ringP.SubRings[:levelP+1] {
-						s.NTTLazy(cw, cwNTT)
+						if mask == 0 {
+							s.NTTLazy(c2QP.P.Coeffs[u], cwNTT)
+						} else {
+							ring.MaskVec(cxInvNTT.Coeffs[i], j*pw2, mask, cw)
+							s.NTTLazy(cw, cwNTT)
+						}
 						s.MulCoeffsMontgomeryLazyThenAddLazy(el[i][j][0].P.Coeffs[u], cwNTT, ct.Value[0].P.Coeffs[u])
 						s.MulCoeffsMontgomeryLazyThenAddLazy(el[i][j][1].P.Coeffs[u], cwNTT, ct.Value[1].P.Coeffs[u])
 					}

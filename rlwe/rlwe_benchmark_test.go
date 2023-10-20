@@ -1,14 +1,12 @@
 package rlwe
 
 import (
-	"bufio"
-	"bytes"
 	"encoding/json"
 	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tuneinsight/lattigo/v4/utils/buffer"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 func BenchmarkRLWE(b *testing.B) {
@@ -40,7 +38,6 @@ func BenchmarkRLWE(b *testing.B) {
 			benchEncryptor,
 			benchDecryptor,
 			benchEvaluator,
-			benchMarshalling,
 		} {
 			testSet(tc, paramsLit.BaseTwoDecomposition, b)
 			runtime.GC()
@@ -122,118 +119,28 @@ func benchEvaluator(tc *TestContext, bpw2 int, b *testing.B) {
 	sk := tc.sk
 	eval := tc.eval
 
-	b.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "Evaluator/GadgetProduct"), func(b *testing.B) {
+	levelsP := []int{0}
 
-		enc := NewEncryptor(params, sk)
+	if params.MaxLevelP() > 0 {
+		levelsP = append(levelsP, params.MaxLevelP())
+	}
 
-		ct := enc.EncryptZeroNew(params.MaxLevel())
+	for _, levelP := range levelsP {
 
-		evk := kgen.GenEvaluationKeyNew(sk, kgen.GenSecretKeyNew())
+		b.Run(testString(params, params.MaxLevelQ(), levelP, bpw2, "Evaluator/GadgetProduct"), func(b *testing.B) {
 
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			eval.GadgetProduct(ct.Level(), ct.Value[1], &evk.GadgetCiphertext, ct)
-		}
-	})
-}
+			enc := NewEncryptor(params, sk)
 
-func benchMarshalling(tc *TestContext, bpw2 int, b *testing.B) {
-	params := tc.params
-	sk := tc.sk
+			ct := enc.EncryptZeroNew(params.MaxLevel())
 
-	enc := NewEncryptor(params, sk)
+			evkParams := EvaluationKeyParameters{LevelQ: utils.Pointy(params.MaxLevelQ()), LevelP: utils.Pointy(levelP), BaseTwoDecomposition: utils.Pointy(bpw2)}
 
-	ctf := enc.EncryptZeroNew(params.MaxLevel())
+			evk := kgen.GenEvaluationKeyNew(sk, kgen.GenSecretKeyNew(), evkParams)
 
-	ct := ctf.Value
-
-	badbuf := bytes.NewBuffer(make([]byte, ct.BinarySize()))
-	b.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "Marshalling/WriteToBadBuf"), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			_, err := ct.WriteTo(badbuf)
-
-			b.StopTimer()
-			if err != nil {
-				b.Fatal(err)
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				eval.GadgetProduct(ct.Level(), ct.Value[1], &evk.GadgetCiphertext, ct)
 			}
-			badbuf.Reset()
-			b.StartTimer()
-		}
-	})
-
-	runtime.GC()
-
-	bytebuff := bytes.NewBuffer(make([]byte, ct.BinarySize()))
-	bufiobuf := bufio.NewWriter(bytebuff)
-	b.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "Marshalling/WriteToIOBuf"), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			_, err := ct.WriteTo(bufiobuf)
-
-			b.StopTimer()
-			if err != nil {
-				b.Fatal(err)
-			}
-			bytebuff.Reset()
-			bufiobuf.Reset(bytebuff)
-			b.StartTimer()
-		}
-	})
-
-	runtime.GC()
-
-	bsliceour := make([]byte, ct.BinarySize())
-	ourbuf := buffer.NewBuffer(bsliceour)
-	b.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "Marshalling/WriteToOurBuf"), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			_, err := ct.WriteTo(ourbuf)
-
-			b.StopTimer()
-			if err != nil {
-				b.Fatal(err)
-			}
-			ourbuf.Reset()
-			b.StartTimer()
-		}
-	})
-
-	runtime.GC()
-	require.Equal(b, ct.BinarySize(), len(ourbuf.Bytes()))
-
-	rdr := bytes.NewReader(ourbuf.Bytes())
-	//bufiordr := bufio.NewReaderSize(rdr, len(ourbuf.Bytes()))
-	bufiordr := bufio.NewReader(rdr)
-	ct2f := NewCiphertext(tc.params, 1, tc.params.MaxLevel())
-	ct2 := ct2f.Value
-	b.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "Marshalling/ReadFromIO"), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-
-			_, err := ct2.ReadFrom(bufiordr)
-
-			b.StopTimer()
-			if err != nil {
-				b.Fatal(err)
-			}
-			rdr.Seek(0, 0)
-			bufiordr.Reset(rdr)
-			b.StartTimer()
-		}
-	})
-
-	// require.True(b, ct.Equal(ct2))
-
-	ct3f := NewCiphertext(tc.params, 1, tc.params.MaxLevel())
-	ct3 := ct3f.Value
-	b.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), bpw2, "Marshalling/ReadFromOur"), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			_, err := ct3.ReadFrom(ourbuf)
-
-			b.StopTimer()
-			if err != nil {
-				b.Fatal(err)
-			}
-			ourbuf.Reset()
-			b.StartTimer()
-		}
-	})
-	require.True(b, ct.Equal(ct3))
+		})
+	}
 }

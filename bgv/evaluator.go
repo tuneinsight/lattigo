@@ -965,6 +965,9 @@ func (eval Evaluator) tensorScaleInvariant(ct0 *rlwe.Ciphertext, ct1 *rlwe.Eleme
 	return
 }
 
+// MulScaleInvariant returns c = a * b / (-Q[level] mod PlaintextModulus), where a, b are the input scale,
+// level the level at which the operation is carried out and and c is the new scale after performing the
+// invariant tensoring (BFV-style).
 func MulScaleInvariant(params Parameters, a, b rlwe.Scale, level int) (c rlwe.Scale) {
 	c = a.Mul(b)
 	qModTNeg := new(big.Int).Mod(params.RingQ().ModulusAtLevel[level], new(big.Int).SetUint64(params.PlaintextModulus())).Uint64()

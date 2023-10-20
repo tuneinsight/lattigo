@@ -9,6 +9,10 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
+const (
+	rn = 3.442619855899
+)
+
 // GaussianSampler keeps the state of a truncated Gaussian polynomial sampler.
 type GaussianSampler struct {
 	baseSampler
@@ -165,11 +169,6 @@ func (g *GaussianSampler) read(pol Poly, f func(a, b, c uint64) uint64) {
 	}
 }
 
-// randFloat64 returns a uniform float64 value between 0 and 1.
-func randFloat64(randomBytes []byte) float64 {
-	return float64(binary.LittleEndian.Uint64(randomBytes)&0x1fffffffffffff) / float64(0x1fffffffffffff)
-}
-
 // NormFloat64 returns a normally distributed float64 in
 // the range [-math.MaxFloat64, +math.MaxFloat64], bounds included,
 // with standard normal distribution (mean = 0, stddev = 1).
@@ -187,17 +186,32 @@ func (g *GaussianSampler) normFloat64() (float64, uint64) {
 	prng := g.prng
 	buffLen := uint64(len(buff))
 
-	for {
-
+	read := func() {
 		if ptr == buffLen {
 			if _, err := prng.Read(buff); err != nil {
 				panic(err)
 			}
 			ptr = 0
 		}
+	}
 
-		juint32 := binary.LittleEndian.Uint32(buff[ptr : ptr+4])
+	randU32 := func() (x uint32) {
+		read()
+		x = binary.LittleEndian.Uint32(buff[ptr : ptr+4])
+		ptr += 8 // Avoids buffer misalignment
+		return
+	}
+
+	randF64 := func() (x float64) {
+		read()
+		x = float64(binary.LittleEndian.Uint64(buff[ptr:ptr+8])&0x1fffffffffffff) / float64(0x1fffffffffffff)
 		ptr += 8
+		return
+	}
+
+	for {
+
+		juint32 := randU32()
 
 		j := int32(juint32 & 0x7fffffff)
 		sign := uint64(juint32 >> 31)
@@ -206,40 +220,20 @@ func (g *GaussianSampler) normFloat64() (float64, uint64) {
 
 		x := float64(j) * float64(wn[i])
 
-		// 1
+		// 1 (>99%)
 		if uint32(j) < kn[i] {
-
 			g.ptr = ptr
-
-			// This case should be hit more than 99% of the time.
 			return x, sign
 		}
 
-		// 2
+		// 2 (<1%)
 		if i == 0 {
 
 			// This extra work is only required for the base strip.
 			for {
 
-				if ptr == buffLen {
-					if _, err := prng.Read(buff); err != nil {
-						panic(err)
-					}
-					ptr = 0
-				}
-
-				x = -math.Log(randFloat64(buff[ptr:])) * (1.0 / 3.442619855899)
-				ptr += 8
-
-				if ptr == buffLen {
-					if _, err := prng.Read(buff); err != nil {
-						panic(err)
-					}
-					ptr = 0
-				}
-
-				y := -math.Log(randFloat64(buff[ptr:]))
-				ptr += 8
+				x = -math.Log(randF64()) * (1.0 / rn)
+				y := -math.Log(randF64())
 
 				if y+y >= x*x {
 					break
@@ -247,26 +241,15 @@ func (g *GaussianSampler) normFloat64() (float64, uint64) {
 			}
 
 			g.ptr = ptr
-
-			return x + 3.442619855899, sign
-		}
-
-		if ptr == buffLen {
-			if _, err := prng.Read(buff); err != nil {
-				panic(err)
-			}
-			ptr = 0
+			return x + rn, sign
 		}
 
 		// 3
-		if fn[i]+float32(randFloat64(buff[ptr:]))*(fn[i-1]-fn[i]) < float32(math.Exp(-0.5*x*x)) {
-			ptr += 8
+		if fn[i]+float32(randF64())*(fn[i-1]-fn[i]) < float32(math.Exp(-0.5*x*x)) {
 			g.ptr = ptr
 			return x, sign
 		}
-		ptr += 8
 	}
-
 }
 
 var kn = [128]uint32{

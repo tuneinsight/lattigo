@@ -49,7 +49,7 @@ type DiscreteGaussian struct {
 // in [-1, 0, 1]. Only one of its field must be set to a non-zero value:
 //
 //   - If P is set, each coefficient in the polynomial is sampled in [-1, 0, 1]
-//     with probabilities [0.5*P, P-1, 0.5*P].
+//     with probabilities [0.5*P, 1-P, 0.5*P].
 //   - if H is set, the coefficients are sampled uniformly in the set of ternary
 //     polynomials with H non-zero coefficients (i.e., of hamming weight H).
 type Ternary struct {

@@ -83,6 +83,20 @@ func NewBootstrapper(btpParams Parameters, btpKeys *EvaluationKeySet) (btp *Boot
 	return
 }
 
+// ShallowCopy creates a shallow copy of this Bootstrapper in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// Bootstrapper can be used concurrently.
+func (btp Bootstrapper) ShallowCopy() *Bootstrapper {
+	Evaluator := btp.Evaluator.ShallowCopy()
+	params := btp.Parameters.Parameters
+	return &Bootstrapper{
+		Evaluator:        Evaluator,
+		bootstrapperBase: btp.bootstrapperBase,
+		DFTEvaluator:     float.NewDFTEvaluator(params, Evaluator),
+		Mod1Evaluator:    float.NewMod1Evaluator(Evaluator, float.NewPolynomialEvaluator(params, Evaluator), btp.bootstrapperBase.mod1Parameters),
+	}
+}
+
 // GenEvaluationKeySetNew generates a new bootstrapping EvaluationKeySet, which contain:
 //
 //	EvaluationKeySet: struct compliant to the interface rlwe.EvaluationKeySetInterface.
@@ -145,18 +159,6 @@ func (p Parameters) GenEncapsulationEvaluationKeysNew(skDense *rlwe.SecretKey) (
 	EvkDtS = kgenDense.GenEvaluationKeyNew(skDense, skSparse)
 	EvkStD = kgenDense.GenEvaluationKeyNew(skSparse, skDense)
 	return
-}
-
-// ShallowCopy creates a shallow copy of this Bootstrapper in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// Bootstrapper can be used concurrently.
-func (btp Bootstrapper) ShallowCopy() *Bootstrapper {
-	return &Bootstrapper{
-		Evaluator:        btp.Evaluator.ShallowCopy(),
-		bootstrapperBase: btp.bootstrapperBase,
-		//DFTEvaluator: btp.DFTEvaluator.ShallowCopy(),
-		//Mod1Evaluator: btp.Mod1Evaluator.ShallowCopy(),
-	}
 }
 
 // CheckKeys checks if all the necessary keys are present in the instantiated Bootstrapper

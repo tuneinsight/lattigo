@@ -51,7 +51,7 @@ func main() {
 	//    - `Scale`: the scaling factor. This field is updated dynamically during computations.
 	//    - `EncodingDomain`:
 	//        - `SlotsDomain`: the usual encoding that provides SIMD operations over the slots.
-	//        - `CoefficientDomain`: plain encoding in the RING. Addition behave as usual, but multiplication will result in negacyclic convolution over the slots.
+	//        - `CoefficientDomain`: plain encoding in the RING. Addition behaves as usual, but multiplication will result in negacyclic convolution over the slots.
 	//    - `LogSlots`: the log2 of the number of slots. Note that if a ciphertext with n slots is multiplied with a ciphertext of 2n slots, the resulting ciphertext
 	//                  will have 2n slots. Because a message `m` of n slots is identical to the message `m|m` of 2n slots.
 	//

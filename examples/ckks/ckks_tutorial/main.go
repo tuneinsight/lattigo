@@ -47,7 +47,7 @@ func main() {
 	//
 	// Before talking about the capabilities of the `ckks` package, we have to give some information about the `rlwe.Ciphertext` and `rlwe.Plaintext` objects.
 	//
-	// Both contain the a `rlwe.MetaData` struct, which notably holds the following fields:
+	// Both contain the `rlwe.MetaData` struct, which notably holds the following fields:
 	//    - `Scale`: the scaling factor. This field is updated dynamically during computations.
 	//    - `EncodingDomain`:
 	//        - `SlotsDomain`: the usual encoding that provides SIMD operations over the slots.

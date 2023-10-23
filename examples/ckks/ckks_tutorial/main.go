@@ -363,7 +363,7 @@ func main() {
 		want[i] = values1[i] * values2[i]
 	}
 
-	// We could simple call the multiplication on ct1 and ct2, however since a rescaling is needed afterward,
+	// We could simply call the multiplication on ct1 and ct2, however since a rescaling is needed afterward,
 	// we also want to properly control the scale of the result.
 	// Our goal is to keep the scale to the default one, i.e. 2^{45} in this example.
 	// However, the rescaling operation divides by one (or multiple) primes qi,

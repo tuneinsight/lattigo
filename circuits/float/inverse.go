@@ -11,7 +11,7 @@ import (
 )
 
 // EvaluatorForInverse defines a set of common and scheme agnostic
-// method that are necessary to instantiate an InverseEvaluator.
+// methods that are necessary to instantiate an InverseEvaluator.
 // The default ckks.Evaluator is compliant to this interface.
 type EvaluatorForInverse interface {
 	EvaluatorForMinimaxCompositePolynomial

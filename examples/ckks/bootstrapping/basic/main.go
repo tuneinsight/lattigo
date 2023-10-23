@@ -78,6 +78,9 @@ func main() {
 		// evaluation keys of the bootstrapping circuit, so that the size of LogQP  meets the security target.
 		LogP: []int{61, 61, 61, 61},
 
+		DoubleAngle: utils.Pointy(2),
+		SineDegree:  utils.Pointy(63),
+
 		// In this example we manually specify the bootstrapping parameters' secret distribution.
 		// This is not necessary, but we ensure here that they are the same as the residual parameters.
 		Xs: params.Xs(),

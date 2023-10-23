@@ -24,7 +24,7 @@ var (
 	pi        = bignum.Pi(EncodingPrecision)
 )
 
-// ApproximateCos computes a polynomial approximation of degree "degree" in Chevyshev basis of the function
+// ApproximateCos computes a polynomial approximation of degree "degree" in Chebyshev basis of the function
 // cos(2*pi*x/2^"scnum") in the range -"K" to "K"
 // The nodes of the Chebyshev approximation are are located from -dev to +dev at each integer value between -K and -K
 func ApproximateCos(K, degree int, dev float64, scnum int) []*big.Float {

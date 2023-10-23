@@ -223,7 +223,9 @@ func main() {
 	}
 
 	// It is also possible to first allocate the ciphertext the same way it was done
-	// for the plaintext with with `ct := ckks.NewCiphertext(params, 1, pt.Level())`.
+	// for the plaintext with with `ct := ckks.NewCiphertext(params, 1, pt.Level())`,
+	// enabling allocation free encryptions (for example if the ciphertext has to be
+	// serialized right away).
 
 	// =========
 	// Decryptor

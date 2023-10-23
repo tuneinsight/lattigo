@@ -319,7 +319,7 @@ func (eval InverseEvaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, log2min
 // Given ct with values [-max, max], the method will compute y such that ct * y has values in [-1, 1].
 // The normalization factor is independant to each slot:
 //   - values smaller than 1 will have a normalization factor that tends to 1
-//   - values greater than 1 will have a normalizes factor that tends to 1/x
+//   - values greater than 1 will have a normalization factor that tends to 1/x
 func (eval InverseEvaluator) IntervalNormalization(ct *rlwe.Ciphertext, log2Max float64, btp circuits.Bootstrapper[rlwe.Ciphertext]) (ctNorm, ctNormFac *rlwe.Ciphertext, err error) {
 
 	ctNorm = ct.CopyNew()

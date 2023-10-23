@@ -94,6 +94,8 @@ func EvaluatePolynomial(eval EvaluatorForPolynomial, input interface{}, p interf
 	return opOut, err
 }
 
+// BabyStep is a struct storing the result of a baby-step
+// of the Paterson-Stockmeyer polynomial evaluation algorithm.
 type BabyStep struct {
 	Degree int
 	Value  *rlwe.Ciphertext
@@ -162,6 +164,8 @@ func EvaluatePatersonStockmeyerPolynomialVector[T any](eval Evaluator, poly Pate
 	return babySteps[0].Value, nil
 }
 
+// EvaluateBabyStep evaluates a baby-step of the PatersonStockmeyer polynomial evaluation algorithm, i.e. the inner-product between the precomputed
+// powers [1, T, T^2, ..., T^{n-1}] and the coefficients [ci0, ci1, ci2, ..., ci{n-1}].
 func EvaluateBabyStep[T any](i int, eval Evaluator, poly PatersonStockmeyerPolynomialVector, cg CoefficientGetter[T], pb PowerBasis) (ct *BabyStep, err error) {
 
 	nbPoly := len(poly.Value)
@@ -188,6 +192,8 @@ func EvaluateBabyStep[T any](i int, eval Evaluator, poly PatersonStockmeyerPolyn
 	return ct, nil
 }
 
+// EvaluateGianStep evaluates a giant-step of the PatersonStockmeyer polynomial evaluation algorithm, which consists
+// in combining the baby-steps <[1, T, T^2, ..., T^{n-1}], [ci0, ci1, ci2, ..., ci{n-1}]> together with powers T^{2^k}.
 func EvaluateGianStep(i int, giantSteps []int, babySteps []*BabyStep, eval Evaluator, pb PowerBasis) (err error) {
 
 	// If we reach the end of the list it means we weren't able to combine

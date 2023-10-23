@@ -37,8 +37,11 @@ func NewPolynomialEvaluator(params ckks.Parameters, eval circuits.Evaluator) *Po
 // Evaluate evaluates a polynomial on the input Ciphertext in ceil(log2(deg+1)) levels.
 // Returns an error if the input ciphertext does not have enough levels to carry out the full polynomial evaluation.
 // Returns an error if something is wrong with the scale.
-// If the polynomial is given in Chebyshev basis, then a change of basis ct' = (2/(b-a)) * (ct + (-a-b)/(b-a))
-// is necessary before the polynomial evaluation to ensure correctness.
+//
+// If the polynomial is given in Chebyshev basis, then the user must apply change of basis
+// ct' = scale * ct + offset before the polynomial evaluation to ensure correctness.
+// The values `scale` and `offet` can be obtained from the polynomial with the method .ChangeOfBasis().
+//
 // pol: a *bignum.Polynomial, *Polynomial or *PolynomialVector
 // targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
 // for example be used to correct small deviations in the ciphertext scale and reset it to the default scale.

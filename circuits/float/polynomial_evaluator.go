@@ -83,15 +83,16 @@ func (eval PolynomialEvaluator) EvaluateFromPowerBasis(pb circuits.PowerBasis, p
 	return circuits.EvaluatePolynomial(eval, pb, pcircuits, targetScale, levelsConsumedPerRescaling, &simEvaluator{eval.Parameters, levelsConsumedPerRescaling})
 }
 
+// CoefficientGetter is a struct that implements the
+// circuits.CoefficientGetter[*bignum.Complex] interface.
 type CoefficientGetter struct {
 	Values []*bignum.Complex
 }
 
-func (c CoefficientGetter) Clone() *CoefficientGetter {
-	return &CoefficientGetter{Values: make([]*bignum.Complex, len(c.Values))}
-}
-
-func (c *CoefficientGetter) GetVectorCoefficient(pol circuits.PolynomialVector, k int) (values []*bignum.Complex) {
+// GetVectorCoefficient return a slice []*bignum.Complex containing the k-th coefficient
+// of each polynomial of PolynomialVector indexed by its Mapping.
+// See PolynomialVector for additional information about the Mapping.
+func (c CoefficientGetter) GetVectorCoefficient(pol circuits.PolynomialVector, k int) (values []*bignum.Complex) {
 
 	values = c.Values
 
@@ -110,18 +111,22 @@ func (c *CoefficientGetter) GetVectorCoefficient(pol circuits.PolynomialVector, 
 	return
 }
 
-func (c *CoefficientGetter) GetSingleCoefficient(pol circuits.Polynomial, k int) (value *bignum.Complex) {
+// GetSingleCoefficient returns the k-th coefficient of Polynomial as the type *bignum.Complex.
+func (c CoefficientGetter) GetSingleCoefficient(pol circuits.Polynomial, k int) (value *bignum.Complex) {
 	return pol.Coeffs[k]
 }
 
+// ShallowCopy returns a thread-safe copy of the original CoefficientGetter.
 func (c CoefficientGetter) ShallowCopy() circuits.CoefficientGetter[*bignum.Complex] {
 	return &CoefficientGetter{Values: make([]*bignum.Complex, len(c.Values))}
 }
 
+// defaultCircuitEvaluatorForPolynomial is a struct implementing the interface circuits.EvaluatorForPolynomial.
 type defaultCircuitEvaluatorForPolynomial struct {
 	circuits.Evaluator
 }
 
+// EvaluatePatersonStockmeyerPolynomialVector evaluates a pre-decomposed PatersonStockmeyerPolynomialVector on a pre-computed power basis [1, X^{1}, X^{2}, ..., X^{2^{n}}, X^{2^{n+1}}, ..., X^{2^{m}}]
 func (eval defaultCircuitEvaluatorForPolynomial) EvaluatePatersonStockmeyerPolynomialVector(poly circuits.PatersonStockmeyerPolynomialVector, pb circuits.PowerBasis) (res *rlwe.Ciphertext, err error) {
 	coeffGetter := circuits.CoefficientGetter[*bignum.Complex](&CoefficientGetter{Values: make([]*bignum.Complex, pb.Value[1].Slots())})
 	return circuits.EvaluatePatersonStockmeyerPolynomialVector(eval, poly, coeffGetter, pb)

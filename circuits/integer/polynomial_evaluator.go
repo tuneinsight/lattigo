@@ -78,7 +78,7 @@ func (eval PolynomialEvaluator) Evaluate(ct *rlwe.Ciphertext, p interface{}, tar
 		pcircuits = p
 	}
 
-	return circuits.EvaluatePolynomial(eval.EvaluatorForPolynomial, ct, pcircuits, targetScale, 1, &simIntegerPolynomialEvaluator{eval.Parameters, eval.InvariantTensoring})
+	return circuits.EvaluatePolynomial(eval.EvaluatorForPolynomial, ct, pcircuits, targetScale, 1, &simEvaluator{eval.Parameters, eval.InvariantTensoring})
 }
 
 // EvaluateFromPowerBasis evaluates a polynomial using the provided PowerBasis, holding pre-computed powers of X.
@@ -100,9 +100,11 @@ func (eval PolynomialEvaluator) EvaluateFromPowerBasis(pb circuits.PowerBasis, p
 		return nil, fmt.Errorf("cannot EvaluateFromPowerBasis: X^{1} is nil")
 	}
 
-	return circuits.EvaluatePolynomial(eval.EvaluatorForPolynomial, pb, pcircuits, targetScale, 1, &simIntegerPolynomialEvaluator{eval.Parameters, eval.InvariantTensoring})
+	return circuits.EvaluatePolynomial(eval.EvaluatorForPolynomial, pb, pcircuits, targetScale, 1, &simEvaluator{eval.Parameters, eval.InvariantTensoring})
 }
 
+// scaleInvariantEvaluator is a struct implementing the interface circuits.Evaluator with
+// scale invariant tensoring (BFV-style).
 type scaleInvariantEvaluator struct {
 	*bgv.Evaluator
 }
@@ -127,11 +129,16 @@ func (polyEval scaleInvariantEvaluator) Rescale(op0, op1 *rlwe.Ciphertext) (err 
 	return nil
 }
 
+// CoefficientGetter is a struct that implements the
+// circuits.CoefficientGetter[uint64] interface.
 type CoefficientGetter struct {
 	Values []uint64
 }
 
-func (c *CoefficientGetter) GetVectorCoefficient(pol circuits.PolynomialVector, k int) (values []uint64) {
+// GetVectorCoefficient return a slice []uint64 containing the k-th coefficient
+// of each polynomial of PolynomialVector indexed by its Mapping.
+// See PolynomialVector for additional information about the Mapping.
+func (c CoefficientGetter) GetVectorCoefficient(pol circuits.PolynomialVector, k int) (values []uint64) {
 
 	values = c.Values
 
@@ -150,14 +157,17 @@ func (c *CoefficientGetter) GetVectorCoefficient(pol circuits.PolynomialVector, 
 	return
 }
 
-func (c *CoefficientGetter) GetSingleCoefficient(pol circuits.Polynomial, k int) (value uint64) {
+// GetSingleCoefficient should return the k-th coefficient of Polynomial as the type uint64.
+func (c CoefficientGetter) GetSingleCoefficient(pol circuits.Polynomial, k int) (value uint64) {
 	return pol.Coeffs[k].Uint64()
 }
 
+// ShallowCopy returns a thread-safe copy of the original CoefficientGetter.
 func (c CoefficientGetter) ShallowCopy() circuits.CoefficientGetter[uint64] {
 	return &CoefficientGetter{Values: make([]uint64, len(c.Values))}
 }
 
+// defaultCircuitEvaluatorForPolynomial is a struct implementing the interface circuits.EvaluatorForPolynomial.
 type defaultCircuitEvaluatorForPolynomial struct {
 	circuits.Evaluator
 }

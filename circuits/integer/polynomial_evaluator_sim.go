@@ -10,12 +10,18 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
-type simIntegerPolynomialEvaluator struct {
+// simEvaluator is a struct used to pre-computed the scaling
+// factors of the polynomial coefficients used by the inlined
+// polynomial evaluation by running the polynomial evaluation
+// with dummy operands.
+// This struct implements the interface circuits.SimEvaluator.
+type simEvaluator struct {
 	params             bgv.Parameters
 	InvariantTensoring bool
 }
 
-func (d simIntegerPolynomialEvaluator) PolynomialDepth(degree int) int {
+// PolynomialDepth returns the depth of the polynomial.
+func (d simEvaluator) PolynomialDepth(degree int) int {
 	if d.InvariantTensoring {
 		return 0
 	}
@@ -23,15 +29,15 @@ func (d simIntegerPolynomialEvaluator) PolynomialDepth(degree int) int {
 }
 
 // Rescale rescales the target circuits.SimOperand n times and returns it.
-func (d simIntegerPolynomialEvaluator) Rescale(op0 *circuits.SimOperand) {
+func (d simEvaluator) Rescale(op0 *circuits.SimOperand) {
 	if !d.InvariantTensoring {
 		op0.Scale = op0.Scale.Div(rlwe.NewScale(d.params.Q()[op0.Level]))
 		op0.Level--
 	}
 }
 
-// Mul multiplies two circuits.SimOperand, stores the result the target circuits.SimOperand and returns the result.
-func (d simIntegerPolynomialEvaluator) MulNew(op0, op1 *circuits.SimOperand) (opOut *circuits.SimOperand) {
+// MulNew multiplies two circuits.SimOperand, stores the result the target circuits.SimOperand and returns the result.
+func (d simEvaluator) MulNew(op0, op1 *circuits.SimOperand) (opOut *circuits.SimOperand) {
 	opOut = new(circuits.SimOperand)
 	opOut.Level = utils.Min(op0.Level, op1.Level)
 
@@ -44,7 +50,8 @@ func (d simIntegerPolynomialEvaluator) MulNew(op0, op1 *circuits.SimOperand) (op
 	return
 }
 
-func (d simIntegerPolynomialEvaluator) UpdateLevelAndScaleBabyStep(lead bool, tLevelOld int, tScaleOld rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale) {
+// UpdateLevelAndScaleBabyStep returns the updated level and scale for a baby-step.
+func (d simEvaluator) UpdateLevelAndScaleBabyStep(lead bool, tLevelOld int, tScaleOld rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale) {
 	tLevelNew = tLevelOld
 	tScaleNew = tScaleOld
 	if !d.InvariantTensoring && lead {
@@ -53,7 +60,8 @@ func (d simIntegerPolynomialEvaluator) UpdateLevelAndScaleBabyStep(lead bool, tL
 	return
 }
 
-func (d simIntegerPolynomialEvaluator) UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, tScaleOld, xPowScale rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale) {
+// UpdateLevelAndScaleGiantStep returns the updated level and scale for a giant-step.
+func (d simEvaluator) UpdateLevelAndScaleGiantStep(lead bool, tLevelOld int, tScaleOld, xPowScale rlwe.Scale) (tLevelNew int, tScaleNew rlwe.Scale) {
 
 	Q := d.params.Q()
 

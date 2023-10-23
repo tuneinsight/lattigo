@@ -60,7 +60,7 @@ var (
 			SlotsToCoeffsFactorizationDepthAndLogScales: [][]int{{42}, {42}, {42}},
 			CoeffsToSlotsFactorizationDepthAndLogScales: [][]int{{58}, {58}, {58}, {58}},
 			LogMessageRatio: utils.Pointy(2),
-			ArcSineDegree:   utils.Pointy(7),
+			Mod1InvDegree:   utils.Pointy(7),
 		},
 	}
 
@@ -145,7 +145,7 @@ var (
 			SlotsToCoeffsFactorizationDepthAndLogScales: [][]int{{42}, {42}, {42}},
 			CoeffsToSlotsFactorizationDepthAndLogScales: [][]int{{58}, {58}, {58}, {58}},
 			LogMessageRatio: utils.Pointy(2),
-			ArcSineDegree:   utils.Pointy(7),
+			Mod1InvDegree:   utils.Pointy(7),
 		},
 	}
 

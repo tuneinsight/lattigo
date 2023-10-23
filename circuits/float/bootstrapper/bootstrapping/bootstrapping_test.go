@@ -40,8 +40,8 @@ func TestBootstrapParametersMarshalling(t *testing.T) {
 			EvalModLogScale:       utils.Pointy(59),
 			EphemeralSecretWeight: utils.Pointy(1),
 			IterationsParameters:  &IterationsParameters{BootstrappingPrecision: []float64{20, 20}, ReservedPrimeBitSize: 20},
-			SineDegree:            utils.Pointy(32),
-			ArcSineDegree:         utils.Pointy(7),
+			Mod1Degree:            utils.Pointy(32),
+			Mod1InvDegree:         utils.Pointy(7),
 		}
 
 		data, err := paramsLit.MarshalBinary()

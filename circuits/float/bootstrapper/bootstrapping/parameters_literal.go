@@ -99,18 +99,18 @@ import (
 //		This ratio directly impacts the precision of the bootstrapping.
 //		The homomorphic modular reduction x mod 1 is approximated with by sin(2*pi*x)/(2*pi), which is a good approximation
 //		when x is close to the origin. Thus a large message ratio (i.e. 2^8) implies that x is small with respect to Q, and thus close to the origin.
-//		When using a small ratio (i.e. 2^4), for example if ct.PlaintextScale is close to Q[0] is small or if |m| is large, the ArcSine degree can be set to
+//		When using a small ratio (i.e. 2^4), for example if ct.PlaintextScale is close to Q[0] is small or if |m| is large, the Mod1InvDegree can be set to
 //	 a non zero value (i.e. 5 or 7). This will greatly improve the precision of the bootstrapping, at the expense of slightly increasing its depth.
 //
 // Mod1Type: the type of approximation for the modular reduction polynomial. By default set to ckks.CosDiscrete.
 //
 // K: the range of the approximation interval, by default set to 16.
 //
-// SineDeg: the degree of the polynomial approximation of the modular reduction polynomial. By default set to 30.
+// Mod1Degree: the degree of f: x mod 1. By default set to 30.
 //
 // DoubleAngle: the number of double angle evaluation. By default set to 3.
 //
-// ArcSineDeg: the degree of the ArcSine Taylor polynomial, by default set to 0.
+// Mod1InvDegree: the degree of the f^-1: (x mod 1)^-1, by default set to 0.
 type ParametersLiteral struct {
 	LogN                                        *int                        // Default: 16
 	LogP                                        []int                       // Default: 61 * max(1, floor(sqrt(#Qi)))
@@ -125,9 +125,9 @@ type ParametersLiteral struct {
 	Mod1Type                                    float.Mod1Type              // Default: ckks.CosDiscrete
 	LogMessageRatio                             *int                        // Default: 8
 	K                                           *int                        // Default: 16
-	SineDegree                                  *int                        // Default: 30
+	Mod1Degree                                  *int                        // Default: 30
 	DoubleAngle                                 *int                        // Default: 3
-	ArcSineDegree                               *int                        // Default: 0
+	Mod1InvDegree                               *int                        // Default: 0
 }
 
 const (
@@ -153,12 +153,12 @@ const (
 	DefaultLogMessageRatio = 8
 	// DefaultK is the default interval [-K+1, K-1] for the polynomial approximation of the homomorphic modular reduction.
 	DefaultK = 16
-	// DefaultSineDeg is the default degree for the polynomial approximation of the homomorphic modular reduction.
-	DefaultSineDegree = 30
+	// DefaultMod1Degree is the default degree for the polynomial approximation of the homomorphic modular reduction.
+	DefaultMod1Degree = 30
 	// DefaultDoubleAngle is the default number of double iterations for the homomorphic modular reduction.
 	DefaultDoubleAngle = 3
-	// DefaultArcSineDeg is the default degree of the arcsine polynomial for the homomorphic modular reduction.
-	DefaultArcSineDegree = 0
+	// DefaultMod1InvDegree is the default degree of the f^-1: (x mod 1)^-1 polynomial for the homomorphic modular reduction.
+	DefaultMod1InvDegree = 0
 )
 
 var (
@@ -346,28 +346,6 @@ func (p ParametersLiteral) GetIterationsParameters() (Iterations *IterationsPara
 	}
 }
 
-// GetMod1Type returns the Mod1Type field of the target ParametersLiteral.
-// The default value DefaultMod1Type is returned is the field is nil.
-func (p ParametersLiteral) GetMod1Type() (Mod1Type float.Mod1Type) {
-	return p.Mod1Type
-}
-
-// GetArcSineDegree returns the ArcSineDegree field of the target ParametersLiteral.
-// The default value DefaultArcSineDegree is returned is the field is nil.
-func (p ParametersLiteral) GetArcSineDegree() (ArcSineDegree int, err error) {
-	if v := p.ArcSineDegree; v == nil {
-		ArcSineDegree = 0
-	} else {
-		ArcSineDegree = *v
-
-		if ArcSineDegree < 0 {
-			return ArcSineDegree, fmt.Errorf("field ArcSineDegree cannot be negative")
-		}
-	}
-
-	return
-}
-
 // GetLogMessageRatio returns the LogMessageRatio field of the target ParametersLiteral.
 // The default value DefaultLogMessageRatio is returned is the field is nil.
 func (p ParametersLiteral) GetLogMessageRatio() (LogMessageRatio int, err error) {
@@ -400,6 +378,12 @@ func (p ParametersLiteral) GetK() (K int, err error) {
 	return
 }
 
+// GetMod1Type returns the Mod1Type field of the target ParametersLiteral.
+// The default value DefaultMod1Type is returned is the field is nil.
+func (p ParametersLiteral) GetMod1Type() (Mod1Type float.Mod1Type) {
+	return p.Mod1Type
+}
+
 // GetDoubleAngle returns the DoubleAngle field of the target ParametersLiteral.
 // The default value DefaultDoubleAngle is returned is the field is nil.
 func (p ParametersLiteral) GetDoubleAngle() (DoubleAngle int, err error) {
@@ -423,18 +407,34 @@ func (p ParametersLiteral) GetDoubleAngle() (DoubleAngle int, err error) {
 	return
 }
 
-// GetSineDegree returns the SineDegree field of the target ParametersLiteral.
-// The default value DefaultSineDegree is returned is the field is nil.
-func (p ParametersLiteral) GetSineDegree() (SineDegree int, err error) {
-	if v := p.SineDegree; v == nil {
-		SineDegree = DefaultSineDegree
+// GetMod1Degree returns the Mod1Degree field of the target ParametersLiteral.
+// The default value DefaultMod1Degree is returned is the field is nil.
+func (p ParametersLiteral) GetMod1Degree() (Mod1Degree int, err error) {
+	if v := p.Mod1Degree; v == nil {
+		Mod1Degree = DefaultMod1Degree
 	} else {
-		SineDegree = *v
+		Mod1Degree = *v
 
-		if SineDegree < 0 {
-			return SineDegree, fmt.Errorf("field SineDegree cannot be negative")
+		if Mod1Degree < 0 {
+			return Mod1Degree, fmt.Errorf("field Mod1Degree cannot be negative")
 		}
 	}
+	return
+}
+
+// GetMod1InvDegree returns the Mod1InvDegree field of the target ParametersLiteral.
+// The default value DefaultMod1InvDegree is returned is the field is nil.
+func (p ParametersLiteral) GetMod1InvDegree() (Mod1InvDegree int, err error) {
+	if v := p.Mod1InvDegree; v == nil {
+		Mod1InvDegree = DefaultMod1InvDegree
+	} else {
+		Mod1InvDegree = *v
+
+		if Mod1InvDegree < 0 {
+			return Mod1InvDegree, fmt.Errorf("field Mod1InvDegree cannot be negative")
+		}
+	}
+
 	return
 }
 
@@ -480,8 +480,8 @@ func (p ParametersLiteral) BitConsumption(LogSlots int) (logQ int, err error) {
 		}
 	}
 
-	var SineDegree int
-	if SineDegree, err = p.GetSineDegree(); err != nil {
+	var Mod1Degree int
+	if Mod1Degree, err = p.GetMod1Degree(); err != nil {
 		return
 	}
 
@@ -495,8 +495,8 @@ func (p ParametersLiteral) BitConsumption(LogSlots int) (logQ int, err error) {
 		return
 	}
 
-	var ArcSineDegree int
-	if ArcSineDegree, err = p.GetArcSineDegree(); err != nil {
+	var Mod1InvDegree int
+	if Mod1InvDegree, err = p.GetMod1InvDegree(); err != nil {
 		return
 	}
 
@@ -510,7 +510,7 @@ func (p ParametersLiteral) BitConsumption(LogSlots int) (logQ int, err error) {
 		ReservedPrimeBitSize = Iterations.ReservedPrimeBitSize
 	}
 
-	logQ += 1 + EvalModLogPlaintextScale*(bits.Len64(uint64(SineDegree))+DoubleAngle+bits.Len64(uint64(ArcSineDegree))) + ReservedPrimeBitSize
+	logQ += 1 + EvalModLogPlaintextScale*(bits.Len64(uint64(Mod1Degree))+DoubleAngle+bits.Len64(uint64(Mod1InvDegree))) + ReservedPrimeBitSize
 
 	return
 }

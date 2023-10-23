@@ -132,8 +132,8 @@ func NewParametersFromLiteral(residualParameters ckks.Parameters, btpLit Paramet
 	Mod1Type := btpLit.GetMod1Type()
 
 	// Degree of the taylor series of arc sine
-	var ArcSineDegree int
-	if ArcSineDegree, err = btpLit.GetArcSineDegree(); err != nil {
+	var Mod1InvDegree int
+	if Mod1InvDegree, err = btpLit.GetMod1InvDegree(); err != nil {
 		return Parameters{}, err
 	}
 
@@ -156,8 +156,8 @@ func NewParametersFromLiteral(residualParameters ckks.Parameters, btpLit Paramet
 	}
 
 	// Degree of the polynomial approximation of x mod 1
-	var SineDegree int
-	if SineDegree, err = btpLit.GetSineDegree(); err != nil {
+	var Mod1Degree int
+	if Mod1Degree, err = btpLit.GetMod1Degree(); err != nil {
 		return Parameters{}, err
 	}
 
@@ -165,11 +165,11 @@ func NewParametersFromLiteral(residualParameters ckks.Parameters, btpLit Paramet
 	Mod1ParametersLiteral := float.Mod1ParametersLiteral{
 		LogScale:        EvalMod1LogScale,
 		Mod1Type:        Mod1Type,
-		SineDegree:      SineDegree,
+		Mod1Degree:      Mod1Degree,
 		DoubleAngle:     DoubleAngle,
 		K:               K,
 		LogMessageRatio: LogMessageRatio,
-		ArcSineDegree:   ArcSineDegree,
+		Mod1InvDegree:   Mod1InvDegree,
 	}
 
 	// Hamming weight of the ephemeral secret key to which the ciphertext is

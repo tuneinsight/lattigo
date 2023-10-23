@@ -35,9 +35,9 @@ type Mod1ParametersLiteral struct {
 	Mod1Type        Mod1Type // Chose between [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
 	LogMessageRatio int      // Log2 of the ratio between Q0 and m, i.e. Q[0]/|m|
 	K               int      // K parameter (interpolation in the range -K to K)
-	SineDegree      int      // Degree of the interpolation
+	Mod1Degree      int      // Degree of f: x mod 1
 	DoubleAngle     int      // Number of rescale and double angle formula (only applies for cos and is ignored if sin is used)
-	ArcSineDegree   int      // Degree of the Taylor arcsine composed with f(2*pi*x) (if zero then not used)
+	Mod1InvDegree   int      // Degree of f^-1: (x mod 1)^-1
 }
 
 // MarshalBinary returns a JSON representation of the the target Mod1ParametersLiteral struct on a slice of bytes.
@@ -56,32 +56,32 @@ func (evm *Mod1ParametersLiteral) UnmarshalBinary(data []byte) (err error) {
 func (evm Mod1ParametersLiteral) Depth() (depth int) {
 
 	if evm.Mod1Type == CosDiscrete { // this method requires a minimum degree of 2*K-1.
-		depth += int(bits.Len64(uint64(utils.Max(evm.SineDegree, 2*evm.K-1))))
+		depth += int(bits.Len64(uint64(utils.Max(evm.Mod1Degree, 2*evm.K-1))))
 	} else {
-		depth += int(bits.Len64(uint64(evm.SineDegree)))
+		depth += int(bits.Len64(uint64(evm.Mod1Degree)))
 	}
 
 	if evm.Mod1Type != SinContinuous {
 		depth += evm.DoubleAngle
 	}
 
-	depth += int(bits.Len64(uint64(evm.ArcSineDegree)))
+	depth += int(bits.Len64(uint64(evm.Mod1InvDegree)))
 	return depth
 }
 
 // Mod1Parameters is a struct storing the parameters and polynomials approximating the function x mod Q[0] (the first prime of the moduli chain).
 type Mod1Parameters struct {
-	levelStart      int
-	LogDefaultScale int
-	Mod1Type        Mod1Type
-	LogMessageRatio int
-	doubleAngle     int
-	qDiff           float64
-	scFac           float64
-	sqrt2Pi         float64
-	sinePoly        bignum.Polynomial
-	arcSinePoly     *bignum.Polynomial
-	k               float64
+	levelStart      int                // starting level of the operation
+	LogDefaultScale int                // log2 of the default scaling factor
+	Mod1Type        Mod1Type           // type of approximation for the f: x mod 1 function
+	LogMessageRatio int                // Log2 of the ratio between Q0 and m, i.e. Q[0]/|m|
+	doubleAngle     int                // Number of rescale and double angle formula (only applies for cos and is ignored if sin is used)
+	qDiff           float64            // Q / 2^round(Log2(Q))
+	scFac           float64            // 2^doubleAngle
+	sqrt2Pi         float64            // (1/2pi)^(1.0/scFac)
+	mod1Poly        bignum.Polynomial  // Polynomial for f: x mod 1
+	mod1InvPoly     *bignum.Polynomial // Polynomial for f^-1: (x mod 1)^-1
+	k               float64            // interval [-k, k]
 }
 
 // LevelStart returns the starting level of the x mod 1.
@@ -119,8 +119,8 @@ func (evp Mod1Parameters) QDiff() float64 {
 // The Mod1Parameters struct is to instantiates a Mod1Evaluator, which homomorphically evaluates x mod 1.
 func NewMod1ParametersFromLiteral(params ckks.Parameters, evm Mod1ParametersLiteral) (Mod1Parameters, error) {
 
-	var arcSinePoly *bignum.Polynomial
-	var sinePoly bignum.Polynomial
+	var mod1InvPoly *bignum.Polynomial
+	var mod1Poly bignum.Polynomial
 	var sqrt2pi float64
 
 	doubleAngle := evm.DoubleAngle
@@ -135,26 +135,26 @@ func NewMod1ParametersFromLiteral(params ckks.Parameters, evm Mod1ParametersLite
 	Q := params.Q()[0]
 	qDiff := float64(Q) / math.Exp2(math.Round(math.Log2(float64(Q))))
 
-	if evm.ArcSineDegree > 0 {
+	if evm.Mod1InvDegree > 0 {
 
 		sqrt2pi = 1.0
 
-		coeffs := make([]complex128, evm.ArcSineDegree+1)
+		coeffs := make([]complex128, evm.Mod1InvDegree+1)
 
 		coeffs[1] = 0.15915494309189535 * complex(qDiff, 0)
 
-		for i := 3; i < evm.ArcSineDegree+1; i += 2 {
+		for i := 3; i < evm.Mod1InvDegree+1; i += 2 {
 			coeffs[i] = coeffs[i-2] * complex(float64(i*i-4*i+4)/float64(i*i-i), 0)
 		}
 
 		p := bignum.NewPolynomial(bignum.Monomial, coeffs, nil)
 
-		arcSinePoly = &p
-		arcSinePoly.IsEven = false
+		mod1InvPoly = &p
+		mod1InvPoly.IsEven = false
 
-		for i := range arcSinePoly.Coeffs {
+		for i := range mod1InvPoly.Coeffs {
 			if i&1 == 0 {
-				arcSinePoly.Coeffs[i] = nil
+				mod1InvPoly.Coeffs[i] = nil
 			}
 		}
 
@@ -165,40 +165,40 @@ func NewMod1ParametersFromLiteral(params ckks.Parameters, evm Mod1ParametersLite
 	switch evm.Mod1Type {
 	case SinContinuous:
 
-		sinePoly = bignum.ChebyshevApproximation(sin2pi, bignum.Interval{
-			Nodes: evm.SineDegree,
+		mod1Poly = bignum.ChebyshevApproximation(sin2pi, bignum.Interval{
+			Nodes: evm.Mod1Degree,
 			A:     *new(big.Float).SetPrec(cosine.EncodingPrecision).SetFloat64(-K),
 			B:     *new(big.Float).SetPrec(cosine.EncodingPrecision).SetFloat64(K),
 		})
-		sinePoly.IsEven = false
+		mod1Poly.IsEven = false
 
-		for i := range sinePoly.Coeffs {
+		for i := range mod1Poly.Coeffs {
 			if i&1 == 0 {
-				sinePoly.Coeffs[i] = nil
+				mod1Poly.Coeffs[i] = nil
 			}
 		}
 
 	case CosDiscrete:
-		sinePoly = bignum.NewPolynomial(bignum.Chebyshev, cosine.ApproximateCos(evm.K, evm.SineDegree, float64(uint(1<<evm.LogMessageRatio)), int(evm.DoubleAngle)), [2]float64{-K, K})
-		sinePoly.IsOdd = false
+		mod1Poly = bignum.NewPolynomial(bignum.Chebyshev, cosine.ApproximateCos(evm.K, evm.Mod1Degree, float64(uint(1<<evm.LogMessageRatio)), int(evm.DoubleAngle)), [2]float64{-K, K})
+		mod1Poly.IsOdd = false
 
-		for i := range sinePoly.Coeffs {
+		for i := range mod1Poly.Coeffs {
 			if i&1 == 1 {
-				sinePoly.Coeffs[i] = nil
+				mod1Poly.Coeffs[i] = nil
 			}
 		}
 
 	case CosContinuous:
-		sinePoly = bignum.ChebyshevApproximation(cos2pi, bignum.Interval{
-			Nodes: evm.SineDegree,
+		mod1Poly = bignum.ChebyshevApproximation(cos2pi, bignum.Interval{
+			Nodes: evm.Mod1Degree,
 			A:     *new(big.Float).SetPrec(cosine.EncodingPrecision).SetFloat64(-K),
 			B:     *new(big.Float).SetPrec(cosine.EncodingPrecision).SetFloat64(K),
 		})
-		sinePoly.IsOdd = false
+		mod1Poly.IsOdd = false
 
-		for i := range sinePoly.Coeffs {
+		for i := range mod1Poly.Coeffs {
 			if i&1 == 1 {
-				sinePoly.Coeffs[i] = nil
+				mod1Poly.Coeffs[i] = nil
 			}
 		}
 
@@ -207,10 +207,10 @@ func NewMod1ParametersFromLiteral(params ckks.Parameters, evm Mod1ParametersLite
 	}
 
 	sqrt2piBig := new(big.Float).SetFloat64(sqrt2pi)
-	for i := range sinePoly.Coeffs {
-		if sinePoly.Coeffs[i] != nil {
-			sinePoly.Coeffs[i][0].Mul(sinePoly.Coeffs[i][0], sqrt2piBig)
-			sinePoly.Coeffs[i][1].Mul(sinePoly.Coeffs[i][1], sqrt2piBig)
+	for i := range mod1Poly.Coeffs {
+		if mod1Poly.Coeffs[i] != nil {
+			mod1Poly.Coeffs[i][0].Mul(mod1Poly.Coeffs[i][0], sqrt2piBig)
+			mod1Poly.Coeffs[i][1].Mul(mod1Poly.Coeffs[i][1], sqrt2piBig)
 		}
 	}
 
@@ -223,8 +223,8 @@ func NewMod1ParametersFromLiteral(params ckks.Parameters, evm Mod1ParametersLite
 		qDiff:           qDiff,
 		scFac:           scFac,
 		sqrt2Pi:         sqrt2pi,
-		arcSinePoly:     arcSinePoly,
-		sinePoly:        sinePoly,
+		mod1Poly:        mod1Poly,
+		mod1InvPoly:     mod1InvPoly,
 		k:               K,
 	}, nil
 }

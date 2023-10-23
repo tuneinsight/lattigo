@@ -52,8 +52,8 @@ func testMod1Marhsalling(t *testing.T) {
 			Mod1Type:        float.SinContinuous,
 			LogMessageRatio: 8,
 			K:               14,
-			SineDegree:      127,
-			ArcSineDegree:   7,
+			Mod1Degree:      127,
+			Mod1InvDegree:   7,
 			LogScale:        60,
 		}
 
@@ -84,8 +84,8 @@ func testMod1(params ckks.Parameters, t *testing.T) {
 			Mod1Type:        float.SinContinuous,
 			LogMessageRatio: 8,
 			K:               14,
-			SineDegree:      127,
-			ArcSineDegree:   7,
+			Mod1Degree:      127,
+			Mod1InvDegree:   7,
 			LogScale:        60,
 		}
 
@@ -101,7 +101,7 @@ func testMod1(params ckks.Parameters, t *testing.T) {
 			Mod1Type:        float.CosDiscrete,
 			LogMessageRatio: 8,
 			K:               12,
-			SineDegree:      30,
+			Mod1Degree:      30,
 			DoubleAngle:     3,
 			LogScale:        60,
 		}
@@ -118,7 +118,7 @@ func testMod1(params ckks.Parameters, t *testing.T) {
 			Mod1Type:        float.CosContinuous,
 			LogMessageRatio: 4,
 			K:               325,
-			SineDegree:      177,
+			Mod1Degree:      177,
 			DoubleAngle:     4,
 			LogScale:        60,
 		}
@@ -162,7 +162,7 @@ func evaluateMod1(evm float.Mod1ParametersLiteral, params ckks.Parameters, ecd *
 		x /= mod1Parameters.QDiff()
 		x = math.Sin(6.28318530717958 * x)
 
-		if evm.ArcSineDegree > 0 {
+		if evm.Mod1InvDegree > 0 {
 			x = math.Asin(x)
 		}
 

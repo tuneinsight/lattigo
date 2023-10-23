@@ -75,13 +75,13 @@ func (eval Mod1Evaluator) EvaluateNew(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, er
 
 	targetScale := ct.Scale
 	for i := 0; i < evm.doubleAngle; i++ {
-		targetScale = targetScale.Mul(rlwe.NewScale(Qi[evm.levelStart-evm.sinePoly.Depth()-evm.doubleAngle+i+1]))
+		targetScale = targetScale.Mul(rlwe.NewScale(Qi[evm.levelStart-evm.mod1Poly.Depth()-evm.doubleAngle+i+1]))
 		targetScale.Value.Sqrt(&targetScale.Value)
 	}
 
 	// Division by 1/2^r and change of variable for the Chebyshev evaluation
 	if evm.Mod1Type == CosDiscrete || evm.Mod1Type == CosContinuous {
-		offset := new(big.Float).Sub(&evm.sinePoly.B, &evm.sinePoly.A)
+		offset := new(big.Float).Sub(&evm.mod1Poly.B, &evm.mod1Poly.A)
 		offset.Mul(offset, new(big.Float).SetFloat64(evm.scFac))
 		offset.Quo(new(big.Float).SetFloat64(-0.5), offset)
 
@@ -91,7 +91,7 @@ func (eval Mod1Evaluator) EvaluateNew(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, er
 	}
 
 	// Chebyshev evaluation
-	if ct, err = eval.PolynomialEvaluator.Evaluate(ct, evm.sinePoly, rlwe.NewScale(targetScale)); err != nil {
+	if ct, err = eval.PolynomialEvaluator.Evaluate(ct, evm.mod1Poly, rlwe.NewScale(targetScale)); err != nil {
 		return nil, fmt.Errorf("cannot Evaluate: %w", err)
 	}
 
@@ -118,8 +118,8 @@ func (eval Mod1Evaluator) EvaluateNew(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, er
 	}
 
 	// ArcSine
-	if evm.arcSinePoly != nil {
-		if ct, err = eval.PolynomialEvaluator.Evaluate(ct, *evm.arcSinePoly, ct.Scale); err != nil {
+	if evm.mod1InvPoly != nil {
+		if ct, err = eval.PolynomialEvaluator.Evaluate(ct, *evm.mod1InvPoly, ct.Scale); err != nil {
 			return nil, fmt.Errorf("cannot Evaluate: %w", err)
 		}
 	}

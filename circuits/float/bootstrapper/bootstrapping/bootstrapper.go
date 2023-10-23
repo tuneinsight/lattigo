@@ -49,7 +49,7 @@ func NewBootstrapper(btpParams Parameters, btpKeys *EvaluationKeySet) (btp *Boot
 		return nil, fmt.Errorf("cannot use double angle formula for Mod1Type = Sin -> must use Mod1Type = Cos")
 	}
 
-	if btpParams.Mod1ParametersLiteral.Mod1Type == float.CosDiscrete && btpParams.Mod1ParametersLiteral.SineDegree < 2*(btpParams.Mod1ParametersLiteral.K-1) {
+	if btpParams.Mod1ParametersLiteral.Mod1Type == float.CosDiscrete && btpParams.Mod1ParametersLiteral.Mod1Degree < 2*(btpParams.Mod1ParametersLiteral.K-1) {
 		return nil, fmt.Errorf("Mod1Type 'ckks.CosDiscrete' uses a minimum degree of 2*(K-1) but EvalMod degree is smaller")
 	}
 

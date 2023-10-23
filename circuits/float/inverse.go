@@ -29,7 +29,7 @@ type InverseEvaluator struct {
 
 // NewInverseEvaluator instantiates a new InverseEvaluator.
 // The default ckks.Evaluator is compliant to the EvaluatorForInverse interface.
-// The field circuits.Bootstrapper[rlwe.Ciphertext] can be nil if the parameters have enough level to support the computation.
+// The field circuits.Bootstrapper[rlwe.Ciphertext] can be nil if the parameters have enough levels to support the computation.
 // This method is allocation free.
 func NewInverseEvaluator(params ckks.Parameters, eval EvaluatorForInverse, btp circuits.Bootstrapper[rlwe.Ciphertext]) InverseEvaluator {
 	return InverseEvaluator{

@@ -19,7 +19,7 @@ type ComparisonEvaluator struct {
 
 // NewComparisonEvaluator instantiates a new ComparisonEvaluator.
 // The default ckks.Evaluator is compliant with the EvaluatorForMinimaxCompositePolynomial interface.
-// The field circuits.Bootstrapper[rlwe.Ciphertext] can be nil if the parameter have enough level to support the computation.
+// The field circuits.Bootstrapper[rlwe.Ciphertext] can be nil if the parameters have enough level to support the computation.
 //
 // Giving a MinimaxCompositePolynomial is optional, but it is highly recommended to provide one that is optimized
 // for the circuit requiring the comparisons as this polynomial will define the internal precision of all computation

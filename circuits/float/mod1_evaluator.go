@@ -10,7 +10,7 @@ import (
 )
 
 // EvaluatorForMod1 defines a set of common and scheme agnostic
-// method that are necessary to instantiate a Mod1Evaluator.
+// methods that are necessary to instantiate a Mod1Evaluator.
 // The default ckks.Evaluator is compliant to this interface.
 type EvaluatorForMod1 interface {
 	circuits.Evaluator

@@ -241,7 +241,7 @@ func main() {
 	// Before anything, we must instantiate the evaluator, and we provide the evaluation key struct.
 	eval := ckks.NewEvaluator(params, evk)
 
-	// For the purpose of the example, we will create a second vectors of random values.
+	// For the purpose of the example, we will create a second vector of random values.
 	values2 := make([]complex128, Slots)
 	for i := 0; i < Slots; i++ {
 		values2[i] = complex(2*r.Float64()-1, 2*r.Float64()-1)

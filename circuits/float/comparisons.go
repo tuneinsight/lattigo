@@ -22,7 +22,7 @@ type ComparisonEvaluator struct {
 // The field circuits.Bootstrapper[rlwe.Ciphertext] can be nil if the parameters have enough level to support the computation.
 //
 // Giving a MinimaxCompositePolynomial is optional, but it is highly recommended to provide one that is optimized
-// for the circuit requiring the comparisons as this polynomial will define the internal precision of all computation
+// for the circuit requiring the comparisons as this polynomial will define the internal precision of all computations
 // performed by this evaluator.
 //
 // The MinimaxCompositePolynomial must be a composite minimax approximation of the sign function:

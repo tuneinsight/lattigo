@@ -36,7 +36,7 @@ func ApproximateCos(K, degree int, dev float64, scnum int) []*big.Float {
 	nodes, y := genNodes(deg, dev, totdeg, K, scnum)
 
 	// Solves the linear system and returns the coefficients
-	return solve(totdeg, K, scnum, nodes, y)[:totdeg-1]
+	return solve(totdeg, K, scnum, nodes, y)[:totdeg]
 }
 
 // y = cos(2 * pi * (x - 0.25)/r)

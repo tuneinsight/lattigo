@@ -47,8 +47,7 @@ type DFTMatrix struct {
 // This struct has mandatory and optional fields.
 //
 // Mandatory:
-//   - DFTType: Encode (a.k.a. CoeffsToSlots) or Decode (a.k.a. SlotsToCoeffs)
-//   - LogN: log2(RingDegree)
+//   - Type: HomomorphicEncode (a.k.a. CoeffsToSlots) or HomomorphicDecode (a.k.a. SlotsToCoeffs)
 //   - LogSlots: log2(slots)
 //   - LevelStart: starting level of the linear transformation
 //   - Levels: depth of the linear transform (i.e. the degree of factorization of the encoding matrix)
@@ -201,6 +200,7 @@ func NewDFTMatrixFromLiteral(params ckks.Parameters, d DFTMatrixLiteral, encoder
 
 // CoeffsToSlotsNew applies the homomorphic encoding and returns the result on new ciphertexts.
 // Homomorphically encodes a complex vector vReal + i*vImag.
+// Given n = current number of slots and N/2 max number of slots (half the ring degree):
 // If the packing is sparse (n < N/2), then returns ctReal = Ecd(vReal || vImag) and ctImag = nil.
 // If the packing is dense (n == N/2), then returns ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
 func (eval *DFTEvaluator) CoeffsToSlotsNew(ctIn *rlwe.Ciphertext, ctsMatrices DFTMatrix) (ctReal, ctImag *rlwe.Ciphertext, err error) {
@@ -323,6 +323,7 @@ func (eval *DFTEvaluator) SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext, stcMatr
 	return
 }
 
+// dft evaluates a series of LinearTransformation sequentially on the ctIn and stores the result in opOut.
 func (eval *DFTEvaluator) dft(ctIn *rlwe.Ciphertext, matrices []LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
 
 	inputLogSlots := ctIn.LogDimensions

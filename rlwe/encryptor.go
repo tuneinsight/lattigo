@@ -31,11 +31,15 @@ func NewEncryptor(params ParameterProvider, key EncryptionKey) *Encryptor {
 	case nil:
 		return newEncryptor(p)
 	default:
+		// Sanity check
 		panic(fmt.Errorf("key must be either *rlwe.PublicKey, *rlwe.SecretKey or nil but have %T", key))
 	}
+
 	if err != nil {
+		// Sanity check, this error should not happen.
 		panic(fmt.Errorf("key is not correct: %w", err))
 	}
+	
 	enc.encKey = key
 	return enc
 }
@@ -56,6 +60,7 @@ func newEncryptor(params Parameters) *Encryptor {
 
 	prng, err := sampling.NewPRNG()
 	if err != nil {
+		// Sanity check, this error should not happen.
 		panic(err)
 	}
 
@@ -66,12 +71,14 @@ func newEncryptor(params Parameters) *Encryptor {
 
 	xeSampler, err := ring.NewSampler(prng, params.RingQ(), params.Xe(), false)
 
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(fmt.Errorf("newEncryptor: %w", err))
 	}
 
 	xsSampler, err := ring.NewSampler(prng, params.RingQ(), params.Xs(), false)
 
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(fmt.Errorf("newEncryptor: %w", err))
 	}
@@ -183,6 +190,7 @@ func (enc Encryptor) EncryptZero(ct interface{}) (err error) {
 func (enc Encryptor) EncryptZeroNew(level int) (ct *Ciphertext) {
 	ct = NewCiphertext(enc.params, 1, level)
 	if err := enc.EncryptZero(ct); err != nil {
+		// Sanity check, this error should not happen.
 		panic(err)
 	}
 	return
@@ -455,15 +463,18 @@ func (enc Encryptor) WithKey(key EncryptionKey) *Encryptor {
 	switch key := key.(type) {
 	case *SecretKey:
 		if err := enc.checkSk(key); err != nil {
+			// Sanity check, this error should not happen.
 			panic(fmt.Errorf("cannot WithKey: %w", err))
 		}
 	case *PublicKey:
 		if err := enc.checkPk(key); err != nil {
+			// Sanity check, this error should not happen.
 			panic(fmt.Errorf("cannot WithKey: %w", err))
 		}
 	case nil:
 		return &enc
 	default:
+		// Sanity check, this error should not happen.
 		panic(fmt.Errorf("invalid key type, want *rlwe.SecretKey, *rlwe.PublicKey or nil but have %T", key))
 	}
 	enc.encKey = key

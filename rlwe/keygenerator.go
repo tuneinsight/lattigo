@@ -45,6 +45,7 @@ func (kgen *KeyGenerator) GenSecretKeyWithHammingWeightNew(hw int) (sk *SecretKe
 // GenSecretKeyWithHammingWeight generates a SecretKey with exactly hw non-zero coefficients.
 func (kgen KeyGenerator) GenSecretKeyWithHammingWeight(hw int, sk *SecretKey) {
 	Xs, err := ring.NewSampler(kgen.prng, kgen.params.RingQ(), ring.Ternary{H: hw}, false)
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}
@@ -78,6 +79,7 @@ func (kgen KeyGenerator) GenPublicKey(sk *SecretKey, pk *PublicKey) {
 		MetaData: &MetaData{CiphertextMetaData: CiphertextMetaData{IsNTT: true, IsMontgomery: true}},
 		Value:    []ringqp.Poly(pk.Value),
 	}); err != nil {
+		// Sanity check, this error should not happen.
 		panic(err)
 	}
 }
@@ -135,6 +137,8 @@ func (kgen KeyGenerator) GenGaloisKey(galEl uint64, sk *SecretKey, gk *GaloisKey
 
 	index, err := ring.AutomorphismNTTIndex(ringQ.N(), ringQ.NthRoot(), galElInv)
 
+	// Sanity check, this error should not happen unless the 
+	// evaluator's buffer thave been improperly tempered with.
 	if err != nil {
 		panic(err)
 	}
@@ -155,9 +159,12 @@ func (kgen KeyGenerator) GenGaloisKey(galEl uint64, sk *SecretKey, gk *GaloisKey
 // the resulting key for galois element i in gks[i].
 // The galEls and gks parameters must have the same length.
 func (kgen KeyGenerator) GenGaloisKeys(galEls []uint64, sk *SecretKey, gks []*GaloisKey) {
+
+	// Sanity check
 	if len(galEls) != len(gks) {
 		panic(fmt.Errorf("galEls and gks must have the same length"))
 	}
+
 	for i, galEl := range galEls {
 		if gks[i] == nil {
 			gks[i] = kgen.GenGaloisKeyNew(galEl, sk)
@@ -255,6 +262,7 @@ func (kgen KeyGenerator) genEvaluationKey(skIn ring.Poly, skOut ringqp.Poly, evk
 	for i := 0; i < len(evk.Value); i++ {
 		for j := 0; j < len(evk.Value[i]); j++ {
 			if err := enc.EncryptZero(Element[ringqp.Poly]{MetaData: &MetaData{CiphertextMetaData: CiphertextMetaData{IsNTT: true, IsMontgomery: true}}, Value: []ringqp.Poly(evk.Value[i][j])}); err != nil {
+				// Sanity check, this error should not happen.
 				panic(err)
 			}
 		}
@@ -262,6 +270,7 @@ func (kgen KeyGenerator) genEvaluationKey(skIn ring.Poly, skOut ringqp.Poly, evk
 
 	// Adds the plaintext (input-key) to the EvaluationKey.
 	if err := AddPolyTimesGadgetVectorToGadgetCiphertext(skIn, []GadgetCiphertext{evk.GadgetCiphertext}, *kgen.params.RingQP(), kgen.buffQ[0]); err != nil {
+		// Sanity check, this error should not happen.
 		panic(err)
 	}
 }

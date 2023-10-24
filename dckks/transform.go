@@ -60,6 +60,7 @@ func (mltp MaskedLinearTransformationProtocol) WithParams(paramsOut ckks.Paramet
 
 	s2e, err := NewShareToEncProtocol(paramsOut, mltp.noise)
 
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}

@@ -79,6 +79,8 @@ func GenEvaluationKeyNew(paramsRLWE rlwe.Parameters, skRLWE *rlwe.SecretKey, par
 
 		skiRGSW[i] = rgsw.NewCiphertext(paramsRLWE, levelQ, levelP, BaseTwoDecomposition)
 
+		// Sanity check, this error should never happen unless this algorithm
+		// has been improperly modified to provides invalid inputs.
 		if err := encryptor.Encrypt(ptXi[siInt], skiRGSW[i]); err != nil {
 			panic(err)
 		}

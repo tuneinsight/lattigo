@@ -65,6 +65,8 @@ func NewThresholdizer(params rlwe.ParameterProvider) Thresholdizer {
 	thr.ringQP = thr.params.RingQP()
 
 	prng, err := sampling.NewPRNG()
+
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(fmt.Errorf("could not initialize PRNG: %s", err))
 	}

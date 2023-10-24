@@ -86,6 +86,7 @@ func NewEvaluator(params ParameterProvider, evk EvaluationKeySet) (eval *Evaluat
 			var err error
 			for _, galEl := range galEls {
 				if AutomorphismIndex[galEl], err = ring.AutomorphismNTTIndex(N, NthRoot, galEl); err != nil {
+					// Sanity check, this error should not happen.
 					panic(err)
 				}
 			}
@@ -117,6 +118,7 @@ func (eval Evaluator) CheckAndGetGaloisKey(galEl uint64) (evk *GaloisKey, err er
 
 	if _, ok := eval.automorphismIndex[galEl]; !ok {
 		if eval.automorphismIndex[galEl], err = ring.AutomorphismNTTIndex(eval.params.N(), eval.params.RingQ().NthRoot(), galEl); err != nil {
+			// Sanity check, this error should not happen.
 			panic(err)
 		}
 	}
@@ -260,6 +262,7 @@ func (eval Evaluator) WithKey(evk EvaluationKeySet) *Evaluator {
 		var err error
 		for _, galEl := range galEls {
 			if AutomorphismIndex[galEl], err = ring.AutomorphismNTTIndex(N, NthRoot, galEl); err != nil {
+				// Sanity check, this error should not happen.
 				panic(err)
 			}
 		}

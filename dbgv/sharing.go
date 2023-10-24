@@ -37,6 +37,8 @@ func (e2s EncToShareProtocol) ShallowCopy() EncToShareProtocol {
 	params := e2s.params
 
 	prng, err := sampling.NewPRNG()
+
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}
@@ -64,6 +66,8 @@ func NewEncToShareProtocol(params bgv.Parameters, noiseFlooding ring.Distributio
 	e2s.params = params
 	e2s.encoder = bgv.NewEncoder(params)
 	prng, err := sampling.NewPRNG()
+
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}

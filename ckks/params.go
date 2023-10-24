@@ -151,6 +151,7 @@ func (p Parameters) MaxDimensions() ring.Dimensions {
 	case ring.ConjugateInvariant:
 		return ring.Dimensions{Rows: 1, Cols: p.N()}
 	default:
+		// Sanity check
 		panic("cannot MaxDimensions: invalid ring type")
 	}
 }
@@ -163,6 +164,7 @@ func (p Parameters) LogMaxDimensions() ring.Dimensions {
 	case ring.ConjugateInvariant:
 		return ring.Dimensions{Rows: 0, Cols: p.LogN()}
 	default:
+		// Sanity check
 		panic("cannot LogMaxDimensions: invalid ring type")
 	}
 }

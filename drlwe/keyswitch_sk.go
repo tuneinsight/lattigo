@@ -31,6 +31,8 @@ type KeySwitchShare struct {
 // KeySwitchProtocol can be used concurrently.
 func (cks KeySwitchProtocol) ShallowCopy() KeySwitchProtocol {
 	prng, err := sampling.NewPRNG()
+
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}
@@ -38,6 +40,8 @@ func (cks KeySwitchProtocol) ShallowCopy() KeySwitchProtocol {
 	params := cks.params
 
 	Xe, err := ring.NewSampler(prng, cks.params.RingQ(), cks.noise, false)
+
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}
@@ -63,6 +67,8 @@ func NewKeySwitchProtocol(params rlwe.ParameterProvider, noiseFlooding ring.Dist
 	cks := KeySwitchProtocol{}
 	cks.params = *params.GetRLWEParameters()
 	prng, err := sampling.NewPRNG()
+
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}
@@ -80,6 +86,8 @@ func NewKeySwitchProtocol(params rlwe.ParameterProvider, noiseFlooding ring.Dist
 	}
 
 	cks.noiseSampler, err = ring.NewSampler(prng, cks.params.RingQ(), cks.noise, false)
+
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}

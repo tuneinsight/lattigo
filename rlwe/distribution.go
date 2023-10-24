@@ -26,6 +26,7 @@ func NewDistribution(params ring.DistributionParameters, logN int) (d Distributi
 		}
 		d.AbsBound = 1
 	default:
+		// Sanity check
 		panic("invalid dist")
 	}
 	return

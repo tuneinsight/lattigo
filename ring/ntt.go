@@ -196,6 +196,7 @@ func INTTStandardLazy(p1, p2 []uint64, N int, NInv, Q, MRedConstant uint64, root
 // nttCoreLazy computes the NTT on the input coefficients using the input parameters with output values in the range [0, 2*modulus-1].
 func nttCoreLazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []uint64) {
 
+	// Sanity check
 	if len(p1) < N || len(p2) < N || len(roots) < N {
 		panic(fmt.Sprintf("cannot nttCoreLazy: ensure that len(p1)=%d, len(p2)=%d and len(roots)=%d >= N=%d", len(p1), len(p2), len(roots), N))
 	}
@@ -244,6 +245,7 @@ func nttLazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []uint64) {
 }
 func nttUnrolled16Lazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []uint64) {
 
+	// Sanity check
 	if len(p2) < MinimumRingDegreeForLoopUnrolledNTT {
 		panic(fmt.Sprintf("unsafe call of nttUnrolled16Lazy: receiver len(p2)=%d < %d", len(p2), MinimumRingDegreeForLoopUnrolledNTT))
 	}
@@ -538,6 +540,7 @@ func nttUnrolled16Lazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []u
 
 func inttCoreLazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []uint64) {
 
+	// Sanity check
 	if len(p1) < N || len(p2) < N || len(roots) < N {
 		panic(fmt.Sprintf("cannot inttCoreLazy: ensure that len(p1)=%d, len(p2)=%d and len(roots)=%d >= N=%d", len(p1), len(p2), len(roots), N))
 	}
@@ -591,6 +594,7 @@ func inttLazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []uint64) {
 
 func inttLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []uint64) {
 
+	// Sanity check
 	if len(p2) < MinimumRingDegreeForLoopUnrolledNTT {
 		panic(fmt.Sprintf("unsafe call of inttCoreUnrolled16Lazy: receiver len(p2)=%d < %d", len(p2), MinimumRingDegreeForLoopUnrolledNTT))
 	}
@@ -721,6 +725,8 @@ func INTTConjugateInvariantLazy(p1, p2 []uint64, N int, NInv, Q, MRedConstant ui
 
 // nttCoreConjugateInvariantLazy evaluates p2 = NTT(p1) in the sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1) with p2 [0, 2*modulus-1].
 func nttCoreConjugateInvariantLazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []uint64) {
+	
+	// Sanity check
 	if len(p1) < N || len(p2) < N || len(roots) < N {
 		panic(fmt.Sprintf("cannot nttCoreConjugateInvariantLazy: ensure that len(p1)=%d, len(p2)=%d and len(roots)=%d >= N=%d", len(p1), len(p2), len(roots), N))
 	}
@@ -768,6 +774,7 @@ func nttConjugateInvariantLazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, r
 
 func nttConjugateInvariantLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []uint64) {
 
+	// Sanity check
 	if len(p2) < MinimumRingDegreeForLoopUnrolledNTT {
 		panic(fmt.Sprintf("unsafe call of nttCoreConjugateInvariantLazyUnrolled16: receiver len(p2)=%d < %d", len(p2), MinimumRingDegreeForLoopUnrolledNTT))
 	}
@@ -1067,6 +1074,8 @@ func nttConjugateInvariantLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstant
 
 // inttCoreConjugateInvariantLazy evaluates p2 = INTT(p1) in the sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1) with p2 [0, 2*modulus-1].
 func inttCoreConjugateInvariantLazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []uint64) {
+	
+	// Sanity check
 	if len(p1) < N || len(p2) < N || len(roots) < N {
 		panic(fmt.Sprintf("cannot inttCoreConjugateInvariantLazy: ensure that len(p1)=%d, len(p2)=%d and len(roots)=%d >= N=%d", len(p1), len(p2), len(roots), N))
 	}
@@ -1136,6 +1145,7 @@ func inttConjugateInvariantLazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, 
 
 func inttConjugateInvariantLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []uint64) {
 
+	// Sanity check
 	if len(p2) < MinimumRingDegreeForLoopUnrolledNTT {
 		panic(fmt.Sprintf("unsafe call of inttConjugateInvariantLazyUnrolled16: receiver len(p2)=%d < %d", len(p2), MinimumRingDegreeForLoopUnrolledNTT))
 	}

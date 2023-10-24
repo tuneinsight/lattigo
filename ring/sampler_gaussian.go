@@ -78,6 +78,7 @@ func (g *GaussianSampler) read(pol Poly, f func(a, b, c uint64) uint64) {
 	level := r.level
 
 	if _, err := g.prng.Read(g.randomBufferN); err != nil {
+		// Sanity check, this error should not happen.
 		panic(err)
 	}
 
@@ -189,6 +190,7 @@ func (g *GaussianSampler) normFloat64() (float64, uint64) {
 	read := func() {
 		if ptr == buffLen {
 			if _, err := prng.Read(buff); err != nil {
+				// Sanity check, this error should not happen.
 				panic(err)
 			}
 			ptr = 0

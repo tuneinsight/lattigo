@@ -222,6 +222,10 @@ func (eval Evaluator) Add(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 
 		// Instantiates new plaintext from buffer
 		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, eval.buffQ[0])
+
+		// This error should not happen, unless the evaluator's buffer were
+		// improperly tempered with. If it does happen, there is no way to
+		// recover from it.
 		if err != nil {
 			panic(err)
 		}
@@ -357,6 +361,10 @@ func (eval Evaluator) Sub(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 
 		// Instantiates new plaintext from buffer
 		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, eval.buffQ[0])
+
+		// This error should not happen, unless the evaluator's buffer were
+		// improperly tempered with. If it does happen, there is no way to
+		// recover from it.
 		if err != nil {
 			panic(err)
 		}
@@ -478,6 +486,10 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 
 		// Instantiates new plaintext from buffer
 		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, eval.buffQ[0])
+
+		// This error should not happen, unless the evaluator's buffer were
+		// improperly tempered with. If it does happen, there is no way to
+		// recover from it.
 		if err != nil {
 			panic(err)
 		}
@@ -736,6 +748,10 @@ func (eval Evaluator) MulScaleInvariant(op0 *rlwe.Ciphertext, op1 rlwe.Operand, 
 
 		// Instantiates new plaintext from buffer
 		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, eval.buffQ[0])
+
+		// This error should not happen, unless the evaluator's buffer were
+		// improperly tempered with. If it does happen, there is no way to
+		// recover from it.
 		if err != nil {
 			panic(err)
 		}
@@ -840,6 +856,10 @@ func (eval Evaluator) MulRelinScaleInvariant(op0 *rlwe.Ciphertext, op1 rlwe.Oper
 
 		// Instantiates new plaintext from buffer
 		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, eval.buffQ[0])
+
+		// This error should not happen, unless the evaluator's buffer were
+		// improperly tempered with. If it does happen, there is no way to
+		// recover from it.
 		if err != nil {
 			panic(err)
 		}
@@ -1137,6 +1157,10 @@ func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *
 
 		// Instantiates new plaintext from buffer
 		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, eval.buffQ[0])
+
+		// This error should not happen, unless the evaluator's buffer were
+		// improperly tempered with. If it does happen, there is no way to
+		// recover from it.
 		if err != nil {
 			panic(err)
 		}
@@ -1462,6 +1486,8 @@ func (eval Evaluator) matchScalesBinary(scale0, scale1 uint64) (r0, r1, e uint64
 	tHalf := t >> 1
 	BRedConstant := ringT.SubRings[0].BRedConstant
 
+	// This should never happen and if it were to happen,
+	// there is no way to recovernfrom it.
 	if utils.GCD(scale0, t) != 1 {
 		panic("cannot matchScalesBinary: invalid ciphertext scale: gcd(scale, t) != 1")
 	}

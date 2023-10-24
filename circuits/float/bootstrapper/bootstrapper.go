@@ -174,7 +174,7 @@ func (b Bootstrapper) BootstrapMany(cts []rlwe.Ciphertext) ([]rlwe.Ciphertext, e
 func (b Bootstrapper) refreshConjugateInvariant(ctLeftN1Q0, ctRightN1Q0 *rlwe.Ciphertext) (ctLeftN1QL, ctRightN1QL *rlwe.Ciphertext, err error) {
 
 	if ctLeftN1Q0 == nil {
-		panic("cannot refreshConjugateInvariant: ctLeftN1Q0 cannot be nil")
+		return nil, nil, fmt.Errorf("ctLeftN1Q0 cannot be nil")
 	}
 
 	// Switches ring from ring.ConjugateInvariant to ring.Standard

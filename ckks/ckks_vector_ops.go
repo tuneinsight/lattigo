@@ -17,6 +17,7 @@ const (
 // SpecialIFFTDouble performs the CKKS special inverse FFT transform in place.
 func SpecialIFFTDouble(values []complex128, N, M int, rotGroup []int, roots []complex128) {
 
+	// Sanity check
 	if len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
 		panic(fmt.Sprintf("invalid call of SpecialIFFTDouble: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
 	}
@@ -46,6 +47,7 @@ func SpecialIFFTDouble(values []complex128, N, M int, rotGroup []int, roots []co
 // SpecialFFTDouble performs the CKKS special FFT transform in place.
 func SpecialFFTDouble(values []complex128, N, M int, rotGroup []int, roots []complex128) {
 
+	// Sanity check
 	if len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
 		panic(fmt.Sprintf("invalid call of SpecialFFTDouble: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
 	}
@@ -71,6 +73,7 @@ func SpecialFFTDouble(values []complex128, N, M int, rotGroup []int, roots []com
 // SpecialFFTArbitrary evaluates the decoding matrix on a slice of ring.Complex values.
 func SpecialFFTArbitrary(values []*bignum.Complex, N, M int, rotGroup []int, roots []*bignum.Complex) {
 
+	// Sanity check
 	if len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
 		panic(fmt.Sprintf("invalid call of SpecialFFTArbitrary: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
 	}
@@ -105,6 +108,7 @@ func SpecialFFTArbitrary(values []*bignum.Complex, N, M int, rotGroup []int, roo
 // SpecialIFFTArbitrary evaluates the encoding matrix on a slice of ring.Complex values.
 func SpecialIFFTArbitrary(values []*bignum.Complex, N, M int, rotGroup []int, roots []*bignum.Complex) {
 
+	// Sanity check
 	if len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
 		panic(fmt.Sprintf("invalid call of SpecialIFFTArbitrary: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
 	}
@@ -146,10 +150,12 @@ func SpecialIFFTArbitrary(values []*bignum.Complex, N, M int, rotGroup []int, ro
 // SpecialFFTDoubleUL8 performs the CKKS special FFT transform in place with unrolled loops of size 8.
 func SpecialFFTDoubleUL8(values []complex128, N, M int, rotGroup []int, roots []complex128) {
 
+	// Sanity check
 	if len(values) < minVecLenForLoopUnrolling {
 		panic(fmt.Sprintf("unsafe call of SpecialFFTDoubleUL8: len(values)=%d < %d", len(values), minVecLenForLoopUnrolling))
 	}
 
+	// Sanity check
 	if len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
 		panic(fmt.Sprintf("invalid call of SpecialFFTDoubleUL8: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
 	}
@@ -325,10 +331,12 @@ func SpecialFFTDoubleUL8(values []complex128, N, M int, rotGroup []int, roots []
 // SpecialiFFTDoubleUnrolled8 performs the CKKS special inverse FFT transform in place with unrolled loops of size 8.
 func SpecialiFFTDoubleUnrolled8(values []complex128, N, M int, rotGroup []int, roots []complex128) {
 
+	// Sanity check
 	if len(values) < minVecLenForLoopUnrolling {
 		panic(fmt.Sprintf("unsafe call of SpecialiFFTDoubleUnrolled8: len(values)=%d < %d", len(values), minVecLenForLoopUnrolling))
 	}
 
+	// Sanity check
 	if len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
 		panic(fmt.Sprintf("invalid call of SpecialiFFTDoubleUnrolled8: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
 	}

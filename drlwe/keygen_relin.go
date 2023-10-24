@@ -37,6 +37,8 @@ type RelinearizationKeyGenCRP struct {
 func (ekg *RelinearizationKeyGenProtocol) ShallowCopy() RelinearizationKeyGenProtocol {
 	var err error
 	prng, err := sampling.NewPRNG()
+
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}
@@ -44,11 +46,15 @@ func (ekg *RelinearizationKeyGenProtocol) ShallowCopy() RelinearizationKeyGenPro
 	params := ekg.params
 
 	Xe, err := ring.NewSampler(prng, ekg.params.RingQ(), ekg.params.Xe(), false)
+
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}
 
 	Xs, err := ring.NewSampler(prng, ekg.params.RingQ(), ekg.params.Xs(), false)
+
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}
@@ -68,16 +74,22 @@ func NewRelinearizationKeyGenProtocol(params rlwe.ParameterProvider) Relineariza
 
 	var err error
 	prng, err := sampling.NewPRNG()
+
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}
 
 	rkg.gaussianSamplerQ, err = ring.NewSampler(prng, rkg.params.RingQ(), rkg.params.Xe(), false)
+
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}
 
 	rkg.ternarySamplerQ, err = ring.NewSampler(prng, rkg.params.RingQ(), rkg.params.Xs(), false)
+
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}

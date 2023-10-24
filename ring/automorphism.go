@@ -37,6 +37,7 @@ func AutomorphismNTTIndex(N int, NthRoot, GalEl uint64) (index []uint64, err err
 // It must be noted that the result cannot be in-place.
 func (r Ring) AutomorphismNTT(polIn Poly, gen uint64, polOut Poly) {
 	index, err := AutomorphismNTTIndex(r.N(), r.NthRoot(), gen)
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}

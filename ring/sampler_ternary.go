@@ -125,6 +125,7 @@ func (ts *TernarySampler) computeMatrixTernary(p float64) {
 
 func (ts *TernarySampler) sampleProba(pol Poly, f func(a, b, c uint64) uint64) {
 
+	// Sanity check for invalid parameters
 	if ts.invDensity == 0 {
 		panic("cannot sample -> p = 0")
 	}
@@ -145,10 +146,12 @@ func (ts *TernarySampler) sampleProba(pol Poly, f func(a, b, c uint64) uint64) {
 		randomBytesSign := make([]byte, N>>3)
 
 		if _, err := ts.prng.Read(randomBytesCoeffs); err != nil {
+			// Sanity check, this error should not happen.
 			panic(err)
 		}
 
 		if _, err := ts.prng.Read(randomBytesSign); err != nil {
+			// Sanity check, this error should not happen.
 			panic(err)
 		}
 
@@ -171,6 +174,7 @@ func (ts *TernarySampler) sampleProba(pol Poly, f func(a, b, c uint64) uint64) {
 		var bytePointer int
 
 		if _, err := ts.prng.Read(randomBytes); err != nil {
+			// Sanity check, this error should not happen.
 			panic(err)
 		}
 
@@ -209,6 +213,7 @@ func (ts *TernarySampler) sampleSparse(pol Poly, f func(a, b, c uint64) uint64) 
 	pointer := uint8(0)
 
 	if _, err := ts.prng.Read(randomBytes); err != nil {
+		// Sanity check, this error should not happen.
 		panic(err)
 	}
 
@@ -288,6 +293,7 @@ func (ts *TernarySampler) kysampling(prng sampling.PRNG, randomBytes []byte, poi
 						if bytePointer >= byteLength {
 							bytePointer = 0
 							if _, err := prng.Read(randomBytes); err != nil {
+								// Sanity check, this error should not happen.
 								panic(err)
 							}
 						}
@@ -315,6 +321,7 @@ func (ts *TernarySampler) kysampling(prng sampling.PRNG, randomBytes []byte, poi
 		if bytePointer >= byteLength {
 			bytePointer = 0
 			if _, err := prng.Read(randomBytes); err != nil {
+				// Sanity check, this error should not happen.
 				panic(err)
 			}
 		}

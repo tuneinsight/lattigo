@@ -6,6 +6,7 @@ package ring
 // Requires that polyStandard and polyConjugateInvariant share the same moduli.
 func (r Ring) UnfoldConjugateInvariantToStandard(polyConjugateInvariant, polyStandard Poly) {
 
+	// Sanity check
 	if 2*polyConjugateInvariant.N() != polyStandard.N() {
 		panic("cannot UnfoldConjugateInvariantToStandard: Ring degree of polyConjugateInvariant must be twice the ring degree of polyStandard")
 	}
@@ -26,6 +27,7 @@ func (r Ring) UnfoldConjugateInvariantToStandard(polyConjugateInvariant, polySta
 // Requires that polyStandard and polyConjugateInvariant share the same moduli.
 func (r Ring) FoldStandardToConjugateInvariant(polyStandard Poly, permuteNTTIndexInv []uint64, polyConjugateInvariant Poly) {
 
+	// Sanity check
 	if polyStandard.N() != 2*polyConjugateInvariant.N() {
 		panic("cannot FoldStandardToConjugateInvariant: Ring degree of polyStandard must be 2N and ring degree of polyConjugateInvariant must be N")
 	}
@@ -44,6 +46,7 @@ func (r Ring) FoldStandardToConjugateInvariant(polyStandard Poly, permuteNTTInde
 // PadDefaultRingToConjugateInvariant converts a polynomial in Z[X]/(X^N +1) to a polynomial in Z[X+X^-1]/(X^2N+1).
 func (r Ring) PadDefaultRingToConjugateInvariant(polyStandard Poly, IsNTT bool, polyConjugateInvariant Poly) {
 
+	// Sanity check
 	if polyConjugateInvariant.N() != 2*polyStandard.N() {
 		panic("cannot PadDefaultRingToConjugateInvariant: polyConjugateInvariant degree must be twice the one of polyStandard")
 	}

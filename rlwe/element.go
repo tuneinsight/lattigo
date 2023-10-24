@@ -111,6 +111,7 @@ func (op Element[T]) LevelQ() int {
 	case ringqp.Poly:
 		return el.LevelQ()
 	default:
+		// Sanity check
 		panic("invalid Element[type]")
 	}
 }
@@ -122,6 +123,7 @@ func (op Element[T]) LevelP() int {
 	case ringqp.Poly:
 		return el.LevelP()
 	default:
+		// Sanity check
 		panic("invalid Element[type]")
 	}
 }
@@ -152,6 +154,7 @@ func (op *Element[T]) Resize(degree, level int) {
 			}
 		}
 	default:
+		// Sanity check
 		panic(fmt.Errorf("can only resize Element[ring.Poly] but is %T", op))
 	}
 }

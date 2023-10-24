@@ -111,6 +111,9 @@ func (eval Evaluator) Add(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 
 		// Instantiates new plaintext from buffer
 		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, eval.buffQ[0])
+
+		// Sanity check, this error should not happen unless the evaluator's buffers
+		// were improperly tempered with.
 		if err != nil {
 			panic(err)
 		}
@@ -204,6 +207,9 @@ func (eval Evaluator) Sub(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 
 		// Instantiates new plaintext from buffer
 		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, eval.buffQ[0])
+
+		// Sanity check, this error should not happen unless the evaluator's buffers
+		// were improperly tempered with.
 		if err != nil {
 			panic(err)
 		}
@@ -265,6 +271,9 @@ func (eval Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 *rlwe.E
 			if ratioInt.Cmp(new(big.Int).SetUint64(0)) == 1 {
 
 				tmp1, err = rlwe.NewCiphertextAtLevelFromPoly(level, eval.BuffCt.Value[:c1.Degree()+1])
+
+				// Sanity check, this error should not happen unless the evaluator's buffers
+				// were improperly tempered with.
 				if err != nil {
 					panic(err)
 				}
@@ -325,6 +334,9 @@ func (eval Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 *rlwe.E
 			if ratioInt.Cmp(new(big.Int).SetUint64(0)) == 1 {
 				// Will avoid resizing on the output
 				tmp0, err = rlwe.NewCiphertextAtLevelFromPoly(level, eval.BuffCt.Value[:c0.Degree()+1])
+
+				// Sanity check, this error should not happen unless the evaluator's buffers
+				// were improperly tempered with.
 				if err != nil {
 					panic(err)
 				}
@@ -352,6 +364,9 @@ func (eval Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 *rlwe.E
 			if ratioInt.Cmp(new(big.Int).SetUint64(0)) == 1 {
 				// Will avoid resizing on the output
 				tmp1, err = rlwe.NewCiphertextAtLevelFromPoly(level, eval.BuffCt.Value[:c1.Degree()+1])
+
+				// Sanity check, this error should not happen unless the evaluator's buffers
+				// were improperly tempered with.
 				if err != nil {
 					panic(err)
 				}
@@ -373,6 +388,9 @@ func (eval Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 *rlwe.E
 			if ratioInt.Cmp(new(big.Int).SetUint64(0)) == 1 {
 
 				tmp0, err = rlwe.NewCiphertextAtLevelFromPoly(level, eval.BuffCt.Value[:c0.Degree()+1])
+
+				// Sanity check, this error should not happen unless the evaluator's buffers
+				// were improperly tempered with.
 				if err != nil {
 					panic(err)
 				}
@@ -678,6 +696,9 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 
 		// Instantiates new plaintext from buffer
 		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, eval.buffQ[0])
+
+		// Sanity check, this error should not happen unless the evaluator's buffers
+		// were improperly tempered with.
 		if err != nil {
 			panic(err)
 		}
@@ -999,6 +1020,9 @@ func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *
 
 		// Instantiates new plaintext from buffer
 		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, eval.buffQ[0])
+
+		// Sanity check, this error should not happen unless the evaluator's buffers
+		// were improperly tempered with.
 		if err != nil {
 			panic(err)
 		}

@@ -140,7 +140,7 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, testPolyWithSlotIndex map[i
 
 			// Line 3 of Algorithm 7 https://eprint.iacr.org/2022/198 (Algorithm 3 of https://eprint.iacr.org/2022/198)
 			if err = eval.BlindRotateCore(a, acc, key); err != nil {
-				panic(err)
+				return fmt.Errorf("BlindRotateCore: %s", err)
 			}
 
 			// f(X) * X^{b + <a, s>}

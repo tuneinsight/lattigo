@@ -37,6 +37,8 @@ func NewPublicKeySwitchProtocol(params rlwe.ParameterProvider, noiseFlooding rin
 	pcks.buf = pcks.params.RingQ().NewPoly()
 
 	prng, err := sampling.NewPRNG()
+
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}
@@ -50,6 +52,8 @@ func NewPublicKeySwitchProtocol(params rlwe.ParameterProvider, noiseFlooding rin
 	}
 
 	pcks.noiseSampler, err = ring.NewSampler(prng, pcks.params.RingQ(), noiseFlooding, false)
+
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}
@@ -84,6 +88,7 @@ func (pcks PublicKeySwitchProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.Public
 			MetaData: ct.MetaData,
 		},
 	}); err != nil {
+		// Sanity check, this error should not happen.
 		panic(err)
 	}
 
@@ -136,6 +141,8 @@ func (pcks PublicKeySwitchProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined Pu
 // PublicKeySwitchProtocol can be used concurrently.
 func (pcks PublicKeySwitchProtocol) ShallowCopy() PublicKeySwitchProtocol {
 	prng, err := sampling.NewPRNG()
+
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}
@@ -143,6 +150,8 @@ func (pcks PublicKeySwitchProtocol) ShallowCopy() PublicKeySwitchProtocol {
 	params := pcks.params
 
 	Xe, err := ring.NewSampler(prng, params.RingQ(), pcks.noise, false)
+
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}

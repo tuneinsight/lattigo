@@ -82,6 +82,7 @@ func (s *SubRing) Type() Type {
 	case NumberTheoreticTransformerConjugateInvariant:
 		return ConjugateInvariant
 	default:
+		// Sanity check
 		panic(fmt.Errorf("invalid NumberTheoreticTransformer type: %T", s.ntt))
 	}
 }

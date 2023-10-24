@@ -177,10 +177,12 @@ func (r Ring) Level() int {
 // This instance is thread safe and can be use concurrently with the base ring.
 func (r Ring) AtLevel(level int) *Ring {
 
+	// Sanity check
 	if level < 0 {
 		panic("level cannot be negative")
 	}
 
+	// Sanity check
 	if level > r.MaxLevel() {
 		panic("level cannot be larger than max level")
 	}

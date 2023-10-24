@@ -12,6 +12,9 @@ import (
 
 func (b Bootstrapper) SwitchRingDegreeN1ToN2New(ctN1 *rlwe.Ciphertext) (ctN2 *rlwe.Ciphertext) {
 	ctN2 = ckks.NewCiphertext(b.Parameters.Parameters.Parameters, 1, ctN1.Level())
+
+	// Sanity check, this error should never happen unless this algorithm has been improperly
+	// modified to pass invalid inputs.
 	if err := b.bootstrapper.ApplyEvaluationKey(ctN1, b.evk.EvkN1ToN2, ctN2); err != nil {
 		panic(err)
 	}
@@ -20,6 +23,9 @@ func (b Bootstrapper) SwitchRingDegreeN1ToN2New(ctN1 *rlwe.Ciphertext) (ctN2 *rl
 
 func (b Bootstrapper) SwitchRingDegreeN2ToN1New(ctN2 *rlwe.Ciphertext) (ctN1 *rlwe.Ciphertext) {
 	ctN1 = ckks.NewCiphertext(b.ResidualParameters, 1, ctN2.Level())
+
+	// Sanity check, this error should never happen unless this algorithm has been improperly
+	// modified to pass invalid inputs.
 	if err := b.bootstrapper.ApplyEvaluationKey(ctN2, b.evk.EvkN2ToN1, ctN1); err != nil {
 		panic(err)
 	}
@@ -28,6 +34,9 @@ func (b Bootstrapper) SwitchRingDegreeN2ToN1New(ctN2 *rlwe.Ciphertext) (ctN1 *rl
 
 func (b Bootstrapper) ComplexToRealNew(ctCmplx *rlwe.Ciphertext) (ctReal *rlwe.Ciphertext) {
 	ctReal = ckks.NewCiphertext(b.ResidualParameters, 1, ctCmplx.Level())
+
+	// Sanity check, this error should never happen unless this algorithm has been improperly
+	// modified to pass invalid inputs.
 	if err := b.bridge.ComplexToReal(b.bootstrapper.Evaluator, ctCmplx, ctReal); err != nil {
 		panic(err)
 	}
@@ -36,6 +45,9 @@ func (b Bootstrapper) ComplexToRealNew(ctCmplx *rlwe.Ciphertext) (ctReal *rlwe.C
 
 func (b Bootstrapper) RealToComplexNew(ctReal *rlwe.Ciphertext) (ctCmplx *rlwe.Ciphertext) {
 	ctCmplx = ckks.NewCiphertext(b.Parameters.Parameters.Parameters, 1, ctReal.Level())
+
+	// Sanity check, this error should never happen unless this algorithm has been improperly
+	// modified to pass invalid inputs.
 	if err := b.bridge.RealToComplex(b.bootstrapper.Evaluator, ctReal, ctCmplx); err != nil {
 		panic(err)
 	}

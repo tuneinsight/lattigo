@@ -84,6 +84,8 @@ func NewEncoder(parameters Parameters, precision ...uint) (ecd *Encoder) {
 	}
 
 	prng, err := sampling.NewPRNG()
+
+	// This error should never happen.
 	if err != nil {
 		panic(err)
 	}
@@ -1088,6 +1090,8 @@ func (ecd *Encoder) polyToFloatNoCRT(coeffs []uint64, values FloatSlice, scale r
 func (ecd Encoder) ShallowCopy() *Encoder {
 
 	prng, err := sampling.NewPRNG()
+
+	// This error should never happen.
 	if err != nil {
 		panic(err)
 	}

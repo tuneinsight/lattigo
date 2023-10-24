@@ -57,6 +57,7 @@ func (u *UniformSampler) read(pol Poly, f func(a, b, c uint64) uint64) {
 	var ptr int
 	if ptr = u.ptr; ptr == 0 || ptr == N {
 		if _, err := prng.Read(u.randomBufferN); err != nil {
+			// Sanity check, this error should not happen.
 			panic(err)
 		}
 		ptr = 0 // for the case where ptr == N
@@ -82,6 +83,7 @@ func (u *UniformSampler) read(pol Poly, f func(a, b, c uint64) uint64) {
 				// Refills the buff if it runs empty
 				if ptr == N {
 					if _, err := u.prng.Read(buffer); err != nil {
+						// Sanity check, this error should not happen.
 						panic(err)
 					}
 					ptr = 0
@@ -133,6 +135,7 @@ func randInt32(prng sampling.PRNG, mask uint64) uint64 {
 	// generate random 4 bytes
 	randomBytes := make([]byte, 4)
 	if _, err := prng.Read(randomBytes); err != nil {
+		// Sanity check, this error should not happen.
 		panic(err)
 	}
 
@@ -149,6 +152,7 @@ func randInt64(prng sampling.PRNG, mask uint64) uint64 {
 	// generate random 8 bytes
 	randomBytes := make([]byte, 8)
 	if _, err := prng.Read(randomBytes); err != nil {
+		// Sanity check, this error should not happen.
 		panic(err)
 	}
 

@@ -107,6 +107,7 @@ func (p Parameters) GenEvaluationKeySetNew(sk *rlwe.SecretKey) *EvaluationKeySet
 	ringQ := p.Parameters.RingQ()
 	ringP := p.Parameters.RingP()
 
+	// Sanity check.
 	if sk.Value.Q.N() != ringQ.N() {
 		panic(fmt.Sprintf("invalid secret key: secret key ring degree = %d does not match bootstrapping parameters ring degree = %d", sk.Value.Q.N(), ringQ.N()))
 	}

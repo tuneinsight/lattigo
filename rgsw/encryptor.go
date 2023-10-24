@@ -60,6 +60,7 @@ func (enc Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) (err error) {
 			[]rlwe.GadgetCiphertext{rgswCt.Value[0], rgswCt.Value[1]},
 			*enc.params.RingQP(),
 			enc.buffQP.Q); err != nil {
+			// Sanity check, this error should not happen.
 			panic(err)
 		}
 	}

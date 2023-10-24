@@ -24,6 +24,8 @@ type EvaluationKeyGenProtocol struct {
 // EvaluationKeyGenProtocol can be used concurrently.
 func (evkg EvaluationKeyGenProtocol) ShallowCopy() EvaluationKeyGenProtocol {
 	prng, err := sampling.NewPRNG()
+
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}
@@ -31,6 +33,8 @@ func (evkg EvaluationKeyGenProtocol) ShallowCopy() EvaluationKeyGenProtocol {
 	params := evkg.params
 
 	Xe, err := ring.NewSampler(prng, evkg.params.RingQ(), evkg.params.Xe(), false)
+
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}
@@ -46,6 +50,8 @@ func (evkg EvaluationKeyGenProtocol) ShallowCopy() EvaluationKeyGenProtocol {
 func NewEvaluationKeyGenProtocol(params rlwe.ParameterProvider) (evkg EvaluationKeyGenProtocol) {
 
 	prng, err := sampling.NewPRNG()
+
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}
@@ -53,6 +59,8 @@ func NewEvaluationKeyGenProtocol(params rlwe.ParameterProvider) (evkg Evaluation
 	pRLWE := *params.GetRLWEParameters()
 
 	Xe, err := ring.NewSampler(prng, pRLWE.RingQ(), pRLWE.Xe(), false)
+
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}

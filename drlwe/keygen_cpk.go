@@ -33,11 +33,15 @@ func NewPublicKeyGenProtocol(params rlwe.ParameterProvider) PublicKeyGenProtocol
 
 	var err error
 	prng, err := sampling.NewPRNG()
+
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}
 
 	ckg.gaussianSamplerQ, err = ring.NewSampler(prng, ckg.params.RingQ(), ckg.params.Xe(), false)
+
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}
@@ -94,12 +98,15 @@ func (ckg PublicKeyGenProtocol) GenPublicKey(roundShare PublicKeyGenShare, crp P
 // PublicKeyGenProtocol can be used concurrently.
 func (ckg PublicKeyGenProtocol) ShallowCopy() PublicKeyGenProtocol {
 	prng, err := sampling.NewPRNG()
+
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}
 
 	sampler, err := ring.NewSampler(prng, ckg.params.RingQ(), ckg.params.Xe(), false)
 
+	// Sanity check, this error should not happen.
 	if err != nil {
 		panic(err)
 	}

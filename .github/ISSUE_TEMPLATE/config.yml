@@ -5,4 +5,4 @@ contact_links:
     about: We do not use GitHub Issues for features proposals or requests. If you have a proposal or would like to make a request for a feature, please contact us directly.
   - name: General Question
     url: https://github.com/tuneinsight/lattigo/discussions
-    about: Ask a question that is not necessiraly related to the use or implementation of the library.
+    about: Ask a question that is not necessarily related to the use or implementation of the library.

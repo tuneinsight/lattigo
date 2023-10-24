@@ -237,6 +237,9 @@ func (eval *DFTEvaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices DFTMa
 		} else {
 			tmp, err = rlwe.NewCiphertextAtLevelFromPoly(ctReal.Level(), eval.GetBuffCt().Value[:2])
 
+			// This error cannot happen unless the user improperly tempered the evaluators
+			// buffer. If it were to happen in that case, there is no way to recover from
+			// it, hence the panic.
 			if err != nil {
 				panic(err)
 			}

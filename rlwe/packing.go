@@ -76,7 +76,7 @@ func (eval Evaluator) Trace(ctIn *Ciphertext, logN int, opOut *Ciphertext) (err 
 
 		buff, err := NewCiphertextAtLevelFromPoly(level, []ring.Poly{eval.BuffQP[3].Q, eval.BuffQP[4].Q})
 
-		// Sanity check, this error should not happen unless the 
+		// Sanity check, this error should not happen unless the
 		// evaluator's buffer thave been improperly tempered with.
 		if err != nil {
 			panic(err)
@@ -192,7 +192,7 @@ func (eval Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (opOut []*Ciphe
 
 	tmp, err := NewCiphertextAtLevelFromPoly(level, []ring.Poly{eval.BuffCt.Value[0], eval.BuffCt.Value[1]})
 
-	// Sanity check, this error should not happen unless the 
+	// Sanity check, this error should not happen unless the
 	// evaluator's buffer thave been improperly tempered with.
 	if err != nil {
 		panic(err)

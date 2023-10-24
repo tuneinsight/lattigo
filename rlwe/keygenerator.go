@@ -137,7 +137,7 @@ func (kgen KeyGenerator) GenGaloisKey(galEl uint64, sk *SecretKey, gk *GaloisKey
 
 	index, err := ring.AutomorphismNTTIndex(ringQ.N(), ringQ.NthRoot(), galElInv)
 
-	// Sanity check, this error should not happen unless the 
+	// Sanity check, this error should not happen unless the
 	// evaluator's buffer thave been improperly tempered with.
 	if err != nil {
 		panic(err)

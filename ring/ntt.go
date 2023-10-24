@@ -725,7 +725,7 @@ func INTTConjugateInvariantLazy(p1, p2 []uint64, N int, NInv, Q, MRedConstant ui
 
 // nttCoreConjugateInvariantLazy evaluates p2 = NTT(p1) in the sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1) with p2 [0, 2*modulus-1].
 func nttCoreConjugateInvariantLazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []uint64) {
-	
+
 	// Sanity check
 	if len(p1) < N || len(p2) < N || len(roots) < N {
 		panic(fmt.Sprintf("cannot nttCoreConjugateInvariantLazy: ensure that len(p1)=%d, len(p2)=%d and len(roots)=%d >= N=%d", len(p1), len(p2), len(roots), N))
@@ -1074,7 +1074,7 @@ func nttConjugateInvariantLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstant
 
 // inttCoreConjugateInvariantLazy evaluates p2 = INTT(p1) in the sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1) with p2 [0, 2*modulus-1].
 func inttCoreConjugateInvariantLazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []uint64) {
-	
+
 	// Sanity check
 	if len(p1) < N || len(p2) < N || len(roots) < N {
 		panic(fmt.Sprintf("cannot inttCoreConjugateInvariantLazy: ensure that len(p1)=%d, len(p2)=%d and len(roots)=%d >= N=%d", len(p1), len(p2), len(roots), N))

@@ -35,7 +35,7 @@ func NewDomainSwitcher(params Parameters, comlexToRealEvk, realToComplexEvk *rlw
 		return DomainSwitcher{}, fmt.Errorf("cannot NewDomainSwitcher because the standard NTT is undefined for params: %s", err)
 	}
 
-	// Sanity check, this error should not happen unless the 
+	// Sanity check, this error should not happen unless the
 	// algorithm has been modified to provide invalid inputs.
 	if s.automorphismIndex, err = ring.AutomorphismNTTIndex(s.stdRingQ.N(), s.stdRingQ.NthRoot(), s.stdRingQ.NthRoot()-1); err != nil {
 		panic(err)

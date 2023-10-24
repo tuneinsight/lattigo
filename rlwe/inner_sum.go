@@ -41,7 +41,7 @@ func (eval Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, opOut *Cipher
 
 	ctInNTT, err := NewCiphertextAtLevelFromPoly(levelQ, eval.BuffCt.Value[:2])
 
-	// Sanity check, this error should not happen unless the 
+	// Sanity check, this error should not happen unless the
 	// evaluator's buffer thave been improperly tempered with.
 	if err != nil {
 		panic(err)
@@ -78,7 +78,7 @@ func (eval Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, opOut *Cipher
 		// Buffer mod Q (i.e. to store the result of gadget products)
 		cQ, err := NewCiphertextAtLevelFromPoly(levelQ, []ring.Poly{cQP.Value[0].Q, cQP.Value[1].Q})
 
-		// Sanity check, this error should not happen unless the 
+		// Sanity check, this error should not happen unless the
 		// evaluator's buffer thave been improperly tempered with.
 		if err != nil {
 			panic(err)
@@ -221,7 +221,7 @@ func (eval Evaluator) InnerFunction(ctIn *Ciphertext, batchSize, n int, f func(a
 		accQ, err := NewCiphertextAtLevelFromPoly(levelQ, []ring.Poly{P0, P1})
 		*accQ.MetaData = *ctInNTT.MetaData
 
-		// Sanity check, this error should not happen unless the 
+		// Sanity check, this error should not happen unless the
 		// evaluator's buffer thave been improperly tempered with.
 		if err != nil {
 			panic(err)
@@ -231,7 +231,7 @@ func (eval Evaluator) InnerFunction(ctIn *Ciphertext, batchSize, n int, f func(a
 		cQ, err := NewCiphertextAtLevelFromPoly(levelQ, []ring.Poly{P2, P3})
 		*cQ.MetaData = *ctInNTT.MetaData
 
-		// Sanity check, this error should not happen unless the 
+		// Sanity check, this error should not happen unless the
 		// evaluator's buffer thave been improperly tempered with.
 		if err != nil {
 			panic(err)

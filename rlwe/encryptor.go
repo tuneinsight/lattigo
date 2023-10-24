@@ -39,7 +39,7 @@ func NewEncryptor(params ParameterProvider, key EncryptionKey) *Encryptor {
 		// Sanity check, this error should not happen.
 		panic(fmt.Errorf("key is not correct: %w", err))
 	}
-	
+
 	enc.encKey = key
 	return enc
 }

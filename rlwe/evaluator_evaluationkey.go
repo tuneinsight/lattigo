@@ -74,7 +74,7 @@ func (eval Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, o
 
 		ctTmp, err := NewCiphertextAtLevelFromPoly(level, eval.BuffCt.Value)
 
-		// Sanity check, this error should not happen unless the 
+		// Sanity check, this error should not happen unless the
 		// evaluator's buffer have been improperly tempered with.
 		if err != nil {
 			panic(err)

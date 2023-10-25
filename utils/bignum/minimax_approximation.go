@@ -118,8 +118,8 @@ func NewRemez(p RemezParameters) (r *Remez) {
 }
 
 // Approximate starts the approximation process.
-// maxIter is the maximum number of iterations before the approximation process is terminated.
-// threshold: is the minimum value that (maxErr-minErr)/minErr (the normalized absolute difference
+// maxIter: the maximum number of iterations before the approximation process is terminated.
+// threshold: the minimum value that (maxErr-minErr)/minErr (the normalized absolute difference
 // between the maximum and minimum approximation error over the defined intervals) must take
 // before the approximation process is terminated.
 func (r *Remez) Approximate(maxIter int, threshold float64) {

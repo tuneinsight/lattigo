@@ -7,6 +7,8 @@ import (
 	"math/big"
 )
 
+// NewInt allocates a new *big.Int.
+// Accepted types are: string, uint, uint64, int64, int, *big.Float or *big.Int.
 func NewInt(x interface{}) (y *big.Int) {
 
 	y = new(big.Int)

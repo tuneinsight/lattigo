@@ -1,6 +1,7 @@
 package bignum
 
 import (
+	"fmt"
 	"math"
 	"math/big"
 
@@ -21,7 +22,8 @@ func Log2(prec uint) *big.Float {
 	return log2
 }
 
-// NewFloat creates a new big.Float element with "prec" bits of precision
+// NewFloat creates a new big.Float element with "prec" bits of precision.
+// Valide types for x are: int, int64, uint, uint64, float64, *big.Int or *big.Float.
 func NewFloat(x interface{}, prec uint) (y *big.Float) {
 
 	y = new(big.Float)
@@ -46,6 +48,8 @@ func NewFloat(x interface{}, prec uint) (y *big.Float) {
 		y.SetInt(x)
 	case *big.Float:
 		y.Set(x)
+	default:
+		panic(fmt.Errorf("invalid x.(type): valide types are int, int64, uint, uint64, float64, *big.Int or *big.Float but is %T", x))
 	}
 
 	return

@@ -3,6 +3,8 @@ package bignum
 import (
 	"fmt"
 	"math/big"
+
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // Complex is a type for arbitrary precision complex number
@@ -75,7 +77,7 @@ func (c *Complex) Set(a *Complex) *Complex {
 }
 
 func (c *Complex) Prec() uint {
-	return c[0].Prec()
+	return utils.Max(c[0].Prec(), c[1].Prec())
 }
 
 func (c *Complex) SetPrec(prec uint) *Complex {
@@ -160,7 +162,7 @@ func NewComplexMultiplier() (cEval *ComplexMultiplier) {
 	return
 }
 
-// Mul multiplies two arbitrary precision complex numbers together
+// Mul evaluates c = a * b.
 func (cEval *ComplexMultiplier) Mul(a, b, c *Complex) {
 
 	if a.IsReal() {
@@ -187,7 +189,7 @@ func (cEval *ComplexMultiplier) Mul(a, b, c *Complex) {
 	}
 }
 
-// Quo divides two arbitrary precision complex numbers together
+// Quo evaluates c = a / b.
 func (cEval *ComplexMultiplier) Quo(a, b, c *Complex) {
 
 	if a.IsReal() {

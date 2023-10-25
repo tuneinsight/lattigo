@@ -52,7 +52,7 @@ func ToComplex(value interface{}, prec uint) (cmplx *Complex) {
 	return
 }
 
-// IsInt returns true if both the real and imaginary part are integers.
+// IsInt returns true if both the real and imaginary parts are integers.
 func (c *Complex) IsInt() bool {
 	return c[0].IsInt() && c[1].IsInt()
 }

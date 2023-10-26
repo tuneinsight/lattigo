@@ -202,7 +202,7 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 			values[i][1].Quo(values[i][1], nB)
 		}
 
-		ckks.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(params, "LinearTransform/BSGS=True"), func(t *testing.T) {
@@ -263,7 +263,7 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 			values[i].Add(values[i], tmp[(i+15)%slots])
 		}
 
-		ckks.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(params, "LinearTransform/BSGS=False"), func(t *testing.T) {
@@ -324,7 +324,7 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 			values[i].Add(values[i], tmp[(i+15)%slots])
 		}
 
-		ckks.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 }
 
@@ -367,7 +367,7 @@ func testEvaluatePolynomial(tc *ckksTestContext, t *testing.T) {
 			t.Fatal(err)
 		}
 
-		ckks.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(params, "Polynomial/PolyVector/Exp"), func(t *testing.T) {
@@ -415,6 +415,6 @@ func testEvaluatePolynomial(tc *ckksTestContext, t *testing.T) {
 			t.Fatal(err)
 		}
 
-		ckks.VerifyTestVectors(params, tc.encoder, tc.decryptor, valuesWant, ciphertext, params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, tc.encoder, tc.decryptor, valuesWant, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 }

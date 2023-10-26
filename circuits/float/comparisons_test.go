@@ -70,7 +70,7 @@ func TestComparisons(t *testing.T) {
 				want[i] = polys.Evaluate(values[i])[0]
 			}
 
-			ckks.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), nil, *printPrecisionStats, t)
+			ckks.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 		})
 
 		t.Run(GetTestName(params, "Step"), func(t *testing.T) {
@@ -95,7 +95,7 @@ func TestComparisons(t *testing.T) {
 				want[i].Add(want[i], half)
 			}
 
-			ckks.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), nil, *printPrecisionStats, t)
+			ckks.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 		})
 
 		t.Run(GetTestName(params, "Max"), func(t *testing.T) {
@@ -122,7 +122,7 @@ func TestComparisons(t *testing.T) {
 				}
 			}
 
-			ckks.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), nil, *printPrecisionStats, t)
+			ckks.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 		})
 
 		t.Run(GetTestName(params, "Min"), func(t *testing.T) {
@@ -149,7 +149,7 @@ func TestComparisons(t *testing.T) {
 				}
 			}
 
-			ckks.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), nil, *printPrecisionStats, t)
+			ckks.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 		})
 	}
 }

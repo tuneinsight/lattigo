@@ -232,7 +232,7 @@ func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T)
 			}
 
 			// Compares
-			ckks.VerifyTestVectors(params, ecd2N, nil, want, have, params.LogDefaultScale(), nil, *printPrecisionStats, t)
+			ckks.VerifyTestVectors(params, ecd2N, nil, want, have, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 
 		} else {
 
@@ -276,8 +276,8 @@ func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T)
 				wantImag[i], wantImag[j] = vec1[i][0], vec1[i][1]
 			}
 
-			ckks.VerifyTestVectors(params, ecd2N, nil, wantReal, haveReal, params.LogDefaultScale(), nil, *printPrecisionStats, t)
-			ckks.VerifyTestVectors(params, ecd2N, nil, wantImag, haveImag, params.LogDefaultScale(), nil, *printPrecisionStats, t)
+			ckks.VerifyTestVectors(params, ecd2N, nil, wantReal, haveReal, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+			ckks.VerifyTestVectors(params, ecd2N, nil, wantImag, haveImag, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 		}
 	})
 }
@@ -424,6 +424,6 @@ func testHomomorphicDecoding(params ckks.Parameters, LogSlots int, t *testing.T)
 		// Result is bit-reversed, so applies the bit-reverse permutation on the reference vector
 		utils.BitReverseInPlaceSlice(valuesReal, slots)
 
-		ckks.VerifyTestVectors(params, encoder, decryptor, valuesReal, valuesTest, params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, encoder, decryptor, valuesReal, valuesTest, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 }

@@ -309,7 +309,7 @@ func testBootstrapHighPrecision(paramSet defaultParametersLiteral, t *testing.T)
 }
 
 func verifyTestVectors(params ckks.Parameters, encoder *ckks.Encoder, decryptor *rlwe.Decryptor, valuesWant, valuesHave interface{}, t *testing.T) {
-	precStats := ckks.GetPrecisionStats(params, encoder, decryptor, valuesWant, valuesHave, nil, false)
+	precStats := ckks.GetPrecisionStats(params, encoder, decryptor, valuesWant, valuesHave, 0, false)
 	if *printPrecisionStats {
 		t.Log(precStats.String())
 	}

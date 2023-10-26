@@ -358,7 +358,7 @@ func TestBootstrapping(t *testing.T) {
 }
 
 func verifyTestVectorsBootstrapping(params ckks.Parameters, encoder *ckks.Encoder, decryptor *rlwe.Decryptor, valuesWant, element interface{}, t *testing.T) {
-	precStats := ckks.GetPrecisionStats(params, encoder, decryptor, valuesWant, element, nil, false)
+	precStats := ckks.GetPrecisionStats(params, encoder, decryptor, valuesWant, element, 0, false)
 	if *printPrecisionStats {
 		t.Log(precStats.String())
 	}

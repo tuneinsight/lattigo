@@ -326,14 +326,14 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Addition - ct + ct%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, nil, false).String())
+	fmt.Printf("Addition - ct + ct%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
 
 	// ciphertext + plaintext
 	ct3, err = eval.AddNew(ct1, pt2)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Addition - ct + pt%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, nil, false).String())
+	fmt.Printf("Addition - ct + pt%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
 
 	// ciphertext + vector
 	// Note that the evaluator will encode this vector at the scale of the input ciphertext to ensure a noiseless addition.
@@ -341,7 +341,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Addition - ct + vector%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, nil, false).String())
+	fmt.Printf("Addition - ct + vector%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
 
 	// ciphertext + scalar
 	scalar := 3.141592653589793 + 1.4142135623730951i
@@ -354,7 +354,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Addition - ct + scalar%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, nil, false).String())
+	fmt.Printf("Addition - ct + scalar%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
 
 	fmt.Printf("==============\n")
 	fmt.Printf("MULTIPLICATION\n")
@@ -418,14 +418,14 @@ func main() {
 	// For the sake of conciseness, we will not rescale the output for the other multiplication example.
 	// But this maintenance operation should usually be called (either before of after the multiplication depending on the choice of noise management)
 	// to control the magnitude of the plaintext scale.
-	fmt.Printf("Multiplication - ct * ct%s", ckks.GetPrecisionStats(params, ecd, dec, want, res, nil, false).String())
+	fmt.Printf("Multiplication - ct * ct%s", ckks.GetPrecisionStats(params, ecd, dec, want, res, 0, false).String())
 
 	// ciphertext + plaintext
 	ct3, err = eval.MulRelinNew(ct1, pt2)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Multiplication - ct * pt%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, nil, false).String())
+	fmt.Printf("Multiplication - ct * pt%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
 
 	// ciphertext + vector
 	// Note that when giving non-encoded vectors, the evaluator will internally encode this vector with the appropriate scale that ensure that
@@ -434,7 +434,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Multiplication - ct * vector%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, nil, false).String())
+	fmt.Printf("Multiplication - ct * vector%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
 
 	// ciphertext + scalar (scalar = pi + sqrt(2) * i)
 	for i := 0; i < Slots; i++ {
@@ -448,7 +448,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Multiplication - ct * scalar%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, nil, false).String())
+	fmt.Printf("Multiplication - ct * scalar%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
 
 	fmt.Printf("======================\n")
 	fmt.Printf("ROTATION & CONJUGATION\n")
@@ -488,7 +488,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Rotation by k=%d %s", rot, ckks.GetPrecisionStats(params, ecd, dec, want, ct3, nil, false).String())
+	fmt.Printf("Rotation by k=%d %s", rot, ckks.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
 
 	// Conjugation
 	for i := 0; i < Slots; i++ {
@@ -499,7 +499,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Conjugation %s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, nil, false).String())
+	fmt.Printf("Conjugation %s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
 
 	// Note that rotations and conjugation only add a fixed additive noise independent of the ciphertext noise.
 	// If the parameters are set correctly, this noise can be rounding error (thus negligible).
@@ -574,7 +574,7 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Printf("Polynomial Evaluation %s", ckks.GetPrecisionStats(params, ecd, dec, want, res, nil, false).String())
+	fmt.Printf("Polynomial Evaluation %s", ckks.GetPrecisionStats(params, ecd, dec, want, res, 0, false).String())
 
 	// =============================
 	// Vector Polynomials Evaluation
@@ -616,7 +616,7 @@ func main() {
 	// Note that this method can obviously be used to average values.
 	// For a good noise management, it is recommended to first multiply the values by 1/n, then
 	// apply the innersum and then only apply the rescaling.
-	fmt.Printf("Innersum %s", ckks.GetPrecisionStats(params, ecd, dec, want, res, nil, false).String())
+	fmt.Printf("Innersum %s", ckks.GetPrecisionStats(params, ecd, dec, want, res, 0, false).String())
 
 	// The replicate operation is exactly the same as the innersum operation, but in reverse
 	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, kgen.GenGaloisKeysNew(params.GaloisElementsForReplicate(batch, n), sk)...))
@@ -633,7 +633,7 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Printf("Replicate %s", ckks.GetPrecisionStats(params, ecd, dec, want, res, nil, false).String())
+	fmt.Printf("Replicate %s", ckks.GetPrecisionStats(params, ecd, dec, want, res, 0, false).String())
 
 	// And we arrive to the linear transformation.
 	// This method enables to evaluate arbitrary Slots x Slots matrices on a ciphertext.
@@ -713,7 +713,7 @@ func main() {
 	// We evaluate the same circuit in plaintext
 	want = EvaluateLinearTransform(values1, diagonals)
 
-	fmt.Printf("vector x matrix %s", ckks.GetPrecisionStats(params, ecd, dec, want, res, nil, false).String())
+	fmt.Printf("vector x matrix %s", ckks.GetPrecisionStats(params, ecd, dec, want, res, 0, false).String())
 
 	// =============================
 	// Homomorphic Encoding/Decoding

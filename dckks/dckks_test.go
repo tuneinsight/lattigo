@@ -221,7 +221,7 @@ func testEncToShareProtocol(tc *testContext, t *testing.T) {
 		pt.Scale = ciphertext.Scale
 		tc.ringQ.AtLevel(pt.Level()).SetCoefficientsBigint(rec.Value, pt.Value)
 
-		ckks.VerifyTestVectors(params, tc.encoder, nil, coeffs, pt, params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, tc.encoder, nil, coeffs, pt, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 
 		crp := P[0].s2e.SampleCRP(params.MaxLevel(), tc.crs)
 
@@ -236,7 +236,7 @@ func testEncToShareProtocol(tc *testContext, t *testing.T) {
 		ctRec.Scale = params.DefaultScale()
 		P[0].s2e.GetEncryption(P[0].publicShareS2E, crp, ctRec)
 
-		ckks.VerifyTestVectors(params, tc.encoder, tc.decryptorSk0, coeffs, ctRec, params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, tc.encoder, tc.decryptorSk0, coeffs, ctRec, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 }
 
@@ -464,7 +464,7 @@ func testRefreshParameterized(tc *testContext, paramsOut ckks.Parameters, skOut 
 		transform.Func(coeffs)
 	}
 
-	ckks.VerifyTestVectors(paramsOut, ckks.NewEncoder(paramsOut), ckks.NewDecryptor(paramsOut, skIdealOut), coeffs, ciphertext, paramsOut.LogDefaultScale(), nil, *printPrecisionStats, t)
+	ckks.VerifyTestVectors(paramsOut, ckks.NewEncoder(paramsOut), ckks.NewDecryptor(paramsOut, skIdealOut), coeffs, ciphertext, paramsOut.LogDefaultScale(), 0, *printPrecisionStats, t)
 }
 
 func newTestVectors(tc *testContext, encryptor *rlwe.Encryptor, a, b complex128, logSlots int) (values []*bignum.Complex, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {

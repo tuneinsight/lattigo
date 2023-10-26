@@ -91,7 +91,7 @@ func testMod1(params ckks.Parameters, t *testing.T) {
 
 		values, ciphertext := evaluateMod1(evm, params, ecd, enc, eval, t)
 
-		ckks.VerifyTestVectors(params, ecd, dec, values, ciphertext, params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, ecd, dec, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run("CosDiscrete", func(t *testing.T) {
@@ -108,7 +108,7 @@ func testMod1(params ckks.Parameters, t *testing.T) {
 
 		values, ciphertext := evaluateMod1(evm, params, ecd, enc, eval, t)
 
-		ckks.VerifyTestVectors(params, ecd, dec, values, ciphertext, params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, ecd, dec, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run("CosContinuous", func(t *testing.T) {
@@ -125,7 +125,7 @@ func testMod1(params ckks.Parameters, t *testing.T) {
 
 		values, ciphertext := evaluateMod1(evm, params, ecd, enc, eval, t)
 
-		ckks.VerifyTestVectors(params, ecd, dec, values, ciphertext, params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, ecd, dec, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 }
 

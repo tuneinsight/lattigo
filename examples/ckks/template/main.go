@@ -103,5 +103,5 @@ func PrintPrecisionStats(params ckks.Parameters, ct *rlwe.Ciphertext, want []flo
 	fmt.Printf("...\n")
 
 	// Pretty prints the precision stats
-	fmt.Println(ckks.GetPrecisionStats(params, ecd, dec, have, want, nil, false).String())
+	fmt.Println(ckks.GetPrecisionStats(params, ecd, dec, have, want, 0, false).String())
 }

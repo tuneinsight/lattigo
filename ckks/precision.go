@@ -58,18 +58,18 @@ func (prec PrecisionStats) String() string {
 // GetPrecisionStats generates a PrecisionStats struct from the reference values and the decrypted values
 // vWant.(type) must be either []complex128 or []float64
 // element.(type) must be either *Plaintext, *Ciphertext, []complex128 or []float64. If not *Ciphertext, then decryptor can be nil.
-func GetPrecisionStats(params Parameters, encoder *Encoder, decryptor *rlwe.Decryptor, want, have interface{}, noiseFlooding ring.DistributionParameters, computeDCF bool) (prec PrecisionStats) {
+func GetPrecisionStats(params Parameters, encoder *Encoder, decryptor *rlwe.Decryptor, want, have interface{}, logprec float64, computeDCF bool) (prec PrecisionStats) {
 
 	if encoder.Prec() <= 53 {
-		return getPrecisionStatsF64(params, encoder, decryptor, want, have, noiseFlooding, computeDCF)
+		return getPrecisionStatsF64(params, encoder, decryptor, want, have, logprec, computeDCF)
 	}
 
-	return getPrecisionStatsF128(params, encoder, decryptor, want, have, noiseFlooding, computeDCF)
+	return getPrecisionStatsF128(params, encoder, decryptor, want, have, logprec, computeDCF)
 }
 
-func VerifyTestVectors(params Parameters, encoder *Encoder, decryptor *rlwe.Decryptor, valuesWant, valuesHave interface{}, log2MinPrec int, noise ring.DistributionParameters, printPrecisionStats bool, t *testing.T) {
+func VerifyTestVectors(params Parameters, encoder *Encoder, decryptor *rlwe.Decryptor, valuesWant, valuesHave interface{}, log2MinPrec int, logprec float64, printPrecisionStats bool, t *testing.T) {
 
-	precStats := GetPrecisionStats(params, encoder, decryptor, valuesWant, valuesHave, noise, false)
+	precStats := GetPrecisionStats(params, encoder, decryptor, valuesWant, valuesHave, logprec, false)
 
 	if printPrecisionStats {
 		t.Log(precStats.String())
@@ -92,7 +92,7 @@ func VerifyTestVectors(params Parameters, encoder *Encoder, decryptor *rlwe.Decr
 	require.GreaterOrEqual(t, if64, float64(log2MinPrec))
 }
 
-func getPrecisionStatsF64(params Parameters, encoder *Encoder, decryptor *rlwe.Decryptor, want, have interface{}, noiseFlooding ring.DistributionParameters, computeDCF bool) (prec PrecisionStats) {
+func getPrecisionStatsF64(params Parameters, encoder *Encoder, decryptor *rlwe.Decryptor, want, have interface{}, logprec float64, computeDCF bool) (prec PrecisionStats) {
 
 	precision := encoder.Prec()
 
@@ -128,12 +128,12 @@ func getPrecisionStatsF64(params Parameters, encoder *Encoder, decryptor *rlwe.D
 
 	switch have := have.(type) {
 	case *rlwe.Ciphertext:
-		if err := encoder.DecodePublic(decryptor.DecryptNew(have), valuesHave, noiseFlooding); err != nil {
+		if err := encoder.DecodePublic(decryptor.DecryptNew(have), valuesHave, logprec); err != nil {
 			// Sanity check, this error should never happen.
 			panic(err)
 		}
 	case *rlwe.Plaintext:
-		if err := encoder.DecodePublic(have, valuesHave, noiseFlooding); err != nil {
+		if err := encoder.DecodePublic(have, valuesHave, logprec); err != nil {
 			// Sanity check, this error should never happen.
 			panic(err)
 		}
@@ -328,7 +328,7 @@ func calcmedianF64(values []struct{ Real, Imag, L2 float64 }) (median Stats) {
 	}
 }
 
-func getPrecisionStatsF128(params Parameters, encoder *Encoder, decryptor *rlwe.Decryptor, want, have interface{}, noiseFlooding ring.DistributionParameters, computeDCF bool) (prec PrecisionStats) {
+func getPrecisionStatsF128(params Parameters, encoder *Encoder, decryptor *rlwe.Decryptor, want, have interface{}, logprec float64, computeDCF bool) (prec PrecisionStats) {
 	precision := encoder.Prec()
 
 	var valuesWant []*bignum.Complex
@@ -372,13 +372,13 @@ func getPrecisionStatsF128(params Parameters, encoder *Encoder, decryptor *rlwe.
 	switch have := have.(type) {
 	case *rlwe.Ciphertext:
 		valuesHave = make([]*bignum.Complex, len(valuesWant))
-		if err := encoder.DecodePublic(decryptor.DecryptNew(have), valuesHave, noiseFlooding); err != nil {
+		if err := encoder.DecodePublic(decryptor.DecryptNew(have), valuesHave, logprec); err != nil {
 			// Sanity check, this error should never happen.
 			panic(err)
 		}
 	case *rlwe.Plaintext:
 		valuesHave = make([]*bignum.Complex, len(valuesWant))
-		if err := encoder.DecodePublic(have, valuesHave, noiseFlooding); err != nil {
+		if err := encoder.DecodePublic(have, valuesHave, logprec); err != nil {
 			// Sanity check, this error should never happen.
 			panic(err)
 		}

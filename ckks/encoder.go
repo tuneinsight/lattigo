@@ -2,6 +2,7 @@ package ckks
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/tuneinsight/lattigo/v4/ring"
@@ -179,14 +180,14 @@ func (ecd Encoder) Encode(values FloatSlice, pt *rlwe.Plaintext) (err error) {
 
 // Decode decodes the input plaintext on a new FloatSlice.
 func (ecd Encoder) Decode(pt *rlwe.Plaintext, values FloatSlice) (err error) {
-	return ecd.DecodePublic(pt, values, nil)
+	return ecd.DecodePublic(pt, values, 0)
 }
 
 // DecodePublic decodes the input plaintext on a FloatSlice.
 // It adds, before the decoding step (i.e. in the Ring) noise that follows the given distribution parameters.
 // If the underlying ringType is ConjugateInvariant, the imaginary part (and its related error) are zero.
-func (ecd Encoder) DecodePublic(pt *rlwe.Plaintext, values FloatSlice, noiseFlooding ring.DistributionParameters) (err error) {
-	return ecd.decodePublic(pt, values, noiseFlooding)
+func (ecd Encoder) DecodePublic(pt *rlwe.Plaintext, values FloatSlice, logprec float64) (err error) {
+	return ecd.decodePublic(pt, values, logprec)
 }
 
 // Embed is a generic method to encode a FloatSlice on the target polyOut.
@@ -477,7 +478,7 @@ func (ecd Encoder) plaintextToFloat(level int, scale rlwe.Scale, logSlots int, p
 
 // decodePublic decode a plaintext to a FloatSlice.
 // The method will add a flooding noise before the decoding process following the defined distribution if it is not nil.
-func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values FloatSlice, noiseFlooding ring.DistributionParameters) (err error) {
+func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values FloatSlice, logprec float64) (err error) {
 
 	logSlots := pt.LogDimensions.Cols
 	slots := 1 << logSlots
@@ -490,16 +491,6 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values FloatSlice, noiseFloo
 		ecd.parameters.RingQ().AtLevel(pt.Level()).INTT(pt.Value, ecd.buff)
 	} else {
 		ecd.buff.CopyLvl(pt.Level(), pt.Value)
-	}
-
-	if noiseFlooding != nil {
-		Xe, err := ring.NewSampler(ecd.prng, ecd.parameters.RingQ(), noiseFlooding, pt.IsMontgomery)
-
-		if err != nil {
-			return fmt.Errorf("cannot decode: noise flooding: %w", err)
-		}
-
-		Xe.AtLevel(pt.Level()).ReadAndAdd(ecd.buff)
 	}
 
 	switch values.(type) {
@@ -522,6 +513,22 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values FloatSlice, noiseFloo
 				return
 			}
 
+			if logprec != 0 {
+
+				scale := math.Exp2(logprec)
+
+				switch values.(type) {
+				case []*bignum.Complex, []complex128:
+					for i := 0; i < slots; i++ {
+						buffCmplx[i] = complex(math.Round(real(buffCmplx[i])*scale)/scale, math.Round(imag(buffCmplx[i])*scale)/scale)
+					}
+				default:
+					for i := 0; i < slots; i++ {
+						buffCmplx[i] = complex(math.Round(real(buffCmplx[i])*scale)/scale, 0)
+					}
+				}
+			}
+
 			switch values := values.(type) {
 			case []float64:
 
@@ -530,10 +537,11 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values FloatSlice, noiseFloo
 				for i := 0; i < slots; i++ {
 					values[i] = real(buffCmplx[i])
 				}
+
 			case []complex128:
 				copy(values, buffCmplx)
-
 			case []*big.Float:
+
 				slots := utils.Min(len(values), slots)
 
 				for i := 0; i < slots; i++ {
@@ -582,6 +590,20 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values FloatSlice, noiseFloo
 				return
 			}
 
+			var scale, half, zero *big.Float
+			var tmp *big.Int
+			if logprec != 0 {
+
+				// 2^logprec
+				scale = new(big.Float).SetPrec(ecd.Prec()).SetFloat64(logprec)
+				scale.Mul(scale, bignum.Log2(ecd.Prec()))
+				scale = bignum.Exp(scale)
+
+				tmp = new(big.Int)
+				half = new(big.Float).SetFloat64(0.5)
+				zero = new(big.Float)
+			}
+
 			switch values := values.(type) {
 			case []float64:
 
@@ -591,12 +613,30 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values FloatSlice, noiseFloo
 					values[i], _ = buffCmplx[i][0].Float64()
 				}
 
+				if logprec != 0 {
+
+					scaleF64, _ := scale.Float64()
+
+					for i := 0; i < slots; i++ {
+						values[i] = math.Round(values[i]*scaleF64) / scaleF64
+					}
+				}
+
 			case []complex128:
 
 				slots := utils.Min(len(values), slots)
 
 				for i := 0; i < slots; i++ {
 					values[i] = buffCmplx[i].Complex128()
+				}
+
+				if logprec != 0 {
+
+					scaleF64, _ := scale.Float64()
+
+					for i := 0; i < slots; i++ {
+						values[i] = complex(math.Round(real(values[i])*scaleF64)/scaleF64, math.Round(imag(values[i])*scaleF64)/scaleF64)
+					}
 				}
 
 			case []*big.Float:
@@ -609,6 +649,25 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values FloatSlice, noiseFloo
 					}
 
 					values[i].Set(buffCmplx[i][0])
+				}
+				if logprec != 0 {
+					for i := range values {
+						values[i].Mul(values[i], scale)
+
+						// Adds/Subtracts 0.5
+						if values[i].Cmp(zero) >= 0 {
+							values[i].Add(values[i], half)
+						} else {
+							values[i].Sub(values[i], half)
+						}
+
+						// Round = floor +/- 0.5
+						values[i].Int(tmp)
+
+						values[i].SetInt(tmp)
+
+						values[i].Quo(values[i], scale)
+					}
 				}
 
 			case []*bignum.Complex:
@@ -634,6 +693,41 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values FloatSlice, noiseFloo
 
 					values[i][0].Set(buffCmplx[i][0])
 					values[i][1].Set(buffCmplx[i][1])
+				}
+
+				if logprec != 0 {
+					for i := range values {
+
+						// Real
+						values[i][0].Mul(values[i][0], scale)
+
+						// Adds/Subtracts 0.5
+						if values[i][0].Cmp(zero) >= 0 {
+							values[i][0].Add(values[i][0], half)
+						} else {
+							values[i][0].Sub(values[i][0], half)
+						}
+
+						// Round = floor +/- 0.5
+						values[i][0].Int(tmp)
+						values[i][0].SetInt(tmp)
+						values[i][0].Quo(values[i][0], scale)
+
+						// Imag
+						values[i][1].Mul(values[i][1], scale)
+
+						// Adds/Subtracts 0.5
+						if values[i][1].Cmp(zero) >= 0 {
+							values[i][1].Add(values[i][1], half)
+						} else {
+							values[i][1].Sub(values[i][1], half)
+						}
+
+						// Round = floor +/- 0.5
+						values[i][1].Int(tmp)
+						values[i][1].SetInt(tmp)
+						values[i][1].Quo(values[i][1], scale)
+					}
 				}
 			}
 		}

@@ -76,7 +76,7 @@ func TestInverse(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			ckks.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, 70, nil, *printPrecisionStats, t)
+			ckks.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, 70, 0, *printPrecisionStats, t)
 		})
 
 		t.Run(GetTestName(params, "PositiveDomain"), func(t *testing.T) {
@@ -103,7 +103,7 @@ func TestInverse(t *testing.T) {
 				}
 			}
 
-			ckks.VerifyTestVectors(params, tc.encoder, nil, want, have, 70, nil, *printPrecisionStats, t)
+			ckks.VerifyTestVectors(params, tc.encoder, nil, want, have, 70, 0, *printPrecisionStats, t)
 		})
 
 		t.Run(GetTestName(params, "NegativeDomain"), func(t *testing.T) {
@@ -130,7 +130,7 @@ func TestInverse(t *testing.T) {
 				}
 			}
 
-			ckks.VerifyTestVectors(params, tc.encoder, nil, want, have, 70, nil, *printPrecisionStats, t)
+			ckks.VerifyTestVectors(params, tc.encoder, nil, want, have, 70, 0, *printPrecisionStats, t)
 		})
 
 		t.Run(GetTestName(params, "FullDomain"), func(t *testing.T) {
@@ -157,7 +157,7 @@ func TestInverse(t *testing.T) {
 				}
 			}
 
-			ckks.VerifyTestVectors(params, tc.encoder, nil, want, have, 70, nil, *printPrecisionStats, t)
+			ckks.VerifyTestVectors(params, tc.encoder, nil, want, have, 70, 0, *printPrecisionStats, t)
 		})
 	}
 }

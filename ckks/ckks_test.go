@@ -276,7 +276,88 @@ func testEncoder(tc *testContext, t *testing.T) {
 
 		values, plaintext, _ := newTestVectors(tc, nil, -1-1i, 1+1i, t)
 
-		VerifyTestVectors(tc.params, tc.encoder, nil, values, plaintext, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, nil, values, plaintext, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
+	})
+
+	logprec := float64(tc.params.LogDefaultScale()) / 2
+
+	t.Run(GetTestName(tc.params, "Encoder/IsBatched=true/DecodePublic/[]float64"), func(t *testing.T) {
+
+		values, plaintext, _ := newTestVectors(tc, nil, -1-1i, 1+1i, t)
+
+		have := make([]float64, len(values))
+
+		require.NoError(t, tc.encoder.DecodePublic(plaintext, have, logprec))
+
+		want := make([]float64, len(values))
+		for i := range want {
+			want[i], _ = values[i][0].Float64()
+			want[i] -= have[i]
+		}
+
+		// Allows for a 10% error over the expected standard deviation of the error
+		require.GreaterOrEqual(t, StandardDeviation(want, rlwe.NewScale(1)), math.Exp2(-logprec)/math.Sqrt(12)*0.9)
+	})
+
+	t.Run(GetTestName(tc.params, "Encoder/IsBatched=true/DecodePublic/[]complex128"), func(t *testing.T) {
+
+		if tc.params.RingType() == ring.ConjugateInvariant {
+			t.Skip()
+		}
+		values, plaintext, _ := newTestVectors(tc, nil, -1-1i, 1+1i, t)
+
+		have := make([]complex128, len(values))
+		require.NoError(t, tc.encoder.DecodePublic(plaintext, have, logprec))
+
+		wantReal := make([]float64, len(values))
+		wantImag := make([]float64, len(values))
+
+		for i := range have {
+			wantReal[i], _ = values[i][0].Float64()
+			wantImag[i], _ = values[i][1].Float64()
+
+			wantReal[i] -= real(have[i])
+			wantImag[i] -= imag(have[i])
+		}
+
+		// Allows for a 10% error over the expected standard deviation of the error
+		require.GreaterOrEqual(t, StandardDeviation(wantReal, rlwe.NewScale(1)), math.Exp2(-logprec)/math.Sqrt(12)*0.9)
+		require.GreaterOrEqual(t, StandardDeviation(wantImag, rlwe.NewScale(1)), math.Exp2(-logprec)/math.Sqrt(12)*0.9)
+	})
+
+	t.Run(GetTestName(tc.params, "Encoder/IsBatched=true/DecodePublic/[]big.Float"), func(t *testing.T) {
+		values, plaintext, _ := newTestVectors(tc, nil, -1-1i, 1+1i, t)
+		have := make([]*big.Float, len(values))
+		require.NoError(t, tc.encoder.DecodePublic(plaintext, have, logprec))
+
+		want := make([]*big.Float, len(values))
+		for i := range want {
+			want[i] = values[i][0].Sub(values[i][0], have[i])
+		}
+
+		// Allows for a 10% error over the expected standard deviation of the error
+		require.GreaterOrEqual(t, StandardDeviation(want, rlwe.NewScale(1)), math.Exp2(-logprec)/math.Sqrt(12)*0.9)
+	})
+
+	t.Run(GetTestName(tc.params, "Encoder/IsBatched=true/DecodePublic/[]bignum.Complex"), func(t *testing.T) {
+		if tc.params.RingType() == ring.ConjugateInvariant {
+			t.Skip()
+		}
+		values, plaintext, _ := newTestVectors(tc, nil, -1-1i, 1+1i, t)
+		have := make([]*bignum.Complex, len(values))
+		require.NoError(t, tc.encoder.DecodePublic(plaintext, have, logprec))
+
+		wantReal := make([]*big.Float, len(values))
+		wantImag := make([]*big.Float, len(values))
+
+		for i := range have {
+			wantReal[i] = values[i][0].Sub(values[i][0], have[i][0])
+			wantImag[i] = values[i][1].Sub(values[i][1], have[i][1])
+		}
+
+		// Allows for a 10% error over the expected standard deviation of the error
+		require.GreaterOrEqual(t, StandardDeviation(wantReal, rlwe.NewScale(1)), math.Exp2(-logprec)/math.Sqrt(12)*0.9)
+		require.GreaterOrEqual(t, StandardDeviation(wantImag, rlwe.NewScale(1)), math.Exp2(-logprec)/math.Sqrt(12)*0.9)
 	})
 
 	t.Run(GetTestName(tc.params, "Encoder/IsBatched=false"), func(t *testing.T) {
@@ -336,7 +417,7 @@ func testEvaluatorAdd(tc *testContext, t *testing.T) {
 		ciphertext3, err := tc.evaluator.AddNew(ciphertext1, ciphertext2)
 		require.NoError(t, err)
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext3, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext3, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/Add/Ct"), func(t *testing.T) {
@@ -350,7 +431,7 @@ func testEvaluatorAdd(tc *testContext, t *testing.T) {
 
 		require.NoError(t, tc.evaluator.Add(ciphertext1, ciphertext2, ciphertext1))
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/Add/Pt"), func(t *testing.T) {
@@ -364,7 +445,7 @@ func testEvaluatorAdd(tc *testContext, t *testing.T) {
 
 		require.NoError(t, tc.evaluator.Add(ciphertext1, plaintext2, ciphertext1))
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/Add/Scalar"), func(t *testing.T) {
@@ -379,7 +460,7 @@ func testEvaluatorAdd(tc *testContext, t *testing.T) {
 
 		require.NoError(t, tc.evaluator.Add(ciphertext, constant, ciphertext))
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/Add/Vector"), func(t *testing.T) {
@@ -393,7 +474,7 @@ func testEvaluatorAdd(tc *testContext, t *testing.T) {
 
 		require.NoError(t, tc.evaluator.Add(ciphertext, values2, ciphertext))
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 }
 
@@ -411,7 +492,7 @@ func testEvaluatorSub(tc *testContext, t *testing.T) {
 		ciphertext3, err := tc.evaluator.SubNew(ciphertext1, ciphertext2)
 		require.NoError(t, err)
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext3, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext3, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/Sub/Ct"), func(t *testing.T) {
@@ -425,7 +506,7 @@ func testEvaluatorSub(tc *testContext, t *testing.T) {
 
 		require.NoError(t, tc.evaluator.Sub(ciphertext1, ciphertext2, ciphertext1))
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/Sub/Pt"), func(t *testing.T) {
@@ -441,7 +522,7 @@ func testEvaluatorSub(tc *testContext, t *testing.T) {
 
 		require.NoError(t, tc.evaluator.Sub(ciphertext1, plaintext2, ciphertext2))
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, valuesTest, ciphertext2, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, valuesTest, ciphertext2, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/Sub/Scalar"), func(t *testing.T) {
@@ -456,7 +537,7 @@ func testEvaluatorSub(tc *testContext, t *testing.T) {
 
 		require.NoError(t, tc.evaluator.Sub(ciphertext, constant, ciphertext))
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/Sub/Vector"), func(t *testing.T) {
@@ -470,7 +551,7 @@ func testEvaluatorSub(tc *testContext, t *testing.T) {
 
 		require.NoError(t, tc.evaluator.Sub(ciphertext, values2, ciphertext))
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 }
 
@@ -494,7 +575,7 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 			t.Fatal(err)
 		}
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/RescaleTo/Many"), func(t *testing.T) {
@@ -520,7 +601,7 @@ func testEvaluatorRescale(tc *testContext, t *testing.T) {
 			t.Fatal(err)
 		}
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 }
 
@@ -539,7 +620,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 		ciphertext2, err := tc.evaluator.MulNew(ciphertext1, plaintext1)
 		require.NoError(t, err)
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext2, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext2, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/Mul/Ct/Scalar"), func(t *testing.T) {
@@ -556,7 +637,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 
 		require.NoError(t, tc.evaluator.Mul(ciphertext, constant, ciphertext))
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciphertext, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/Mul/Ct/Vector"), func(t *testing.T) {
@@ -572,7 +653,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 
 		tc.evaluator.Mul(ciphertext, values2, ciphertext)
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/Mul/Ct/Pt"), func(t *testing.T) {
@@ -587,7 +668,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 
 		require.NoError(t, tc.evaluator.MulRelin(ciphertext1, plaintext1, ciphertext1))
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/Mul/Ct/Ct/Degree0"), func(t *testing.T) {
@@ -607,7 +688,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 
 		require.NoError(t, tc.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext1))
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext1, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext1, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/MulRelin/Ct/Ct"), func(t *testing.T) {
@@ -625,7 +706,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 		require.NoError(t, tc.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext1))
 		require.Equal(t, ciphertext1.Degree(), 1)
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 
 		// op1 <- op0 * op1
 		values1, _, ciphertext1 = newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
@@ -638,7 +719,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 		require.NoError(t, tc.evaluator.MulRelin(ciphertext1, ciphertext2, ciphertext2))
 		require.Equal(t, ciphertext2.Degree(), 1)
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext2, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext2, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 
 		// op0 <- op0 * op0
 		for i := range values1 {
@@ -648,7 +729,7 @@ func testEvaluatorMul(tc *testContext, t *testing.T) {
 		require.NoError(t, tc.evaluator.MulRelin(ciphertext1, ciphertext1, ciphertext1))
 		require.Equal(t, ciphertext1.Degree(), 1)
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 }
 
@@ -674,7 +755,7 @@ func testEvaluatorMulThenAdd(tc *testContext, t *testing.T) {
 
 		require.NoError(t, tc.evaluator.MulThenAdd(ciphertext1, constant, ciphertext2))
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext2, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext2, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/MulThenAdd/Vector"), func(t *testing.T) {
@@ -697,7 +778,7 @@ func testEvaluatorMulThenAdd(tc *testContext, t *testing.T) {
 
 		require.Equal(t, ciphertext1.Degree(), 1)
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/MulThenAdd/Pt"), func(t *testing.T) {
@@ -720,7 +801,7 @@ func testEvaluatorMulThenAdd(tc *testContext, t *testing.T) {
 
 		require.Equal(t, ciphertext1.Degree(), 1)
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(tc.params, "Evaluator/MulRelinThenAdd/Ct"), func(t *testing.T) {
@@ -747,7 +828,7 @@ func testEvaluatorMulThenAdd(tc *testContext, t *testing.T) {
 
 		require.Equal(t, ciphertext3.Degree(), 1)
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext3, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values2, ciphertext3, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 
 		// op1 = op1 + op0*op0
 		values1, _, ciphertext1 = newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
@@ -763,7 +844,7 @@ func testEvaluatorMulThenAdd(tc *testContext, t *testing.T) {
 
 		require.Equal(t, ciphertext1.Degree(), 1)
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values1, ciphertext1, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 }
 
@@ -810,7 +891,7 @@ func testBridge(tc *testContext, t *testing.T) {
 
 		switcher.RealToComplex(evalStandar, ctCI, stdCTHave)
 
-		VerifyTestVectors(stdParams, stdEncoder, stdDecryptor, values, stdCTHave, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(stdParams, stdEncoder, stdDecryptor, values, stdCTHave, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 
 		stdCTImag, err := stdEvaluator.MulNew(stdCTHave, 1i)
 		require.NoError(t, err)
@@ -819,6 +900,6 @@ func testBridge(tc *testContext, t *testing.T) {
 		ciCTHave := NewCiphertext(ciParams, 1, stdCTHave.Level())
 		switcher.ComplexToReal(evalStandar, stdCTHave, ciCTHave)
 
-		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciCTHave, tc.params.LogDefaultScale(), nil, *printPrecisionStats, t)
+		VerifyTestVectors(tc.params, tc.encoder, tc.decryptor, values, ciCTHave, tc.params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 }

@@ -18,10 +18,10 @@ Let $\epsilon$ be the scheme error after the decoding step. We compute the bit p
 
 If at any point of an application, decrypted values have to be shared with external parties, then the user must ensure that each shared plaintext is first _sanitized_ before being shared. To do so, the user must use the $\textsf{DecodePublic}$ method instead of the usual $\textsf{Decode}$. $\textsf{DecodePublic}$ takes as additional input the desired $\log_{2}(1/\epsilon)$-bit precision and rounds the value by evaluating $y = \lfloor x / \epsilon \rceil \cdot \epsilon$.
 
-Estimating $PR[\epsilon < x] \leq 2^{-s}$, for $s$ a security parameter, of the circuit must be done carefully and we suggest the following process to do so:
+Estimating $\text{PR}[\epsilon < x] \leq 2^{-s}$ of the circuit must be done carefully and we suggest the following process to do so:
  1. Given a security parameter $\lambda$ and a circuit $C$ that takes as inputs length-_n_ vectors $\omega$ following a distribution $\chi$, select the appropriate parameters enabling the homomorphic evaluation of $C(\omega)$, denoted by $H(C(\omega))$, which includes the encoding, encryption, evaluation, decryption and decoding.
  2. Sample input vectors $\omega$ from the distribution $\chi$ and record $\epsilon = C(\omega) - H(C(\omega))$ for each slots. The user should make sure that the underlying circuit computed by $H(C(\cdot))$ is identical to $C(\cdot)$; i.e., if the homomorphic implementation $H(C(\cdot))$ uses polynomial approximations, then $C(\cdot)$ should use them too, instead of using the original exact function. Repeat until until enough data points are collected to construct a CDF of $PR[\epsilon > x]$.
  3. Use the CDF to select the value $E[\epsilon]$ such that any given slot will fail with probability $2^{-s}$ to reach $\log_{2}(1/\epsilon)$ bits of precision. 
- 3. Use the encoder method $\textsf{DecodePublic}$ with the parameter $\log_{2}(1/\epsilon)$ to decode plaintexts that will be published.
+ 4. Use the encoder method $\textsf{DecodePublic}$ with the parameter $\log_{2}(1/\epsilon)$ to decode plaintexts that will be published.
 
 Note that, for composability with differential privacy, the variance of the error introduced by the rounding is $\text{Var}[x - \lfloor x \cdot \epsilon \rceil / \epsilon] = \tfrac{\epsilon}{12}$ and therefore $\text{Var}[x -  \lfloor x/(\sigma\sqrt{12})\rceil\cdot(\sigma\sqrt{12})] = \sigma^2$.

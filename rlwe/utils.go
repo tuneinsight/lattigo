@@ -23,14 +23,14 @@ func NoisePublicKey(pk *PublicKey, sk *SecretKey, params Parameters) float64 {
 	return ringQP.Log2OfStandardDeviation(pk.Value[0])
 }
 
-// NoiseRelinearizationKey the log2 of the standard deivation of the noise of the input relinearization key with respect to the given secret-key and paramters.
+// NoiseRelinearizationKey the log2 of the standard deviation of the noise of the input relinearization key with respect to the given secret-key and paramters.
 func NoiseRelinearizationKey(rlk *RelinearizationKey, sk *SecretKey, params Parameters) float64 {
 	sk2 := sk.CopyNew()
 	params.RingQP().AtLevel(rlk.LevelQ(), rlk.LevelP()).MulCoeffsMontgomery(sk2.Value, sk2.Value, sk2.Value)
 	return NoiseEvaluationKey(&rlk.EvaluationKey, sk2, sk, params)
 }
 
-// NoiseGaloisKey the log2 of the standard deivation of the noise of the input Galois key key with respect to the given secret-key and paramters.
+// NoiseGaloisKey the log2 of the standard deviation of the noise of the input Galois key key with respect to the given secret-key and paramters.
 func NoiseGaloisKey(gk *GaloisKey, sk *SecretKey, params Parameters) float64 {
 
 	skIn := sk.CopyNew()
@@ -100,7 +100,7 @@ func NoiseGadgetCiphertext(gct *GadgetCiphertext, pt ring.Poly, sk *SecretKey, p
 	return maxLog2Std
 }
 
-// NoiseEvaluationKey the log2 of the standard deivation of the noise of the input Galois key key with respect to the given secret-key and paramters.
+// NoiseEvaluationKey the log2 of the standard deviation of the noise of the input Galois key key with respect to the given secret-key and paramters.
 func NoiseEvaluationKey(evk *EvaluationKey, skIn, skOut *SecretKey, params Parameters) float64 {
 	return NoiseGadgetCiphertext(&evk.GadgetCiphertext, skIn.Value.Q, skOut, params)
 }

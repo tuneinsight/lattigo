@@ -267,7 +267,7 @@ func (p *PublicKey) UnmarshalBinary(b []byte) error {
 
 func (p *PublicKey) isEncryptionKey() {}
 
-// EvaluationKey is a public key indended to be used during the evaluation phase of a homomorphic circuit.
+// EvaluationKey is a public key indented to be used during the evaluation phase of a homomorphic circuit.
 // It provides a one way public and non-interactive re-encryption from a ciphertext encrypted under `skIn`
 // to a ciphertext encrypted under `skOut`.
 //
@@ -368,9 +368,9 @@ func (rlk RelinearizationKey) Equal(other *RelinearizationKey) bool {
 // ciphertext is encrypted from s to pi(s). Thus, the ciphertext must be re-encrypted
 // from pi(s) to s to ensure correctness, which is done with the corresponding GaloisKey.
 //
-// Lattigo implements automorphismes differently than the usual way (which is to first
+// Lattigo implements automorphisms differently than the usual way (which is to first
 // apply the automorphism and then the evaluation key). Instead the order of operations
-// is reversed, the GaloisKey for pi^{-1} is evaluated on the ciphertext, outputing a
+// is reversed, the GaloisKey for pi^{-1} is evaluated on the ciphertext, outputting a
 // ciphertext encrypted under pi^{-1}(s), and then the automorphism pi is applied. This
 // enables a more efficient evaluation, by only having to apply the automorphism on the
 // final result (instead of having to apply it on the decomposed ciphertext).
@@ -546,7 +546,7 @@ func NewMemEvaluationKeySet(relinKey *RelinearizationKey, galoisKeys ...*GaloisK
 func (evk MemEvaluationKeySet) GetGaloisKey(galEl uint64) (gk *GaloisKey, err error) {
 	var ok bool
 	if gk, ok = evk.GaloisKeys[galEl]; !ok {
-		return nil, fmt.Errorf("GaloiKey[%d] is nil", galEl)
+		return nil, fmt.Errorf("GaloisKey[%d] is nil", galEl)
 	}
 
 	return

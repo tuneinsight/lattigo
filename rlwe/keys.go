@@ -105,11 +105,21 @@ func NewVectorQP(params ParameterProvider, size, levelQ, levelP int) (v VectorQP
 	return
 }
 
+// LevelQ returns the level of the modulus Q of the first element of the VectorQP.
+// Returns -1 if the size of the vector is zero or has no modulus Q.
 func (p VectorQP) LevelQ() int {
+	if len(p) == 0 {
+		return -1
+	}
 	return p[0].LevelQ()
 }
 
+// LevelP returns the level of the modulus P of the first element of the VectorQP.
+// Returns -1 if the size of the vector is zero or has no modulus P.
 func (p VectorQP) LevelP() int {
+	if len(p) == 0 {
+		return -1
+	}
 	return p[0].LevelP()
 }
 

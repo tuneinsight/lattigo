@@ -223,8 +223,8 @@ func (mltp MaskedLinearTransformationProtocol) AggregateShares(share1, share2, s
 	return
 }
 
-// Transform applies Decrypt, Recode and Recrypt on the input ciphertext.
-// The ciphertext scale is reset to the default scale.
+// Transform decrypts the ciphertext to LSSS-shares, applies the linear transformation on the LSSS-shares and re-encrypts the LSSS-shares to an RLWE ciphertext.
+// The re-encrypted ciphertext's scale is set to the default scaling factor of the output parameters.
 func (mltp MaskedLinearTransformationProtocol) Transform(ct *rlwe.Ciphertext, transform *MaskedLinearTransformationFunc, crs drlwe.KeySwitchCRP, share drlwe.RefreshShare, ciphertextOut *rlwe.Ciphertext) (err error) {
 
 	if ct.Level() < share.EncToShareShare.Value.Level() {

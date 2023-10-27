@@ -11,7 +11,6 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
-	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
 type Float interface {
@@ -62,8 +61,6 @@ type Encoder struct {
 	m            int
 	rotGroup     []int
 
-	prng sampling.PRNG
-
 	roots     interface{}
 	buffCmplx interface{}
 }
@@ -84,13 +81,6 @@ func NewEncoder(parameters Parameters, precision ...uint) (ecd *Encoder) {
 		fivePows &= (m - 1)
 	}
 
-	prng, err := sampling.NewPRNG()
-
-	// This error should never happen.
-	if err != nil {
-		panic(err)
-	}
-
 	var prec uint
 	if len(precision) != 0 && precision[0] != 0 {
 		prec = precision[0]
@@ -106,7 +96,6 @@ func NewEncoder(parameters Parameters, precision ...uint) (ecd *Encoder) {
 		buff:         parameters.RingQ().NewPoly(),
 		m:            m,
 		rotGroup:     rotGroup,
-		prng:         prng,
 	}
 
 	if prec <= 53 {
@@ -1183,13 +1172,6 @@ func (ecd *Encoder) polyToFloatNoCRT(coeffs []uint64, values FloatSlice, scale r
 // that can be used concurrently with the original object.
 func (ecd Encoder) ShallowCopy() *Encoder {
 
-	prng, err := sampling.NewPRNG()
-
-	// This error should never happen.
-	if err != nil {
-		panic(err)
-	}
-
 	var buffCmplx interface{}
 
 	if prec := ecd.prec; prec <= 53 {
@@ -1212,7 +1194,6 @@ func (ecd Encoder) ShallowCopy() *Encoder {
 		buff:         *ecd.buff.CopyNew(),
 		m:            ecd.m,
 		rotGroup:     ecd.rotGroup,
-		prng:         prng,
 		roots:        ecd.roots,
 		buffCmplx:    buffCmplx,
 	}

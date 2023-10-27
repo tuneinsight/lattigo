@@ -2,6 +2,7 @@ package sampling
 
 import (
 	"crypto/rand"
+	"fmt"
 	"io"
 
 	"golang.org/x/crypto/blake2b"
@@ -37,7 +38,7 @@ func NewPRNG() (*KeyedPRNG, error) {
 	prng := new(KeyedPRNG)
 	key := make([]byte, 64)
 	if _, err := rand.Read(key); err != nil {
-		panic("crypto rand error")
+		return fmt.Errorf("crypto rand error: %w", err)
 	}
 	prng.key = key
 	prng.xof, err = blake2b.NewXOF(blake2b.OutputLengthUnknown, key)
@@ -55,10 +56,7 @@ func (prng *KeyedPRNG) Key() (key []byte) {
 
 // Read reads bytes from the KeyedPRNG on sum.
 func (prng *KeyedPRNG) Read(sum []byte) (n int, err error) {
-	if n, err = prng.xof.Read(sum); err != nil {
-		panic(err)
-	}
-	return n, nil
+	return prng.xof.Read(sum)
 }
 
 // Reset resets the PRNG to its initial state.

@@ -399,8 +399,28 @@ func testEncoder(tc *testContext, t *testing.T) {
 		}
 
 		require.GreaterOrEqual(t, math.Log2(1/meanprec), minPrec)
-	})
 
+		// Also tests at level 0
+		pt = NewPlaintext(tc.params, tc.params.LevelsConsumedPerRescaling()-1)
+		pt.IsBatched = false
+
+		tc.encoder.Encode(valuesWant, pt)
+
+		tc.encoder.Decode(pt, valuesTest)
+
+		meanprec = 0
+		for i := range valuesWant {
+			meanprec += math.Abs(valuesTest[i] - valuesWant[i])
+		}
+
+		meanprec /= float64(slots)
+
+		if *printPrecisionStats {
+			t.Logf("\nMean    precision : %.2f \n", math.Log2(1/meanprec))
+		}
+
+		require.GreaterOrEqual(t, math.Log2(1/meanprec), minPrec)
+	})
 }
 
 func testEvaluatorAdd(tc *testContext, t *testing.T) {

@@ -164,7 +164,7 @@ func (op Element[T]) CopyNew() *Element[T] {
 	return &Element[T]{Value: op.Value.CopyNew(), MetaData: op.MetaData.CopyNew()}
 }
 
-// Copy copies the input element and its parameters on the target element.
+// Copy copies opCopy on op, up to the capacity of op (similarely to copy([]byte, []byte)).
 func (op *Element[T]) Copy(opCopy *Element[T]) {
 
 	if op != opCopy {
@@ -188,7 +188,14 @@ func (op *Element[T]) Copy(opCopy *Element[T]) {
 			}
 		}
 
-		*op.MetaData = *opCopy.MetaData
+		if opCopy.MetaData != nil {
+
+			if op.MetaData == nil {
+				op.MetaData = &MetaData{}
+			}
+
+			*op.MetaData = *opCopy.MetaData
+		}
 	}
 }
 

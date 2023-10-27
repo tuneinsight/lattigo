@@ -38,7 +38,7 @@ func NewPRNG() (*KeyedPRNG, error) {
 	prng := new(KeyedPRNG)
 	key := make([]byte, 64)
 	if _, err := rand.Read(key); err != nil {
-		return fmt.Errorf("crypto rand error: %w", err)
+		return nil, fmt.Errorf("crypto rand error: %w", err)
 	}
 	prng.key = key
 	prng.xof, err = blake2b.NewXOF(blake2b.OutputLengthUnknown, key)

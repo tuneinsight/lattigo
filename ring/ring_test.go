@@ -205,21 +205,36 @@ func testGenerateNTTPrimes(tc *testParams, t *testing.T) {
 
 		require.NoError(t, err)
 
+		// Checks that all returned are unique pair-wise
+		// primes with an Nth-primitive root.
+		list := map[uint64]bool{}
 		for _, q := range primes {
 			require.Equal(t, q&uint64(NthRoot-1), uint64(1))
 			require.True(t, IsPrime(q), q)
+			_, ok := list[q]
+			require.False(t, ok)
+			list[q] = true
 		}
 
 		upstreamPrimes, err := g.NextUpstreamPrimes(tc.ringQ.ModuliChainLength())
 		require.NoError(t, err)
 		for i := range upstreamPrimes {
-			require.True(t, IsPrime(upstreamPrimes[i]))
+			if i == 0 {
+				require.True(t, IsPrime(upstreamPrimes[i]))
+			} else {
+				require.True(t, IsPrime(upstreamPrimes[i]) && upstreamPrimes[i] > upstreamPrimes[i-1])
+			}
+
 		}
 
 		downstreamPrimes, err := g.NextDownstreamPrimes(tc.ringQ.ModuliChainLength())
 		require.NoError(t, err)
 		for i := range downstreamPrimes {
-			require.True(t, IsPrime(downstreamPrimes[i]))
+			if i == 0 {
+				require.True(t, IsPrime(downstreamPrimes[i]))
+			} else {
+				require.True(t, IsPrime(downstreamPrimes[i]) && downstreamPrimes[i] < downstreamPrimes[i-1])
+			}
 		}
 	})
 }

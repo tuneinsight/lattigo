@@ -1236,42 +1236,15 @@ func testWriteAndRead(tc *TestContext, bpw2 int, t *testing.T) {
 
 func testMarshaller(tc *TestContext, t *testing.T) {
 
-	//params := tc.params
+	params := tc.params
 
-	//sk, pk := tc.sk, tc.pk
-
-	/*
-		t.Run(testString(params, params.MaxLevel(), "Marshaller/Parameters/Binary"), func(t *testing.T) {
-			bytes, err := params.MarshalBinary()
-
-			require.Nil(t, err)
-			var p Parameters
-			require.Nil(t, p.UnmarshalBinary(bytes))
-			require.Equal(t, params, p)
-			require.Equal(t, params.RingQ(), p.RingQ())
-		})
-
-		t.Run(testString(params, params.MaxLevel(), "Marshaller/Parameters/JSON"), func(t *testing.T) {
-
-			paramsLit := params.ParametersLiteral()
-
-			paramsLit.DefaultScale = NewScale(1 << 45)
-
-			var err error
-			params, err = NewParametersFromLiteral(paramsLit)
-
-			require.Nil(t, err)
-
-			data, err := params.MarshalJSON()
-			require.Nil(t, err)
-			require.NotNil(t, data)
-
-			var p Parameters
-			require.Nil(t, p.UnmarshalJSON(data))
-
-			require.Equal(t, params, p)
-		})
-	*/
+	t.Run("Marshaller/Parameters", func(t *testing.T) {
+		bytes, err := params.MarshalBinary()
+		require.Nil(t, err)
+		var p Parameters
+		require.Nil(t, p.UnmarshalBinary(bytes))
+		require.Equal(t, params, p)
+	})
 
 	t.Run("Marshaller/MetaData", func(t *testing.T) {
 		m := MetaData{}

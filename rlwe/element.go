@@ -284,7 +284,7 @@ func SwitchCiphertextRingDegree(ctIn, opOut *Element[ring.Poly]) {
 
 // BinarySize returns the serialized size of the object in bytes.
 func (op Element[T]) BinarySize() (size int) {
-	size++
+	size++ // Whether or not there is metadata
 	if op.MetaData != nil {
 		size += op.MetaData.BinarySize()
 	}

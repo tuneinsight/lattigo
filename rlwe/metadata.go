@@ -102,14 +102,25 @@ func (m *MetaData) UnmarshalBinary(p []byte) (err error) {
 	return m.UnmarshalJSON(p)
 }
 
+// PlaintextMetaData is a struct storing metadata related to the plaintext.
 type PlaintextMetaData struct {
-	Scale         Scale
+	// Scale is the scaling factor of the plaintext.
+	Scale Scale
+
+	// LogDimensions is the Log2 of the 2D plaintext matrix dimensions.
 	LogDimensions ring.Dimensions
-	IsBatched     bool
+
+	// IsBatched is a flag indicating if the underlying plaintext is encoded
+	// in such a way that product in R[X]/(X^N+1) acts as a point-wise multiplication
+	// in the plaintext space.
+	IsBatched bool
 }
 
+// CiphertextMetaData is a struct storing metadata related to the ciphertext.
 type CiphertextMetaData struct {
-	IsNTT        bool
+	// IsNTT is a flag indicating if the ciphertext is in the NTT domain.
+	IsNTT bool
+	// IsMontgomery is a flag indicating if the ciphertext is in the Montgomery domain.
 	IsMontgomery bool
 }
 
@@ -185,7 +196,7 @@ func (m *PlaintextMetaData) ReadFrom(r io.Reader) (int64, error) {
 	}
 }
 
-func (m *PlaintextMetaData) MarshalJSON() (p []byte, err error) {
+func (m PlaintextMetaData) MarshalJSON() (p []byte, err error) {
 
 	var IsBatched uint8
 
@@ -209,7 +220,7 @@ func (m *PlaintextMetaData) MarshalJSON() (p []byte, err error) {
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (m *PlaintextMetaData) MarshalBinary() (p []byte, err error) {
+func (m PlaintextMetaData) MarshalBinary() (p []byte, err error) {
 	return m.MarshalJSON()
 }
 
@@ -305,7 +316,7 @@ func (m *CiphertextMetaData) ReadFrom(r io.Reader) (int64, error) {
 	}
 }
 
-func (m *CiphertextMetaData) MarshalJSON() (p []byte, err error) {
+func (m CiphertextMetaData) MarshalJSON() (p []byte, err error) {
 	var IsNTT, IsMontgomery uint8
 
 	if m.IsNTT {
@@ -328,7 +339,7 @@ func (m *CiphertextMetaData) MarshalJSON() (p []byte, err error) {
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
-func (m *CiphertextMetaData) MarshalBinary() (p []byte, err error) {
+func (m CiphertextMetaData) MarshalBinary() (p []byte, err error) {
 	return m.MarshalJSON()
 }
 

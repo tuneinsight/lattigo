@@ -201,7 +201,7 @@ func ReadUint32Slice(r Reader, c []uint32) (n int64, err error) {
 		size = len(c) << 2
 	}
 
-	// Then returns the writen bytes
+	// Then returns the written bytes
 	if slice, err = r.Peek(size); err != nil {
 		return int64(len(slice)), err
 	}

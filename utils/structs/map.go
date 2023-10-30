@@ -82,7 +82,7 @@ func (m *Map[K, T]) WriteTo(w io.Writer) (n int64, err error) {
 // ReadFrom reads on the object from an io.Writer. It implements the
 // io.ReaderFrom interface.
 //
-// Unless r implements the buffer.Reader interface (see see lattigo/utils/buffer/reader.go),
+// Unless r implements the buffer.Reader interface (see lattigo/utils/buffer/reader.go),
 // it will be wrapped into a bufio.Reader. Since this requires allocation, it
 // is preferable to pass a buffer.Reader directly:
 //

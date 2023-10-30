@@ -186,10 +186,10 @@ func (m Matrix[T]) Equal(other Matrix[T]) bool {
 		}
 	}
 
-	isEqual := true
 	for i := range m {
-		isEqual = isEqual && Vector[T](m[i]).Equal(Vector[T](other[i]))
+		if !Vector[T](m[i]).Equal(Vector[T](other[i])) {
+			return false
+		}
 	}
-
-	return isEqual
+	return true
 }

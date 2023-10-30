@@ -271,12 +271,12 @@ func (v Vector[T]) Equal(other Vector[T]) (isEqual bool) {
 			panic(fmt.Errorf("vector component of type %T does not comply to %T", t, new(Equatable[T])))
 		}
 
-		isEqual := true
 		for i, v := range v {
 			/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
-			isEqual = isEqual && any(&v).(Equatable[T]).Equal(&other[i])
+			if !any(&v).(Equatable[T]).Equal(&other[i]) {
+				return false
+			}
 		}
-
-		return isEqual
+		return true
 	}
 }

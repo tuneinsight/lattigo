@@ -126,7 +126,7 @@ func ReadUint16Slice(r Reader, c []uint16) (n int64, err error) {
 		size = len(c) << 1
 	}
 
-	// Then returns the writen bytes
+	// Then returns the written bytes
 	if slice, err = r.Peek(size); err != nil {
 		return int64(len(slice)), err
 	}

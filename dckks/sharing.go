@@ -112,8 +112,13 @@ func (e2s EncToShareProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, ct *rl
 
 	prng, _ := sampling.NewPRNG()
 
+	dslots := ct.Slots()
+	if ringQ.Type() == ring.Standard {
+		dslots *= 2
+	}
+
 	// Generate the mask in Z[Y] for Y = X^{N/(2*slots)}
-	for i := 0; i < ringQ.N(); i++ {
+	for i := 0; i < dslots; i++ {
 		e2s.maskBigint[i] = bignum.RandInt(prng, bound)
 		sign = e2s.maskBigint[i].Cmp(boundHalf)
 		if sign == 1 || sign == 0 {
@@ -128,8 +133,8 @@ func (e2s EncToShareProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, ct *rl
 	e2s.KeySwitchProtocol.GenShare(sk, e2s.zero, ct, publicShareOut)
 
 	// Positional -> RNS -> NTT
-	ringQ.SetCoefficientsBigint(secretShareOut.Value, e2s.buff)
-	ringQ.NTT(e2s.buff, e2s.buff)
+	ringQ.SetCoefficientsBigint(secretShareOut.Value[:dslots], e2s.buff)
+	rlwe.NTTSparseAndMontgomery(ringQ, ct.MetaData, e2s.buff)
 
 	// Subtracts the mask to the encryption of zero
 	ringQ.Sub(publicShareOut.Value, e2s.buff, publicShareOut.Value)
@@ -153,20 +158,28 @@ func (e2s EncToShareProtocol) GetShare(secretShare *drlwe.AdditiveShareBigint, a
 
 	// INTT -> RNS -> Positional
 	ringQ.INTT(e2s.buff, e2s.buff)
-	ringQ.PolyToBigintCentered(e2s.buff, 1, e2s.maskBigint)
+
+	dslots := ct.Slots()
+	if ringQ.Type() == ring.Standard {
+		dslots *= 2
+	}
+
+	gap := ringQ.N() / dslots
+
+	ringQ.PolyToBigintCentered(e2s.buff, gap, e2s.maskBigint)
 
 	// Subtracts the last mask
 	if secretShare != nil {
 		a := secretShareOut.Value
 		b := e2s.maskBigint
 		c := secretShare.Value
-		for i := range secretShareOut.Value {
+		for i := range secretShareOut.Value[:dslots] {
 			a[i].Add(c[i], b[i])
 		}
 	} else {
 		a := secretShareOut.Value
 		b := e2s.maskBigint
-		for i := range secretShareOut.Value {
+		for i := range secretShareOut.Value[:dslots] {
 			a[i].Set(b[i])
 		}
 	}
@@ -233,9 +246,15 @@ func (s2e ShareToEncProtocol) GenShare(sk *rlwe.SecretKey, crs drlwe.KeySwitchCR
 	ct.IsNTT = true
 	s2e.KeySwitchProtocol.GenShare(s2e.zero, sk, ct, c0ShareOut)
 
+	dslots := metadata.Slots()
+	if ringQ.Type() == ring.Standard {
+		dslots *= 2
+	}
+
 	// Positional -> RNS -> NTT
-	ringQ.SetCoefficientsBigint(secretShare.Value, s2e.tmp)
-	ringQ.NTT(s2e.tmp, s2e.tmp)
+	ringQ.SetCoefficientsBigint(secretShare.Value[:dslots], s2e.tmp)
+
+	rlwe.NTTSparseAndMontgomery(ringQ, metadata, s2e.tmp)
 
 	ringQ.Add(c0ShareOut.Value, s2e.tmp, c0ShareOut.Value)
 

@@ -23,9 +23,8 @@ type MaskedLinearTransformationProtocol struct {
 	defaultScale *big.Int
 	prec         uint
 
-	tmpMaskIn  []*big.Int
-	tmpMaskOut []*big.Int
-	encoder    *ckks.Encoder
+	mask    []*big.Int
+	encoder *ckks.Encoder
 }
 
 // ShallowCopy creates a shallow copy of MaskedLinearTransformationProtocol in which all the read-only data-structures are
@@ -33,14 +32,9 @@ type MaskedLinearTransformationProtocol struct {
 // MaskedLinearTransformationProtocol can be used concurrently.
 func (mltp MaskedLinearTransformationProtocol) ShallowCopy() MaskedLinearTransformationProtocol {
 
-	tmpMaskIn := make([]*big.Int, mltp.e2s.params.N())
-	for i := range tmpMaskIn {
-		tmpMaskIn[i] = new(big.Int)
-	}
-
-	tmpMaskOut := make([]*big.Int, mltp.s2e.params.N())
-	for i := range tmpMaskOut {
-		tmpMaskOut[i] = new(big.Int)
+	mask := make([]*big.Int, mltp.e2s.params.N())
+	for i := range mask {
+		mask[i] = new(big.Int)
 	}
 
 	return MaskedLinearTransformationProtocol{
@@ -48,8 +42,7 @@ func (mltp MaskedLinearTransformationProtocol) ShallowCopy() MaskedLinearTransfo
 		s2e:          mltp.s2e.ShallowCopy(),
 		prec:         mltp.prec,
 		defaultScale: mltp.defaultScale,
-		tmpMaskIn:    tmpMaskIn,
-		tmpMaskOut:   tmpMaskOut,
+		mask:         mask,
 		encoder:      mltp.encoder.ShallowCopy(),
 	}
 }
@@ -65,14 +58,9 @@ func (mltp MaskedLinearTransformationProtocol) WithParams(paramsOut ckks.Paramet
 		panic(err)
 	}
 
-	tmpMaskIn := make([]*big.Int, mltp.e2s.params.N())
-	for i := range tmpMaskIn {
-		tmpMaskIn[i] = new(big.Int)
-	}
-
-	tmpMaskOut := make([]*big.Int, mltp.s2e.params.N())
-	for i := range tmpMaskOut {
-		tmpMaskOut[i] = new(big.Int)
+	mask := make([]*big.Int, mltp.e2s.params.N())
+	for i := range mask {
+		mask[i] = new(big.Int)
 	}
 
 	scale := paramsOut.DefaultScale().Value
@@ -84,8 +72,7 @@ func (mltp MaskedLinearTransformationProtocol) WithParams(paramsOut ckks.Paramet
 		s2e:          s2e,
 		prec:         mltp.prec,
 		defaultScale: defaultScale,
-		tmpMaskIn:    tmpMaskIn,
-		tmpMaskOut:   tmpMaskOut,
+		mask:         mask,
 		encoder:      ckks.NewEncoder(paramsOut, mltp.prec),
 	}
 }
@@ -129,14 +116,9 @@ func NewMaskedLinearTransformationProtocol(paramsIn, paramsOut ckks.Parameters, 
 
 	mltp.defaultScale, _ = new(big.Float).SetPrec(prec).Set(&scale).Int(nil)
 
-	mltp.tmpMaskIn = make([]*big.Int, paramsIn.N())
-	for i := range mltp.tmpMaskIn {
-		mltp.tmpMaskIn[i] = new(big.Int)
-	}
-
-	mltp.tmpMaskOut = make([]*big.Int, paramsOut.N())
-	for i := range mltp.tmpMaskOut {
-		mltp.tmpMaskOut[i] = new(big.Int)
+	mltp.mask = make([]*big.Int, paramsIn.N())
+	for i := range mltp.mask {
+		mltp.mask[i] = new(big.Int)
 	}
 
 	mltp.encoder = ckks.NewEncoder(paramsOut, prec)
@@ -187,23 +169,26 @@ func (mltp MaskedLinearTransformationProtocol) GenShare(skIn, skOut *rlwe.Secret
 		}
 	}
 
+	dslots := ct.Slots()
+	if mltp.e2s.params.RingType() == ring.Standard {
+		dslots *= 2
+	}
+
+	mask := mltp.mask[:dslots]
+
 	// Generates the decryption share
 	// Returns [M_i] on mltp.tmpMask and [a*s_i -M_i + e] on EncToShareShare
-	if err = mltp.e2s.GenShare(skIn, logBound, ct, &drlwe.AdditiveShareBigint{Value: mltp.tmpMaskIn}, &shareOut.EncToShareShare); err != nil {
+	if err = mltp.e2s.GenShare(skIn, logBound, ct, &drlwe.AdditiveShareBigint{Value: mask}, &shareOut.EncToShareShare); err != nil {
 		return
 	}
 
-	// Changes ring if necessary:
-	// X -> X or Y -> X or X -> Y for Y = X^(2^s)
-	maskOut := mltp.changeRing(mltp.tmpMaskIn)
-
 	// Applies LT(M_i)
-	if err = mltp.applyTransformAndScale(transform, ct.Scale, maskOut); err != nil {
+	if err = mltp.applyTransformAndScale(transform, *ct.MetaData, mask); err != nil {
 		return
 	}
 
 	// Returns [-a*s_i + LT(M_i) * diffscale + e] on ShareToEncShare
-	return mltp.s2e.GenShare(skOut, crs, ct.MetaData, drlwe.AdditiveShareBigint{Value: maskOut}, &shareOut.ShareToEncShare)
+	return mltp.s2e.GenShare(skOut, crs, ct.MetaData, drlwe.AdditiveShareBigint{Value: mask}, &shareOut.ShareToEncShare)
 }
 
 // AggregateShares sums share1 and share2 on shareOut.
@@ -250,16 +235,18 @@ func (mltp MaskedLinearTransformationProtocol) Transform(ct *rlwe.Ciphertext, tr
 
 	ringQ := mltp.s2e.params.RingQ().AtLevel(maxLevel)
 
+	dslots := ct.Slots()
+	if ringQ.Type() == ring.Standard {
+		dslots *= 2
+	}
+
+	mask := mltp.mask[:dslots]
+
 	// Returns -sum(M_i) + x (outside of the NTT domain)
-
-	mltp.e2s.GetShare(nil, share.EncToShareShare, ct, &drlwe.AdditiveShareBigint{Value: mltp.tmpMaskIn})
-
-	// Changes ring if necessary:
-	// X -> X or Y -> X or X -> Y for Y = X^(2^s)
-	maskOut := mltp.changeRing(mltp.tmpMaskIn)
+	mltp.e2s.GetShare(nil, share.EncToShareShare, ct, &drlwe.AdditiveShareBigint{Value: mask})
 
 	// Returns LT(-sum(M_i) + x)
-	if err = mltp.applyTransformAndScale(transform, ct.Scale, maskOut); err != nil {
+	if err = mltp.applyTransformAndScale(transform, *ct.MetaData, mask); err != nil {
 		return
 	}
 
@@ -279,8 +266,8 @@ func (mltp MaskedLinearTransformationProtocol) Transform(ct *rlwe.Ciphertext, tr
 
 	// Sets LT(-sum(M_i) + x) * diffscale in the RNS domain
 	// Positional -> RNS -> NTT
-	ringQ.SetCoefficientsBigint(maskOut, ciphertextOut.Value[0])
-	ringQ.NTT(ciphertextOut.Value[0], ciphertextOut.Value[0])
+	ringQ.SetCoefficientsBigint(mask, ciphertextOut.Value[0])
+	rlwe.NTTSparseAndMontgomery(ringQ, ct.MetaData, ciphertextOut.Value[0])
 
 	// LT(-sum(M_i) + x) * diffscale + [-a*s + LT(M_i) * diffscale + e] = [-a*s + LT(x) * diffscale + e]
 	ringQ.Add(ciphertextOut.Value[0], share.ShareToEncShare.Value, ciphertextOut.Value[0])
@@ -301,40 +288,9 @@ func (mltp MaskedLinearTransformationProtocol) Transform(ct *rlwe.Ciphertext, tr
 	return
 }
 
-func (mltp MaskedLinearTransformationProtocol) changeRing(maskIn []*big.Int) (maskOut []*big.Int) {
+func (mltp MaskedLinearTransformationProtocol) applyTransformAndScale(transform *MaskedLinearTransformationFunc, metadata rlwe.MetaData, mask []*big.Int) (err error) {
 
-	NIn := mltp.e2s.params.N()
-	NOut := mltp.s2e.params.N()
-
-	if NIn == NOut {
-		maskOut = maskIn
-	} else if NIn < NOut {
-
-		maskOut = mltp.tmpMaskOut
-
-		gap := NOut / NIn
-
-		for i := 0; i < NIn; i++ {
-			maskOut[i*gap].Set(maskIn[i])
-		}
-
-	} else {
-
-		maskOut = mltp.tmpMaskOut
-
-		gap := NIn / NOut
-
-		for i := 0; i < NOut; i++ {
-			maskOut[i].Set(maskIn[i*gap])
-		}
-	}
-
-	return
-}
-
-func (mltp MaskedLinearTransformationProtocol) applyTransformAndScale(transform *MaskedLinearTransformationFunc, inputScale rlwe.Scale, mask []*big.Int) (err error) {
-
-	slots := mltp.s2e.params.MaxSlots()
+	slots := metadata.Slots()
 
 	if transform != nil {
 
@@ -366,7 +322,7 @@ func (mltp MaskedLinearTransformationProtocol) applyTransformAndScale(transform 
 
 		// Decodes if asked to
 		if transform.Decode {
-			if err := mltp.encoder.FFT(bigComplex, mltp.s2e.params.LogMaxSlots()); err != nil {
+			if err := mltp.encoder.FFT(bigComplex, metadata.LogSlots()); err != nil {
 				return err
 			}
 		}
@@ -376,7 +332,7 @@ func (mltp MaskedLinearTransformationProtocol) applyTransformAndScale(transform 
 
 		// Recodes if asked to
 		if transform.Encode {
-			if err := mltp.encoder.IFFT(bigComplex, mltp.s2e.params.LogMaxSlots()); err != nil {
+			if err := mltp.encoder.IFFT(bigComplex, metadata.LogSlots()); err != nil {
 				return err
 			}
 		}
@@ -394,7 +350,7 @@ func (mltp MaskedLinearTransformationProtocol) applyTransformAndScale(transform 
 	}
 
 	// Applies LT(M_i) * diffscale
-	inputScaleInt, d := new(big.Float).SetPrec(256).Set(&inputScale.Value).Int(nil)
+	inputScaleInt, d := new(big.Float).SetPrec(256).Set(&metadata.Scale.Value).Int(nil)
 
 	// .Int truncates (i.e. does not round to the nearest integer)
 	// Thus we check if we are below, and if yes add 1, which acts as rounding to the nearest integer

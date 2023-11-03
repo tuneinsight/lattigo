@@ -56,6 +56,11 @@ type Encryptor struct {
 	uniformSampler ringqp.UniformSampler
 }
 
+// GetRLWEParameters returns the underlying rlwe.Parameters.
+func (d Encryptor) GetRLWEParameters() *Parameters {
+	return &d.params
+}
+
 func newEncryptor(params Parameters) *Encryptor {
 
 	prng, err := sampling.NewPRNG()

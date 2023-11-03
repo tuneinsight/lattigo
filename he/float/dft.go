@@ -15,7 +15,7 @@ import (
 )
 
 // EvaluatorForDFT is an interface defining the set of methods required to instantiate a DFTEvaluator.
-// The default ckks.Evaluator is compliant to this interface.
+// The default float.Evaluator is compliant to this interface.
 type EvaluatorForDFT interface {
 	rlwe.ParameterProvider
 	he.EvaluatorForLinearTransformation
@@ -85,7 +85,7 @@ func (d DFTMatrixLiteral) Depth(actual bool) (depth int) {
 }
 
 // GaloisElements returns the list of rotations performed during the CoeffsToSlot operation.
-func (d DFTMatrixLiteral) GaloisElements(params ckks.Parameters) (galEls []uint64) {
+func (d DFTMatrixLiteral) GaloisElements(params Parameters) (galEls []uint64) {
 	rotations := []int{}
 
 	logSlots := d.LogSlots
@@ -127,12 +127,12 @@ func (d *DFTMatrixLiteral) UnmarshalBinary(data []byte) error {
 type DFTEvaluator struct {
 	EvaluatorForDFT
 	*LinearTransformationEvaluator
-	parameters ckks.Parameters
+	parameters Parameters
 }
 
 // NewDFTEvaluator instantiates a new DFTEvaluator.
-// The default ckks.Evaluator is compliant to the EvaluatorForDFT interface.
-func NewDFTEvaluator(params ckks.Parameters, eval EvaluatorForDFT) *DFTEvaluator {
+// The default float.Evaluator is compliant to the EvaluatorForDFT interface.
+func NewDFTEvaluator(params Parameters, eval EvaluatorForDFT) *DFTEvaluator {
 	dfteval := new(DFTEvaluator)
 	dfteval.EvaluatorForDFT = eval
 	dfteval.LinearTransformationEvaluator = NewLinearTransformationEvaluator(eval)
@@ -141,7 +141,7 @@ func NewDFTEvaluator(params ckks.Parameters, eval EvaluatorForDFT) *DFTEvaluator
 }
 
 // NewDFTMatrixFromLiteral generates the factorized DFT/IDFT matrices for the homomorphic encoding/decoding.
-func NewDFTMatrixFromLiteral(params ckks.Parameters, d DFTMatrixLiteral, encoder *ckks.Encoder) (DFTMatrix, error) {
+func NewDFTMatrixFromLiteral(params Parameters, d DFTMatrixLiteral, encoder *Encoder) (DFTMatrix, error) {
 
 	logSlots := d.LogSlots
 	logdSlots := logSlots
@@ -204,10 +204,10 @@ func NewDFTMatrixFromLiteral(params ckks.Parameters, d DFTMatrixLiteral, encoder
 // If the packing is sparse (n < N/2), then returns ctReal = Ecd(vReal || vImag) and ctImag = nil.
 // If the packing is dense (n == N/2), then returns ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
 func (eval *DFTEvaluator) CoeffsToSlotsNew(ctIn *rlwe.Ciphertext, ctsMatrices DFTMatrix) (ctReal, ctImag *rlwe.Ciphertext, err error) {
-	ctReal = ckks.NewCiphertext(eval.parameters, 1, ctsMatrices.LevelStart)
+	ctReal = NewCiphertext(eval.parameters, 1, ctsMatrices.LevelStart)
 
 	if ctsMatrices.LogSlots == eval.parameters.LogMaxSlots() {
-		ctImag = ckks.NewCiphertext(eval.parameters, 1, ctsMatrices.LevelStart)
+		ctImag = NewCiphertext(eval.parameters, 1, ctsMatrices.LevelStart)
 	}
 
 	return ctReal, ctImag, eval.CoeffsToSlots(ctIn, ctsMatrices, ctReal, ctImag)
@@ -293,7 +293,7 @@ func (eval *DFTEvaluator) SlotsToCoeffsNew(ctReal, ctImag *rlwe.Ciphertext, stcM
 		return nil, fmt.Errorf("ctReal.Level() or ctImag.Level() < DFTMatrix.LevelStart")
 	}
 
-	opOut = ckks.NewCiphertext(eval.parameters, 1, stcMatrices.LevelStart)
+	opOut = NewCiphertext(eval.parameters, 1, stcMatrices.LevelStart)
 	return opOut, eval.SlotsToCoeffs(ctReal, ctImag, stcMatrices, opOut)
 
 }

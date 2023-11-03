@@ -30,12 +30,12 @@ The library exposes the following packages:
   a.k.a. CKKS) scheme. It provides approximate arithmetic over the complex numbers (in its classic
   variant) and over the real numbers (in its conjugate-invariant variant).
 
-- `lattigo/he`: Generic methods and interfaces for linear transformation and polynomial evaluation.
+- `lattigo/he`: HE scheme agnostic interfaces and algorithms for linear transformation and polynomial evaluation.
   This package also contains the following sub-packages:
-  - `blindrotation`: Blind rotations (a.k.a lookup tables).
-  - `float`: Advanced arithmetic for CKKS.
-    - `bootstrapper`: Bootstrapping for CKKS.
-  - `integer`: Advanced arithmetic for BGV/BFV.
+  - `blindrotation`: Blind rotations (a.k.a Lookup Tables).
+  - `float`: Homomorphic Encryption for fixed-point approximate arithmetic over the reals/complexes.
+    - `bootstrapper`: Bootstrapping for fixed-point approximate arithmetic over the reals/complexes.
+  - `integer`: Homomorphic Encryption for modular arithmetic over the integers.
 
 - `lattigo/dbfv`, `lattigo/dbgv` and `lattigo/dckks`: Multiparty (a.k.a. distributed or threshold) 
   versions of the BFV, BGV and CKKS schemes that enable secure multiparty computation solutions with 

@@ -51,7 +51,7 @@ func NewBootstrapper(btpParams Parameters, evk *BootstrappingKeys) (*Bootstrappe
 		}
 
 		var err error
-		if b.bridge, err = ckks.NewDomainSwitcher(paramsN2, evk.EvkCmplxToReal, evk.EvkRealToCmplx); err != nil {
+		if b.bridge, err = ckks.NewDomainSwitcher(paramsN2.Parameters, evk.EvkCmplxToReal, evk.EvkRealToCmplx); err != nil {
 			return nil, fmt.Errorf("cannot NewBootstrapper: ckks.NewDomainSwitcher: %w", err)
 		}
 
@@ -209,7 +209,7 @@ func (b Bootstrapper) refreshConjugateInvariant(ctLeftN1Q0, ctRightN1Q0 *rlwe.Ci
 
 	// Extracts the imaginary part
 	if ctRightN1Q0 != nil {
-		if err = b.bootstrapper.Mul(ctLeftAndRightN2QL, -1i, ctLeftAndRightN2QL); err != nil {
+		if err = b.bootstrapper.Evaluator.Mul(ctLeftAndRightN2QL, -1i, ctLeftAndRightN2QL); err != nil {
 			return nil, nil, fmt.Errorf("cannot BootstrapMany: %w", err)
 		}
 		ctRightN1QL = b.ComplexToRealNew(ctLeftAndRightN2QL)

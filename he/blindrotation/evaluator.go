@@ -26,19 +26,19 @@ type Evaluator struct {
 }
 
 // NewEvaluator instantiates a new Evaluator.
-func NewEvaluator(paramsBR, paramsLWE rlwe.Parameters) (eval *Evaluator) {
+func NewEvaluator(paramsBR, paramsLWE rlwe.ParameterProvider) (eval *Evaluator) {
 	eval = new(Evaluator)
 	eval.Evaluator = rgsw.NewEvaluator(paramsBR, nil)
-	eval.paramsBR = paramsBR
-	eval.paramsLWE = paramsLWE
+	eval.paramsBR = *paramsBR.GetRLWEParameters()
+	eval.paramsLWE = *paramsLWE.GetRLWEParameters()
 
-	eval.poolMod2N = [2]ring.Poly{paramsLWE.RingQ().NewPoly(), paramsLWE.RingQ().NewPoly()}
-	eval.accumulator = rlwe.NewCiphertext(paramsBR, 1, paramsBR.MaxLevel())
+	eval.poolMod2N = [2]ring.Poly{eval.paramsLWE.RingQ().NewPoly(), eval.paramsLWE.RingQ().NewPoly()}
+	eval.accumulator = rlwe.NewCiphertext(paramsBR, 1, eval.paramsBR.MaxLevel())
 	eval.accumulator.IsNTT = true // This flag is always true
 
 	// Generates a map for the discrete log of (+/- 1) * GaloisGen^k for 0 <= k < N-1.
 	// galoisGenDiscreteLog: map[+/-G^{k} mod 2N] = k
-	eval.galoisGenDiscreteLog = getGaloisElementInverseMap(ring.GaloisGen, paramsBR.N())
+	eval.galoisGenDiscreteLog = getGaloisElementInverseMap(ring.GaloisGen, eval.paramsBR.N())
 
 	return
 }

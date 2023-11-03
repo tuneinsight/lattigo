@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/he/float"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -22,7 +21,7 @@ import (
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short.")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 
-func GetTestName(params ckks.Parameters, opname string) string {
+func GetTestName(params float.Parameters, opname string) string {
 	return fmt.Sprintf("%s/RingType=%s/logN=%d/logQP=%d/Qi=%d/Pi=%d/LogScale=%d",
 		opname,
 		params.RingType(),
@@ -33,29 +32,29 @@ func GetTestName(params ckks.Parameters, opname string) string {
 		int(math.Log2(params.DefaultScale().Float64())))
 }
 
-type ckksTestContext struct {
-	params      ckks.Parameters
+type testContext struct {
+	params      float.Parameters
 	ringQ       *ring.Ring
 	ringP       *ring.Ring
 	prng        sampling.PRNG
-	encoder     *ckks.Encoder
+	encoder     *float.Encoder
 	kgen        *rlwe.KeyGenerator
 	sk          *rlwe.SecretKey
 	pk          *rlwe.PublicKey
 	encryptorPk *rlwe.Encryptor
 	encryptorSk *rlwe.Encryptor
 	decryptor   *rlwe.Decryptor
-	evaluator   *ckks.Evaluator
+	evaluator   *float.Evaluator
 }
 
 func TestFloat(t *testing.T) {
 
 	var err error
 
-	var testParams []ckks.ParametersLiteral
+	var testParams []float.ParametersLiteral
 	switch {
 	case *flagParamString != "": // the custom test suite reads the parameters from the -params flag
-		testParams = append(testParams, ckks.ParametersLiteral{})
+		testParams = append(testParams, float.ParametersLiteral{})
 		if err = json.Unmarshal([]byte(*flagParamString), &testParams[0]); err != nil {
 			t.Fatal(err)
 		}
@@ -73,18 +72,18 @@ func TestFloat(t *testing.T) {
 				paramsLiteral.LogN = 10
 			}
 
-			var params ckks.Parameters
-			if params, err = ckks.NewParametersFromLiteral(paramsLiteral); err != nil {
+			var params float.Parameters
+			if params, err = float.NewParametersFromLiteral(paramsLiteral); err != nil {
 				t.Fatal(err)
 			}
 
-			var tc *ckksTestContext
-			if tc, err = genCKKSTestParams(params); err != nil {
+			var tc *testContext
+			if tc, err = genTestParams(params); err != nil {
 				t.Fatal(err)
 			}
 
-			for _, testSet := range []func(tc *ckksTestContext, t *testing.T){
-				testCKKSLinearTransformation,
+			for _, testSet := range []func(tc *testContext, t *testing.T){
+				testLinearTransformation,
 				testEvaluatePolynomial,
 			} {
 				testSet(tc, t)
@@ -94,13 +93,13 @@ func TestFloat(t *testing.T) {
 	}
 }
 
-func genCKKSTestParams(defaultParam ckks.Parameters) (tc *ckksTestContext, err error) {
+func genTestParams(defaultParam float.Parameters) (tc *testContext, err error) {
 
-	tc = new(ckksTestContext)
+	tc = new(testContext)
 
 	tc.params = defaultParam
 
-	tc.kgen = ckks.NewKeyGenerator(tc.params)
+	tc.kgen = rlwe.NewKeyGenerator(tc.params)
 
 	tc.sk, tc.pk = tc.kgen.GenKeyPairNew()
 
@@ -113,24 +112,24 @@ func genCKKSTestParams(defaultParam ckks.Parameters) (tc *ckksTestContext, err e
 		return nil, err
 	}
 
-	tc.encoder = ckks.NewEncoder(tc.params)
+	tc.encoder = float.NewEncoder(tc.params)
 
-	tc.encryptorPk = ckks.NewEncryptor(tc.params, tc.pk)
-	tc.encryptorSk = ckks.NewEncryptor(tc.params, tc.sk)
-	tc.decryptor = ckks.NewDecryptor(tc.params, tc.sk)
-	tc.evaluator = ckks.NewEvaluator(tc.params, rlwe.NewMemEvaluationKeySet(tc.kgen.GenRelinearizationKeyNew(tc.sk)))
+	tc.encryptorPk = rlwe.NewEncryptor(tc.params, tc.pk)
+	tc.encryptorSk = rlwe.NewEncryptor(tc.params, tc.sk)
+	tc.decryptor = rlwe.NewDecryptor(tc.params, tc.sk)
+	tc.evaluator = float.NewEvaluator(tc.params, rlwe.NewMemEvaluationKeySet(tc.kgen.GenRelinearizationKeyNew(tc.sk)))
 
 	return tc, nil
 
 }
 
-func newCKKSTestVectors(tc *ckksTestContext, encryptor *rlwe.Encryptor, a, b complex128, t *testing.T) (values []*bignum.Complex, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
+func newTestVectors(tc *testContext, encryptor *rlwe.Encryptor, a, b complex128, t *testing.T) (values []*bignum.Complex, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
 
 	var err error
 
 	prec := tc.encoder.Prec()
 
-	pt = ckks.NewPlaintext(tc.params, tc.params.MaxLevel())
+	pt = float.NewPlaintext(tc.params, tc.params.MaxLevel())
 
 	values = make([]*bignum.Complex, pt.Slots())
 
@@ -163,13 +162,13 @@ func newCKKSTestVectors(tc *ckksTestContext, encryptor *rlwe.Encryptor, a, b com
 	return values, pt, ct
 }
 
-func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
+func testLinearTransformation(tc *testContext, t *testing.T) {
 
 	params := tc.params
 
 	t.Run(GetTestName(params, "Average"), func(t *testing.T) {
 
-		values, _, ciphertext := newCKKSTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
+		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
 
 		slots := ciphertext.Slots()
 
@@ -202,12 +201,12 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 			values[i][1].Quo(values[i][1], nB)
 		}
 
-		ckks.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+		float.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(params, "LinearTransform/BSGS=True"), func(t *testing.T) {
 
-		values, _, ciphertext := newCKKSTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
+		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
 
 		slots := ciphertext.Slots()
 
@@ -263,12 +262,12 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 			values[i].Add(values[i], tmp[(i+15)%slots])
 		}
 
-		ckks.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+		float.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(params, "LinearTransform/BSGS=False"), func(t *testing.T) {
 
-		values, _, ciphertext := newCKKSTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
+		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
 
 		slots := ciphertext.Slots()
 
@@ -324,11 +323,11 @@ func testCKKSLinearTransformation(tc *ckksTestContext, t *testing.T) {
 			values[i].Add(values[i], tmp[(i+15)%slots])
 		}
 
-		ckks.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+		float.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 }
 
-func testEvaluatePolynomial(tc *ckksTestContext, t *testing.T) {
+func testEvaluatePolynomial(tc *testContext, t *testing.T) {
 
 	params := tc.params
 
@@ -342,7 +341,7 @@ func testEvaluatePolynomial(tc *ckksTestContext, t *testing.T) {
 			t.Skip("skipping test for params max level < 3")
 		}
 
-		values, _, ciphertext := newCKKSTestVectors(tc, tc.encryptorSk, -1, 1, t)
+		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1, 1, t)
 
 		prec := tc.encoder.Prec()
 
@@ -367,7 +366,7 @@ func testEvaluatePolynomial(tc *ckksTestContext, t *testing.T) {
 			t.Fatal(err)
 		}
 
-		ckks.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+		float.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(params, "Polynomial/PolyVector/Exp"), func(t *testing.T) {
@@ -376,7 +375,7 @@ func testEvaluatePolynomial(tc *ckksTestContext, t *testing.T) {
 			t.Skip("skipping test for params max level < 3")
 		}
 
-		values, _, ciphertext := newCKKSTestVectors(tc, tc.encryptorSk, -1, 1, t)
+		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1, 1, t)
 
 		prec := tc.encoder.Prec()
 
@@ -415,6 +414,6 @@ func testEvaluatePolynomial(tc *ckksTestContext, t *testing.T) {
 			t.Fatal(err)
 		}
 
-		ckks.VerifyTestVectors(params, tc.encoder, tc.decryptor, valuesWant, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+		float.VerifyTestVectors(params, tc.encoder, tc.decryptor, valuesWant, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 }

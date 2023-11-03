@@ -6,7 +6,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/he/float"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -15,7 +14,7 @@ import (
 // Parameters is a struct storing the parameters
 // of the bootstrapping circuit.
 type Parameters struct {
-	ckks.Parameters
+	float.Parameters
 	SlotsToCoeffsParameters float.DFTMatrixLiteral
 	Mod1ParametersLiteral   float.Mod1ParametersLiteral
 	CoeffsToSlotsParameters float.DFTMatrixLiteral
@@ -23,21 +22,21 @@ type Parameters struct {
 	EphemeralSecretWeight   int // Hamming weight of the ephemeral secret. If 0, no ephemeral secret is used during the bootstrapping.
 }
 
-// NewParametersFromLiteral instantiates a bootstrapping.Parameters from the residual ckks.Parameters and
+// NewParametersFromLiteral instantiates a bootstrapping.Parameters from the residual float.Parameters and
 // a bootstrapping.ParametersLiteral struct.
 //
-// The residualParameters corresponds to the ckks.Parameters that are left after the bootstrapping circuit is evaluated.
+// The residualParameters corresponds to the float.Parameters that are left after the bootstrapping circuit is evaluated.
 // These are entirely independent of the bootstrapping parameters with one exception: the ciphertext primes Qi must be
 // congruent to 1 mod 2N of the bootstrapping parameters (note that the auxiliary primes Pi do not need to be).
 // This is required because the primes Qi of the residual parameters and the bootstrapping parameters are the same between
 // the two sets of parameters.
 //
-// The user can ensure that this condition is met by setting the appropriate LogNThRoot in the ckks.ParametersLiteral before
+// The user can ensure that this condition is met by setting the appropriate LogNThRoot in the float.ParametersLiteral before
 // instantiating them.
 //
-// The method NewParametersFromLiteral will automatically allocate the ckks.Parameters of the bootstrapping circuit based on
+// The method NewParametersFromLiteral will automatically allocate the float.Parameters of the bootstrapping circuit based on
 // the provided residualParameters and the information given in the bootstrapping.ParametersLiteral.
-func NewParametersFromLiteral(residualParameters ckks.Parameters, btpLit ParametersLiteral) (Parameters, error) {
+func NewParametersFromLiteral(residualParameters float.Parameters, btpLit ParametersLiteral) (Parameters, error) {
 
 	var err error
 
@@ -303,8 +302,8 @@ func NewParametersFromLiteral(residualParameters ckks.Parameters, btpLit Paramet
 		primesNew[logpi] = primesNew[logpi][1:]
 	}
 
-	// Instantiates the ckks.Parameters of the bootstrapping circuit.
-	params, err := ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
+	// Instantiates the float.Parameters of the bootstrapping circuit.
+	params, err := float.NewParametersFromLiteral(float.ParametersLiteral{
 		LogN:            LogN,
 		Q:               Q,
 		P:               P,
@@ -348,17 +347,17 @@ func (p Parameters) LogMaxSlots() int {
 	return p.SlotsToCoeffsParameters.LogSlots
 }
 
-// DepthCoeffsToSlots returns the depth of the Coeffs to Slots of the CKKS bootstrapping.
+// DepthCoeffsToSlots returns the depth of the Coeffs to Slots of the bootstrapping.
 func (p Parameters) DepthCoeffsToSlots() (depth int) {
 	return p.SlotsToCoeffsParameters.Depth(true)
 }
 
-// DepthEvalMod returns the depth of the EvalMod step of the CKKS bootstrapping.
+// DepthEvalMod returns the depth of the EvalMod step of the bootstrapping.
 func (p Parameters) DepthEvalMod() (depth int) {
 	return p.Mod1ParametersLiteral.Depth()
 }
 
-// DepthSlotsToCoeffs returns the depth of the Slots to Coeffs step of the CKKS bootstrapping.
+// DepthSlotsToCoeffs returns the depth of the Slots to Coeffs step of the bootstrapping.
 func (p Parameters) DepthSlotsToCoeffs() (depth int) {
 	return p.CoeffsToSlotsParameters.Depth(true)
 }
@@ -382,7 +381,7 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 
 func (p Parameters) MarshalJSON() (data []byte, err error) {
 	return json.Marshal(struct {
-		Parameters              ckks.Parameters
+		Parameters              float.Parameters
 		SlotsToCoeffsParameters float.DFTMatrixLiteral
 		Mod1ParametersLiteral   float.Mod1ParametersLiteral
 		CoeffsToSlotsParameters float.DFTMatrixLiteral
@@ -400,7 +399,7 @@ func (p Parameters) MarshalJSON() (data []byte, err error) {
 
 func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 	var params struct {
-		Parameters              ckks.Parameters
+		Parameters              float.Parameters
 		SlotsToCoeffsParameters float.DFTMatrixLiteral
 		Mod1ParametersLiteral   float.Mod1ParametersLiteral
 		CoeffsToSlotsParameters float.DFTMatrixLiteral
@@ -423,7 +422,7 @@ func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 }
 
 // GaloisElements returns the list of Galois elements required to evaluate the bootstrapping.
-func (p Parameters) GaloisElements(params ckks.Parameters) (galEls []uint64) {
+func (p Parameters) GaloisElements(params float.Parameters) (galEls []uint64) {
 
 	logN := params.LogN()
 

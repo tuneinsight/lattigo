@@ -11,27 +11,25 @@ import (
 // Evaluator.ExternalProduct).
 type Evaluator struct {
 	rlwe.Evaluator
-
-	params rlwe.Parameters
 }
 
 // NewEvaluator creates a new Evaluator type supporting RGSW operations in addition
 // to rlwe.Evaluator operations.
-func NewEvaluator(params rlwe.Parameters, evk rlwe.EvaluationKeySet) *Evaluator {
-	return &Evaluator{*rlwe.NewEvaluator(params, evk), params}
+func NewEvaluator(params rlwe.ParameterProvider, evk rlwe.EvaluationKeySet) *Evaluator {
+	return &Evaluator{*rlwe.NewEvaluator(params, evk)}
 }
 
 // ShallowCopy creates a shallow copy of this Evaluator in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Evaluators can be used concurrently.
 func (eval Evaluator) ShallowCopy() *Evaluator {
-	return &Evaluator{*eval.Evaluator.ShallowCopy(), eval.params}
+	return &Evaluator{*eval.Evaluator.ShallowCopy()}
 }
 
 // WithKey creates a shallow copy of the receiver Evaluator for which the new EvaluationKey is evaluationKey
 // and where the temporary buffers are shared. The receiver and the returned Evaluators cannot be used concurrently.
 func (eval Evaluator) WithKey(evk rlwe.EvaluationKeySet) *Evaluator {
-	return &Evaluator{*eval.Evaluator.WithKey(evk), eval.params}
+	return &Evaluator{*eval.Evaluator.WithKey(evk)}
 }
 
 // ExternalProduct computes RLWE x RGSW -> RLWE
@@ -54,8 +52,10 @@ func (eval Evaluator) ExternalProduct(op0 *rlwe.Ciphertext, op1 *Ciphertext, opO
 
 	if levelP < 1 {
 
+		params := eval.GetRLWEParameters()
+
 		// If log(Q) * (Q-1)**2 < 2^{64}-1
-		if ringQ := eval.params.RingQ(); levelQ == 0 && levelP == -1 && (ringQ.SubRings[0].Modulus>>29) == 0 {
+		if ringQ := params.RingQ(); levelQ == 0 && levelP == -1 && (ringQ.SubRings[0].Modulus>>29) == 0 {
 			eval.externalProduct32Bit(op0, op1, c0QP.Q, c1QP.Q)
 			ringQ.AtLevel(0).IMForm(c0QP.Q, opOut.Value[0])
 			ringQ.AtLevel(0).IMForm(c1QP.Q, opOut.Value[1])
@@ -84,7 +84,8 @@ func (eval Evaluator) externalProduct32Bit(ct0 *rlwe.Ciphertext, rgsw *Ciphertex
 	// rgsw = [(-as + P*w*m1 + e, a), (-bs + e, b + P*w*m1)]
 	// ct = [-cs + m0 + e, c]
 	// opOut = [<ct, rgsw[0]>, <ct, rgsw[1]>] = [ct[0] * rgsw[0][0] + ct[1] * rgsw[0][1], ct[0] * rgsw[1][0] + ct[1] * rgsw[1][1]]
-	ringQ := eval.params.RingQ().AtLevel(0)
+	params := eval.GetRLWEParameters()
+	ringQ := params.RingQ().AtLevel(0)
 	subRing := ringQ.SubRings[0]
 	pw2 := rgsw.Value[0].BaseTwoDecomposition
 	mask := uint64(((1 << pw2) - 1))
@@ -100,6 +101,7 @@ func (eval Evaluator) externalProduct32Bit(ct0 *rlwe.Ciphertext, rgsw *Ciphertex
 	for i, el := range rgsw.Value {
 		ringQ.INTT(ct0.Value[i], eval.BuffInvNTT)
 		for j := range el.Value[0] {
+			// TODO: center values if mask = 0
 			ring.MaskVec(eval.BuffInvNTT.Coeffs[0], j*pw2, mask, cw)
 			if j == 0 && i == 0 {
 				subRing.NTTLazy(cw, cwNTT)
@@ -122,7 +124,8 @@ func (eval Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Cipher
 	levelQ := rgsw.LevelQ()
 	levelP := rgsw.LevelP()
 
-	ringQP := eval.params.RingQP().AtLevel(levelQ, levelP)
+	params := eval.GetRLWEParameters()
+	ringQP := params.RingQP().AtLevel(levelQ, levelP)
 
 	ringQ := ringQP.RingQ
 	ringP := ringQP.RingP
@@ -143,6 +146,7 @@ func (eval Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Cipher
 		cwNTT := eval.BuffBitDecomp
 		for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
 			for j := 0; j < BaseTwoDecompositionVectorSize[i]; j++ {
+				// TODO: center values if mask == 0
 				ring.MaskVec(eval.BuffInvNTT.Coeffs[i], j*pw2, mask, cw)
 				if k == 0 && i == 0 && j == 0 {
 
@@ -184,7 +188,8 @@ func (eval Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Cipher
 func (eval Evaluator) externalProductInPlaceMultipleP(levelQ, levelP int, ct0 *rlwe.Ciphertext, rgsw *Ciphertext, c0OutQ, c0OutP, c1OutQ, c1OutP ring.Poly) {
 	var reduce int
 
-	ringQP := eval.params.RingQP().AtLevel(levelQ, levelP)
+	params := eval.GetRLWEParameters()
+	ringQP := params.RingQP().AtLevel(levelQ, levelP)
 	ringQ := ringQP.RingQ
 	ringP := ringQP.RingP
 
@@ -193,10 +198,10 @@ func (eval Evaluator) externalProductInPlaceMultipleP(levelQ, levelP int, ct0 *r
 	c0QP := ringqp.Poly{Q: c0OutQ, P: c0OutP}
 	c1QP := ringqp.Poly{Q: c1OutQ, P: c1OutP}
 
-	BaseRNSDecompositionVectorSize := eval.params.BaseRNSDecompositionVectorSize(levelQ, levelP)
+	BaseRNSDecompositionVectorSize := params.BaseRNSDecompositionVectorSize(levelQ, levelP)
 
-	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
-	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
+	QiOverF := params.QiOverflowMargin(levelQ) >> 1
+	PiOverF := params.PiOverflowMargin(levelP) >> 1
 
 	var c2NTT, c2InvNTT ring.Poly
 

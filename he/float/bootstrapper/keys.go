@@ -3,7 +3,6 @@ package bootstrapper
 import (
 	"fmt"
 
-	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/he/float/bootstrapper/bootstrapping"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -71,7 +70,7 @@ func (b BootstrappingKeys) BinarySize() (dLen int) {
 //   - These evaluation keys are generated under an ephemeral secret key skN2 using the distribution
 //     specified in the bootstrapping parameters.
 //   - The ephemeral key used to generate the bootstrapping keys is returned by this method for debugging purposes.
-//   - !WARNING! The bootstrapping parameters use their own and independent cryptographic parameters (i.e. ckks.Parameters)
+//   - !WARNING! The bootstrapping parameters use their own and independent cryptographic parameters (i.e. float.Parameters)
 //     and it is the user's responsibility to ensure that these parameters meet the target security and tweak them if necessary.
 func (p Parameters) GenBootstrappingKeys(skN1 *rlwe.SecretKey) (btpkeys *BootstrappingKeys, skN2 *rlwe.SecretKey, err error) {
 
@@ -80,7 +79,7 @@ func (p Parameters) GenBootstrappingKeys(skN1 *rlwe.SecretKey) (btpkeys *Bootstr
 	var EvkCmplxToReal *rlwe.EvaluationKey
 	paramsN2 := p.Parameters.Parameters
 
-	kgen := ckks.NewKeyGenerator(paramsN2)
+	kgen := rlwe.NewKeyGenerator(paramsN2)
 
 	// Ephemeral secret-key used to generate the evaluation keys.
 	skN2 = kgen.GenSecretKeyNew()

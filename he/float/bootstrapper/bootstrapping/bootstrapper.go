@@ -5,7 +5,6 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/he/float"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
@@ -13,7 +12,7 @@ import (
 // Bootstrapper is a struct to store a memory buffer with the plaintext matrices,
 // the polynomial approximation, and the keys for the bootstrapping.
 type Bootstrapper struct {
-	*ckks.Evaluator
+	*float.Evaluator
 	*float.DFTEvaluator
 	*float.Mod1Evaluator
 	*bootstrapperBase
@@ -23,7 +22,7 @@ type Bootstrapper struct {
 type bootstrapperBase struct {
 	Parameters
 	*EvaluationKeySet
-	params ckks.Parameters
+	params float.Parameters
 
 	dslots    int // Number of plaintext slots after the re-encoding
 	logdslots int
@@ -35,7 +34,7 @@ type bootstrapperBase struct {
 	q0OverMessageRatio float64
 }
 
-// EvaluationKeySet is a type for a CKKS bootstrapping key, which
+// EvaluationKeySet is a type for a bootstrapping key, which
 // regroups the necessary public relinearization and rotation keys.
 type EvaluationKeySet struct {
 	*rlwe.MemEvaluationKeySet
@@ -51,7 +50,7 @@ func NewBootstrapper(btpParams Parameters, btpKeys *EvaluationKeySet) (btp *Boot
 	}
 
 	if btpParams.Mod1ParametersLiteral.Mod1Type == float.CosDiscrete && btpParams.Mod1ParametersLiteral.Mod1Degree < 2*(btpParams.Mod1ParametersLiteral.K-1) {
-		return nil, fmt.Errorf("Mod1Type 'ckks.CosDiscrete' uses a minimum degree of 2*(K-1) but EvalMod degree is smaller")
+		return nil, fmt.Errorf("Mod1Type 'float.CosDiscrete' uses a minimum degree of 2*(K-1) but EvalMod degree is smaller")
 	}
 
 	if btpParams.CoeffsToSlotsParameters.LevelStart-btpParams.CoeffsToSlotsParameters.Depth(true) != btpParams.Mod1ParametersLiteral.LevelStart {
@@ -75,7 +74,7 @@ func NewBootstrapper(btpParams Parameters, btpKeys *EvaluationKeySet) (btp *Boot
 
 	btp.EvaluationKeySet = btpKeys
 
-	btp.Evaluator = ckks.NewEvaluator(params, btpKeys)
+	btp.Evaluator = float.NewEvaluator(params, btpKeys)
 
 	btp.DFTEvaluator = float.NewDFTEvaluator(params, btp.Evaluator)
 
@@ -124,7 +123,7 @@ func (p Parameters) GenEvaluationKeySetNew(sk *rlwe.SecretKey) *EvaluationKeySet
 	// Extends basis Q0 -> P
 	rlwe.ExtendBasisSmallNormAndCenterNTTMontgomery(ringQ, ringP, sk.Value.Q, buff, skExtended.Value.P)
 
-	kgen := ckks.NewKeyGenerator(params)
+	kgen := rlwe.NewKeyGenerator(params)
 
 	EvkDtS, EvkStD := p.GenEncapsulationEvaluationKeysNew(skExtended)
 
@@ -187,7 +186,7 @@ func (bb *bootstrapperBase) CheckKeys(btpKeys *EvaluationKeySet) (err error) {
 	return
 }
 
-func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey *EvaluationKeySet) (bb *bootstrapperBase, err error) {
+func newBootstrapperBase(params float.Parameters, btpParams Parameters, btpKey *EvaluationKeySet) (bb *bootstrapperBase, err error) {
 	bb = new(bootstrapperBase)
 	bb.params = params
 	bb.Parameters = btpParams
@@ -225,7 +224,7 @@ func newBootstrapperBase(params ckks.Parameters, btpParams Parameters, btpKey *E
 		qDiv = 1
 	}
 
-	encoder := ckks.NewEncoder(bb.params)
+	encoder := float.NewEncoder(bb.params)
 
 	// CoeffsToSlots vectors
 	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + eventual scaling factor for the double angle formula

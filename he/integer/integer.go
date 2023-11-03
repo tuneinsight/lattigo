@@ -1,4 +1,4 @@
-// Package integer implements Homomorphic Encryption for encrypted modular arithmetic with integers.
+// Package integer implements Homomorphic Encryption for encrypted modular arithmetic over the integers.
 package integer
 
 import (

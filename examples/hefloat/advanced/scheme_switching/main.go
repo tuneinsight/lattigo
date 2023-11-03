@@ -6,7 +6,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/he/blindrotation"
 	"github.com/tuneinsight/lattigo/v4/he/float"
 	"github.com/tuneinsight/lattigo/v4/ring"
@@ -14,11 +13,13 @@ import (
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
-// This example showcases how lookup tables can complement the CKKS scheme to compute non-linear functions
-// such as sign. The example starts by homomorphically decoding the CKKS ciphertext from the canonical embedding
-// to the coefficient embedding. It then evaluates the Look-Up-Table (BlindRotation) on each coefficient and repacks the
-// outputs of each Blind Rotation in a single RLWE ciphertext. Finally, it homomorphically encodes the RLWE ciphertext back
-// to the canonical embedding of the CKKS scheme.
+// This example showcases how lookup tables can complement fixed-point approximate
+// homomorphic encryption to compute non-linear functions such as sign.
+// The example starts by homomorphically decoding the ciphertext from the SIMD
+// encoding to the coefficient encoding: IDFT(m(X)) -> m(X).
+// It then evaluates a Lookup-Table (LUT) on each coefficient of m(X): m(X)[i] -> LUT(m(X)[i])
+// and repacks each LUT(m(X)[i]) in a single RLWE ciphertext: Repack(LUT(m(X)[i])) -> LUT(m(X)).
+// Finally, it homomorphically switches LUT(m(X)) back to the SIMD domain: LUT(m(X)) -> IDFT(LUT(m(X))).
 
 // ========================================
 // Functions to evaluate with BlindRotation
@@ -60,8 +61,8 @@ func main() {
 	// determine the complexity of the BlindRotation:
 	// each BlindRotation takes ~N RGSW ciphertext-ciphertext mul.
 	// LogN = 12 & LogQP = ~103 -> >128-bit secure.
-	var paramsN12 ckks.Parameters
-	if paramsN12, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
+	var paramsN12 float.Parameters
+	if paramsN12, err = float.NewParametersFromLiteral(float.ParametersLiteral{
 		LogN:            LogN,
 		Q:               Q,
 		P:               P,
@@ -73,8 +74,8 @@ func main() {
 	// BlindRotation RLWE params, N of these params determine
 	// the test poly degree and therefore precision.
 	// LogN = 11 & LogQP = ~54 -> 128-bit secure.
-	var paramsN11 ckks.Parameters
-	if paramsN11, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
+	var paramsN11 float.Parameters
+	if paramsN11, err = float.NewParametersFromLiteral(float.ParametersLiteral{
 		LogN: LogN - 1,
 		Q:    Q[:1],
 		P:    []uint64{0x42001},
@@ -129,17 +130,17 @@ func main() {
 		repackIndex[i*gapN11] = i * gapN12
 	}
 
-	kgenN12 := ckks.NewKeyGenerator(paramsN12)
+	kgenN12 := rlwe.NewKeyGenerator(paramsN12)
 	skN12 := kgenN12.GenSecretKeyNew()
-	encoderN12 := ckks.NewEncoder(paramsN12)
-	encryptorN12 := ckks.NewEncryptor(paramsN12, skN12)
-	decryptorN12 := ckks.NewDecryptor(paramsN12, skN12)
+	encoderN12 := float.NewEncoder(paramsN12)
+	encryptorN12 := rlwe.NewEncryptor(paramsN12, skN12)
+	decryptorN12 := rlwe.NewDecryptor(paramsN12, skN12)
 
-	kgenN11 := ckks.NewKeyGenerator(paramsN11)
+	kgenN11 := rlwe.NewKeyGenerator(paramsN11)
 	skN11 := kgenN11.GenSecretKeyNew()
 
 	// EvaluationKey RLWEN12 -> RLWEN11
-	evkN12ToN11 := ckks.NewKeyGenerator(paramsN12).GenEvaluationKeyNew(skN12, skN11)
+	evkN12ToN11 := rlwe.NewKeyGenerator(paramsN12).GenEvaluationKeyNew(skN12, skN11)
 
 	fmt.Printf("Gen SlotsToCoeffs Matrices... ")
 	now = time.Now()
@@ -162,15 +163,15 @@ func main() {
 	evk := rlwe.NewMemEvaluationKeySet(nil, kgenN12.GenGaloisKeysNew(galEls, skN12)...)
 
 	// BlindRotation Evaluator
-	evalBR := blindrotation.NewEvaluator(paramsN12.Parameters, paramsN11.Parameters)
+	evalBR := blindrotation.NewEvaluator(paramsN12, paramsN11)
 
-	// CKKS Evaluator
-	evalCKKS := ckks.NewEvaluator(paramsN12, evk)
-	evalHDFT := float.NewDFTEvaluator(paramsN12, evalCKKS)
+	// Evaluator
+	eval := float.NewEvaluator(paramsN12, evk)
+	evalHDFT := float.NewDFTEvaluator(paramsN12, eval)
 
 	fmt.Printf("Encrypting bits of skLWE in RGSW... ")
 	now = time.Now()
-	blindRotateKey := blindrotation.GenEvaluationKeyNew(paramsN12.Parameters, skN12, paramsN11.Parameters, skN11, evkParams) // Generate RGSW(sk_i) for all coefficients of sk
+	blindRotateKey := blindrotation.GenEvaluationKeyNew(paramsN12, skN12, paramsN11, skN11, evkParams) // Generate RGSW(sk_i) for all coefficients of sk
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	// Generates the starting plaintext values.
@@ -180,7 +181,7 @@ func main() {
 		values[i] = a + float64(i)*interval
 	}
 
-	pt := ckks.NewPlaintext(paramsN12, paramsN12.MaxLevel())
+	pt := float.NewPlaintext(paramsN12, paramsN12.MaxLevel())
 	pt.LogDimensions.Cols = LogSlots
 	if err := encoderN12.Encode(values, pt); err != nil {
 		panic(err)
@@ -202,9 +203,9 @@ func main() {
 	ctN12.IsBatched = false
 
 	// Key-Switch from LogN = 12 to LogN = 11
-	ctN11 := ckks.NewCiphertext(paramsN11, 1, paramsN11.MaxLevel())
+	ctN11 := float.NewCiphertext(paramsN11, 1, paramsN11.MaxLevel())
 	// key-switch to LWE degree
-	if err := evalCKKS.ApplyEvaluationKey(ctN12, evkN12ToN11, ctN11); err != nil {
+	if err := eval.ApplyEvaluationKey(ctN12, evkN12ToN11, ctN11); err != nil {
 		panic(err)
 	}
 	fmt.Printf("Done (%s)\n", time.Since(now))

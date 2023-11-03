@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/he/float"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
@@ -14,13 +14,13 @@ func BenchmarkBootstrap(b *testing.B) {
 
 	paramSet := DefaultParametersDense[0]
 
-	params, err := ckks.NewParametersFromLiteral(paramSet.SchemeParams)
+	params, err := float.NewParametersFromLiteral(paramSet.SchemeParams)
 	require.NoError(b, err)
 
 	btpParams, err := NewParametersFromLiteral(params, paramSet.BootstrappingParams)
 	require.Nil(b, err)
 
-	kgen := ckks.NewKeyGenerator(params)
+	kgen := rlwe.NewKeyGenerator(params)
 	sk := kgen.GenSecretKeyNew()
 
 	btp, err := NewBootstrapper(btpParams, btpParams.GenEvaluationKeySetNew(sk))
@@ -35,7 +35,7 @@ func BenchmarkBootstrap(b *testing.B) {
 			bootstrappingScale := rlwe.NewScale(math.Exp2(math.Round(math.Log2(float64(btp.params.Q()[0]) / btp.mod1Parameters.MessageRatio()))))
 
 			b.StopTimer()
-			ct := ckks.NewCiphertext(params, 1, 0)
+			ct := float.NewCiphertext(params, 1, 0)
 			ct.Scale = bootstrappingScale
 			b.StartTimer()
 

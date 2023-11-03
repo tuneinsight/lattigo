@@ -5,7 +5,6 @@ import (
 	"math/cmplx"
 	"math/rand"
 
-	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/he/float"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -18,12 +17,12 @@ func main() {
 	// Introduction
 	// ============
 	//
-	// This example showcase the capabilities of the CKKS scheme implemented in the Lattigo library.
+	// This example showcase the capabilities of encrypted fixed-point approximate arithmetic over the reals/complexes.
 	//
 	// The Lattigo library is a library designed around layers.
 	// Each layer is a package that provides functionalities for the layers above it.
 	//
-	// The `ckks` package relies on the `rlwe` package, which itself relies on the `ring` package:  `ring` -> `rlwe` -> `ckks`.
+	// The `he/float` package relies on the `ckks` and `rlwe` packages, which themselves relies on the `ring` package:  `ring` -> `rlwe` -> `ckks` -> `he/float`.
 	//
 	// The lowest layer is the `ring` package.
 	// The `ring` package provides optimized arithmetic in rings `Z_{Q}[X]/(X^{N}+1)` for `N` a power of two and
@@ -38,14 +37,16 @@ func main() {
 	// but also more advanced  operations such as the `Trace`.
 	//
 	// The top layer is the `ckks` package.
-	// This package implements the CKKS scheme, and mostly consist in defining the encoding and providing a user friendly API
-	// for the homomorphic operations.
+	// This package implements the CKKS scheme, and mostly consist in defining the encoding and scheme specific homomorphic operations.
+	//
+	// The user facing layer is the `he/float` package which implements high level functionalities and provides the a user with a
+	// friendly API for the homomorphic operations.
 
 	// =======================================================
 	// `rlwe.Ciphertert`, `rlwe.Plaintext` and `rlwe.MetaData`
 	// =======================================================
 	//
-	// Before talking about the capabilities of the `ckks` package, we have to give some information about the `rlwe.Ciphertext` and `rlwe.Plaintext` objects.
+	// Before talking about the capabilities of the `he/float` package, we have to give some information about the `rlwe.Ciphertext` and `rlwe.Plaintext` objects.
 	//
 	// Both contain the `rlwe.MetaData` struct, which notably holds the following fields:
 	//    - `Scale`: the scaling factor. This field is updated dynamically during computations.
@@ -58,10 +59,10 @@ func main() {
 	// These are all public fields which can be manually edited by advanced users if needed.
 	//
 	// ======================================================
-	// Capabilities of the CKKS Scheme in the Lattigo Library
+	// Capabilities of the HE/FLOAT Package in the Lattigo Library
 	// ======================================================
 	//
-	// The current capabilities of the `ckks` package are the following:
+	// The current capabilities of the `he/float` package are the following:
 	//
 	//    - Encoding: encode vectors of type `[]complex128`, `[]float64`, `[]*big.Float` or `[]*bignum.Complex` on `rlwe.Plaintext`
 	//
@@ -98,28 +99,26 @@ func main() {
 	//
 	//    - All methods of the `rlwe.Evaluator`, which are not described here.
 	//
-	// The `ckks` package also contains two sub-packages:
-	//    - `advanced`: homomorphic encoding/decoding (i.e. homomorphic switch between `SlotsDomain` and `CoefficientDomain`) and homomorphic modular reduction.
-	//    - `bootstrapping`: bootstrapping for the CKKS scheme.
+	// The `he/float` package also contains the sub-packages: `bootstrapper` which implements bootstrapping to refresh ciphertexts, enabling arbitrary depth circuits.
 	//
-	// Note that the package `ckks` also supports the real variant of the CKKS scheme, i.e. plaintext vector of R^{N} (instead of complex vectors C^{N/2}).
+	// Note that the package `he/float` also supports a real variant, i.e. plaintext vector of R^{N} (instead of complex vectors C^{N/2}).
 	// A homomorphic bridge between the two schemes is also available.
-	// This variant can be activated by specifying the `ring.Type` to `ring.ConjugateInvariant` (i.e the ring Z[X + X^{-1}]/(X^{N}+1)) in the `ckks.Parameters` struct.
+	// This variant can be activated by specifying the `ring.Type` to `ring.ConjugateInvariant` (i.e the ring Z[X + X^{-1}]/(X^{N}+1)) in the `float.Parameters` struct.
 
 	// =================================
-	// Instantiating the ckks.Parameters
+	// Instantiating the float.Parameters
 	// =================================
 	//
-	// We will instantiate a `ckks.Parameters` struct.
+	// We will instantiate a `float.Parameters` struct.
 	// Unlike other libraries, `Lattigo` doesn't have, yet, a quick constructor.
 	// Users must specify all parameters, up to each individual prime size.
 	//
 	// We will create parameters that are 128-bit secure and allow a depth 7 computation with a scaling factor of 2^{45}.
 
 	var err error
-	var params ckks.Parameters
-	if params, err = ckks.NewParametersFromLiteral(
-		ckks.ParametersLiteral{
+	var params float.Parameters
+	if params, err = float.NewParametersFromLiteral(
+		float.ParametersLiteral{
 			LogN:            14,                                    // A ring degree of 2^{14}
 			LogQ:            []int{55, 45, 45, 45, 45, 45, 45, 45}, // An initial prime of 55 bits and 7 primes of 45 bits
 			LogP:            []int{61},                             // The log2 size of the key-switching prime
@@ -139,7 +138,7 @@ func main() {
 	// This precision is notably the precision used by the encoder to encode/decode values.
 	prec := params.EncodingPrecision() // we will need this value later
 
-	// Note that the following fields in the `ckks.ParametersLiteral`are optional, but can be manually specified by advanced users:
+	// Note that the following fields in the `float.ParametersLiteral`are optional, but can be manually specified by advanced users:
 	//   - `Xs`: the secret distribution (default uniform ternary)
 	//   - `Xe`: the error distribution (default discrete Gaussian with standard deviation of 3.2 and truncated to 19)
 	//   - `PowBase`: the log2 of the binary decomposition (default 0, i.e. infinity, i.e. no decomposition)
@@ -153,7 +152,7 @@ func main() {
 	// ==============
 	//
 	// To generate any key, be it the secret key, the public key or evaluation keys, we first need to instantiate the key generator.
-	kgen := ckks.NewKeyGenerator(params)
+	kgen := rlwe.NewKeyGenerator(params)
 
 	// For now we will generate the following keys:
 	//   - SecretKey: the secret from which all other keys are derived
@@ -192,17 +191,19 @@ func main() {
 	//   - `EncodingDomain`: `rlwe.SlotsDomain` (this is the default value)
 	//   - `LogSlots`: `params.MaxLogSlots` (which is LogN-1=13 in this example)
 	// We can check that the plaintext was created at the maximum level with pt1.Level().
-	pt1 := ckks.NewPlaintext(params, params.MaxLevel())
+	pt1 := float.NewPlaintext(params, params.MaxLevel())
 
 	// Then we need to instantiate the encoder, which will enable us to embed our `values` of type `[]complex128` on a `rlwe.Plaintext`.
 	// By default the encoder will use the params.DefaultPrecision(), but a user can specify a custom precision as an optional argument,
-	// for example `ckks.NewEncoder(params, 256)`.
-	ecd := ckks.NewEncoder(params)
+	// for example `float.NewEncoder(params, 256)`.
+	ecd := float.NewEncoder(params)
+
+	ecd2 := float.NewEncoder(float.Parameters(params))
 
 	// And we encode our `values` on the plaintext.
 	// Note that the encoder will check the metadata of the plaintext and adapt the encoding accordingly.
 	// For example, one can modify the `Scale`, `EncodingDomain` or `LogSlots` fields change the way the encoding behaves.
-	if err = ecd.Encode(values1, pt1); err != nil {
+	if err = ecd2.Encode(values1, pt1); err != nil {
 		panic(err)
 	}
 
@@ -213,7 +214,7 @@ func main() {
 	// To generate ciphertexts we need an encryptor.
 	// An encryptor will accept both a secret key or a public key,
 	// in this example we will use the public key.
-	enc := ckks.NewEncryptor(params, pk)
+	enc := rlwe.NewEncryptor(params, pk)
 
 	// And we create the ciphertext.
 	// Note that the metadata of the plaintext will be copied on the resulting ciphertext.
@@ -223,7 +224,7 @@ func main() {
 	}
 
 	// It is also possible to first allocate the ciphertext the same way it was done
-	// for the plaintext with with `ct := ckks.NewCiphertext(params, 1, pt.Level())`,
+	// for the plaintext with with `ct := float.NewCiphertext(params, 1, pt.Level())`,
 	// enabling allocation free encryptions (for example if the ciphertext has to be
 	// serialized right away).
 
@@ -234,14 +235,14 @@ func main() {
 	// We are able to generate ciphertext from plaintext using the encryptor.
 	// To do the converse, generate plaintexts from ciphertexts, we need to instantiate a decryptor.
 	// Obviously, the decryptor will only accept the secret key.
-	dec := ckks.NewDecryptor(params, sk)
+	dec := rlwe.NewDecryptor(params, sk)
 
 	// ================
 	// Evaluator Basics
 	// ================
 	//
 	// Before anything, we must instantiate the evaluator, and we provide the evaluation key struct.
-	eval := ckks.NewEvaluator(params, evk)
+	eval := float.NewEvaluator(params, evk)
 
 	// For the purpose of the example, we will create a second vector of random values.
 	values2 := make([]complex128, Slots)
@@ -249,7 +250,7 @@ func main() {
 		values2[i] = complex(2*r.Float64()-1, 2*r.Float64()-1)
 	}
 
-	pt2 := ckks.NewPlaintext(params, params.MaxLevel())
+	pt2 := float.NewPlaintext(params, params.MaxLevel())
 
 	// ===========================
 	// Managing the Scaling Factor
@@ -257,7 +258,8 @@ func main() {
 	//
 	// Before going further and showcasing the capabilities of the evaluator, we must talk
 	// about the maintenance of the scaling factor.
-	// This is a very central topic, especially for the full-RNS variant of the CKKS scheme.
+	// This is a very central topic, especially for the full-RNS variant of fixed-point
+	// approximate homomorphic encryption over the reals/complexes.
 	// Messages are encoded on integer polynomials, and thus to keep the precision real
 	// coefficients need to be scaled before being discretized to integers.
 	// When two messages are multiplied together, the scaling factor of the resulting message
@@ -285,7 +287,7 @@ func main() {
 	fmt.Printf("========\n")
 	fmt.Printf("\n")
 	// Additions are often seen as a trivial operation.
-	// However in the case of the full-RNS variant of the CKKS scheme we have to be careful.
+	// However in the case of the full-RNS implementation we have to be careful.
 	// Indeed, we must ensure that when adding two ciphertexts, those ciphertexts have the same exact scale,
 	// else an error proportional to the difference of the scale will be introduced.
 	//
@@ -326,14 +328,14 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Addition - ct + ct%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
+	fmt.Printf("Addition - ct + ct%s", float.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
 
 	// ciphertext + plaintext
 	ct3, err = eval.AddNew(ct1, pt2)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Addition - ct + pt%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
+	fmt.Printf("Addition - ct + pt%s", float.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
 
 	// ciphertext + vector
 	// Note that the evaluator will encode this vector at the scale of the input ciphertext to ensure a noiseless addition.
@@ -341,7 +343,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Addition - ct + vector%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
+	fmt.Printf("Addition - ct + vector%s", float.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
 
 	// ciphertext + scalar
 	scalar := 3.141592653589793 + 1.4142135623730951i
@@ -354,7 +356,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Addition - ct + scalar%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
+	fmt.Printf("Addition - ct + scalar%s", float.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
 
 	fmt.Printf("==============\n")
 	fmt.Printf("MULTIPLICATION\n")
@@ -418,14 +420,14 @@ func main() {
 	// For the sake of conciseness, we will not rescale the output for the other multiplication example.
 	// But this maintenance operation should usually be called (either before of after the multiplication depending on the choice of noise management)
 	// to control the magnitude of the plaintext scale.
-	fmt.Printf("Multiplication - ct * ct%s", ckks.GetPrecisionStats(params, ecd, dec, want, res, 0, false).String())
+	fmt.Printf("Multiplication - ct * ct%s", float.GetPrecisionStats(params, ecd, dec, want, res, 0, false).String())
 
 	// ciphertext + plaintext
 	ct3, err = eval.MulRelinNew(ct1, pt2)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Multiplication - ct * pt%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
+	fmt.Printf("Multiplication - ct * pt%s", float.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
 
 	// ciphertext + vector
 	// Note that when giving non-encoded vectors, the evaluator will internally encode this vector with the appropriate scale that ensure that
@@ -434,7 +436,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Multiplication - ct * vector%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
+	fmt.Printf("Multiplication - ct * vector%s", float.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
 
 	// ciphertext + scalar (scalar = pi + sqrt(2) * i)
 	for i := 0; i < Slots; i++ {
@@ -448,7 +450,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Multiplication - ct * scalar%s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
+	fmt.Printf("Multiplication - ct * scalar%s", float.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
 
 	fmt.Printf("======================\n")
 	fmt.Printf("ROTATION & CONJUGATION\n")
@@ -466,12 +468,9 @@ func main() {
 	// This corresponds to the following values for k which we call "galois elements":
 	rot := 5
 	galEls := []uint64{
-		//the galois element for the cyclic rotations by 5 positions to the left.
+		// The galois element for the cyclic rotations by 5 positions to the left.
 		params.GaloisElement(rot),
-		// the galois element for the complex conjugate (The CKKS scheme actually encrypts 2xN/2 values, so the conjugate operation can be seen
-		// as a rotation between the row which contains the real part and that which contains the complex part of the complex values).
-		// The reason for this name is that the `ckks` package does not yet have a wrapper for this method which comes from the `rlwe` package.
-		// The name of this method comes from the BFV/BGV schemes, which have plaintext spaces of Z_{2xN/2}, i.e. a matrix of 2 rows and N/2 columns.
+		// The galois element for the complex conjugatation.
 		params.GaloisElementForComplexConjugation(),
 	}
 
@@ -488,7 +487,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Rotation by k=%d %s", rot, ckks.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
+	fmt.Printf("Rotation by k=%d %s", rot, float.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
 
 	// Conjugation
 	for i := 0; i < Slots; i++ {
@@ -499,7 +498,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Conjugation %s", ckks.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
+	fmt.Printf("Conjugation %s", float.GetPrecisionStats(params, ecd, dec, want, ct3, 0, false).String())
 
 	// Note that rotations and conjugation only add a fixed additive noise independent of the ciphertext noise.
 	// If the parameters are set correctly, this noise can be rounding error (thus negligible).
@@ -574,20 +573,20 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Printf("Polynomial Evaluation %s", ckks.GetPrecisionStats(params, ecd, dec, want, res, 0, false).String())
+	fmt.Printf("Polynomial Evaluation %s", float.GetPrecisionStats(params, ecd, dec, want, res, 0, false).String())
 
 	// =============================
 	// Vector Polynomials Evaluation
 	// =============================
 	//
-	// See `examples/ckks/polyeval`
+	// See `examples/hefloat/polyeval`
 
 	fmt.Printf("======================\n")
 	fmt.Printf("LINEAR TRANSFORMATIONS\n")
 	fmt.Printf("======================\n")
 	fmt.Printf("\n")
 
-	// The `ckks` package provides a multiple handy linear transformations.
+	// The `he/float` package provides a multiple handy linear transformations.
 	// We will start with the inner sum.
 	// Thus method allows to aggregate `n` sub-vectors of size `batch`.
 	// For example given a vector [x0, x1, x2, x3, x4, x5, x6, x7], batch = 2 and n = 3
@@ -616,7 +615,7 @@ func main() {
 	// Note that this method can obviously be used to average values.
 	// For a good noise management, it is recommended to first multiply the values by 1/n, then
 	// apply the innersum and then only apply the rescaling.
-	fmt.Printf("Innersum %s", ckks.GetPrecisionStats(params, ecd, dec, want, res, 0, false).String())
+	fmt.Printf("Innersum %s", float.GetPrecisionStats(params, ecd, dec, want, res, 0, false).String())
 
 	// The replicate operation is exactly the same as the innersum operation, but in reverse
 	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, kgen.GenGaloisKeysNew(params.GaloisElementsForReplicate(batch, n), sk)...))
@@ -633,7 +632,7 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Printf("Replicate %s", ckks.GetPrecisionStats(params, ecd, dec, want, res, 0, false).String())
+	fmt.Printf("Replicate %s", float.GetPrecisionStats(params, ecd, dec, want, res, 0, false).String())
 
 	// And we arrive to the linear transformation.
 	// This method enables to evaluate arbitrary Slots x Slots matrices on a ciphertext.
@@ -713,19 +712,19 @@ func main() {
 	// We evaluate the same circuit in plaintext
 	want = EvaluateLinearTransform(values1, diagonals)
 
-	fmt.Printf("vector x matrix %s", ckks.GetPrecisionStats(params, ecd, dec, want, res, 0, false).String())
+	fmt.Printf("vector x matrix %s", float.GetPrecisionStats(params, ecd, dec, want, res, 0, false).String())
 
 	// =============================
 	// Homomorphic Encoding/Decoding
 	// =============================
 	//
-	// See `examples/ckks/advanced/lut`
+	// See `examples/hefloat/advanced/lut`
 
 	// ============
 	// Bootstrapping
 	// ============
 	//
-	// See `examples/ckks/bootstrapping`
+	// See `examples/hefloat/bootstrapping`
 
 	// ==========
 	// CONCURRENCY

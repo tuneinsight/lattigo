@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/he/float"
 	"github.com/tuneinsight/lattigo/v4/he/float/bootstrapper"
 	"github.com/tuneinsight/lattigo/v4/ring"
@@ -26,11 +25,11 @@ func TestInverse(t *testing.T) {
 			paramsLiteral.LogN = 10
 		}
 
-		params, err := ckks.NewParametersFromLiteral(paramsLiteral)
+		params, err := float.NewParametersFromLiteral(paramsLiteral)
 		require.NoError(t, err)
 
-		var tc *ckksTestContext
-		if tc, err = genCKKSTestParams(params); err != nil {
+		var tc *testContext
+		if tc, err = genTestParams(params); err != nil {
 			t.Fatal(err)
 		}
 
@@ -62,7 +61,7 @@ func TestInverse(t *testing.T) {
 
 		t.Run(GetTestName(params, "GoldschmidtDivisionNew"), func(t *testing.T) {
 
-			values, _, ciphertext := newCKKSTestVectors(tc, tc.encryptorSk, complex(min, 0), complex(2-min, 0), t)
+			values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, complex(min, 0), complex(2-min, 0), t)
 
 			one := new(big.Float).SetInt64(1)
 			for i := range values {
@@ -76,12 +75,12 @@ func TestInverse(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			ckks.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, 70, 0, *printPrecisionStats, t)
+			float.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, 70, 0, *printPrecisionStats, t)
 		})
 
 		t.Run(GetTestName(params, "PositiveDomain"), func(t *testing.T) {
 
-			values, _, ct := newCKKSTestVectors(tc, enc, complex(0, 0), complex(max, 0), t)
+			values, _, ct := newTestVectors(tc, enc, complex(0, 0), complex(max, 0), t)
 
 			invEval := float.NewInverseEvaluator(params, eval, btp)
 
@@ -103,12 +102,12 @@ func TestInverse(t *testing.T) {
 				}
 			}
 
-			ckks.VerifyTestVectors(params, tc.encoder, nil, want, have, 70, 0, *printPrecisionStats, t)
+			float.VerifyTestVectors(params, tc.encoder, nil, want, have, 70, 0, *printPrecisionStats, t)
 		})
 
 		t.Run(GetTestName(params, "NegativeDomain"), func(t *testing.T) {
 
-			values, _, ct := newCKKSTestVectors(tc, enc, complex(-max, 0), complex(0, 0), t)
+			values, _, ct := newTestVectors(tc, enc, complex(-max, 0), complex(0, 0), t)
 
 			invEval := float.NewInverseEvaluator(params, eval, btp)
 
@@ -130,12 +129,12 @@ func TestInverse(t *testing.T) {
 				}
 			}
 
-			ckks.VerifyTestVectors(params, tc.encoder, nil, want, have, 70, 0, *printPrecisionStats, t)
+			float.VerifyTestVectors(params, tc.encoder, nil, want, have, 70, 0, *printPrecisionStats, t)
 		})
 
 		t.Run(GetTestName(params, "FullDomain"), func(t *testing.T) {
 
-			values, _, ct := newCKKSTestVectors(tc, enc, complex(-max, 0), complex(max, 0), t)
+			values, _, ct := newTestVectors(tc, enc, complex(-max, 0), complex(max, 0), t)
 
 			invEval := float.NewInverseEvaluator(params, eval, btp)
 
@@ -157,7 +156,7 @@ func TestInverse(t *testing.T) {
 				}
 			}
 
-			ckks.VerifyTestVectors(params, tc.encoder, nil, want, have, 70, 0, *printPrecisionStats, t)
+			float.VerifyTestVectors(params, tc.encoder, nil, want, have, 70, 0, *printPrecisionStats, t)
 		})
 	}
 }

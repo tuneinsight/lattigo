@@ -10,15 +10,13 @@ import (
 // types in addition to ciphertexts types in the rlwe package.
 type Encryptor struct {
 	*rlwe.Encryptor
-
-	params rlwe.Parameters
 	buffQP ringqp.Poly
 }
 
 // NewEncryptor creates a new Encryptor type. Note that only secret-key encryption is
 // supported at the moment.
-func NewEncryptor(params rlwe.Parameters, key rlwe.EncryptionKey) *Encryptor {
-	return &Encryptor{rlwe.NewEncryptor(params, key), params, params.RingQP().NewPoly()}
+func NewEncryptor(params rlwe.ParameterProvider, key rlwe.EncryptionKey) *Encryptor {
+	return &Encryptor{rlwe.NewEncryptor(params, key), params.GetRLWEParameters().RingQP().NewPoly()}
 }
 
 // Encrypt encrypts a plaintext pt into a ciphertext ct, which can be a rgsw.Ciphertext
@@ -35,8 +33,10 @@ func (enc Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) (err error) {
 		return
 	}
 
+	params := enc.GetRLWEParameters()
+
 	levelQ := rgswCt.LevelQ()
-	ringQ := enc.params.RingQ().AtLevel(levelQ)
+	ringQ := params.RingQ().AtLevel(levelQ)
 
 	if pt != nil {
 
@@ -58,7 +58,7 @@ func (enc Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) (err error) {
 		if err := rlwe.AddPolyTimesGadgetVectorToGadgetCiphertext(
 			enc.buffQP.Q,
 			[]rlwe.GadgetCiphertext{rgswCt.Value[0], rgswCt.Value[1]},
-			*enc.params.RingQP(),
+			*params.RingQP(),
 			enc.buffQP.Q); err != nil {
 			// Sanity check, this error should not happen.
 			panic(err)
@@ -103,5 +103,5 @@ func (enc Encryptor) EncryptZero(ct interface{}) (err error) {
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Encryptors can be used concurrently.
 func (enc Encryptor) ShallowCopy() *Encryptor {
-	return &Encryptor{Encryptor: enc.Encryptor.ShallowCopy(), params: enc.params, buffQP: enc.params.RingQP().NewPoly()}
+	return &Encryptor{Encryptor: enc.Encryptor.ShallowCopy(), buffQP: enc.GetRLWEParameters().RingQP().NewPoly()}
 }

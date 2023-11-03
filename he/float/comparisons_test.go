@@ -4,7 +4,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/he/float"
 	"github.com/tuneinsight/lattigo/v4/he/float/bootstrapper"
 	"github.com/tuneinsight/lattigo/v4/ring"
@@ -25,11 +24,11 @@ func TestComparisons(t *testing.T) {
 			paramsLiteral.LogN = 10
 		}
 
-		params, err := ckks.NewParametersFromLiteral(paramsLiteral)
+		params, err := float.NewParametersFromLiteral(paramsLiteral)
 		require.NoError(t, err)
 
-		var tc *ckksTestContext
-		if tc, err = genCKKSTestParams(params); err != nil {
+		var tc *testContext
+		if tc, err = genTestParams(params); err != nil {
 			t.Fatal(err)
 		}
 
@@ -54,7 +53,7 @@ func TestComparisons(t *testing.T) {
 
 		t.Run(GetTestName(params, "Sign"), func(t *testing.T) {
 
-			values, _, ct := newCKKSTestVectors(tc, enc, complex(-1, 0), complex(1, 0), t)
+			values, _, ct := newTestVectors(tc, enc, complex(-1, 0), complex(1, 0), t)
 
 			var sign *rlwe.Ciphertext
 			sign, err = CmpEval.Sign(ct)
@@ -70,12 +69,12 @@ func TestComparisons(t *testing.T) {
 				want[i] = polys.Evaluate(values[i])[0]
 			}
 
-			ckks.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+			float.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 		})
 
 		t.Run(GetTestName(params, "Step"), func(t *testing.T) {
 
-			values, _, ct := newCKKSTestVectors(tc, enc, complex(-1, 0), complex(1, 0), t)
+			values, _, ct := newTestVectors(tc, enc, complex(-1, 0), complex(1, 0), t)
 
 			var step *rlwe.Ciphertext
 			step, err = CmpEval.Step(ct)
@@ -95,13 +94,13 @@ func TestComparisons(t *testing.T) {
 				want[i].Add(want[i], half)
 			}
 
-			ckks.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+			float.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 		})
 
 		t.Run(GetTestName(params, "Max"), func(t *testing.T) {
 
-			values0, _, ct0 := newCKKSTestVectors(tc, enc, complex(-0.5, 0), complex(0.5, 0), t)
-			values1, _, ct1 := newCKKSTestVectors(tc, enc, complex(-0.5, 0), complex(0.5, 0), t)
+			values0, _, ct0 := newTestVectors(tc, enc, complex(-0.5, 0), complex(0.5, 0), t)
+			values1, _, ct1 := newTestVectors(tc, enc, complex(-0.5, 0), complex(0.5, 0), t)
 
 			var max *rlwe.Ciphertext
 			max, err = CmpEval.Max(ct0, ct1)
@@ -122,13 +121,13 @@ func TestComparisons(t *testing.T) {
 				}
 			}
 
-			ckks.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+			float.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 		})
 
 		t.Run(GetTestName(params, "Min"), func(t *testing.T) {
 
-			values0, _, ct0 := newCKKSTestVectors(tc, enc, complex(-0.5, 0), complex(0.5, 0), t)
-			values1, _, ct1 := newCKKSTestVectors(tc, enc, complex(-0.5, 0), complex(0.5, 0), t)
+			values0, _, ct0 := newTestVectors(tc, enc, complex(-0.5, 0), complex(0.5, 0), t)
+			values1, _, ct1 := newTestVectors(tc, enc, complex(-0.5, 0), complex(0.5, 0), t)
 
 			var max *rlwe.Ciphertext
 			max, err = CmpEval.Min(ct0, ct1)
@@ -149,7 +148,7 @@ func TestComparisons(t *testing.T) {
 				}
 			}
 
-			ckks.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+			float.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 		})
 	}
 }

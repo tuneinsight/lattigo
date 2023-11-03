@@ -1,7 +1,7 @@
 package bootstrapper
 
 import (
-	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/he/float"
 	"github.com/tuneinsight/lattigo/v4/he/float/bootstrapper/bootstrapping"
 )
 
@@ -13,21 +13,21 @@ type ParametersLiteral bootstrapping.ParametersLiteral
 // See bootstrapping.Parameters for additional information.
 type Parameters struct {
 	bootstrapping.Parameters
-	ResidualParameters ckks.Parameters
+	ResidualParameters float.Parameters
 }
 
 // NewParametersFromLiteral is a wrapper of bootstrapping.NewParametersFromLiteral.
 // See bootstrapping.NewParametersFromLiteral for additional information.
 //
 // >>>>>>>!WARNING!<<<<<<<
-// The bootstrapping parameters use their own and independent cryptographic parameters (i.e. ckks.Parameters)
+// The bootstrapping parameters use their own and independent cryptographic parameters (i.e. float.Parameters)
 // which are instantiated based on the option specified in `paramsBootstrapping` (and the default values of
 // bootstrapping.Parameters).
 // It is the user's responsibility to ensure that these scheme parameters meet the target security and to tweak them
 // if necessary.
 // It is possible to access information about these cryptographic parameters directly through the
-// instantiated bootstrapper.Parameters struct which supports and API an identical to the ckks.Parameters.
-func NewParametersFromLiteral(paramsResidual ckks.Parameters, paramsBootstrapping ParametersLiteral) (Parameters, error) {
+// instantiated bootstrapper.Parameters struct which supports and API an identical to the float.Parameters.
+func NewParametersFromLiteral(paramsResidual float.Parameters, paramsBootstrapping ParametersLiteral) (Parameters, error) {
 	params, err := bootstrapping.NewParametersFromLiteral(paramsResidual, bootstrapping.ParametersLiteral(paramsBootstrapping))
 	return Parameters{
 		Parameters:         params,

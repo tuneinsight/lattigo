@@ -3,7 +3,6 @@ package float
 import (
 	"fmt"
 
-	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -21,13 +20,13 @@ type MinimaxCompositePolynomialEvaluator struct {
 	EvaluatorForMinimaxCompositePolynomial
 	PolynomialEvaluator
 	he.Bootstrapper[rlwe.Ciphertext]
-	Parameters ckks.Parameters
+	Parameters Parameters
 }
 
 // NewMinimaxCompositePolynomialEvaluator instantiates a new MinimaxCompositePolynomialEvaluator.
-// The default ckks.Evaluator is compliant to the EvaluatorForMinimaxCompositePolynomial interface.
+// The default float.Evaluator is compliant to the EvaluatorForMinimaxCompositePolynomial interface.
 // This method is allocation free.
-func NewMinimaxCompositePolynomialEvaluator(params ckks.Parameters, eval EvaluatorForMinimaxCompositePolynomial, bootstrapper he.Bootstrapper[rlwe.Ciphertext]) *MinimaxCompositePolynomialEvaluator {
+func NewMinimaxCompositePolynomialEvaluator(params Parameters, eval EvaluatorForMinimaxCompositePolynomial, bootstrapper he.Bootstrapper[rlwe.Ciphertext]) *MinimaxCompositePolynomialEvaluator {
 	return &MinimaxCompositePolynomialEvaluator{eval, *NewPolynomialEvaluator(params, eval), bootstrapper, params}
 }
 

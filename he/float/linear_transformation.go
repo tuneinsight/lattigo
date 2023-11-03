@@ -1,7 +1,6 @@
 package float
 
 import (
-	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -9,7 +8,7 @@ import (
 )
 
 type floatEncoder[T Float, U ring.Poly | ringqp.Poly | *rlwe.Plaintext] struct {
-	*ckks.Encoder
+	*Encoder
 }
 
 func (e floatEncoder[T, U]) Encode(values []T, metadata *rlwe.MetaData, output U) (err error) {
@@ -47,7 +46,7 @@ func NewLinearTransformation(params rlwe.ParameterProvider, lt LinearTransformat
 
 // EncodeLinearTransformation is a method used to encode EncodeLinearTransformation and a wrapper of he.EncodeLinearTransformation.
 // See he.EncodeLinearTransformation for the documentation.
-func EncodeLinearTransformation[T Float](ecd *ckks.Encoder, diagonals Diagonals[T], allocated LinearTransformation) (err error) {
+func EncodeLinearTransformation[T Float](ecd *Encoder, diagonals Diagonals[T], allocated LinearTransformation) (err error) {
 	return he.EncodeLinearTransformation[T](
 		&floatEncoder[T, ringqp.Poly]{ecd},
 		he.Diagonals[T](diagonals),
@@ -67,7 +66,7 @@ type LinearTransformationEvaluator struct {
 }
 
 // NewLinearTransformationEvaluator instantiates a new LinearTransformationEvaluator from a circuit.EvaluatorForLinearTransformation.
-// The default ckks.Evaluator is compliant to the he.EvaluatorForLinearTransformation interface.
+// The default float.Evaluator is compliant to the he.EvaluatorForLinearTransformation interface.
 // This method is allocation free.
 func NewLinearTransformationEvaluator(eval he.EvaluatorForLinearTransformation) (linTransEval *LinearTransformationEvaluator) {
 	return &LinearTransformationEvaluator{

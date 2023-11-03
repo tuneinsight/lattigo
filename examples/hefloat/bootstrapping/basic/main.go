@@ -1,4 +1,4 @@
-// Package main implements an example showcasing the basics of the bootstrapping for encrypted floating point numbers (CKKS).
+// Package main implements an example showcasing the basics of the bootstrapping for fixed-point approximate arithmetic over the reals/complexes.
 // The bootstrapping is a circuit that homomorphically re-encrypts a ciphertext at level zero to a ciphertext at a higher level, enabling further computations.
 // Note that, unlike other bootstrappings (BGV/BFV/TFHE), the this bootstrapping does not reduce the error in the ciphertext, but only enables further computations.
 // This example shows how to bootstrap a single ciphertext whose ring degree is the same as the one of the bootstrapping parameters.
@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/he/float"
 	"github.com/tuneinsight/lattigo/v4/he/float/bootstrapper"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -40,7 +40,7 @@ func main() {
 	// The residual parameters are the parameters used outside of the bootstrapping circuit.
 	// For this example, we have a LogN=16, logQ = 55 + 10*40 and logP = 3*61, so LogQP = 638.
 	// With LogN=16, LogQP=638 and H=192, these parameters achieve well over 128-bit of security.
-	params, err := ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
+	params, err := float.NewParametersFromLiteral(float.ParametersLiteral{
 		LogN:            LogN,                                              // Log2 of the ringdegree
 		LogQ:            []int{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40}, // Log2 of the ciphertext prime moduli
 		LogP:            []int{61, 61, 61},                                 // Log2 of the key-switch auxiliary prime moduli
@@ -59,7 +59,7 @@ func main() {
 	// The bootstrapping circuit use its own Parameters which will be automatically
 	// instantiated given the residual parameters and the bootstrapping parameters.
 
-	// !WARNING! The bootstrapping ckks parameters are not ensure to be 128-bit secure, it is the
+	// !WARNING! The bootstrapping parameters are not ensure to be 128-bit secure, it is the
 	// responsibility of the user to check that the meet the security requirement and tweak them if necessary.
 
 	// Note that the default bootstrapping parameters use LogN=16 and a ternary secret with H=192 non-zero coefficients
@@ -89,10 +89,10 @@ func main() {
 
 	// Now that the residual parameters and the bootstrapping parameters literals are defined, we can instantiate
 	// the bootstrapping parameters.
-	// The instantiated bootstrapping parameters store their own ckks.Parameter, which are the parameters of the
+	// The instantiated bootstrapping parameters store their own float.Parameter, which are the parameters of the
 	// ring used by the bootstrapping circuit.
-	// The bootstrapping parameters are a wrapper of ckks.Parameters, with additional information.
-	// They therefore has the same API as the ckks.Parameters and we can use this API to print some information.
+	// The bootstrapping parameters are a wrapper of float.Parameters, with additional information.
+	// They therefore has the same API as the float.Parameters and we can use this API to print some information.
 	btpParams, err := bootstrapper.NewParametersFromLiteral(params, btpParametersLit)
 	if err != nil {
 		panic(err)
@@ -133,13 +133,13 @@ func main() {
 	// instantiate the usual necessary object to encode, encrypt and decrypt.
 
 	// Scheme context and keys
-	kgen := ckks.NewKeyGenerator(params)
+	kgen := rlwe.NewKeyGenerator(params)
 
 	sk, pk := kgen.GenKeyPairNew()
 
-	encoder := ckks.NewEncoder(params)
-	decryptor := ckks.NewDecryptor(params, sk)
-	encryptor := ckks.NewEncryptor(params, pk)
+	encoder := float.NewEncoder(params)
+	decryptor := rlwe.NewDecryptor(params, sk)
+	encryptor := rlwe.NewEncryptor(params, pk)
 
 	fmt.Println()
 	fmt.Println("Generating bootstrapping keys...")
@@ -166,7 +166,7 @@ func main() {
 	}
 
 	// We encrypt at level 0
-	plaintext := ckks.NewPlaintext(params, 0)
+	plaintext := float.NewPlaintext(params, 0)
 	if err := encoder.Encode(valuesWant, plaintext); err != nil {
 		panic(err)
 	}
@@ -184,7 +184,7 @@ func main() {
 
 	// Bootstrap the ciphertext (homomorphic re-encryption)
 	// It takes a ciphertext at level 0 (if not at level 0, then it will reduce it to level 0)
-	// and returns a ciphertext with the max level of `ckksParamsResidualLit`.
+	// and returns a ciphertext with the max level of `floatParamsResidualLit`.
 	// CAUTION: the scale of the ciphertext MUST be equal (or very close) to params.DefaultScale()
 	// To equalize the scale, the function evaluator.SetScale(ciphertext, parameters.DefaultScale()) can be used at the expense of one level.
 	// If the ciphertext is is at level one or greater when given to the bootstrapper, this equalization is automatically done.
@@ -205,7 +205,7 @@ func main() {
 	printDebug(params, ciphertext2, valuesTest1, decryptor, encoder)
 }
 
-func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []complex128, decryptor *rlwe.Decryptor, encoder *ckks.Encoder) (valuesTest []complex128) {
+func printDebug(params float.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []complex128, decryptor *rlwe.Decryptor, encoder *float.Encoder) (valuesTest []complex128) {
 
 	valuesTest = make([]complex128, ciphertext.Slots())
 
@@ -220,7 +220,7 @@ func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant 
 	fmt.Printf("ValuesTest: %6.10f %6.10f %6.10f %6.10f...\n", valuesTest[0], valuesTest[1], valuesTest[2], valuesTest[3])
 	fmt.Printf("ValuesWant: %6.10f %6.10f %6.10f %6.10f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
 
-	precStats := ckks.GetPrecisionStats(params, encoder, nil, valuesWant, valuesTest, 0, false)
+	precStats := float.GetPrecisionStats(params, encoder, nil, valuesWant, valuesTest, 0, false)
 
 	fmt.Println(precStats.String())
 	fmt.Println()

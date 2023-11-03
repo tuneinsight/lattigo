@@ -1,21 +1,21 @@
-// Package main is a template for the CKKS scheme with a set of example parameters, key generation, encoding, encryption, decryption and decoding.
+// Package main is a template encrypted arithmetic with floating point values, with a set of example parameters, key generation, encoding, encryption, decryption and decoding.
 package main
 
 import (
 	"fmt"
 	"math/rand"
 
-	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/he/float"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
 func main() {
 	var err error
-	var params ckks.Parameters
+	var params float.Parameters
 
 	// 128-bit secure parameters enabling depth-7 circuits.
-	if params, err = ckks.NewParametersFromLiteral(
-		ckks.ParametersLiteral{
+	if params, err = float.NewParametersFromLiteral(
+		float.ParametersLiteral{
 			LogN:            14,                                    // log2(ring degree)
 			LogQ:            []int{55, 45, 45, 45, 45, 45, 45, 45}, // log2(primes Q) (ciphertext modulus)
 			LogP:            []int{61},                             // log2(primes P) (auxiliary modulus)
@@ -25,19 +25,19 @@ func main() {
 	}
 
 	// Key Generator
-	kgen := ckks.NewKeyGenerator(params)
+	kgen := rlwe.NewKeyGenerator(params)
 
 	// Secret Key
 	sk := kgen.GenSecretKeyNew()
 
 	// Encoder
-	ecd := ckks.NewEncoder(params)
+	ecd := float.NewEncoder(params)
 
 	// Encryptor
-	enc := ckks.NewEncryptor(params, sk)
+	enc := rlwe.NewEncryptor(params, sk)
 
 	// Decryptor
-	dec := ckks.NewDecryptor(params, sk)
+	dec := rlwe.NewDecryptor(params, sk)
 
 	// Vector of plaintext values
 	values := make([]float64, params.MaxSlots())
@@ -55,7 +55,7 @@ func main() {
 	// Default rlwe.MetaData:
 	// - IsBatched = true (slots encoding)
 	// - Scale = params.DefaultScale()
-	pt := ckks.NewPlaintext(params, params.MaxLevel())
+	pt := float.NewPlaintext(params, params.MaxLevel())
 
 	// Encodes the vector of plaintext values
 	if err = ecd.Encode(values, pt); err != nil {
@@ -76,7 +76,7 @@ func main() {
 }
 
 // PrintPrecisionStats decrypts, decodes and prints the precision stats of a ciphertext.
-func PrintPrecisionStats(params ckks.Parameters, ct *rlwe.Ciphertext, want []float64, ecd *ckks.Encoder, dec *rlwe.Decryptor) {
+func PrintPrecisionStats(params float.Parameters, ct *rlwe.Ciphertext, want []float64, ecd *float.Encoder, dec *rlwe.Decryptor) {
 
 	var err error
 
@@ -103,5 +103,5 @@ func PrintPrecisionStats(params ckks.Parameters, ct *rlwe.Ciphertext, want []flo
 	fmt.Printf("...\n")
 
 	// Pretty prints the precision stats
-	fmt.Println(ckks.GetPrecisionStats(params, ecd, dec, have, want, 0, false).String())
+	fmt.Println(float.GetPrecisionStats(params, ecd, dec, have, want, 0, false).String())
 }

@@ -4,7 +4,6 @@ import (
 	"math/big"
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -17,7 +16,7 @@ import (
 // with dummy operands.
 // This struct implements the interface he.SimEvaluator.
 type simEvaluator struct {
-	params                     ckks.Parameters
+	params                     Parameters
 	levelsConsumedPerRescaling int
 }
 

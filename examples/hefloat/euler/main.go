@@ -6,7 +6,6 @@ import (
 	"math/cmplx"
 	"time"
 
-	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/he/float"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -19,8 +18,8 @@ func example() {
 	var err error
 
 	// Schemes parameters are created from scratch
-	params, err := ckks.NewParametersFromLiteral(
-		ckks.ParametersLiteral{
+	params, err := float.NewParametersFromLiteral(
+		float.ParametersLiteral{
 			LogN:            14,
 			LogQ:            []int{55, 40, 40, 40, 40, 40, 40, 40},
 			LogP:            []int{45, 45},
@@ -38,15 +37,15 @@ func example() {
 
 	start = time.Now()
 
-	kgen := ckks.NewKeyGenerator(params)
+	kgen := rlwe.NewKeyGenerator(params)
 
 	sk := kgen.GenSecretKeyNew()
 
-	encryptor := ckks.NewEncryptor(params, sk)
-	decryptor := ckks.NewDecryptor(params, sk)
-	encoder := ckks.NewEncoder(params)
+	encryptor := rlwe.NewEncryptor(params, sk)
+	decryptor := rlwe.NewDecryptor(params, sk)
+	encoder := float.NewEncoder(params)
 	evk := rlwe.NewMemEvaluationKeySet(kgen.GenRelinearizationKeyNew(sk))
-	evaluator := ckks.NewEvaluator(params, evk)
+	evaluator := float.NewEvaluator(params, evk)
 
 	fmt.Printf("Done in %s \n", time.Since(start))
 
@@ -54,7 +53,7 @@ func example() {
 	slots := 1 << logSlots
 
 	fmt.Println()
-	fmt.Printf("CKKS parameters: logN = %d, logSlots = %d, logQP = %f, levels = %d, scale= %f, noise = %T %v \n", params.LogN(), logSlots, params.LogQP(), params.MaxLevel()+1, params.DefaultScale().Float64(), params.Xe(), params.Xe())
+	fmt.Printf("Scheme parameters: logN = %d, logSlots = %d, logQP = %f, levels = %d, scale= %f, noise = %T %v \n", params.LogN(), logSlots, params.LogQP(), params.MaxLevel()+1, params.DefaultScale().Float64(), params.Xe(), params.Xe())
 
 	fmt.Println()
 	fmt.Println("=========================================")
@@ -73,7 +72,7 @@ func example() {
 		values[i] = complex(2*pi, 0)
 	}
 
-	plaintext := ckks.NewPlaintext(params, params.MaxLevel())
+	plaintext := float.NewPlaintext(params, params.MaxLevel())
 	plaintext.Scale = plaintext.Scale.Div(rlwe.NewScale(r))
 	if err := encoder.Encode(values, plaintext); err != nil {
 		panic(err)
@@ -208,7 +207,7 @@ func example() {
 
 }
 
-func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []complex128, decryptor *rlwe.Decryptor, encoder *ckks.Encoder) (valuesTest []complex128) {
+func printDebug(params float.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []complex128, decryptor *rlwe.Decryptor, encoder *float.Encoder) (valuesTest []complex128) {
 
 	valuesTest = make([]complex128, ciphertext.Slots())
 
@@ -223,7 +222,7 @@ func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant 
 	fmt.Printf("ValuesWant: %6.10f %6.10f %6.10f %6.10f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
 	fmt.Println()
 
-	precStats := ckks.GetPrecisionStats(params, encoder, nil, valuesWant, valuesTest, 0, false)
+	precStats := float.GetPrecisionStats(params, encoder, nil, valuesWant, valuesTest, 0, false)
 
 	fmt.Println(precStats.String())
 

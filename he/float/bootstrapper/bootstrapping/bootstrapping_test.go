@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/he/float"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -19,7 +19,7 @@ var minPrec float64 = 12.0
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure bootstrapping). Overrides -short and requires -timeout=0.")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 
-func ParamsToString(params ckks.Parameters, LogSlots int, opname string) string {
+func ParamsToString(params float.Parameters, LogSlots int, opname string) string {
 	return fmt.Sprintf("%slogN=%d/LogSlots=%d/logQP=%f/levels=%d/a=%d/b=%d",
 		opname,
 		params.LogN(),
@@ -57,7 +57,7 @@ func TestBootstrapParametersMarshalling(t *testing.T) {
 	t.Run("Parameters", func(t *testing.T) {
 		paramSet := DefaultParametersSparse[0]
 
-		params, err := ckks.NewParametersFromLiteral(paramSet.SchemeParams)
+		params, err := float.NewParametersFromLiteral(paramSet.SchemeParams)
 		require.Nil(t, err)
 
 		btpParams, err := NewParametersFromLiteral(params, paramSet.BootstrappingParams)
@@ -97,7 +97,7 @@ func TestBootstrappingWithEncapsulation(t *testing.T) {
 
 		paramsSetCpy.BootstrappingParams.LogSlots = &LogSlots
 
-		params, err := ckks.NewParametersFromLiteral(paramsSetCpy.SchemeParams)
+		params, err := float.NewParametersFromLiteral(paramsSetCpy.SchemeParams)
 		require.NoError(t, err)
 
 		btpParams, err := NewParametersFromLiteral(params, paramsSetCpy.BootstrappingParams)
@@ -140,7 +140,7 @@ func TestBootstrappingOriginal(t *testing.T) {
 
 		paramsSetCpy.BootstrappingParams.LogSlots = &LogSlots
 
-		params, err := ckks.NewParametersFromLiteral(paramsSetCpy.SchemeParams)
+		params, err := float.NewParametersFromLiteral(paramsSetCpy.SchemeParams)
 		require.NoError(t, err)
 
 		btpParams, err := NewParametersFromLiteral(params, paramsSetCpy.BootstrappingParams)
@@ -159,16 +159,16 @@ func TestBootstrappingOriginal(t *testing.T) {
 	testBootstrapHighPrecision(paramSet, t)
 }
 
-func testbootstrap(params ckks.Parameters, btpParams Parameters, level int, t *testing.T) {
+func testbootstrap(params float.Parameters, btpParams Parameters, level int, t *testing.T) {
 
 	t.Run(ParamsToString(params, btpParams.LogMaxSlots(), ""), func(t *testing.T) {
 
-		kgen := ckks.NewKeyGenerator(btpParams.Parameters)
+		kgen := rlwe.NewKeyGenerator(btpParams.Parameters)
 		sk := kgen.GenSecretKeyNew()
-		encoder := ckks.NewEncoder(params)
+		encoder := float.NewEncoder(params)
 
-		encryptor := ckks.NewEncryptor(params, sk)
-		decryptor := ckks.NewDecryptor(params, sk)
+		encryptor := rlwe.NewEncryptor(params, sk)
+		decryptor := rlwe.NewDecryptor(params, sk)
 
 		evk := btpParams.GenEvaluationKeySetNew(sk)
 
@@ -188,7 +188,7 @@ func testbootstrap(params ckks.Parameters, btpParams Parameters, level int, t *t
 			values[3] = complex(0.9238795325112867, 0.3826834323650898)
 		}
 
-		plaintext := ckks.NewPlaintext(params, 0)
+		plaintext := float.NewPlaintext(params, 0)
 		plaintext.Scale = params.DefaultScale()
 		plaintext.LogDimensions = btpParams.LogMaxDimensions()
 		encoder.Encode(values, plaintext)
@@ -241,7 +241,7 @@ func testBootstrapHighPrecision(paramSet defaultParametersLiteral, t *testing.T)
 			ReservedPrimeBitSize:   28,
 		}
 
-		params, err := ckks.NewParametersFromLiteral(paramSet.SchemeParams)
+		params, err := float.NewParametersFromLiteral(paramSet.SchemeParams)
 		if err != nil {
 			panic(err)
 		}
@@ -260,11 +260,11 @@ func testBootstrapHighPrecision(paramSet defaultParametersLiteral, t *testing.T)
 
 		t.Run(ParamsToString(params, btpParams.LogMaxSlots(), ""), func(t *testing.T) {
 
-			kgen := ckks.NewKeyGenerator(btpParams.Parameters)
+			kgen := rlwe.NewKeyGenerator(btpParams.Parameters)
 			sk := kgen.GenSecretKeyNew()
-			encoder := ckks.NewEncoder(params, 164)
-			encryptor := ckks.NewEncryptor(params, sk)
-			decryptor := ckks.NewDecryptor(params, sk)
+			encoder := float.NewEncoder(params, 164)
+			encryptor := rlwe.NewEncryptor(params, sk)
+			decryptor := rlwe.NewDecryptor(params, sk)
 
 			evk := btpParams.GenEvaluationKeySetNew(sk)
 
@@ -284,7 +284,7 @@ func testBootstrapHighPrecision(paramSet defaultParametersLiteral, t *testing.T)
 				values[3] = complex(0.9238795325112867, 0.3826834323650898)
 			}
 
-			plaintext := ckks.NewPlaintext(params, level-1)
+			plaintext := float.NewPlaintext(params, level-1)
 			plaintext.Scale = params.DefaultScale()
 			for i := 0; i < plaintext.Level(); i++ {
 				plaintext.Scale = plaintext.Scale.Mul(rlwe.NewScale(1 << 40))
@@ -308,8 +308,8 @@ func testBootstrapHighPrecision(paramSet defaultParametersLiteral, t *testing.T)
 	})
 }
 
-func verifyTestVectors(params ckks.Parameters, encoder *ckks.Encoder, decryptor *rlwe.Decryptor, valuesWant, valuesHave interface{}, t *testing.T) {
-	precStats := ckks.GetPrecisionStats(params, encoder, decryptor, valuesWant, valuesHave, 0, false)
+func verifyTestVectors(params float.Parameters, encoder *float.Encoder, decryptor *rlwe.Decryptor, valuesWant, valuesHave interface{}, t *testing.T) {
+	precStats := float.GetPrecisionStats(params, encoder, decryptor, valuesWant, valuesHave, 0, false)
 	if *printPrecisionStats {
 		t.Log(precStats.String())
 	}

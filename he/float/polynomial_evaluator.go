@@ -3,7 +3,6 @@ package float
 import (
 	"fmt"
 
-	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
@@ -12,7 +11,7 @@ import (
 // PolynomialEvaluator is a wrapper of the he.PolynomialEvaluator.
 // All fields of this struct are public, enabling custom instantiations.
 type PolynomialEvaluator struct {
-	Parameters ckks.Parameters
+	Parameters Parameters
 	he.EvaluatorForPolynomial
 }
 
@@ -25,9 +24,9 @@ func NewPowerBasis(ct *rlwe.Ciphertext, basis bignum.Basis) he.PowerBasis {
 }
 
 // NewPolynomialEvaluator instantiates a new PolynomialEvaluator from a circuit.Evaluator.
-// The default *ckks.Evaluator is compliant to the circuit.Evaluator interface.
+// The default *float.Evaluator is compliant to the circuit.Evaluator interface.
 // This method is allocation free.
-func NewPolynomialEvaluator(params ckks.Parameters, eval he.Evaluator) *PolynomialEvaluator {
+func NewPolynomialEvaluator(params Parameters, eval he.Evaluator) *PolynomialEvaluator {
 	return &PolynomialEvaluator{
 		Parameters:             params,
 		EvaluatorForPolynomial: &defaultCircuitEvaluatorForPolynomial{Evaluator: eval},

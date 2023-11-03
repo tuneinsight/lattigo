@@ -32,6 +32,11 @@ func NewDecryptor(params ParameterProvider, sk *SecretKey) *Decryptor {
 	}
 }
 
+// GetRLWEParameters returns the underlying rlwe.Parameters.
+func (d Decryptor) GetRLWEParameters() *Parameters {
+	return &d.params
+}
+
 // DecryptNew decrypts the Ciphertext and returns the result in a new Plaintext.
 // Output pt MetaData will match the input ct MetaData.
 func (d Decryptor) DecryptNew(ct *Ciphertext) (pt *Plaintext) {

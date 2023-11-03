@@ -102,7 +102,7 @@ func testUserDefinedParameters(t *testing.T) {
 	t.Run("Parameters/UnmarshalJSON", func(t *testing.T) {
 
 		var err error
-		// checks that ckks.Parameters can be unmarshalled with log-moduli definition without error
+		// checks that Parameters can be unmarshalled with log-moduli definition without error
 		dataWithLogModuli := []byte(`{"LogN":13,"LogQ":[50,50],"LogP":[60]}`)
 		var paramsWithLogModuli Parameters
 		err = json.Unmarshal(dataWithLogModuli, &paramsWithLogModuli)
@@ -113,7 +113,7 @@ func testUserDefinedParameters(t *testing.T) {
 		require.True(t, paramsWithLogModuli.Xe() == DefaultXe)          // Omitting Xe should result in Default being used
 		require.True(t, paramsWithLogModuli.Xs() == DefaultXs)          // Omitting Xs should result in Default being used
 
-		// checks that ckks.Parameters can be unmarshalled with log-moduli definition with empty or omitted P without error
+		// checks that Parameters can be unmarshalled with log-moduli definition with empty or omitted P without error
 		for _, dataWithLogModuliNoP := range [][]byte{
 			[]byte(`{"LogN":13,"LogQ":[50,50],"LogP":[],"RingType": "ConjugateInvariant"}`),
 			[]byte(`{"LogN":13,"LogQ":[50,50],"RingType": "ConjugateInvariant"}`),

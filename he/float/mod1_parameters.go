@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/he/float/cosine"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -117,7 +116,7 @@ func (evp Mod1Parameters) QDiff() float64 {
 
 // NewMod1ParametersFromLiteral generates an Mod1Parameters struct from the Mod1ParametersLiteral struct.
 // The Mod1Parameters struct is to instantiates a Mod1Evaluator, which homomorphically evaluates x mod 1.
-func NewMod1ParametersFromLiteral(params ckks.Parameters, evm Mod1ParametersLiteral) (Mod1Parameters, error) {
+func NewMod1ParametersFromLiteral(params Parameters, evm Mod1ParametersLiteral) (Mod1Parameters, error) {
 
 	var mod1InvPoly *bignum.Polynomial
 	var mod1Poly bignum.Polynomial

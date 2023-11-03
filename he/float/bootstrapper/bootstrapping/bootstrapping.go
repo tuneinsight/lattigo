@@ -1,4 +1,4 @@
-// Package bootstrapping implement the bootstrapping for the CKKS scheme.
+// Package bootstrapping implement the bootstrapping for fixed-point fixed-point approximate arithmetic over the reals/complexes
 package bootstrapping
 
 import (
@@ -50,7 +50,7 @@ func (btp Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext
 	diffScale := ctIn.Scale.Div(ctOut.Scale).Bigint()
 
 	// [M^{d} + e^{d-logprec}]
-	if err = btp.Mul(ctOut, diffScale, ctOut); err != nil {
+	if err = btp.Evaluator.Mul(ctOut, diffScale, ctOut); err != nil {
 		return nil, err
 	}
 	ctOut.Scale = ctIn.Scale
@@ -83,14 +83,14 @@ func (btp Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext
 			}
 
 			// [M^{d} + e^{d-logprec}] - [M^{d}] -> [e^{d-logprec}]
-			tmp, err := btp.SubNew(ctOut, ctIn)
+			tmp, err := btp.Evaluator.SubNew(ctOut, ctIn)
 
 			if err != nil {
 				return nil, err
 			}
 
 			// prec * [e^{d-logprec}] -> [e^{d}]
-			if err = btp.Mul(tmp, prec, tmp); err != nil {
+			if err = btp.Evaluator.Mul(tmp, prec, tmp); err != nil {
 				return nil, err
 			}
 
@@ -111,7 +111,7 @@ func (btp Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext
 			// [[e^{d}/q1 + e'^{d-logprec}] * q1/logprec -> [e^{d-logprec} + e'^{d-2logprec}*q1]
 			// If scale > 2^{logprec}, then we ensure a precision of at least 2^{logprec} even with a rounding of the scale
 			if !requiresReservedPrime {
-				if err = btp.Mul(tmp, scale, tmp); err != nil {
+				if err = btp.Evaluator.Mul(tmp, scale, tmp); err != nil {
 					return nil, err
 				}
 			} else {
@@ -121,12 +121,12 @@ func (btp Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext
 				ss.Quo(ss, new(big.Float).SetInt(prec))
 
 				// Do a scaled multiplication by the last prime
-				if err = btp.Mul(tmp, ss, tmp); err != nil {
+				if err = btp.Evaluator.Mul(tmp, ss, tmp); err != nil {
 					return nil, err
 				}
 
 				// And rescale
-				if err = btp.Rescale(tmp, tmp); err != nil {
+				if err = btp.Evaluator.Rescale(tmp, tmp); err != nil {
 					return nil, err
 				}
 			}
@@ -135,7 +135,7 @@ func (btp Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext
 			tmp.Scale = ctOut.Scale
 
 			// [M^{d} + e^{d-logprec}] - [e^{d-logprec} + e'^{d-2logprec}*q1] -> [M^{d} + e'^{d-2logprec}*q1]
-			if err = btp.Sub(ctOut, tmp, ctOut); err != nil {
+			if err = btp.Evaluator.Sub(ctOut, tmp, ctOut); err != nil {
 				return nil, err
 			}
 		}
@@ -180,7 +180,7 @@ func (btp Bootstrapper) scaleDownToQ0OverMessageRatio(ctIn *rlwe.Ciphertext) (*r
 
 	scaleUpBigint := scaleUp.Bigint()
 
-	if err := btp.Mul(ctIn, scaleUpBigint, ctIn); err != nil {
+	if err := btp.Evaluator.Mul(ctIn, scaleUpBigint, ctIn); err != nil {
 		return nil, nil, fmt.Errorf("cannot scaleDownToQ0OverMessageRatio: %w", err)
 	}
 

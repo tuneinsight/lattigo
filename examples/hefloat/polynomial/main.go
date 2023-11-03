@@ -5,7 +5,6 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/he/float"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
@@ -23,8 +22,8 @@ func chebyshevinterpolation() {
 	// The result is then parsed and compared to the expected result.
 
 	// Scheme params are taken directly from the proposed defaults
-	params, err := ckks.NewParametersFromLiteral(
-		ckks.ParametersLiteral{
+	params, err := float.NewParametersFromLiteral(
+		float.ParametersLiteral{
 			LogN:            14,
 			LogQ:            []int{55, 40, 40, 40, 40, 40, 40, 40},
 			LogP:            []int{45, 45},
@@ -34,20 +33,20 @@ func chebyshevinterpolation() {
 		panic(err)
 	}
 
-	encoder := ckks.NewEncoder(params)
+	encoder := float.NewEncoder(params)
 
 	// Keys
-	kgen := ckks.NewKeyGenerator(params)
+	kgen := rlwe.NewKeyGenerator(params)
 	sk, pk := kgen.GenKeyPairNew()
 
 	// Encryptor
-	encryptor := ckks.NewEncryptor(params, pk)
+	encryptor := rlwe.NewEncryptor(params, pk)
 
 	// Decryptor
-	decryptor := ckks.NewDecryptor(params, sk)
+	decryptor := rlwe.NewDecryptor(params, sk)
 
 	// Evaluator with relinearization key
-	evaluator := ckks.NewEvaluator(params, rlwe.NewMemEvaluationKeySet(kgen.GenRelinearizationKeyNew(sk)))
+	evaluator := float.NewEvaluator(params, rlwe.NewMemEvaluationKeySet(kgen.GenRelinearizationKeyNew(sk)))
 
 	// Values to encrypt
 	slots := params.MaxSlots()
@@ -56,7 +55,7 @@ func chebyshevinterpolation() {
 		values[i] = sampling.RandFloat64(-8, 8)
 	}
 
-	fmt.Printf("CKKS parameters: logN = %d, logQ = %f, levels = %d, scale= %f, noise = %T %v \n",
+	fmt.Printf("Scheme parameters: logN = %d, logQ = %f, levels = %d, scale= %f, noise = %T %v \n",
 		params.LogN(), params.LogQP(), params.MaxLevel()+1, params.DefaultScale().Float64(), params.Xe(), params.Xe())
 
 	fmt.Println()
@@ -65,7 +64,7 @@ func chebyshevinterpolation() {
 	fmt.Println()
 
 	// Plaintext creation and encoding process
-	plaintext := ckks.NewPlaintext(params, params.MaxLevel())
+	plaintext := float.NewPlaintext(params, params.MaxLevel())
 	if err := encoder.Encode(values, plaintext); err != nil {
 		panic(err)
 	}
@@ -157,7 +156,7 @@ func round(x float64) float64 {
 	return math.Round(x*100000000) / 100000000
 }
 
-func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []float64, decryptor *rlwe.Decryptor, encoder *ckks.Encoder) (valuesTest []float64) {
+func printDebug(params float.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []float64, decryptor *rlwe.Decryptor, encoder *float.Encoder) (valuesTest []float64) {
 
 	valuesTest = make([]float64, 1<<ciphertext.LogDimensions.Cols)
 
@@ -172,7 +171,7 @@ func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant 
 	fmt.Printf("ValuesWant: %6.10f %6.10f %6.10f %6.10f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
 	fmt.Println()
 
-	precStats := ckks.GetPrecisionStats(params, encoder, nil, valuesWant, valuesTest, 0, false)
+	precStats := float.GetPrecisionStats(params, encoder, nil, valuesWant, valuesTest, 0, false)
 
 	fmt.Println(precStats.String())
 

@@ -1,8 +1,8 @@
 package bootstrapper
 
 import (
-	"github.com/tuneinsight/lattigo/v4/circuits/float/bootstrapper/bootstrapping"
 	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/he/float/bootstrapper/bootstrapping"
 )
 
 // ParametersLiteral is a wrapper of bootstrapping.ParametersLiteral.

@@ -3,15 +3,15 @@ package float
 import (
 	"fmt"
 
-	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
 // EvaluatorForMinimaxCompositePolynomial defines a set of common and scheme agnostic method that are necessary to instantiate a MinimaxCompositePolynomialEvaluator.
 type EvaluatorForMinimaxCompositePolynomial interface {
-	circuits.Evaluator
+	he.Evaluator
 	ConjugateNew(ct *rlwe.Ciphertext) (ctConj *rlwe.Ciphertext, err error)
 }
 
@@ -20,14 +20,14 @@ type EvaluatorForMinimaxCompositePolynomial interface {
 type MinimaxCompositePolynomialEvaluator struct {
 	EvaluatorForMinimaxCompositePolynomial
 	PolynomialEvaluator
-	circuits.Bootstrapper[rlwe.Ciphertext]
+	he.Bootstrapper[rlwe.Ciphertext]
 	Parameters ckks.Parameters
 }
 
 // NewMinimaxCompositePolynomialEvaluator instantiates a new MinimaxCompositePolynomialEvaluator.
 // The default ckks.Evaluator is compliant to the EvaluatorForMinimaxCompositePolynomial interface.
 // This method is allocation free.
-func NewMinimaxCompositePolynomialEvaluator(params ckks.Parameters, eval EvaluatorForMinimaxCompositePolynomial, bootstrapper circuits.Bootstrapper[rlwe.Ciphertext]) *MinimaxCompositePolynomialEvaluator {
+func NewMinimaxCompositePolynomialEvaluator(params ckks.Parameters, eval EvaluatorForMinimaxCompositePolynomial, bootstrapper he.Bootstrapper[rlwe.Ciphertext]) *MinimaxCompositePolynomialEvaluator {
 	return &MinimaxCompositePolynomialEvaluator{eval, *NewPolynomialEvaluator(params, eval), bootstrapper, params}
 }
 

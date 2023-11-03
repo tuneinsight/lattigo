@@ -6,9 +6,9 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/tuneinsight/lattigo/v4/circuits/blindrotation"
-	"github.com/tuneinsight/lattigo/v4/circuits/float"
 	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/he/blindrotation"
+	"github.com/tuneinsight/lattigo/v4/he/float"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"

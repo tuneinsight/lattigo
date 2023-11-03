@@ -3,8 +3,8 @@ package float
 import (
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
@@ -19,7 +19,7 @@ type ComparisonEvaluator struct {
 
 // NewComparisonEvaluator instantiates a new ComparisonEvaluator.
 // The default ckks.Evaluator is compliant with the EvaluatorForMinimaxCompositePolynomial interface.
-// The field circuits.Bootstrapper[rlwe.Ciphertext] can be nil if the parameters have enough level to support the computation.
+// The field he.Bootstrapper[rlwe.Ciphertext] can be nil if the parameters have enough level to support the computation.
 //
 // Giving a MinimaxCompositePolynomial is optional, but it is highly recommended to provide one that is optimized
 // for the circuit requiring the comparisons as this polynomial will define the internal precision of all computations
@@ -33,7 +33,7 @@ type ComparisonEvaluator struct {
 // See the doc of DefaultMinimaxCompositePolynomialForSign for additional information about the performance of this approximation.
 //
 // This method is allocation free if a MinimaxCompositePolynomial is given.
-func NewComparisonEvaluator(params ckks.Parameters, eval EvaluatorForMinimaxCompositePolynomial, bootstrapper circuits.Bootstrapper[rlwe.Ciphertext], signPoly ...MinimaxCompositePolynomial) *ComparisonEvaluator {
+func NewComparisonEvaluator(params ckks.Parameters, eval EvaluatorForMinimaxCompositePolynomial, bootstrapper he.Bootstrapper[rlwe.Ciphertext], signPoly ...MinimaxCompositePolynomial) *ComparisonEvaluator {
 	if len(signPoly) == 1 {
 		return &ComparisonEvaluator{*NewMinimaxCompositePolynomialEvaluator(params, eval, bootstrapper), signPoly[0]}
 	} else {

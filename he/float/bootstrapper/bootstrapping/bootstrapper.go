@@ -5,8 +5,8 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v4/circuits/float"
 	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/he/float"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 

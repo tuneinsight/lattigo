@@ -5,7 +5,7 @@ import (
 	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v4/bgv"
-	"github.com/tuneinsight/lattigo/v4/circuits"
+	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
@@ -14,7 +14,7 @@ import (
 // factors of the polynomial coefficients used by the inlined
 // polynomial evaluation by running the polynomial evaluation
 // with dummy operands.
-// This struct implements the interface circuits.SimEvaluator.
+// This struct implements the interface he.SimEvaluator.
 type simEvaluator struct {
 	params             bgv.Parameters
 	InvariantTensoring bool
@@ -28,17 +28,17 @@ func (d simEvaluator) PolynomialDepth(degree int) int {
 	return bits.Len64(uint64(degree)) - 1
 }
 
-// Rescale rescales the target circuits.SimOperand n times and returns it.
-func (d simEvaluator) Rescale(op0 *circuits.SimOperand) {
+// Rescale rescales the target he.SimOperand n times and returns it.
+func (d simEvaluator) Rescale(op0 *he.SimOperand) {
 	if !d.InvariantTensoring {
 		op0.Scale = op0.Scale.Div(rlwe.NewScale(d.params.Q()[op0.Level]))
 		op0.Level--
 	}
 }
 
-// MulNew multiplies two circuits.SimOperand, stores the result the target circuits.SimOperand and returns the result.
-func (d simEvaluator) MulNew(op0, op1 *circuits.SimOperand) (opOut *circuits.SimOperand) {
-	opOut = new(circuits.SimOperand)
+// MulNew multiplies two he.SimOperand, stores the result the target he.SimOperand and returns the result.
+func (d simEvaluator) MulNew(op0, op1 *he.SimOperand) (opOut *he.SimOperand) {
+	opOut = new(he.SimOperand)
 	opOut.Level = utils.Min(op0.Level, op1.Level)
 
 	if d.InvariantTensoring {

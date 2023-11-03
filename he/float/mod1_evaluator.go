@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
@@ -13,7 +13,7 @@ import (
 // methods that are necessary to instantiate a Mod1Evaluator.
 // The default ckks.Evaluator is compliant to this interface.
 type EvaluatorForMod1 interface {
-	circuits.Evaluator
+	he.Evaluator
 	DropLevel(*rlwe.Ciphertext, int)
 	GetParameters() *ckks.Parameters
 }

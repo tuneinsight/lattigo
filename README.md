@@ -30,7 +30,7 @@ The library exposes the following packages:
   a.k.a. CKKS) scheme. It provides approximate arithmetic over the complex numbers (in its classic
   variant) and over the real numbers (in its conjugate-invariant variant).
 
-- `lattigo/circuits`: Generic methods and interfaces for linear transformation and polynomial evaluation.
+- `lattigo/he`: Generic methods and interfaces for linear transformation and polynomial evaluation.
   This package also contains the following sub-packages:
   - `blindrotation`: Blind rotations (a.k.a lookup tables).
   - `float`: Advanced arithmetic for CKKS.

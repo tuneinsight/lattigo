@@ -1,4 +1,4 @@
-package circuits
+package he
 
 import (
 	"fmt"
@@ -42,7 +42,7 @@ func EvaluatePolynomial(eval EvaluatorForPolynomial, input interface{}, p interf
 	case PolynomialVector:
 		polyVec = p
 	default:
-		return nil, fmt.Errorf("cannot Polynomial: invalid polynomial type, must be either bignum.Polynomial, circuits.Polynomial or circuits.PolynomialVector, but is %T", p)
+		return nil, fmt.Errorf("cannot Polynomial: invalid polynomial type, must be either bignum.Polynomial, he.Polynomial or he.PolynomialVector, but is %T", p)
 	}
 
 	var powerbasis PowerBasis
@@ -253,7 +253,7 @@ func EvaluateMonomial(a, b, xpow *rlwe.Ciphertext, eval Evaluator) (err error) {
 	return
 }
 
-// EvaluatePolynomialVectorFromPowerBasis a method that complies to the interface circuits.PolynomialVectorEvaluator. This method evaluates P(ct) = sum c_i * ct^{i}.
+// EvaluatePolynomialVectorFromPowerBasis a method that complies to the interface he.PolynomialVectorEvaluator. This method evaluates P(ct) = sum c_i * ct^{i}.
 func EvaluatePolynomialVectorFromPowerBasis[T any](eval Evaluator, targetLevel int, pol PolynomialVector, cg CoefficientGetter[T], pb PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
 
 	// Map[int] of the powers [X^{0}, X^{1}, X^{2}, ...]

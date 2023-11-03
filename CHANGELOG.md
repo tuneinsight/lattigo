@@ -17,10 +17,10 @@ All notable changes to this library are documented in this file.
         - `Decode([]byte) (int, error)`: highly efficient decoding from a slice of bytes.
     - Streamlined and simplified all test related to serialization. They can now be implemented with a single line of code with `RequireSerializerCorrect`.
 - New Packages:
-    - `circuits`: Package `circuits` implements scheme agnostic high level circuits over the HE schemes implemented in Lattigo.
+    - `he`: Package `he` implements scheme agnostic functionalities from the Homomorphic Encryption schemes implemented in Lattigo.
         - Linear Transformations
         - Polynomial Evaluation
-    - `circuits/float`: Package `float` implements advanced homomorphic circuits for encrypted arithmetic over floating point numbers.
+    - `he/float`: Package `float` implements HE for encrypted arithmetic over floating point numbers.
         - Linear Transformations
         - Homomorphic encoding/decoding
         - Polynomial Evaluation
@@ -30,17 +30,17 @@ All notable changes to this library are documented in this file.
         - Full domain division (x in [-max, -min] U [min, max])
         - Sign and Step piece wise functions (x in [-1, 1] and [0, 1] respectively)
         - Min/Max between values in [-0.5, 0.5]
-    - `circuits/float/bootstrapper`: Package `bootstrapper` implements a generic bootstrapping wrapper of the package `bootstrapping`.
+    - `he/float/bootstrapper`: Package `bootstrapper` implements a generic bootstrapping wrapper of the package `bootstrapping`.
         - Bootstrapping batches of ciphertexts of smaller dimension and/or with sparse packing with depth-less packing/unpacking.
         - Bootstrapping for the Conjugate Invariant CKKS with optimal throughput.
-    - `circuits/float/bootstrapper/bootstrapping`: Package `bootstrapping`implements the CKKS bootstrapping.
+    - `he/float/bootstrapper/bootstrapping`: Package `bootstrapping`implements the CKKS bootstrapping.
         - Generate the bootstrapping parameters from the residual parameters
         - Improved the implementation of META-BTS, providing arbitrary precision bootstrapping from only one additional small prime.
         - Generalization of the bootstrapping parameters from predefined primes (previously only from LogQ)
-    - `circuits/integer`: Package `integer` implements advanced homomorphic circuits for encrypted arithmetic modular arithmetic with integers.
+    - `he/integer`: Package `integer` implements HE for encrypted arithmetic modular arithmetic with integers.
         - Linear Transformations
         - Polynomial Evaluation 
-    - `circuits/blindrotations`: Package`blindrotations` implements blind rotations evaluation for R-LWE schemes.
+    - `he/blindrotations`: Package`blindrotations` implements blind rotations evaluation for R-LWE schemes.
 - ALL: improved consistency across method names:
     - all sub-strings `NoMod`, `NoModDown` and `Constant` in methods names have been replaced by the sub-string `Lazy`. For example `AddNoMod` and `MulCoeffsMontgomeryConstant` become `AddLazy` and `MulCoeffsMontgomeryLazy` respectively.
     - all sub-strings `And` in methods names have been replaced by the sub-string `Then`. For example `MulAndAdd` becomes `MulThenAdd`.

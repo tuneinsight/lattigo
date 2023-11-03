@@ -6,8 +6,8 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -18,7 +18,7 @@ import (
 // The default ckks.Evaluator is compliant to this interface.
 type EvaluatorForDFT interface {
 	rlwe.ParameterProvider
-	circuits.EvaluatorForLinearTransformation
+	he.EvaluatorForLinearTransformation
 	Add(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error)
 	Sub(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error)
 	Mul(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error)
@@ -103,7 +103,7 @@ func (d DFTMatrixLiteral) GaloisElements(params ckks.Parameters) (galEls []uint6
 
 	// Coeffs to Slots rotations
 	for i, pVec := range indexCtS {
-		N1 := circuits.FindBestBSGSRatio(utils.GetKeys(pVec), dslots, d.LogBSGSRatio)
+		N1 := he.FindBestBSGSRatio(utils.GetKeys(pVec), dslots, d.LogBSGSRatio)
 		rotations = addMatrixRotToList(pVec, rotations, N1, slots, d.Type == HomomorphicDecode && logSlots < logN-1 && i == 0 && d.RepackImag2Real)
 	}
 

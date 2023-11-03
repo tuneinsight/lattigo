@@ -1,4 +1,4 @@
-package circuits
+package he
 
 import (
 	"github.com/tuneinsight/lattigo/v4/ring"

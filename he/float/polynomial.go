@@ -1,20 +1,20 @@
 package float
 
 import (
-	"github.com/tuneinsight/lattigo/v4/circuits"
+	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
-// Polynomial is a type wrapping the type circuits.Polynomial.
-type Polynomial circuits.Polynomial
+// Polynomial is a type wrapping the type he.Polynomial.
+type Polynomial he.Polynomial
 
 // NewPolynomial creates a new Polynomial from a bignum.Polynomial.
 func NewPolynomial(poly bignum.Polynomial) Polynomial {
-	return Polynomial(circuits.NewPolynomial(poly))
+	return Polynomial(he.NewPolynomial(poly))
 }
 
-// PolynomialVector is a type wrapping the type circuits.PolynomialVector.
-type PolynomialVector circuits.PolynomialVector
+// PolynomialVector is a type wrapping the type he.PolynomialVector.
+type PolynomialVector he.PolynomialVector
 
 // Depth returns the depth of the target PolynomialVector.
 func (p PolynomialVector) Depth() int {
@@ -26,6 +26,6 @@ func (p PolynomialVector) Depth() int {
 // Slots that are not referenced in this mapping will be evaluated to zero.
 // User must ensure that a same slot is not referenced twice.
 func NewPolynomialVector(polys []bignum.Polynomial, mapping map[int][]int) (PolynomialVector, error) {
-	p, err := circuits.NewPolynomialVector(polys, mapping)
+	p, err := he.NewPolynomialVector(polys, mapping)
 	return PolynomialVector(p), err
 }

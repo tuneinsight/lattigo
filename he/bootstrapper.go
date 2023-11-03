@@ -1,4 +1,4 @@
-package circuits
+package he
 
 // Bootstrapper is a scheme independent generic interface to handle bootstrapping.
 type Bootstrapper[T any] interface {

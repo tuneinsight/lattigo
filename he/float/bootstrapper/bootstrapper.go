@@ -8,8 +8,8 @@ import (
 	"math/big"
 	"runtime"
 
-	"github.com/tuneinsight/lattigo/v4/circuits/float/bootstrapper/bootstrapping"
 	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/he/float/bootstrapper/bootstrapping"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 )

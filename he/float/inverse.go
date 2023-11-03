@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
@@ -23,15 +23,15 @@ type EvaluatorForInverse interface {
 type InverseEvaluator struct {
 	EvaluatorForInverse
 	*MinimaxCompositePolynomialEvaluator
-	circuits.Bootstrapper[rlwe.Ciphertext]
+	he.Bootstrapper[rlwe.Ciphertext]
 	Parameters ckks.Parameters
 }
 
 // NewInverseEvaluator instantiates a new InverseEvaluator.
 // The default ckks.Evaluator is compliant to the EvaluatorForInverse interface.
-// The field circuits.Bootstrapper[rlwe.Ciphertext] can be nil if the parameters have enough levels to support the computation.
+// The field he.Bootstrapper[rlwe.Ciphertext] can be nil if the parameters have enough levels to support the computation.
 // This method is allocation free.
-func NewInverseEvaluator(params ckks.Parameters, eval EvaluatorForInverse, btp circuits.Bootstrapper[rlwe.Ciphertext]) InverseEvaluator {
+func NewInverseEvaluator(params ckks.Parameters, eval EvaluatorForInverse, btp he.Bootstrapper[rlwe.Ciphertext]) InverseEvaluator {
 	return InverseEvaluator{
 		EvaluatorForInverse:                 eval,
 		MinimaxCompositePolynomialEvaluator: NewMinimaxCompositePolynomialEvaluator(params, eval, btp),
@@ -320,7 +320,7 @@ func (eval InverseEvaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, log2min
 // The normalization factor is independant to each slot:
 //   - values smaller than 1 will have a normalization factor that tends to 1
 //   - values greater than 1 will have a normalization factor that tends to 1/x
-func (eval InverseEvaluator) IntervalNormalization(ct *rlwe.Ciphertext, log2Max float64, btp circuits.Bootstrapper[rlwe.Ciphertext]) (ctNorm, ctNormFac *rlwe.Ciphertext, err error) {
+func (eval InverseEvaluator) IntervalNormalization(ct *rlwe.Ciphertext, log2Max float64, btp he.Bootstrapper[rlwe.Ciphertext]) (ctNorm, ctNormFac *rlwe.Ciphertext, err error) {
 
 	ctNorm = ct.CopyNew()
 

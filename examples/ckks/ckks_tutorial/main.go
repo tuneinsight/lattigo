@@ -5,9 +5,9 @@ import (
 	"math/cmplx"
 	"math/rand"
 
-	"github.com/tuneinsight/lattigo/v4/circuits"
-	"github.com/tuneinsight/lattigo/v4/circuits/float"
 	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/he"
+	"github.com/tuneinsight/lattigo/v4/he/float"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
@@ -750,9 +750,9 @@ func EvaluateLinearTransform(values []complex128, diags map[int][]complex128) (r
 
 	keys := utils.GetKeys(diags)
 
-	N1 := circuits.FindBestBSGSRatio(keys, len(values), 1)
+	N1 := he.FindBestBSGSRatio(keys, len(values), 1)
 
-	index, _, _ := circuits.BSGSIndex(keys, slots, N1)
+	index, _, _ := he.BSGSIndex(keys, slots, N1)
 
 	res = make([]complex128, slots)
 

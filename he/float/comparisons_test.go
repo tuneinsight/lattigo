@@ -4,9 +4,9 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/tuneinsight/lattigo/v4/circuits/float"
-	"github.com/tuneinsight/lattigo/v4/circuits/float/bootstrapper"
 	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/he/float"
+	"github.com/tuneinsight/lattigo/v4/he/float/bootstrapper"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 

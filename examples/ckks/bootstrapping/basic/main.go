@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/tuneinsight/lattigo/v4/circuits/float/bootstrapper"
 	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/he/float/bootstrapper"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -68,7 +68,7 @@ func main() {
 	// For this first example, we do not specify any circuit specific optional field in the bootstrapping parameters literal.
 	// Thus we expect the bootstrapping to give a precision of 27.25 bits with H=192 (and 23.8 with H=N/2)
 	// if the plaintext values are uniformly distributed in [-1, 1] for both the real and imaginary part.
-	// See `circuits/float/bootstrapper/bootstrapping/parameters_literal.go` for detailed information about the optional fields.
+	// See `he/float/bootstrapper/bootstrapping/parameters_literal.go` for detailed information about the optional fields.
 	btpParametersLit := bootstrapper.ParametersLiteral{
 		// We specify LogN to ensure that both the residual parameters and the bootstrapping parameters
 		// have the same LogN. This is not required, but we want it for this example.

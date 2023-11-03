@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tuneinsight/lattigo/v4/circuits"
 	"github.com/tuneinsight/lattigo/v4/ckks"
+	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -27,7 +27,7 @@ var testPrec45 = ckks.ParametersLiteral{
 func TestBootstrapping(t *testing.T) {
 
 	// Check that the bootstrapper complies to the rlwe.Bootstrapper interface
-	var _ circuits.Bootstrapper[rlwe.Ciphertext] = (*Bootstrapper)(nil)
+	var _ he.Bootstrapper[rlwe.Ciphertext] = (*Bootstrapper)(nil)
 
 	t.Run("BootstrappingWithoutRingDegreeSwitch", func(t *testing.T) {
 

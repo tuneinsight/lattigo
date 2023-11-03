@@ -60,8 +60,9 @@ All notable changes to this library are documented in this file.
     - Improved the GoDoc of the protocols.
     - Added accurate noise bounds for the tests.
 - BFV: 
-    - The code of the package `bfv` has replaced by a wrapper of the package `bgv`.
+    - The code of the package `bfv` has replaced by a wrapper of the package `bgv` and moved to the package `schemes/bfv`.
 - BGV:
+    - The code the `bgv` package has been moved to the package `schemes/bfv`
     - The package `bgv` has been rewritten to implement a unification of the textbook BFV and BGV schemes under a single scheme.
     - The unified scheme offers all the functionalities of the BFV and BGV schemes under a single scheme.
     - Changes to the `Encoder`:
@@ -76,6 +77,7 @@ All notable changes to this library are documented in this file.
         - Replaced the default parameters by a single example parameter.
         - Added a test parameter set with small plaintext modulus.
 - CKKS:
+    - The code of the `ckks` package has been moved to the package `schemes/ckks`.
     - Changes to the `Encoder`:
         - Enabled the encoding of plaintexts of any sparsity (previously hard-capped at a minimum of 8 slots).
         - Unified `encoderComplex128` and `encoderBigComplex`.
@@ -148,9 +150,15 @@ All notable changes to this library are documented in this file.
         - Structs that can be serialized now all implement the method V Equal(V) bool.
         - Setting the Hamming weight of the secret or the standard deviation of the error through `NewParameters` to negative values will instantiate these fields as zero values and return a warning (as an error).
 - DRLWE:
+    - The package `drlwe` has been renamed `mhe`.
     - Added `EvaluationKeyGenProtocol` to enable users to generate generic `rlwe.EvaluationKey` (previously only the `GaloisKey`)
     - It is now possible to specify the levels of the modulus `Q` and `P`, as well as the `BaseTwoDecomposition` via the optional struct `rlwe.EvaluationKeyParameters`, when generating `rlwe.EvaluationKey`, `rlwe.GaloisKey` and `rlwe.RelinearizationKey`.
-
+- DBFV:
+    - The package `dbfv`, which was merely a wrapper of the package `dbgv`, has been removed.
+- DBGV:
+    - The package `dbgv` has been renamed `integer` and moved to `mhe/integer`.
+- DCKKS:
+    - The package `dckks` has been renamed `float` and moved to `mhe/float`.
 - RGSW:
     - Expanded the encryptor to be able encrypt from an `rlwe.PublicKey`.
     - Added tests for encryption and external product.

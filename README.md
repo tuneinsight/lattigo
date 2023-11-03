@@ -23,21 +23,22 @@ The library exposes the following packages:
 - `lattigo/he`: The main package of the library which provides scheme-agnostic interfaces
   and Homomorphic Encryption based on the plaintext domain.
 
-  - `he/blindrotation`: Blind rotations (a.k.a Lookup Tables). 
+  - `he/blindrotation`: Blind rotations (a.k.a Lookup Tables) over RLWE ciphertexts. 
 
   - `he/float`: Homomorphic Encryption for fixed-point approximate arithmetic over the reals/complexes.
 
-    - `float/bootstrapper`: Bootstrapping for fixed-point approximate arithmetic over the reals/complexes.
+    - `float/bootstrapper`: State-of-the-Art bootstrapping for fixed-point approximate arithmetic over 
+      the reals/complexes with advanced parameterization.
 
   - `he/integer`: Homomorphic Encryption for modular arithmetic over the integers.
 
 - `lattigo/mhe`: Package for multiparty (a.k.a. distributed or threshold) key-generation and 
   interactive ciphertext bootstrapping with secret-shared secret keys.
 
-  - `mhe/float`: Homomorphic decryption and re-encryption from and to Linear-Secret-Shareing-Shares, 
+  - `mhe/float`: Homomorphic decryption and re-encryption from and to Linear-Secret-Sharing-Shares, 
     as well as interactive ciphertext bootstrapping for the package `he/float`.
 
-  - `mhe/integer`: Homomorphic decryption and re-encryption from and to Linear-Secret-Shareing-Shares, 
+  - `mhe/integer`: Homomorphic decryption and re-encryption from and to Linear-Secret-Sharing-Shares, 
     as well as interactive ciphertext bootstrapping for the package `he/integer`.
 
 - `lattigo/schemes`: A package implementing RLWE-based homomorphic encryption schemes.

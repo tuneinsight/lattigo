@@ -3,10 +3,10 @@ package integer
 import (
 	"fmt"
 
-	"github.com/tuneinsight/lattigo/v4/bfv"
-	"github.com/tuneinsight/lattigo/v4/bgv"
 	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/schemes/bfv"
+	"github.com/tuneinsight/lattigo/v4/schemes/bgv"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 

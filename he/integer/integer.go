@@ -2,8 +2,8 @@
 package integer
 
 import (
-	"github.com/tuneinsight/lattigo/v4/bgv"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/schemes/bgv"
 )
 
 type Integer interface {

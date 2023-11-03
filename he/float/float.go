@@ -4,8 +4,8 @@ package float
 import (
 	"testing"
 
-	"github.com/tuneinsight/lattigo/v4/ckks"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/schemes/ckks"
 )
 
 type Float interface {

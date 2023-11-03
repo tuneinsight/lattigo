@@ -9,7 +9,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 
-	"github.com/tuneinsight/lattigo/v4/bfv"
+	"github.com/tuneinsight/lattigo/v4/he/integer"
 	"github.com/tuneinsight/lattigo/v4/ring"
 )
 
@@ -56,9 +56,9 @@ func obliviousRiding() {
 		nbDrivers = 512
 	}
 
-	// BFV parameters (128 bit security) with plaintext modulus 65929217
+	// Parameters (128 bit security) with plaintext modulus 65929217
 	// Creating encryption parameters from a default params with logN=14, logQP=438 with a plaintext modulus T=65929217
-	params, err := bfv.NewParametersFromLiteral(bfv.ParametersLiteral{
+	params, err := integer.NewParametersFromLiteral(integer.ParametersLiteral{
 		LogN:             14,
 		LogQ:             []int{56, 55, 55, 54, 54, 54},
 		LogP:             []int{55, 55},
@@ -68,18 +68,18 @@ func obliviousRiding() {
 		panic(err)
 	}
 
-	encoder := bfv.NewEncoder(params)
+	encoder := integer.NewEncoder(params)
 
 	// Rider's keygen
-	kgen := bfv.NewKeyGenerator(params)
+	kgen := rlwe.NewKeyGenerator(params)
 
 	riderSk, riderPk := kgen.GenKeyPairNew()
 
-	decryptor := bfv.NewDecryptor(params, riderSk)
-	encryptorRiderPk := bfv.NewEncryptor(params, riderPk)
-	encryptorRiderSk := bfv.NewEncryptor(params, riderSk)
+	decryptor := rlwe.NewDecryptor(params, riderSk)
+	encryptorRiderPk := rlwe.NewEncryptor(params, riderPk)
+	encryptorRiderSk := rlwe.NewEncryptor(params, riderSk)
 
-	evaluator := bfv.NewEvaluator(params, nil)
+	evaluator := integer.NewEvaluator(params, nil)
 
 	fmt.Println("============================================")
 	fmt.Println("Homomorphic computations on batched integers")
@@ -109,7 +109,7 @@ func obliviousRiding() {
 		Rider[(i<<1)+1] = riderPosY
 	}
 
-	riderPlaintext := bfv.NewPlaintext(params, params.MaxLevel())
+	riderPlaintext := integer.NewPlaintext(params, params.MaxLevel())
 	if err := encoder.Encode(Rider, riderPlaintext); err != nil {
 		panic(err)
 	}
@@ -122,7 +122,7 @@ func obliviousRiding() {
 		driversData[i] = make([]uint64, 1<<params.LogN())
 		driversData[i][(i << 1)] = ring.RandUniform(prng, maxvalue, mask)
 		driversData[i][(i<<1)+1] = ring.RandUniform(prng, maxvalue, mask)
-		driversPlaintexts[i] = bfv.NewPlaintext(params, params.MaxLevel())
+		driversPlaintexts[i] = integer.NewPlaintext(params, params.MaxLevel())
 		if err := encoder.Encode(driversData[i], driversPlaintexts[i]); err != nil {
 			panic(err)
 		}

@@ -16,7 +16,7 @@ import (
 // with dummy operands.
 // This struct implements the interface he.SimEvaluator.
 type simEvaluator struct {
-	params             bgv.Parameters
+	params             Parameters
 	InvariantTensoring bool
 }
 
@@ -42,7 +42,7 @@ func (d simEvaluator) MulNew(op0, op1 *he.SimOperand) (opOut *he.SimOperand) {
 	opOut.Level = utils.Min(op0.Level, op1.Level)
 
 	if d.InvariantTensoring {
-		opOut.Scale = bgv.MulScaleInvariant(d.params, op0.Scale, op1.Scale, opOut.Level)
+		opOut.Scale = bgv.MulScaleInvariant(d.params.Parameters, op0.Scale, op1.Scale, opOut.Level)
 	} else {
 		opOut.Scale = op0.Scale.Mul(op1.Scale)
 	}

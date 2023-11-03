@@ -1,7 +1,6 @@
 package integer
 
 import (
-	"github.com/tuneinsight/lattigo/v4/bgv"
 	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/rlwe"
@@ -9,7 +8,7 @@ import (
 )
 
 type intEncoder[T Integer, U ring.Poly | ringqp.Poly | *rlwe.Plaintext] struct {
-	*bgv.Encoder
+	*Encoder
 }
 
 func (e intEncoder[T, U]) Encode(values []T, metadata *rlwe.MetaData, output U) (err error) {
@@ -47,7 +46,7 @@ func NewLinearTransformation(params rlwe.ParameterProvider, lt LinearTransformat
 
 // EncodeLinearTransformation is a method used to encode EncodeLinearTransformation and a wrapper of he.EncodeLinearTransformation.
 // See he.EncodeLinearTransformation for the documentation.
-func EncodeLinearTransformation[T Integer](ecd *bgv.Encoder, diagonals Diagonals[T], allocated LinearTransformation) (err error) {
+func EncodeLinearTransformation[T Integer](ecd *Encoder, diagonals Diagonals[T], allocated LinearTransformation) (err error) {
 	return he.EncodeLinearTransformation[T](
 		&intEncoder[T, ringqp.Poly]{ecd},
 		he.Diagonals[T](diagonals),
@@ -67,7 +66,7 @@ type LinearTransformationEvaluator struct {
 }
 
 // NewLinearTransformationEvaluator instantiates a new LinearTransformationEvaluator from a circuit.EvaluatorForLinearTransformation.
-// The default *bgv.Evaluator is compliant to the circuit.EvaluatorForLinearTransformation interface.
+// The default *integer.Evaluator is compliant to the circuit.EvaluatorForLinearTransformation interface.
 func NewLinearTransformationEvaluator(eval he.EvaluatorForLinearTransformation) (linTransEval *LinearTransformationEvaluator) {
 	return &LinearTransformationEvaluator{
 		EvaluatorForLinearTransformation: eval,

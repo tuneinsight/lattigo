@@ -57,8 +57,8 @@ type Encryptor struct {
 }
 
 // GetRLWEParameters returns the underlying rlwe.Parameters.
-func (d Encryptor) GetRLWEParameters() *Parameters {
-	return &d.params
+func (enc Encryptor) GetRLWEParameters() *Parameters {
+	return &enc.params
 }
 
 func newEncryptor(params Parameters) *Encryptor {

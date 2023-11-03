@@ -14,7 +14,7 @@ import (
 // All fields of this struct are public, enabling custom instantiations.
 type PolynomialEvaluator struct {
 	he.EvaluatorForPolynomial
-	bgv.Parameters
+	Parameters
 	InvariantTensoring bool
 }
 
@@ -27,10 +27,10 @@ func NewPowerBasis(ct *rlwe.Ciphertext) he.PowerBasis {
 }
 
 // NewPolynomialEvaluator instantiates a new PolynomialEvaluator from a circuit.Evaluator.
-// The default *bgv.Evaluator is compliant to the circuit.Evaluator interface.
+// The default *integer.Evaluator is compliant to the circuit.Evaluator interface.
 // InvariantTensoring is a boolean that specifies if the evaluator performed the invariant tensoring (BFV-style) or
 // the regular tensoring (BGB-style).
-func NewPolynomialEvaluator(params bgv.Parameters, eval he.Evaluator, InvariantTensoring bool) *PolynomialEvaluator {
+func NewPolynomialEvaluator(params Parameters, eval he.Evaluator, InvariantTensoring bool) *PolynomialEvaluator {
 
 	var evalForPoly he.EvaluatorForPolynomial
 
@@ -47,6 +47,8 @@ func NewPolynomialEvaluator(params bgv.Parameters, eval he.Evaluator, InvariantT
 		} else {
 			evalForPoly = &defaultCircuitEvaluatorForPolynomial{Evaluator: eval.Evaluator}
 		}
+	case *Evaluator:
+		return NewPolynomialEvaluator(params, &eval.Evaluator, InvariantTensoring)
 	default:
 		evalForPoly = &defaultCircuitEvaluatorForPolynomial{Evaluator: eval}
 	}

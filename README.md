@@ -23,44 +23,46 @@ The library exposes the following packages:
 - `lattigo/he`: The main package of the library which provides scheme-agnostic interfaces
   and Homomorphic Encryption based on the plaintext domain.
 
-  - `he/blindrotation`: Blind rotations (a.k.a Lookup Tables) over RLWE ciphertexts. 
+  - `hebin`: Blind rotations (a.k.a Lookup Tables) over RLWE ciphertexts. 
 
-  - `he/float`: Homomorphic Encryption for fixed-point approximate arithmetic over the reals/complexes.
+  - `hefloat`: Homomorphic Encryption for fixed-point approximate arithmetic over the reals/complexes.
 
-    - `float/bootstrapper`: State-of-the-Art bootstrapping for fixed-point approximate arithmetic over 
+    - `bootstrapper`: State-of-the-Art bootstrapping for fixed-point approximate arithmetic over 
       the reals/complexes with advanced parameterization.
 
-  - `he/integer`: Homomorphic Encryption for modular arithmetic over the integers.
+  - `heint`: Homomorphic Encryption for modular arithmetic over the integers.
 
 - `lattigo/mhe`: Package for multiparty (a.k.a. distributed or threshold) key-generation and 
   interactive ciphertext bootstrapping with secret-shared secret keys.
 
-  - `mhe/float`: Homomorphic decryption and re-encryption from and to Linear-Secret-Sharing-Shares, 
+  - `mhefloat`: Homomorphic decryption and re-encryption from and to Linear-Secret-Sharing-Shares, 
     as well as interactive ciphertext bootstrapping for the package `he/float`.
 
-  - `mhe/integer`: Homomorphic decryption and re-encryption from and to Linear-Secret-Sharing-Shares, 
+  - `mheint`: Homomorphic decryption and re-encryption from and to Linear-Secret-Sharing-Shares, 
     as well as interactive ciphertext bootstrapping for the package `he/integer`.
 
 - `lattigo/schemes`: A package implementing RLWE-based homomorphic encryption schemes.
 
-  - `schemes/bfv`: A Full-RNS variant of the Brakerski-Fan-Vercauteren scale-invariant homomorphic
+  - `bfv`: A Full-RNS variant of the Brakerski-Fan-Vercauteren scale-invariant homomorphic
     encryption scheme. This scheme is instantiated via a wrapper of the `bgv` scheme. 
     It provides modular arithmetic over the integers.
 
-  - `schemes/bgv`: A Full-RNS generalization of the Brakerski-Fan-Vercauteren scale-invariant (BFV) and 
+  - `bgv`: A Full-RNS generalization of the Brakerski-Fan-Vercauteren scale-invariant (BFV) and 
     Brakerski-Gentry-Vaikuntanathan (BGV) homomorphic encryption schemes. 
     It provides modular arithmetic over the integers.
   	
-  - `schemes/ckks`: A Full-RNS Homomorphic Encryption for Arithmetic for Approximate Numbers (HEAAN,
+  - `ckks`: A Full-RNS Homomorphic Encryption for Arithmetic for Approximate Numbers (HEAAN,
     a.k.a. CKKS) scheme. It provides fixed-point approximate arithmetic over the complex numbers (in its classic
     variant) and over the real numbers (in its conjugate-invariant variant).
 
-- `lattigo/rlwe`:  Common base for generic RLWE-based homomorphic encryption.
+- `lattigo/core`: A package implementing the core cryptographic functionalities of the library.
+
+  - `rlwe`: Common base for generic RLWE-based homomorphic encryption.
   It provides all homomorphic functionalities and defines all structs that are not scheme specific.
   This includes plaintext, ciphertext, key-generation, encryption, decryption and key-switching, as
   well as other more advanced primitives such as RLWE-repacking.
 
-- `lattigo/rgsw`: A Full-RNS variant of Ring-GSW ciphertexts and the external product.
+  - `rgsw`: A Full-RNS variant of Ring-GSW ciphertexts and the external product.
 
 - `lattigo/ring`: Modular arithmetic operations for polynomials in the RNS basis, including: RNS
   basis extension; RNS rescaling; number theoretic transform (NTT); uniform, Gaussian and ternary

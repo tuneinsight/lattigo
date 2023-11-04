@@ -36,10 +36,10 @@ The library exposes the following packages:
   interactive ciphertext bootstrapping with secret-shared secret keys.
 
   - `mhefloat`: Homomorphic decryption and re-encryption from and to Linear-Secret-Sharing-Shares, 
-    as well as interactive ciphertext bootstrapping for the package `he/float`.
+    as well as interactive ciphertext bootstrapping for the package `he/hefloat`.
 
   - `mheint`: Homomorphic decryption and re-encryption from and to Linear-Secret-Sharing-Shares, 
-    as well as interactive ciphertext bootstrapping for the package `he/integer`.
+    as well as interactive ciphertext bootstrapping for the package `he/heint`.
 
 - `lattigo/schemes`: A package implementing RLWE-based homomorphic encryption schemes.
 

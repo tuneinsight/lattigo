@@ -10,17 +10,22 @@ All notable changes to this library are documented in this file.
 - Global changes to serialization:
     - Low-entropy structs (such as parameters or rings) have been updated to use `json.Marshal` as underlying marshaller.
     - High-entropy structs, such as structs storing key material or encrypted values now all comply to the following interface:
-        - `BinarySize() int`: size in bytes when written to an `io.Writer` or to a slice of bytes using `Read`.
-        - `WriteTo(io.Writer) (int64, error)`: efficient writing on any `io.Writer`.
-        - `ReadFrom(io.Reader) (int64, error)`: efficient reading from any `io.Reader`.
-        - `Encode([]byte) (int, error)`: highly efficient encoding on preallocated slice of bytes.
-        - `Decode([]byte) (int, error)`: highly efficient decoding from a slice of bytes.
-    - Streamlined and simplified all test related to serialization. They can now be implemented with a single line of code with `RequireSerializerCorrect`.
+        - `BinarySize() int`: size in bytes when written to an `io.Writer` or when marshalled.
+        - `WriteTo(io.Writer) (int64, error)`: highly efficient writing on any `io.Writer` that exposes its internal buffer.
+        - `ReadFrom(io.Reader) (int64, error)`: highly efficient reading from any `io.Reader` that exposes its internal buffer.
+        - `MarshalBinary() ([]byte, error)`: standard serialization.
+        - `UnmarshalBinary([]byte) (error)`: standard deserialization.
+    - Streamlined and simplified all tests related to serialization. They can now be implemented with a single line of code with `RequireSerializerCorrect` which checks the correctness of all the above interface as well as equality between bites writen using `WriteTo` and bytes generated using `MarshalBinary`.
+- Improved consistency across method names:
+    - All sub-strings `NoMod`, `NoModDown` and `Constant` in methods names have been replaced by the sub-string `Lazy`. For example `AddNoMod` and `MulCoeffsMontgomeryConstant` become `AddLazy` and `MulCoeffsMontgomeryLazy` respectively.
+    - All sub-strings `And` in methods names have been replaced by the sub-string `Then`. For example `MulAndAdd` becomes `MulThenAdd`.
+    - All sub-strings `Inv` have been replaced by `I` for consistency. For example `InvNTT` becomes `INTT`.
+    - All sub-strings `Params` and alike referring to pre-computed constants have been replaced by `Constant`. For example `ModUpParams` becomes `ModUpConstants`.
 - New Packages:
-    - `he`: Package `he` implements scheme agnostic functionalities from the Homomorphic Encryption schemes implemented in Lattigo.
+    - `he`: Package `he` implements scheme agnostic functionalities for the RLWE-based HE schemes implemented in Lattigo.
         - Linear Transformations
         - Polynomial Evaluation
-    - `he/hefloat`: Package `hefloat` implements HE for encrypted arithmetic over floating point numbers.
+    - `he/hefloat`: Package `hefloat` implements fixed-point approximate encrypted arithmetic over reals/complex numbers. This package provides all the functionalities of the `schemes/ckks` package, as well as additional more advanced circuits, such as:
         - Linear Transformations
         - Homomorphic encoding/decoding
         - Polynomial Evaluation
@@ -30,35 +35,18 @@ All notable changes to this library are documented in this file.
         - Full domain division (x in [-max, -min] U [min, max])
         - Sign and Step piece wise functions (x in [-1, 1] and [0, 1] respectively)
         - Min/Max between values in [-0.5, 0.5]
-    - `he/hefloat/bootstrapper`: Package `bootstrapper` implements a generic bootstrapping wrapper of the package `bootstrapping`.
-        - Bootstrapping batches of ciphertexts of smaller dimension and/or with sparse packing with depth-less packing/unpacking.
+    - `he/hefloat/bootstrapper`: Package `bootstrapper` implements a bootstrapping helper above the package `he/hefloat/bootstrapper/bootstrapping`. It notably enables:
+        - Bootstrapping batches of ciphertexts of smaller dimension and/or with sparse packing with ring-degree switching and depth-less packing/unpacking.
         - Bootstrapping for the Conjugate Invariant CKKS with optimal throughput.
-    - `he/hefloat/bootstrapper/bootstrapping`: Package `bootstrapping`implements the CKKS bootstrapping.
-        - Generate the bootstrapping parameters from the residual parameters
-        - Improved the implementation of META-BTS, providing arbitrary precision bootstrapping from only one additional small prime.
-        - Generalization of the bootstrapping parameters from predefined primes (previously only from LogQ)
-    - `he/heint`: Package `heint` implements HE for encrypted arithmetic modular arithmetic with integers.
+    - `he/hefloat/bootstrapper/bootstrapping`: Package `bootstrapping` implements the core of the bootstrapping for approximate homomorphic encryption with a very parameterization granularity.
+        - Decorelation between the bootstrapping parameters and residual parameters: the user doesn't need to manage two sets of parameters anymore and the user only needs to provide the residual parameters (what should remains after the evaluation of the bootstrapping circuit)
+        - Right out of the box usability with default parameterization independent of the residual parameters
+        - In depth parameterization for advanced users with 16 tunable parameters
+        - Improved the implementation of META-BTS, providing arbitrary precision bootstrapping from only one additional small prime
+    - `he/heint`: Package `heint` implements encrypted modular arithmetic modular arithmetic over the integers.
         - Linear Transformations
         - Polynomial Evaluation 
     - `he/hebin`: Package`hebin` implements blind rotations evaluation for R-LWE schemes.
-- ALL: improved consistency across method names:
-    - all sub-strings `NoMod`, `NoModDown` and `Constant` in methods names have been replaced by the sub-string `Lazy`. For example `AddNoMod` and `MulCoeffsMontgomeryConstant` become `AddLazy` and `MulCoeffsMontgomeryLazy` respectively.
-    - all sub-strings `And` in methods names have been replaced by the sub-string `Then`. For example `MulAndAdd` becomes `MulThenAdd`.
-    - all sub-strings `Inv` have been replaced by `I` for consistency. For example `InvNTT` becomes `INTT`.
-    - all sub-strings `Params` and alike referring to pre-computed constants have been replaced by `Constant`. For example `ModUpParams` becomes `ModUpConstants`.
-- DRLWE/DBFV/DBGV/DCKKS: 
-    - Renamed:
-            - `NewCKGProtocol` to `NewPublicKeyGenProtocol`
-            - `NewRKGProtocol` to `NewRelinKeyGenProtocol`
-            - `NewCKSProtocol` to `NewGaloisKeyGenProtocol`
-            - `NewRTGProtocol` to `NewKeySwitchProtocol`
-            - `NewPCKSProtocol` to `NewPublicKeySwitchProtocol`
-    - Replaced `[dbfv/dbfv/dckks].MaskedTransformShare` by `drlwe.RefreshShare`.
-    - Arbitrary large smudging noise is now supported.
-    - Fixed `CollectiveKeySwitching` and `PublicCollectiveKeySwitching` smudging noise to not be rescaled by `P`.
-    - Tests and benchmarks in package other than the `RLWE` and `DRLWE` packages that were merely wrapper of methods of the `RLWE` or `DRLWE` have been removed and/or moved to the `RLWE` and `DRLWE` packages.
-    - Improved the GoDoc of the protocols.
-    - Added accurate noise bounds for the tests.
 - BFV: 
     - The code of the package `bfv` has replaced by a wrapper of the package `bgv` and moved to the package `schemes/bfv`.
 - BGV:
@@ -153,8 +141,20 @@ All notable changes to this library are documented in this file.
         - Setting the Hamming weight of the secret or the standard deviation of the error through `NewParameters` to negative values will instantiate these fields as zero values and return a warning (as an error).
 - DRLWE:
     - The package `drlwe` has been renamed `mhe`.
+    - Renamed:
+            - `NewCKGProtocol` to `NewPublicKeyGenProtocol`
+            - `NewRKGProtocol` to `NewRelinKeyGenProtocol`
+            - `NewCKSProtocol` to `NewGaloisKeyGenProtocol`
+            - `NewRTGProtocol` to `NewKeySwitchProtocol`
+            - `NewPCKSProtocol` to `NewPublicKeySwitchProtocol`
+    - Replaced `[dbfv/dbfv/dckks].MaskedTransformShare` by `drlwe.RefreshShare`.
     - Added `EvaluationKeyGenProtocol` to enable users to generate generic `rlwe.EvaluationKey` (previously only the `GaloisKey`)
     - It is now possible to specify the levels of the modulus `Q` and `P`, as well as the `BaseTwoDecomposition` via the optional struct `rlwe.EvaluationKeyParameters`, when generating `rlwe.EvaluationKey`, `rlwe.GaloisKey` and `rlwe.RelinearizationKey`.
+    - Arbitrary large smudging noise is now supported.
+    - Fixed `CollectiveKeySwitching` and `PublicCollectiveKeySwitching` smudging noise to not be rescaled by `P`.
+    - Tests and benchmarks in package other than the `RLWE` and `DRLWE` packages that were merely wrapper of methods of the `RLWE` or `DRLWE` have been removed and/or moved to the `RLWE` and `DRLWE` packages.
+    - Improved the GoDoc of the protocols.
+    - Added accurate noise bounds for the tests.
 - DBFV:
     - The package `dbfv`, which was merely a wrapper of the package `dbgv`, has been removed.
 - DBGV:

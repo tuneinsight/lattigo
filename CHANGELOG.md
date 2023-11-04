@@ -2,7 +2,7 @@
 # Changelog
 All notable changes to this library are documented in this file.
 
-## UNRELEASED [5.0.0] - xxxx-xx-xx (#341,#309,#292,#348,#378,#383)
+## UNRELEASED [5.0.0] - xxxx-xx-xx
 - Go versions `1.14`, `1.15`, `1.16` and `1.17` are not supported anymore by the library due to `func (b *Writer) AvailableBuffer() []byte` missing. The minimum version is now `1.18`.
 - Golang Security Checker pass.
 - Dereferenced most inputs and pointers methods whenever possible. Pointers methods/inputs are now mostly used when the struct implementing the method and/or the input is intended to be modified.
@@ -20,7 +20,7 @@ All notable changes to this library are documented in this file.
     - `he`: Package `he` implements scheme agnostic functionalities from the Homomorphic Encryption schemes implemented in Lattigo.
         - Linear Transformations
         - Polynomial Evaluation
-    - `he/float`: Package `float` implements HE for encrypted arithmetic over floating point numbers.
+    - `he/hefloat`: Package `hefloat` implements HE for encrypted arithmetic over floating point numbers.
         - Linear Transformations
         - Homomorphic encoding/decoding
         - Polynomial Evaluation
@@ -30,17 +30,17 @@ All notable changes to this library are documented in this file.
         - Full domain division (x in [-max, -min] U [min, max])
         - Sign and Step piece wise functions (x in [-1, 1] and [0, 1] respectively)
         - Min/Max between values in [-0.5, 0.5]
-    - `he/float/bootstrapper`: Package `bootstrapper` implements a generic bootstrapping wrapper of the package `bootstrapping`.
+    - `he/hefloat/bootstrapper`: Package `bootstrapper` implements a generic bootstrapping wrapper of the package `bootstrapping`.
         - Bootstrapping batches of ciphertexts of smaller dimension and/or with sparse packing with depth-less packing/unpacking.
         - Bootstrapping for the Conjugate Invariant CKKS with optimal throughput.
-    - `he/float/bootstrapper/bootstrapping`: Package `bootstrapping`implements the CKKS bootstrapping.
+    - `he/hefloat/bootstrapper/bootstrapping`: Package `bootstrapping`implements the CKKS bootstrapping.
         - Generate the bootstrapping parameters from the residual parameters
         - Improved the implementation of META-BTS, providing arbitrary precision bootstrapping from only one additional small prime.
         - Generalization of the bootstrapping parameters from predefined primes (previously only from LogQ)
-    - `he/integer`: Package `integer` implements HE for encrypted arithmetic modular arithmetic with integers.
+    - `he/heint`: Package `heint` implements HE for encrypted arithmetic modular arithmetic with integers.
         - Linear Transformations
         - Polynomial Evaluation 
-    - `he/blindrotations`: Package`blindrotations` implements blind rotations evaluation for R-LWE schemes.
+    - `he/hebin`: Package`hebin` implements blind rotations evaluation for R-LWE schemes.
 - ALL: improved consistency across method names:
     - all sub-strings `NoMod`, `NoModDown` and `Constant` in methods names have been replaced by the sub-string `Lazy`. For example `AddNoMod` and `MulCoeffsMontgomeryConstant` become `AddLazy` and `MulCoeffsMontgomeryLazy` respectively.
     - all sub-strings `And` in methods names have been replaced by the sub-string `Then`. For example `MulAndAdd` becomes `MulThenAdd`.
@@ -99,7 +99,9 @@ All notable changes to this library are documented in this file.
 
     - Others:
         - Updated the Chebyshev interpolation with arbitrary precision arithmetic and moved the code to `utils/bignum/approximation`.
-- RLWE: 
+- RLWE:
+    - The package `rlwe` has been moved to `core/rlwe`.
+    - The package `ringqp` has been moved to `ring/ringqp`.
     - Changes to the `Parameters`:
         - Removed the concept of rotation, everything is now defined in term of Galois elements.
         - Renamed many methods to better reflect there purpose and generalize them.
@@ -156,10 +158,11 @@ All notable changes to this library are documented in this file.
 - DBFV:
     - The package `dbfv`, which was merely a wrapper of the package `dbgv`, has been removed.
 - DBGV:
-    - The package `dbgv` has been renamed `integer` and moved to `mhe/integer`.
+    - The package `dbgv` has been renamed `mheint` and moved to `mhe/mheint`.
 - DCKKS:
-    - The package `dckks` has been renamed `float` and moved to `mhe/float`.
+    - The package `dckks` has been renamed `mhefloat` and moved to `mhe/mhefloat`.
 - RGSW:
+    - The package `rgsw` has been moved to `core/rgsw`.
     - Expanded the encryptor to be able encrypt from an `rlwe.PublicKey`.
     - Added tests for encryption and external product.
 - RING: 

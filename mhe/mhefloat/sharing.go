@@ -1,14 +1,14 @@
-package float
+package mhefloat
 
 import (
 	"fmt"
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v4/he/float"
+	"github.com/tuneinsight/lattigo/v4/he/hefloat"
 	"github.com/tuneinsight/lattigo/v4/mhe"
 	"github.com/tuneinsight/lattigo/v4/ring"
 
-	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -19,13 +19,13 @@ import (
 type EncToShareProtocol struct {
 	mhe.KeySwitchProtocol
 
-	params     float.Parameters
+	params     hefloat.Parameters
 	zero       *rlwe.SecretKey
 	maskBigint []*big.Int
 	buff       ring.Poly
 }
 
-func NewAdditiveShare(params float.Parameters, logSlots int) mhe.AdditiveShareBigint {
+func NewAdditiveShare(params hefloat.Parameters, logSlots int) mhe.AdditiveShareBigint {
 
 	nValues := 1 << logSlots
 	if params.RingType() == ring.Standard {
@@ -55,7 +55,7 @@ func (e2s EncToShareProtocol) ShallowCopy() EncToShareProtocol {
 }
 
 // NewEncToShareProtocol creates a new EncToShareProtocol struct from the passed parameters.
-func NewEncToShareProtocol(params float.Parameters, noise ring.DistributionParameters) (EncToShareProtocol, error) {
+func NewEncToShareProtocol(params hefloat.Parameters, noise ring.DistributionParameters) (EncToShareProtocol, error) {
 	e2s := EncToShareProtocol{}
 
 	var err error
@@ -188,7 +188,7 @@ func (e2s EncToShareProtocol) GetShare(secretShare *mhe.AdditiveShareBigint, agg
 // required by the shares-to-encryption protocol.
 type ShareToEncProtocol struct {
 	mhe.KeySwitchProtocol
-	params   float.Parameters
+	params   hefloat.Parameters
 	tmp      ring.Poly
 	ssBigint []*big.Int
 	zero     *rlwe.SecretKey
@@ -208,7 +208,7 @@ func (s2e ShareToEncProtocol) ShallowCopy() ShareToEncProtocol {
 }
 
 // NewShareToEncProtocol creates a new ShareToEncProtocol struct from the passed parameters.
-func NewShareToEncProtocol(params float.Parameters, noise ring.DistributionParameters) (ShareToEncProtocol, error) {
+func NewShareToEncProtocol(params hefloat.Parameters, noise ring.DistributionParameters) (ShareToEncProtocol, error) {
 	s2e := ShareToEncProtocol{}
 
 	var err error

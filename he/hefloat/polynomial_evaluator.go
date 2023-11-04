@@ -1,10 +1,10 @@
-package float
+package hefloat
 
 import (
 	"fmt"
 
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
 	"github.com/tuneinsight/lattigo/v4/he"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
@@ -24,7 +24,7 @@ func NewPowerBasis(ct *rlwe.Ciphertext, basis bignum.Basis) he.PowerBasis {
 }
 
 // NewPolynomialEvaluator instantiates a new PolynomialEvaluator from a circuit.Evaluator.
-// The default *float.Evaluator is compliant to the circuit.Evaluator interface.
+// The default hefloat.Evaluator is compliant to the circuit.Evaluator interface.
 // This method is allocation free.
 func NewPolynomialEvaluator(params Parameters, eval he.Evaluator) *PolynomialEvaluator {
 	return &PolynomialEvaluator{

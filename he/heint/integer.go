@@ -1,8 +1,8 @@
-// Package integer implements Homomorphic Encryption for encrypted modular arithmetic over the integers.
-package integer
+// Package heint implements Homomorphic Encryption for encrypted modular arithmetic over the integers.
+package heint
 
 import (
-	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
 	"github.com/tuneinsight/lattigo/v4/schemes/bgv"
 )
 

@@ -1,8 +1,8 @@
 package ckks
 
 import (
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
 var (

@@ -3,7 +3,7 @@ package mhe
 import (
 	"math"
 
-	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
 )
 
 // NoiseRelinearizationKey returns the standard deviation of the noise of each individual elements in the collective RelinearizationKey.

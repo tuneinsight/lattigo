@@ -1,13 +1,13 @@
-package float_test
+package hefloat_test
 
 import (
 	"math/big"
 	"testing"
 
-	"github.com/tuneinsight/lattigo/v4/he/float"
-	"github.com/tuneinsight/lattigo/v4/he/float/bootstrapper"
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
+	"github.com/tuneinsight/lattigo/v4/he/hefloat"
+	"github.com/tuneinsight/lattigo/v4/he/hefloat/bootstrapper"
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
 
 	"github.com/stretchr/testify/require"
 )
@@ -24,7 +24,7 @@ func TestComparisons(t *testing.T) {
 			paramsLiteral.LogN = 10
 		}
 
-		params, err := float.NewParametersFromLiteral(paramsLiteral)
+		params, err := hefloat.NewParametersFromLiteral(paramsLiteral)
 		require.NoError(t, err)
 
 		var tc *testContext
@@ -47,9 +47,9 @@ func TestComparisons(t *testing.T) {
 
 		eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(kgen.GenRelinearizationKeyNew(sk), galKeys...))
 
-		polys := float.NewMinimaxCompositePolynomial(float.DefaultMinimaxCompositePolynomialForSign)
+		polys := hefloat.NewMinimaxCompositePolynomial(hefloat.DefaultMinimaxCompositePolynomialForSign)
 
-		CmpEval := float.NewComparisonEvaluator(params, eval, btp, polys)
+		CmpEval := hefloat.NewComparisonEvaluator(params, eval, btp, polys)
 
 		t.Run(GetTestName(params, "Sign"), func(t *testing.T) {
 
@@ -69,7 +69,7 @@ func TestComparisons(t *testing.T) {
 				want[i] = polys.Evaluate(values[i])[0]
 			}
 
-			float.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+			hefloat.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 		})
 
 		t.Run(GetTestName(params, "Step"), func(t *testing.T) {
@@ -94,7 +94,7 @@ func TestComparisons(t *testing.T) {
 				want[i].Add(want[i], half)
 			}
 
-			float.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+			hefloat.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 		})
 
 		t.Run(GetTestName(params, "Max"), func(t *testing.T) {
@@ -121,7 +121,7 @@ func TestComparisons(t *testing.T) {
 				}
 			}
 
-			float.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+			hefloat.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 		})
 
 		t.Run(GetTestName(params, "Min"), func(t *testing.T) {
@@ -148,7 +148,7 @@ func TestComparisons(t *testing.T) {
 				}
 			}
 
-			float.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+			hefloat.VerifyTestVectors(params, ecd, nil, want, have, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 		})
 	}
 }

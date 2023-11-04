@@ -1,4 +1,4 @@
-package float_test
+package hefloat_test
 
 import (
 	"math/big"
@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tuneinsight/lattigo/v4/he/float"
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
+	"github.com/tuneinsight/lattigo/v4/he/hefloat"
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -26,13 +26,13 @@ func TestHomomorphicDFT(t *testing.T) {
 
 	for _, paramsLiteral := range testParametersLiteral {
 
-		var params float.Parameters
-		if params, err = float.NewParametersFromLiteral(paramsLiteral); err != nil {
+		var params hefloat.Parameters
+		if params, err = hefloat.NewParametersFromLiteral(paramsLiteral); err != nil {
 			t.Fatal(err)
 		}
 
 		for _, logSlots := range []int{params.LogMaxDimensions().Cols - 1, params.LogMaxDimensions().Cols} {
-			for _, testSet := range []func(params float.Parameters, logSlots int, t *testing.T){
+			for _, testSet := range []func(params hefloat.Parameters, logSlots int, t *testing.T){
 				testHomomorphicEncoding,
 				testHomomorphicDecoding,
 			} {
@@ -45,9 +45,9 @@ func TestHomomorphicDFT(t *testing.T) {
 
 func testDFTMatrixLiteralMarshalling(t *testing.T) {
 	t.Run("Marshalling", func(t *testing.T) {
-		m := float.DFTMatrixLiteral{
+		m := hefloat.DFTMatrixLiteral{
 			LogSlots:        15,
-			Type:            float.HomomorphicDecode,
+			Type:            hefloat.HomomorphicDecode,
 			LevelStart:      12,
 			LogBSGSRatio:    2,
 			Levels:          []int{1, 1, 1},
@@ -58,7 +58,7 @@ func testDFTMatrixLiteralMarshalling(t *testing.T) {
 		data, err := m.MarshalBinary()
 		require.Nil(t, err)
 
-		mNew := new(float.DFTMatrixLiteral)
+		mNew := new(hefloat.DFTMatrixLiteral)
 		if err := mNew.UnmarshalBinary(data); err != nil {
 			require.Nil(t, err)
 		}
@@ -66,7 +66,7 @@ func testDFTMatrixLiteralMarshalling(t *testing.T) {
 	})
 }
 
-func testHomomorphicEncoding(params float.Parameters, LogSlots int, t *testing.T) {
+func testHomomorphicEncoding(params hefloat.Parameters, LogSlots int, t *testing.T) {
 
 	slots := 1 << LogSlots
 
@@ -77,9 +77,9 @@ func testHomomorphicEncoding(params float.Parameters, LogSlots int, t *testing.T
 		packing = "SparsePacking"
 	}
 
-	var params2N float.Parameters
+	var params2N hefloat.Parameters
 	var err error
-	if params2N, err = float.NewParametersFromLiteral(float.ParametersLiteral{
+	if params2N, err = hefloat.NewParametersFromLiteral(hefloat.ParametersLiteral{
 		LogN:            params.LogN() + 1,
 		LogQ:            []int{60},
 		LogP:            []int{61},
@@ -88,7 +88,7 @@ func testHomomorphicEncoding(params float.Parameters, LogSlots int, t *testing.T
 		t.Fatal(err)
 	}
 
-	ecd2N := float.NewEncoder(params2N)
+	ecd2N := hefloat.NewEncoder(params2N)
 
 	t.Run("Encode/"+packing, func(t *testing.T) {
 
@@ -116,9 +116,9 @@ func testHomomorphicEncoding(params float.Parameters, LogSlots int, t *testing.T
 			Levels[i] = 1
 		}
 
-		CoeffsToSlotsParametersLiteral := float.DFTMatrixLiteral{
+		CoeffsToSlotsParametersLiteral := hefloat.DFTMatrixLiteral{
 			LogSlots:        LogSlots,
-			Type:            float.HomomorphicEncode,
+			Type:            hefloat.HomomorphicEncode,
 			RepackImag2Real: true,
 			LevelStart:      params.MaxLevel(),
 			Levels:          Levels,
@@ -126,12 +126,12 @@ func testHomomorphicEncoding(params float.Parameters, LogSlots int, t *testing.T
 
 		kgen := rlwe.NewKeyGenerator(params)
 		sk := kgen.GenSecretKeyNew()
-		encoder := float.NewEncoder(params, 90) // Required to force roots.(type) to be []*bignum.Complex instead of []complex128
+		encoder := hefloat.NewEncoder(params, 90) // Required to force roots.(type) to be []*bignum.Complex instead of []complex128
 		encryptor := rlwe.NewEncryptor(params, sk)
 		decryptor := rlwe.NewDecryptor(params, sk)
 
 		// Generates the encoding matrices
-		CoeffsToSlotMatrices, err := float.NewDFTMatrixFromLiteral(params, CoeffsToSlotsParametersLiteral, encoder)
+		CoeffsToSlotMatrices, err := hefloat.NewDFTMatrixFromLiteral(params, CoeffsToSlotsParametersLiteral, encoder)
 		require.NoError(t, err)
 
 		// Gets Galois elements
@@ -142,8 +142,8 @@ func testHomomorphicEncoding(params float.Parameters, LogSlots int, t *testing.T
 		evk := rlwe.NewMemEvaluationKeySet(nil, kgen.GenGaloisKeysNew(galEls, sk)...)
 
 		// Creates an evaluator with the rotation keys
-		eval := float.NewEvaluator(params, evk)
-		hdftEval := float.NewDFTEvaluator(params, eval)
+		eval := hefloat.NewEvaluator(params, evk)
+		hdftEval := hefloat.NewDFTEvaluator(params, eval)
 
 		prec := params.EncodingPrecision()
 
@@ -180,7 +180,7 @@ func testHomomorphicEncoding(params float.Parameters, LogSlots int, t *testing.T
 		}
 
 		// Encodes coefficient-wise and encrypts the test vector
-		pt := float.NewPlaintext(params, params.MaxLevel())
+		pt := hefloat.NewPlaintext(params, params.MaxLevel())
 		pt.LogDimensions = ring.Dimensions{Rows: 0, Cols: LogSlots}
 		pt.IsBatched = false
 
@@ -231,7 +231,7 @@ func testHomomorphicEncoding(params float.Parameters, LogSlots int, t *testing.T
 			}
 
 			// Compares
-			float.VerifyTestVectors(params, ecd2N, nil, want, have, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+			hefloat.VerifyTestVectors(params, ecd2N, nil, want, have, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 
 		} else {
 
@@ -275,13 +275,13 @@ func testHomomorphicEncoding(params float.Parameters, LogSlots int, t *testing.T
 				wantImag[i], wantImag[j] = vec1[i][0], vec1[i][1]
 			}
 
-			float.VerifyTestVectors(params, ecd2N, nil, wantReal, haveReal, params.LogDefaultScale(), 0, *printPrecisionStats, t)
-			float.VerifyTestVectors(params, ecd2N, nil, wantImag, haveImag, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+			hefloat.VerifyTestVectors(params, ecd2N, nil, wantReal, haveReal, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+			hefloat.VerifyTestVectors(params, ecd2N, nil, wantImag, haveImag, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 		}
 	})
 }
 
-func testHomomorphicDecoding(params float.Parameters, LogSlots int, t *testing.T) {
+func testHomomorphicDecoding(params hefloat.Parameters, LogSlots int, t *testing.T) {
 
 	slots := 1 << LogSlots
 
@@ -320,9 +320,9 @@ func testHomomorphicDecoding(params float.Parameters, LogSlots int, t *testing.T
 			Levels[i] = 1
 		}
 
-		SlotsToCoeffsParametersLiteral := float.DFTMatrixLiteral{
+		SlotsToCoeffsParametersLiteral := hefloat.DFTMatrixLiteral{
 			LogSlots:        LogSlots,
-			Type:            float.HomomorphicDecode,
+			Type:            hefloat.HomomorphicDecode,
 			RepackImag2Real: true,
 			LevelStart:      params.MaxLevel(),
 			Levels:          Levels,
@@ -330,12 +330,12 @@ func testHomomorphicDecoding(params float.Parameters, LogSlots int, t *testing.T
 
 		kgen := rlwe.NewKeyGenerator(params)
 		sk := kgen.GenSecretKeyNew()
-		encoder := float.NewEncoder(params)
+		encoder := hefloat.NewEncoder(params)
 		encryptor := rlwe.NewEncryptor(params, sk)
 		decryptor := rlwe.NewDecryptor(params, sk)
 
 		// Generates the encoding matrices
-		SlotsToCoeffsMatrix, err := float.NewDFTMatrixFromLiteral(params, SlotsToCoeffsParametersLiteral, encoder)
+		SlotsToCoeffsMatrix, err := hefloat.NewDFTMatrixFromLiteral(params, SlotsToCoeffsParametersLiteral, encoder)
 		require.NoError(t, err)
 
 		// Gets the Galois elements
@@ -346,8 +346,8 @@ func testHomomorphicDecoding(params float.Parameters, LogSlots int, t *testing.T
 		evk := rlwe.NewMemEvaluationKeySet(nil, kgen.GenGaloisKeysNew(galEls, sk)...)
 
 		// Creates an evaluator with the rotation keys
-		eval := float.NewEvaluator(params, evk)
-		hdftEval := float.NewDFTEvaluator(params, eval)
+		eval := hefloat.NewEvaluator(params, evk)
+		hdftEval := hefloat.NewDFTEvaluator(params, eval)
 
 		prec := params.EncodingPrecision()
 
@@ -374,7 +374,7 @@ func testHomomorphicDecoding(params float.Parameters, LogSlots int, t *testing.T
 		}
 
 		// Encodes and encrypts the test vectors
-		plaintext := float.NewPlaintext(params, params.MaxLevel())
+		plaintext := hefloat.NewPlaintext(params, params.MaxLevel())
 		plaintext.LogDimensions = ring.Dimensions{Rows: 0, Cols: LogSlots}
 		if err = encoder.Encode(valuesReal, plaintext); err != nil {
 			t.Fatal(err)
@@ -423,6 +423,6 @@ func testHomomorphicDecoding(params float.Parameters, LogSlots int, t *testing.T
 		// Result is bit-reversed, so applies the bit-reverse permutation on the reference vector
 		utils.BitReverseInPlaceSlice(valuesReal, slots)
 
-		float.VerifyTestVectors(params, encoder, decryptor, valuesReal, valuesTest, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+		hefloat.VerifyTestVectors(params, encoder, decryptor, valuesReal, valuesTest, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 }

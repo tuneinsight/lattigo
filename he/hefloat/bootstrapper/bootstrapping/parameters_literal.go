@@ -6,9 +6,9 @@ import (
 	"math"
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v4/he/float"
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
+	"github.com/tuneinsight/lattigo/v4/he/hefloat"
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
@@ -102,7 +102,7 @@ import (
 //		When using a small ratio (i.e. 2^4), for example if ct.PlaintextScale is close to Q[0] is small or if |m| is large, the Mod1InvDegree can be set to
 //	 a non zero value (i.e. 5 or 7). This will greatly improve the precision of the bootstrapping, at the expense of slightly increasing its depth.
 //
-// Mod1Type: the type of approximation for the modular reduction polynomial. By default set to float.CosDiscrete.
+// Mod1Type: the type of approximation for the modular reduction polynomial. By default set to hefloat.CosDiscrete.
 //
 // K: the range of the approximation interval, by default set to 16.
 //
@@ -122,7 +122,7 @@ type ParametersLiteral struct {
 	EvalModLogScale                             *int                        // Default: 60
 	EphemeralSecretWeight                       *int                        // Default: 32
 	IterationsParameters                        *IterationsParameters       // Default: nil (default starting level of 0 and 1 iteration)
-	Mod1Type                                    float.Mod1Type              // Default: float.CosDiscrete
+	Mod1Type                                    hefloat.Mod1Type            // Default: hefloat.CosDiscrete
 	LogMessageRatio                             *int                        // Default: 8
 	K                                           *int                        // Default: 16
 	Mod1Degree                                  *int                        // Default: 30
@@ -148,7 +148,7 @@ const (
 	// DefaultIterations is the default number of bootstrapping iterations.
 	DefaultIterations = 1
 	// DefaultMod1Type is the default function and approximation technique for the homomorphic modular reduction polynomial.
-	DefaultMod1Type = float.CosDiscrete
+	DefaultMod1Type = hefloat.CosDiscrete
 	// DefaultLogMessageRatio is the default ratio between Q[0] and |m|.
 	DefaultLogMessageRatio = 8
 	// DefaultK is the default interval [-K+1, K-1] for the polynomial approximation of the homomorphic modular reduction.
@@ -380,7 +380,7 @@ func (p ParametersLiteral) GetK() (K int, err error) {
 
 // GetMod1Type returns the Mod1Type field of the target ParametersLiteral.
 // The default value DefaultMod1Type is returned is the field is nil.
-func (p ParametersLiteral) GetMod1Type() (Mod1Type float.Mod1Type) {
+func (p ParametersLiteral) GetMod1Type() (Mod1Type hefloat.Mod1Type) {
 	return p.Mod1Type
 }
 
@@ -391,7 +391,7 @@ func (p ParametersLiteral) GetDoubleAngle() (DoubleAngle int, err error) {
 	if v := p.DoubleAngle; v == nil {
 
 		switch p.GetMod1Type() {
-		case float.SinContinuous:
+		case hefloat.SinContinuous:
 			DoubleAngle = 0
 		default:
 			DoubleAngle = DefaultDoubleAngle

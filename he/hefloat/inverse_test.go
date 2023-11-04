@@ -1,4 +1,4 @@
-package float_test
+package hefloat_test
 
 import (
 	"math"
@@ -6,10 +6,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tuneinsight/lattigo/v4/he/float"
-	"github.com/tuneinsight/lattigo/v4/he/float/bootstrapper"
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
+	"github.com/tuneinsight/lattigo/v4/he/hefloat"
+	"github.com/tuneinsight/lattigo/v4/he/hefloat/bootstrapper"
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
@@ -25,7 +25,7 @@ func TestInverse(t *testing.T) {
 			paramsLiteral.LogN = 10
 		}
 
-		params, err := float.NewParametersFromLiteral(paramsLiteral)
+		params, err := hefloat.NewParametersFromLiteral(paramsLiteral)
 		require.NoError(t, err)
 
 		var tc *testContext
@@ -68,21 +68,21 @@ func TestInverse(t *testing.T) {
 				values[i][0].Quo(one, values[i][0])
 			}
 
-			invEval := float.NewInverseEvaluator(params, eval, btp)
+			invEval := hefloat.NewInverseEvaluator(params, eval, btp)
 
 			var err error
 			if ciphertext, err = invEval.GoldschmidtDivisionNew(ciphertext, logmin); err != nil {
 				t.Fatal(err)
 			}
 
-			float.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, 70, 0, *printPrecisionStats, t)
+			hefloat.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, 70, 0, *printPrecisionStats, t)
 		})
 
 		t.Run(GetTestName(params, "PositiveDomain"), func(t *testing.T) {
 
 			values, _, ct := newTestVectors(tc, enc, complex(0, 0), complex(max, 0), t)
 
-			invEval := float.NewInverseEvaluator(params, eval, btp)
+			invEval := hefloat.NewInverseEvaluator(params, eval, btp)
 
 			cInv, err := invEval.EvaluatePositiveDomainNew(ct, logmin, logmax)
 			require.NoError(t, err)
@@ -102,14 +102,14 @@ func TestInverse(t *testing.T) {
 				}
 			}
 
-			float.VerifyTestVectors(params, tc.encoder, nil, want, have, 70, 0, *printPrecisionStats, t)
+			hefloat.VerifyTestVectors(params, tc.encoder, nil, want, have, 70, 0, *printPrecisionStats, t)
 		})
 
 		t.Run(GetTestName(params, "NegativeDomain"), func(t *testing.T) {
 
 			values, _, ct := newTestVectors(tc, enc, complex(-max, 0), complex(0, 0), t)
 
-			invEval := float.NewInverseEvaluator(params, eval, btp)
+			invEval := hefloat.NewInverseEvaluator(params, eval, btp)
 
 			cInv, err := invEval.EvaluateNegativeDomainNew(ct, logmin, logmax)
 			require.NoError(t, err)
@@ -129,16 +129,16 @@ func TestInverse(t *testing.T) {
 				}
 			}
 
-			float.VerifyTestVectors(params, tc.encoder, nil, want, have, 70, 0, *printPrecisionStats, t)
+			hefloat.VerifyTestVectors(params, tc.encoder, nil, want, have, 70, 0, *printPrecisionStats, t)
 		})
 
 		t.Run(GetTestName(params, "FullDomain"), func(t *testing.T) {
 
 			values, _, ct := newTestVectors(tc, enc, complex(-max, 0), complex(max, 0), t)
 
-			invEval := float.NewInverseEvaluator(params, eval, btp)
+			invEval := hefloat.NewInverseEvaluator(params, eval, btp)
 
-			cInv, err := invEval.EvaluateFullDomainNew(ct, logmin, logmax, float.NewMinimaxCompositePolynomial(float.DefaultMinimaxCompositePolynomialForSign))
+			cInv, err := invEval.EvaluateFullDomainNew(ct, logmin, logmax, hefloat.NewMinimaxCompositePolynomial(hefloat.DefaultMinimaxCompositePolynomialForSign))
 			require.NoError(t, err)
 
 			have := make([]*big.Float, params.MaxSlots())
@@ -156,7 +156,7 @@ func TestInverse(t *testing.T) {
 				}
 			}
 
-			float.VerifyTestVectors(params, tc.encoder, nil, want, have, 70, 0, *printPrecisionStats, t)
+			hefloat.VerifyTestVectors(params, tc.encoder, nil, want, have, 70, 0, *printPrecisionStats, t)
 		})
 	}
 }

@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tuneinsight/lattigo/v4/he/integer"
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
+	"github.com/tuneinsight/lattigo/v4/he/heint"
 	"github.com/tuneinsight/lattigo/v4/mhe"
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
 
@@ -102,7 +102,7 @@ func main() {
 
 	// Creating encryption parameters
 	// LogN = 13 & LogQP = 218
-	params, err := integer.NewParametersFromLiteral(integer.ParametersLiteral{
+	params, err := heint.NewParametersFromLiteral(heint.ParametersLiteral{
 		LogN:             13,
 		LogQ:             []int{54, 54, 54},
 		LogP:             []int{55},
@@ -140,14 +140,14 @@ func main() {
 		elapsedCKGParty+elapsedRKGParty+elapsedGKGParty)
 
 	// Pre-loading memory
-	encoder := integer.NewEncoder(params)
+	encoder := heint.NewEncoder(params)
 	l.Println("> Memory alloc Phase")
 	encInputs := make([]*rlwe.Ciphertext, N)
 	plainMask := make([]*rlwe.Plaintext, N)
 
 	// Ciphertexts to be retrieved
 	for i := range encInputs {
-		encInputs[i] = integer.NewCiphertext(params, 1, params.MaxLevel())
+		encInputs[i] = heint.NewCiphertext(params, 1, params.MaxLevel())
 	}
 
 	// Plaintext masks: plainmask[i] = encode([0, ..., 0, 1_i, 0, ..., 0])
@@ -155,7 +155,7 @@ func main() {
 	for i := range plainMask {
 		maskCoeffs := make([]uint64, params.N())
 		maskCoeffs[i] = 1
-		plainMask[i] = integer.NewPlaintext(params, params.MaxLevel())
+		plainMask[i] = heint.NewPlaintext(params, params.MaxLevel())
 		if err := encoder.Encode(maskCoeffs, plainMask[i]); err != nil {
 			panic(err)
 		}
@@ -164,7 +164,7 @@ func main() {
 	// Ciphertexts encrypted under collective public key and stored in the cloud
 	l.Println("> Encrypt Phase")
 	encryptor := rlwe.NewEncryptor(params, pk)
-	pt := integer.NewPlaintext(params, params.MaxLevel())
+	pt := heint.NewPlaintext(params, params.MaxLevel())
 	elapsedEncryptParty := runTimedParty(func() {
 		for i, pi := range P {
 			if err := encoder.Encode(pi.input, pt); err != nil {
@@ -191,7 +191,7 @@ func main() {
 
 	// Decryption by the external party
 	decryptor := rlwe.NewDecryptor(params, P[0].sk)
-	ptres := integer.NewPlaintext(params, params.MaxLevel())
+	ptres := heint.NewPlaintext(params, params.MaxLevel())
 	elapsedDecParty := runTimed(func() {
 		decryptor.Decrypt(encOut, ptres)
 	})
@@ -207,7 +207,7 @@ func main() {
 		elapsedCKGParty+elapsedRKGParty+elapsedGKGParty+elapsedEncryptParty+elapsedRequestParty+elapsedPCKSParty+elapsedDecParty)
 }
 
-func cksphase(params integer.Parameters, P []*party, result *rlwe.Ciphertext) *rlwe.Ciphertext {
+func cksphase(params heint.Parameters, P []*party, result *rlwe.Ciphertext) *rlwe.Ciphertext {
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> KeySwitch Phase")
@@ -230,7 +230,7 @@ func cksphase(params integer.Parameters, P []*party, result *rlwe.Ciphertext) *r
 		}
 	}, len(P)-1)
 
-	encOut := integer.NewCiphertext(params, 1, params.MaxLevel())
+	encOut := heint.NewCiphertext(params, 1, params.MaxLevel())
 	elapsedCKSCloud = runTimed(func() {
 		for _, pi := range P {
 			if err := cks.AggregateShares(pi.cksShare, cksCombined, &cksCombined); err != nil {
@@ -244,7 +244,7 @@ func cksphase(params integer.Parameters, P []*party, result *rlwe.Ciphertext) *r
 	return encOut
 }
 
-func genparties(params integer.Parameters, N int) []*party {
+func genparties(params heint.Parameters, N int) []*party {
 
 	P := make([]*party, N)
 
@@ -265,7 +265,7 @@ func genparties(params integer.Parameters, N int) []*party {
 	return P
 }
 
-func ckgphase(params integer.Parameters, crs sampling.PRNG, P []*party) *rlwe.PublicKey {
+func ckgphase(params heint.Parameters, crs sampling.PRNG, P []*party) *rlwe.PublicKey {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -301,7 +301,7 @@ func ckgphase(params integer.Parameters, crs sampling.PRNG, P []*party) *rlwe.Pu
 	return pk
 }
 
-func rkgphase(params integer.Parameters, crs sampling.PRNG, P []*party) *rlwe.RelinearizationKey {
+func rkgphase(params heint.Parameters, crs sampling.PRNG, P []*party) *rlwe.RelinearizationKey {
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> RelinearizationKeyGen Phase")
@@ -351,7 +351,7 @@ func rkgphase(params integer.Parameters, crs sampling.PRNG, P []*party) *rlwe.Re
 	return rlk
 }
 
-func gkgphase(params integer.Parameters, crs sampling.PRNG, P []*party) (galKeys []*rlwe.GaloisKey) {
+func gkgphase(params heint.Parameters, crs sampling.PRNG, P []*party) (galKeys []*rlwe.GaloisKey) {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -408,11 +408,11 @@ func gkgphase(params integer.Parameters, crs sampling.PRNG, P []*party) (galKeys
 	return
 }
 
-func genquery(params integer.Parameters, queryIndex int, encoder *integer.Encoder, encryptor *rlwe.Encryptor) *rlwe.Ciphertext {
+func genquery(params heint.Parameters, queryIndex int, encoder *heint.Encoder, encryptor *rlwe.Encryptor) *rlwe.Ciphertext {
 	// Query ciphertext
 	queryCoeffs := make([]uint64, params.N())
 	queryCoeffs[queryIndex] = 1
-	query := integer.NewPlaintext(params, params.MaxLevel())
+	query := heint.NewPlaintext(params, params.MaxLevel())
 	var encQuery *rlwe.Ciphertext
 	elapsedRequestParty += runTimed(func() {
 		var err error
@@ -427,7 +427,7 @@ func genquery(params integer.Parameters, queryIndex int, encoder *integer.Encode
 	return encQuery
 }
 
-func requestphase(params integer.Parameters, queryIndex, NGoRoutine int, encQuery *rlwe.Ciphertext, encInputs []*rlwe.Ciphertext, plainMask []*rlwe.Plaintext, evk rlwe.EvaluationKeySet) *rlwe.Ciphertext {
+func requestphase(params heint.Parameters, queryIndex, NGoRoutine int, encQuery *rlwe.Ciphertext, encInputs []*rlwe.Ciphertext, plainMask []*rlwe.Plaintext, evk rlwe.EvaluationKeySet) *rlwe.Ciphertext {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -436,10 +436,10 @@ func requestphase(params integer.Parameters, queryIndex, NGoRoutine int, encQuer
 	// Buffer for the intermediate computation done by the cloud
 	encPartial := make([]*rlwe.Ciphertext, len(encInputs))
 	for i := range encPartial {
-		encPartial[i] = integer.NewCiphertext(params, 2, params.MaxLevel())
+		encPartial[i] = heint.NewCiphertext(params, 2, params.MaxLevel())
 	}
 
-	evaluator := integer.NewEvaluator(params, evk)
+	evaluator := heint.NewEvaluator(params, evk)
 
 	// Split the task among the Go routines
 	tasks := make(chan *maskTask)
@@ -448,7 +448,7 @@ func requestphase(params integer.Parameters, queryIndex, NGoRoutine int, encQuer
 	for i := 1; i <= NGoRoutine; i++ {
 		go func(i int) {
 			evaluator := evaluator.ShallowCopy() // creates a shallow evaluator copy for this goroutine
-			tmp := integer.NewCiphertext(params, 1, params.MaxLevel())
+			tmp := heint.NewCiphertext(params, 1, params.MaxLevel())
 			for task := range tasks {
 				task.elapsedmaskTask = runTimed(func() {
 					// 1) Multiplication BFV-style of the query with the plaintext mask
@@ -502,8 +502,8 @@ func requestphase(params integer.Parameters, queryIndex, NGoRoutine int, encQuer
 		elapsedRequestCloudCPU += t.elapsedmaskTask
 	}
 
-	resultDeg2 := integer.NewCiphertext(params, 2, params.MaxLevel())
-	result := integer.NewCiphertext(params, 1, params.MaxLevel())
+	resultDeg2 := heint.NewCiphertext(params, 2, params.MaxLevel())
+	result := heint.NewCiphertext(params, 1, params.MaxLevel())
 
 	// Summation of all the partial result among the different Go routines
 	finalAddDuration := runTimed(func() {

@@ -1,10 +1,10 @@
-package float
+package hefloat
 
 import (
 	"math/big"
 
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
 	"github.com/tuneinsight/lattigo/v4/he"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
@@ -17,7 +17,7 @@ type ComparisonEvaluator struct {
 }
 
 // NewComparisonEvaluator instantiates a new ComparisonEvaluator.
-// The default float.Evaluator is compliant with the EvaluatorForMinimaxCompositePolynomial interface.
+// The default hefloat.Evaluator is compliant with the EvaluatorForMinimaxCompositePolynomial interface.
 // The field he.Bootstrapper[rlwe.Ciphertext] can be nil if the parameters have enough level to support the computation.
 //
 // Giving a MinimaxCompositePolynomial is optional, but it is highly recommended to provide one that is optimized

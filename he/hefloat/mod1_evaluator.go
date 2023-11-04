@@ -1,16 +1,16 @@
-package float
+package hefloat
 
 import (
 	"fmt"
 	"math/big"
 
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
 	"github.com/tuneinsight/lattigo/v4/he"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
 // EvaluatorForMod1 defines a set of common and scheme agnostic
 // methods that are necessary to instantiate a Mod1Evaluator.
-// The default float.Evaluator is compliant to this interface.
+// The default hefloat.Evaluator is compliant to this interface.
 type EvaluatorForMod1 interface {
 	he.Evaluator
 	DropLevel(*rlwe.Ciphertext, int)
@@ -26,7 +26,7 @@ type Mod1Evaluator struct {
 }
 
 // NewMod1Evaluator instantiates a new Mod1Evaluator evaluator.
-// The default float.Evaluator is compliant to the EvaluatorForMod1 interface.
+// The default hefloat.Evaluator is compliant to the EvaluatorForMod1 interface.
 // This method is allocation free.
 func NewMod1Evaluator(eval EvaluatorForMod1, evalPoly *PolynomialEvaluator, Mod1Parameters Mod1Parameters) *Mod1Evaluator {
 	return &Mod1Evaluator{EvaluatorForMod1: eval, PolynomialEvaluator: evalPoly, Mod1Parameters: Mod1Parameters}

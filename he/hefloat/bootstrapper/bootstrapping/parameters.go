@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/tuneinsight/lattigo/v4/he/float"
+	"github.com/tuneinsight/lattigo/v4/he/hefloat"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
@@ -14,29 +14,29 @@ import (
 // Parameters is a struct storing the parameters
 // of the bootstrapping circuit.
 type Parameters struct {
-	float.Parameters
-	SlotsToCoeffsParameters float.DFTMatrixLiteral
-	Mod1ParametersLiteral   float.Mod1ParametersLiteral
-	CoeffsToSlotsParameters float.DFTMatrixLiteral
+	hefloat.Parameters
+	SlotsToCoeffsParameters hefloat.DFTMatrixLiteral
+	Mod1ParametersLiteral   hefloat.Mod1ParametersLiteral
+	CoeffsToSlotsParameters hefloat.DFTMatrixLiteral
 	IterationsParameters    *IterationsParameters
 	EphemeralSecretWeight   int // Hamming weight of the ephemeral secret. If 0, no ephemeral secret is used during the bootstrapping.
 }
 
-// NewParametersFromLiteral instantiates a bootstrapping.Parameters from the residual float.Parameters and
+// NewParametersFromLiteral instantiates a bootstrapping.Parameters from the residual hefloat.Parameters and
 // a bootstrapping.ParametersLiteral struct.
 //
-// The residualParameters corresponds to the float.Parameters that are left after the bootstrapping circuit is evaluated.
+// The residualParameters corresponds to the hefloat.Parameters that are left after the bootstrapping circuit is evaluated.
 // These are entirely independent of the bootstrapping parameters with one exception: the ciphertext primes Qi must be
 // congruent to 1 mod 2N of the bootstrapping parameters (note that the auxiliary primes Pi do not need to be).
 // This is required because the primes Qi of the residual parameters and the bootstrapping parameters are the same between
 // the two sets of parameters.
 //
-// The user can ensure that this condition is met by setting the appropriate LogNThRoot in the float.ParametersLiteral before
+// The user can ensure that this condition is met by setting the appropriate LogNThRoot in the hefloat.ParametersLiteral before
 // instantiating them.
 //
-// The method NewParametersFromLiteral will automatically allocate the float.Parameters of the bootstrapping circuit based on
+// The method NewParametersFromLiteral will automatically allocate the hefloat.Parameters of the bootstrapping circuit based on
 // the provided residualParameters and the information given in the bootstrapping.ParametersLiteral.
-func NewParametersFromLiteral(residualParameters float.Parameters, btpLit ParametersLiteral) (Parameters, error) {
+func NewParametersFromLiteral(residualParameters hefloat.Parameters, btpLit ParametersLiteral) (Parameters, error) {
 
 	var err error
 
@@ -112,8 +112,8 @@ func NewParametersFromLiteral(residualParameters float.Parameters, btpLit Parame
 	}
 
 	// SlotsToCoeffs parameters (homomorphic decoding)
-	S2CParams := float.DFTMatrixLiteral{
-		Type:            float.HomomorphicDecode,
+	S2CParams := hefloat.DFTMatrixLiteral{
+		Type:            hefloat.HomomorphicDecode,
 		LogSlots:        LogSlots,
 		RepackImag2Real: true,
 		LevelStart:      residualParameters.MaxLevel() + len(SlotsToCoeffsFactorizationDepthAndLogScales) + hasReservedIterationPrime,
@@ -161,7 +161,7 @@ func NewParametersFromLiteral(residualParameters float.Parameters, btpLit Parame
 	}
 
 	// Parameters of the homomorphic modular reduction x mod 1
-	Mod1ParametersLiteral := float.Mod1ParametersLiteral{
+	Mod1ParametersLiteral := hefloat.Mod1ParametersLiteral{
 		LogScale:        EvalMod1LogScale,
 		Mod1Type:        Mod1Type,
 		Mod1Degree:      Mod1Degree,
@@ -187,8 +187,8 @@ func NewParametersFromLiteral(residualParameters float.Parameters, btpLit Parame
 	}
 
 	// Parameters of the CoeffsToSlots (homomorphic encoding)
-	C2SParams := float.DFTMatrixLiteral{
-		Type:            float.HomomorphicEncode,
+	C2SParams := hefloat.DFTMatrixLiteral{
+		Type:            hefloat.HomomorphicEncode,
 		LogSlots:        LogSlots,
 		RepackImag2Real: true,
 		LevelStart:      Mod1ParametersLiteral.LevelStart + len(CoeffsToSlotsFactorizationDepthAndLogScales),
@@ -302,8 +302,8 @@ func NewParametersFromLiteral(residualParameters float.Parameters, btpLit Parame
 		primesNew[logpi] = primesNew[logpi][1:]
 	}
 
-	// Instantiates the float.Parameters of the bootstrapping circuit.
-	params, err := float.NewParametersFromLiteral(float.ParametersLiteral{
+	// Instantiates the hefloat.Parameters of the bootstrapping circuit.
+	params, err := hefloat.NewParametersFromLiteral(hefloat.ParametersLiteral{
 		LogN:            LogN,
 		Q:               Q,
 		P:               P,
@@ -381,10 +381,10 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 
 func (p Parameters) MarshalJSON() (data []byte, err error) {
 	return json.Marshal(struct {
-		Parameters              float.Parameters
-		SlotsToCoeffsParameters float.DFTMatrixLiteral
-		Mod1ParametersLiteral   float.Mod1ParametersLiteral
-		CoeffsToSlotsParameters float.DFTMatrixLiteral
+		Parameters              hefloat.Parameters
+		SlotsToCoeffsParameters hefloat.DFTMatrixLiteral
+		Mod1ParametersLiteral   hefloat.Mod1ParametersLiteral
+		CoeffsToSlotsParameters hefloat.DFTMatrixLiteral
 		IterationsParameters    *IterationsParameters
 		EphemeralSecretWeight   int
 	}{
@@ -399,10 +399,10 @@ func (p Parameters) MarshalJSON() (data []byte, err error) {
 
 func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 	var params struct {
-		Parameters              float.Parameters
-		SlotsToCoeffsParameters float.DFTMatrixLiteral
-		Mod1ParametersLiteral   float.Mod1ParametersLiteral
-		CoeffsToSlotsParameters float.DFTMatrixLiteral
+		Parameters              hefloat.Parameters
+		SlotsToCoeffsParameters hefloat.DFTMatrixLiteral
+		Mod1ParametersLiteral   hefloat.Mod1ParametersLiteral
+		CoeffsToSlotsParameters hefloat.DFTMatrixLiteral
 		IterationsParameters    *IterationsParameters
 		EphemeralSecretWeight   int
 	}
@@ -422,7 +422,7 @@ func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 }
 
 // GaloisElements returns the list of Galois elements required to evaluate the bootstrapping.
-func (p Parameters) GaloisElements(params float.Parameters) (galEls []uint64) {
+func (p Parameters) GaloisElements(params hefloat.Parameters) (galEls []uint64) {
 
 	logN := params.LogN()
 

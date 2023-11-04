@@ -1,10 +1,10 @@
-package integer
+package heint
 
 import (
 	"fmt"
 
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
 	"github.com/tuneinsight/lattigo/v4/he"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/schemes/bfv"
 	"github.com/tuneinsight/lattigo/v4/schemes/bgv"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
@@ -27,7 +27,7 @@ func NewPowerBasis(ct *rlwe.Ciphertext) he.PowerBasis {
 }
 
 // NewPolynomialEvaluator instantiates a new PolynomialEvaluator from a circuit.Evaluator.
-// The default *integer.Evaluator is compliant to the circuit.Evaluator interface.
+// The default heint.Evaluator is compliant to the circuit.Evaluator interface.
 // InvariantTensoring is a boolean that specifies if the evaluator performed the invariant tensoring (BFV-style) or
 // the regular tensoring (BGB-style).
 func NewPolynomialEvaluator(params Parameters, eval he.Evaluator, InvariantTensoring bool) *PolynomialEvaluator {

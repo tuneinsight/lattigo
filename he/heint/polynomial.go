@@ -1,4 +1,4 @@
-package integer
+package heint
 
 import (
 	"github.com/tuneinsight/lattigo/v4/he"

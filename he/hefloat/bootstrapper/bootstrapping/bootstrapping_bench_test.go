@@ -6,15 +6,15 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tuneinsight/lattigo/v4/he/float"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
+	"github.com/tuneinsight/lattigo/v4/he/hefloat"
 )
 
 func BenchmarkBootstrap(b *testing.B) {
 
 	paramSet := DefaultParametersDense[0]
 
-	params, err := float.NewParametersFromLiteral(paramSet.SchemeParams)
+	params, err := hefloat.NewParametersFromLiteral(paramSet.SchemeParams)
 	require.NoError(b, err)
 
 	btpParams, err := NewParametersFromLiteral(params, paramSet.BootstrappingParams)
@@ -35,7 +35,7 @@ func BenchmarkBootstrap(b *testing.B) {
 			bootstrappingScale := rlwe.NewScale(math.Exp2(math.Round(math.Log2(float64(btp.params.Q()[0]) / btp.mod1Parameters.MessageRatio()))))
 
 			b.StopTimer()
-			ct := float.NewCiphertext(params, 1, 0)
+			ct := hefloat.NewCiphertext(params, 1, 0)
 			ct.Scale = bootstrappingScale
 			b.StartTimer()
 

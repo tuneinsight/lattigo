@@ -1,9 +1,9 @@
-// Package blindrotation implements blind rotations evaluation for R-LWE schemes.
-package blindrotation
+// Package hebin implements blind rotations evaluation for RLWE schemes.
+package hebin
 
 import (
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
 // InitTestPolynomial takes a function g, and creates a test polynomial polynomial for the function in the interval [a, b].

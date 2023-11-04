@@ -5,16 +5,16 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v4/he/float"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
+	"github.com/tuneinsight/lattigo/v4/he/hefloat"
 )
 
 // Bootstrapper is a struct to store a memory buffer with the plaintext matrices,
 // the polynomial approximation, and the keys for the bootstrapping.
 type Bootstrapper struct {
-	*float.Evaluator
-	*float.DFTEvaluator
-	*float.Mod1Evaluator
+	*hefloat.Evaluator
+	*hefloat.DFTEvaluator
+	*hefloat.Mod1Evaluator
 	*bootstrapperBase
 	SkDebug *rlwe.SecretKey
 }
@@ -22,14 +22,14 @@ type Bootstrapper struct {
 type bootstrapperBase struct {
 	Parameters
 	*EvaluationKeySet
-	params float.Parameters
+	params hefloat.Parameters
 
 	dslots    int // Number of plaintext slots after the re-encoding
 	logdslots int
 
-	mod1Parameters float.Mod1Parameters
-	stcMatrices    float.DFTMatrix
-	ctsMatrices    float.DFTMatrix
+	mod1Parameters hefloat.Mod1Parameters
+	stcMatrices    hefloat.DFTMatrix
+	ctsMatrices    hefloat.DFTMatrix
 
 	q0OverMessageRatio float64
 }
@@ -45,12 +45,12 @@ type EvaluationKeySet struct {
 // NewBootstrapper creates a new Bootstrapper.
 func NewBootstrapper(btpParams Parameters, btpKeys *EvaluationKeySet) (btp *Bootstrapper, err error) {
 
-	if btpParams.Mod1ParametersLiteral.Mod1Type == float.SinContinuous && btpParams.Mod1ParametersLiteral.DoubleAngle != 0 {
+	if btpParams.Mod1ParametersLiteral.Mod1Type == hefloat.SinContinuous && btpParams.Mod1ParametersLiteral.DoubleAngle != 0 {
 		return nil, fmt.Errorf("cannot use double angle formula for Mod1Type = Sin -> must use Mod1Type = Cos")
 	}
 
-	if btpParams.Mod1ParametersLiteral.Mod1Type == float.CosDiscrete && btpParams.Mod1ParametersLiteral.Mod1Degree < 2*(btpParams.Mod1ParametersLiteral.K-1) {
-		return nil, fmt.Errorf("Mod1Type 'float.CosDiscrete' uses a minimum degree of 2*(K-1) but EvalMod degree is smaller")
+	if btpParams.Mod1ParametersLiteral.Mod1Type == hefloat.CosDiscrete && btpParams.Mod1ParametersLiteral.Mod1Degree < 2*(btpParams.Mod1ParametersLiteral.K-1) {
+		return nil, fmt.Errorf("Mod1Type 'hefloat.CosDiscrete' uses a minimum degree of 2*(K-1) but EvalMod degree is smaller")
 	}
 
 	if btpParams.CoeffsToSlotsParameters.LevelStart-btpParams.CoeffsToSlotsParameters.Depth(true) != btpParams.Mod1ParametersLiteral.LevelStart {
@@ -74,11 +74,11 @@ func NewBootstrapper(btpParams Parameters, btpKeys *EvaluationKeySet) (btp *Boot
 
 	btp.EvaluationKeySet = btpKeys
 
-	btp.Evaluator = float.NewEvaluator(params, btpKeys)
+	btp.Evaluator = hefloat.NewEvaluator(params, btpKeys)
 
-	btp.DFTEvaluator = float.NewDFTEvaluator(params, btp.Evaluator)
+	btp.DFTEvaluator = hefloat.NewDFTEvaluator(params, btp.Evaluator)
 
-	btp.Mod1Evaluator = float.NewMod1Evaluator(btp.Evaluator, float.NewPolynomialEvaluator(params, btp.Evaluator), btp.bootstrapperBase.mod1Parameters)
+	btp.Mod1Evaluator = hefloat.NewMod1Evaluator(btp.Evaluator, hefloat.NewPolynomialEvaluator(params, btp.Evaluator), btp.bootstrapperBase.mod1Parameters)
 
 	return
 }
@@ -92,8 +92,8 @@ func (btp Bootstrapper) ShallowCopy() *Bootstrapper {
 	return &Bootstrapper{
 		Evaluator:        Evaluator,
 		bootstrapperBase: btp.bootstrapperBase,
-		DFTEvaluator:     float.NewDFTEvaluator(params, Evaluator),
-		Mod1Evaluator:    float.NewMod1Evaluator(Evaluator, float.NewPolynomialEvaluator(params, Evaluator), btp.bootstrapperBase.mod1Parameters),
+		DFTEvaluator:     hefloat.NewDFTEvaluator(params, Evaluator),
+		Mod1Evaluator:    hefloat.NewMod1Evaluator(Evaluator, hefloat.NewPolynomialEvaluator(params, Evaluator), btp.bootstrapperBase.mod1Parameters),
 	}
 }
 
@@ -186,7 +186,7 @@ func (bb *bootstrapperBase) CheckKeys(btpKeys *EvaluationKeySet) (err error) {
 	return
 }
 
-func newBootstrapperBase(params float.Parameters, btpParams Parameters, btpKey *EvaluationKeySet) (bb *bootstrapperBase, err error) {
+func newBootstrapperBase(params hefloat.Parameters, btpParams Parameters, btpKey *EvaluationKeySet) (bb *bootstrapperBase, err error) {
 	bb = new(bootstrapperBase)
 	bb.params = params
 	bb.Parameters = btpParams
@@ -198,7 +198,7 @@ func newBootstrapperBase(params float.Parameters, btpParams Parameters, btpKey *
 		bb.logdslots++
 	}
 
-	if bb.mod1Parameters, err = float.NewMod1ParametersFromLiteral(params, btpParams.Mod1ParametersLiteral); err != nil {
+	if bb.mod1Parameters, err = hefloat.NewMod1ParametersFromLiteral(params, btpParams.Mod1ParametersLiteral); err != nil {
 		return nil, err
 	}
 
@@ -224,7 +224,7 @@ func newBootstrapperBase(params float.Parameters, btpParams Parameters, btpKey *
 		qDiv = 1
 	}
 
-	encoder := float.NewEncoder(bb.params)
+	encoder := hefloat.NewEncoder(bb.params)
 
 	// CoeffsToSlots vectors
 	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + eventual scaling factor for the double angle formula
@@ -235,7 +235,7 @@ func newBootstrapperBase(params float.Parameters, btpParams Parameters, btpKey *
 		bb.CoeffsToSlotsParameters.Scaling.Mul(bb.CoeffsToSlotsParameters.Scaling, new(big.Float).SetFloat64(qDiv/(K*scFac*qDiff)))
 	}
 
-	if bb.ctsMatrices, err = float.NewDFTMatrixFromLiteral(params, bb.CoeffsToSlotsParameters, encoder); err != nil {
+	if bb.ctsMatrices, err = hefloat.NewDFTMatrixFromLiteral(params, bb.CoeffsToSlotsParameters, encoder); err != nil {
 		return
 	}
 
@@ -248,7 +248,7 @@ func newBootstrapperBase(params float.Parameters, btpParams Parameters, btpKey *
 		bb.SlotsToCoeffsParameters.Scaling.Mul(bb.SlotsToCoeffsParameters.Scaling, new(big.Float).SetFloat64(bb.params.DefaultScale().Float64()/(bb.mod1Parameters.ScalingFactor().Float64()/bb.mod1Parameters.MessageRatio())))
 	}
 
-	if bb.stcMatrices, err = float.NewDFTMatrixFromLiteral(params, bb.SlotsToCoeffsParameters, encoder); err != nil {
+	if bb.stcMatrices, err = hefloat.NewDFTMatrixFromLiteral(params, bb.SlotsToCoeffsParameters, encoder); err != nil {
 		return
 	}
 

@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v4/he/float"
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
+	"github.com/tuneinsight/lattigo/v4/he/hefloat"
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 func (b Bootstrapper) SwitchRingDegreeN1ToN2New(ctN1 *rlwe.Ciphertext) (ctN2 *rlwe.Ciphertext) {
-	ctN2 = float.NewCiphertext(b.Parameters.Parameters.Parameters, 1, ctN1.Level())
+	ctN2 = hefloat.NewCiphertext(b.Parameters.Parameters.Parameters, 1, ctN1.Level())
 
 	// Sanity check, this error should never happen unless this algorithm has been improperly
 	// modified to pass invalid inputs.
@@ -22,7 +22,7 @@ func (b Bootstrapper) SwitchRingDegreeN1ToN2New(ctN1 *rlwe.Ciphertext) (ctN2 *rl
 }
 
 func (b Bootstrapper) SwitchRingDegreeN2ToN1New(ctN2 *rlwe.Ciphertext) (ctN1 *rlwe.Ciphertext) {
-	ctN1 = float.NewCiphertext(b.ResidualParameters, 1, ctN2.Level())
+	ctN1 = hefloat.NewCiphertext(b.ResidualParameters, 1, ctN2.Level())
 
 	// Sanity check, this error should never happen unless this algorithm has been improperly
 	// modified to pass invalid inputs.
@@ -33,7 +33,7 @@ func (b Bootstrapper) SwitchRingDegreeN2ToN1New(ctN2 *rlwe.Ciphertext) (ctN1 *rl
 }
 
 func (b Bootstrapper) ComplexToRealNew(ctCmplx *rlwe.Ciphertext) (ctReal *rlwe.Ciphertext) {
-	ctReal = float.NewCiphertext(b.ResidualParameters, 1, ctCmplx.Level())
+	ctReal = hefloat.NewCiphertext(b.ResidualParameters, 1, ctCmplx.Level())
 
 	// Sanity check, this error should never happen unless this algorithm has been improperly
 	// modified to pass invalid inputs.
@@ -44,7 +44,7 @@ func (b Bootstrapper) ComplexToRealNew(ctCmplx *rlwe.Ciphertext) (ctReal *rlwe.C
 }
 
 func (b Bootstrapper) RealToComplexNew(ctReal *rlwe.Ciphertext) (ctCmplx *rlwe.Ciphertext) {
-	ctCmplx = float.NewCiphertext(b.Parameters.Parameters.Parameters, 1, ctReal.Level())
+	ctCmplx = hefloat.NewCiphertext(b.Parameters.Parameters.Parameters, 1, ctReal.Level())
 
 	// Sanity check, this error should never happen unless this algorithm has been improperly
 	// modified to pass invalid inputs.
@@ -94,7 +94,7 @@ func (b Bootstrapper) UnpackAndSwitchN2Tn1(cts []rlwe.Ciphertext, LogSlots, Nb i
 	return cts, nil
 }
 
-func (b Bootstrapper) UnPack(cts []rlwe.Ciphertext, params float.Parameters, LogSlots, Nb int, xPow2Inv []ring.Poly) ([]rlwe.Ciphertext, error) {
+func (b Bootstrapper) UnPack(cts []rlwe.Ciphertext, params hefloat.Parameters, LogSlots, Nb int, xPow2Inv []ring.Poly) ([]rlwe.Ciphertext, error) {
 	LogGap := params.LogMaxSlots() - LogSlots
 
 	if LogGap == 0 {
@@ -132,7 +132,7 @@ func (b Bootstrapper) UnPack(cts []rlwe.Ciphertext, params float.Parameters, Log
 	return cts, nil
 }
 
-func (b Bootstrapper) Pack(cts []rlwe.Ciphertext, params float.Parameters, xPow2 []ring.Poly) ([]rlwe.Ciphertext, error) {
+func (b Bootstrapper) Pack(cts []rlwe.Ciphertext, params hefloat.Parameters, xPow2 []ring.Poly) ([]rlwe.Ciphertext, error) {
 
 	var LogSlots = cts[0].LogSlots()
 	RingDegree := params.N()

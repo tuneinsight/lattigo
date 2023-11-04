@@ -3,9 +3,9 @@ package bootstrapper
 import (
 	"fmt"
 
-	"github.com/tuneinsight/lattigo/v4/he/float/bootstrapper/bootstrapping"
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
+	"github.com/tuneinsight/lattigo/v4/he/hefloat/bootstrapper/bootstrapping"
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
 // BootstrappingKeys is a struct storing the different

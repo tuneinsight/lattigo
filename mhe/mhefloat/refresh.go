@@ -1,11 +1,11 @@
-package float
+package mhefloat
 
 import (
-	"github.com/tuneinsight/lattigo/v4/he/float"
+	"github.com/tuneinsight/lattigo/v4/he/hefloat"
 	"github.com/tuneinsight/lattigo/v4/mhe"
 	"github.com/tuneinsight/lattigo/v4/ring"
 
-	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
 )
 
 // RefreshProtocol is a struct storing the relevant parameters for the Refresh protocol.
@@ -15,7 +15,7 @@ type RefreshProtocol struct {
 
 // NewRefreshProtocol creates a new Refresh protocol instance.
 // prec : the log2 of decimal precision of the internal encoder.
-func NewRefreshProtocol(params float.Parameters, prec uint, noise ring.DistributionParameters) (rfp RefreshProtocol, err error) {
+func NewRefreshProtocol(params hefloat.Parameters, prec uint, noise ring.DistributionParameters) (rfp RefreshProtocol, err error) {
 	rfp = RefreshProtocol{}
 	mt, err := NewMaskedLinearTransformationProtocol(params, params, prec, noise)
 	rfp.MaskedLinearTransformationProtocol = mt

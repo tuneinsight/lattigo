@@ -1,11 +1,11 @@
-package float
+package hefloat
 
 import (
 	"fmt"
 
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
 	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
 )
 
 // EvaluatorForMinimaxCompositePolynomial defines a set of common and scheme agnostic method that are necessary to instantiate a MinimaxCompositePolynomialEvaluator.
@@ -24,7 +24,7 @@ type MinimaxCompositePolynomialEvaluator struct {
 }
 
 // NewMinimaxCompositePolynomialEvaluator instantiates a new MinimaxCompositePolynomialEvaluator.
-// The default float.Evaluator is compliant to the EvaluatorForMinimaxCompositePolynomial interface.
+// The default hefloat.Evaluator is compliant to the EvaluatorForMinimaxCompositePolynomial interface.
 // This method is allocation free.
 func NewMinimaxCompositePolynomialEvaluator(params Parameters, eval EvaluatorForMinimaxCompositePolynomial, bootstrapper he.Bootstrapper[rlwe.Ciphertext]) *MinimaxCompositePolynomialEvaluator {
 	return &MinimaxCompositePolynomialEvaluator{eval, *NewPolynomialEvaluator(params, eval), bootstrapper, params}

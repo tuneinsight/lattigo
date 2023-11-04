@@ -1,11 +1,11 @@
-package integer
+package mheint
 
 import (
-	"github.com/tuneinsight/lattigo/v4/he/integer"
+	"github.com/tuneinsight/lattigo/v4/he/heint"
 	"github.com/tuneinsight/lattigo/v4/mhe"
 	"github.com/tuneinsight/lattigo/v4/ring"
 
-	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
 )
 
 // RefreshProtocol is a struct storing the relevant parameters for the Refresh protocol.
@@ -21,7 +21,7 @@ func (rfp *RefreshProtocol) ShallowCopy() RefreshProtocol {
 }
 
 // NewRefreshProtocol creates a new Refresh protocol instance.
-func NewRefreshProtocol(params integer.Parameters, noiseFlooding ring.DistributionParameters) (rfp RefreshProtocol, err error) {
+func NewRefreshProtocol(params heint.Parameters, noiseFlooding ring.DistributionParameters) (rfp RefreshProtocol, err error) {
 	rfp = RefreshProtocol{}
 	mt, err := NewMaskedTransformProtocol(params, params, noiseFlooding)
 	rfp.MaskedTransformProtocol = mt

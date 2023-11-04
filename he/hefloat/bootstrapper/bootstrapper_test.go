@@ -6,10 +6,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
 	"github.com/tuneinsight/lattigo/v4/he"
-	"github.com/tuneinsight/lattigo/v4/he/float"
+	"github.com/tuneinsight/lattigo/v4/he/hefloat"
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
@@ -17,7 +17,7 @@ import (
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure bootstrapping). Overrides -short and requires -timeout=0.")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 
-var testPrec45 = float.ParametersLiteral{
+var testPrec45 = hefloat.ParametersLiteral{
 	LogN:            10,
 	LogQ:            []int{60, 40},
 	LogP:            []int{61},
@@ -38,7 +38,7 @@ func TestBootstrapping(t *testing.T) {
 			schemeParamsLit.LogN = 16
 		}
 
-		params, err := float.NewParametersFromLiteral(schemeParamsLit)
+		params, err := hefloat.NewParametersFromLiteral(schemeParamsLit)
 		require.Nil(t, err)
 
 		btpParamsLit.LogN = utils.Pointy(params.LogN())
@@ -66,7 +66,7 @@ func TestBootstrapping(t *testing.T) {
 		bootstrapper, err := NewBootstrapper(btpParams, btpKeys)
 		require.NoError(t, err)
 
-		ecd := float.NewEncoder(params)
+		ecd := hefloat.NewEncoder(params)
 		enc := rlwe.NewEncryptor(params, sk)
 		dec := rlwe.NewDecryptor(params, sk)
 
@@ -84,7 +84,7 @@ func TestBootstrapping(t *testing.T) {
 
 		t.Run("Bootstrapping", func(t *testing.T) {
 
-			plaintext := float.NewPlaintext(params, 0)
+			plaintext := hefloat.NewPlaintext(params, 0)
 			ecd.Encode(values, plaintext)
 
 			ctQ0, err := enc.EncryptNew(plaintext)
@@ -117,7 +117,7 @@ func TestBootstrapping(t *testing.T) {
 		schemeParamsLit.LogNthRoot = schemeParamsLit.LogN + 1
 		schemeParamsLit.LogN--
 
-		params, err := float.NewParametersFromLiteral(schemeParamsLit)
+		params, err := hefloat.NewParametersFromLiteral(schemeParamsLit)
 		require.Nil(t, err)
 
 		btpParamsLit.LogN = utils.Pointy(params.LogN() + 1)
@@ -146,7 +146,7 @@ func TestBootstrapping(t *testing.T) {
 		bootstrapper, err := NewBootstrapper(btpParams, btpKeys)
 		require.Nil(t, err)
 
-		ecd := float.NewEncoder(params)
+		ecd := hefloat.NewEncoder(params)
 		enc := rlwe.NewEncryptor(params, sk)
 		dec := rlwe.NewDecryptor(params, sk)
 
@@ -164,7 +164,7 @@ func TestBootstrapping(t *testing.T) {
 
 		t.Run("N1ToN2->Bootstrapping->N2ToN1", func(t *testing.T) {
 
-			plaintext := float.NewPlaintext(params, 0)
+			plaintext := hefloat.NewPlaintext(params, 0)
 			ecd.Encode(values, plaintext)
 
 			ctQ0, err := enc.EncryptNew(plaintext)
@@ -202,7 +202,7 @@ func TestBootstrapping(t *testing.T) {
 		schemeParamsLit.LogNthRoot = schemeParamsLit.LogN + 1
 		schemeParamsLit.LogN -= 3
 
-		params, err := float.NewParametersFromLiteral(schemeParamsLit)
+		params, err := hefloat.NewParametersFromLiteral(schemeParamsLit)
 		require.Nil(t, err)
 
 		btpParams, err := NewParametersFromLiteral(params, btpParamsLit)
@@ -229,7 +229,7 @@ func TestBootstrapping(t *testing.T) {
 		bootstrapper, err := NewBootstrapper(btpParams, btpKeys)
 		require.Nil(t, err)
 
-		ecd := float.NewEncoder(params)
+		ecd := hefloat.NewEncoder(params)
 		enc := rlwe.NewEncryptor(params, sk)
 		dec := rlwe.NewDecryptor(params, sk)
 
@@ -245,7 +245,7 @@ func TestBootstrapping(t *testing.T) {
 			values[3] = complex(0.9238795325112867, 0.3826834323650898)
 		}
 
-		pt := float.NewPlaintext(params, 0)
+		pt := hefloat.NewPlaintext(params, 0)
 
 		cts := make([]rlwe.Ciphertext, 7)
 		for i := range cts {
@@ -285,7 +285,7 @@ func TestBootstrapping(t *testing.T) {
 		schemeParamsLit.LogNthRoot = schemeParamsLit.LogN + 1
 		schemeParamsLit.LogN--
 
-		params, err := float.NewParametersFromLiteral(schemeParamsLit)
+		params, err := hefloat.NewParametersFromLiteral(schemeParamsLit)
 		require.Nil(t, err)
 
 		btpParams, err := NewParametersFromLiteral(params, btpParamsLit)
@@ -309,7 +309,7 @@ func TestBootstrapping(t *testing.T) {
 		bootstrapper, err := NewBootstrapper(btpParams, btpKeys)
 		require.Nil(t, err)
 
-		ecd := float.NewEncoder(params)
+		ecd := hefloat.NewEncoder(params)
 		enc := rlwe.NewEncryptor(params, sk)
 		dec := rlwe.NewDecryptor(params, sk)
 
@@ -327,7 +327,7 @@ func TestBootstrapping(t *testing.T) {
 
 		t.Run("ConjugateInvariant->Standard->Bootstrapping->Standard->ConjugateInvariant", func(t *testing.T) {
 
-			plaintext := float.NewPlaintext(params, 0)
+			plaintext := hefloat.NewPlaintext(params, 0)
 			require.NoError(t, ecd.Encode(values, plaintext))
 
 			ctLeftQ0, err := enc.EncryptNew(plaintext)
@@ -357,8 +357,8 @@ func TestBootstrapping(t *testing.T) {
 	})
 }
 
-func verifyTestVectorsBootstrapping(params float.Parameters, encoder *float.Encoder, decryptor *rlwe.Decryptor, valuesWant, element interface{}, t *testing.T) {
-	precStats := float.GetPrecisionStats(params, encoder, decryptor, valuesWant, element, 0, false)
+func verifyTestVectorsBootstrapping(params hefloat.Parameters, encoder *hefloat.Encoder, decryptor *rlwe.Decryptor, valuesWant, element interface{}, t *testing.T) {
+	precStats := hefloat.GetPrecisionStats(params, encoder, decryptor, valuesWant, element, 0, false)
 	if *printPrecisionStats {
 		t.Log(precStats.String())
 	}

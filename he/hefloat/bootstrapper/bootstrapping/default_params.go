@@ -1,13 +1,13 @@
 package bootstrapping
 
 import (
-	"github.com/tuneinsight/lattigo/v4/he/float"
+	"github.com/tuneinsight/lattigo/v4/he/hefloat"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 type defaultParametersLiteral struct {
-	SchemeParams        float.ParametersLiteral
+	SchemeParams        hefloat.ParametersLiteral
 	BootstrappingParams ParametersLiteral
 }
 
@@ -31,7 +31,7 @@ var (
 	// Precision : 26.6 bits for 2^{15} slots.
 	// Failure : 2^{-138.7} for 2^{15} slots.
 	N16QP1546H192H32 = defaultParametersLiteral{
-		float.ParametersLiteral{
+		hefloat.ParametersLiteral{
 			LogN:            16,
 			LogQ:            []int{60, 40, 40, 40, 40, 40, 40, 40, 40, 40},
 			LogP:            []int{61, 61, 61, 61, 61},
@@ -49,7 +49,7 @@ var (
 	// Precision : 32.1 bits for 2^{15} slots.
 	// Failure : 2^{-138.7} for 2^{15} slots.
 	N16QP1547H192H32 = defaultParametersLiteral{
-		float.ParametersLiteral{
+		hefloat.ParametersLiteral{
 			LogN:            16,
 			LogQ:            []int{60, 45, 45, 45, 45, 45},
 			LogP:            []int{61, 61, 61, 61},
@@ -72,7 +72,7 @@ var (
 	// Precision : 19.1 bits for 2^{15} slots.
 	// Failure : 2^{-138.7} for 2^{15} slots.
 	N16QP1553H192H32 = defaultParametersLiteral{
-		float.ParametersLiteral{
+		hefloat.ParametersLiteral{
 			LogN:            16,
 			LogQ:            []int{55, 60, 60, 60, 60, 60, 60, 60},
 			LogP:            []int{61, 61, 61, 61, 61},
@@ -94,7 +94,7 @@ var (
 	// Precision : 15.4 bits for 2^{14} slots.
 	// Failure : 2^{-139.7} for 2^{14} slots.
 	N15QP768H192H32 = defaultParametersLiteral{
-		float.ParametersLiteral{
+		hefloat.ParametersLiteral{
 			LogN:            15,
 			LogQ:            []int{33, 50, 25},
 			LogP:            []int{51, 51},
@@ -116,7 +116,7 @@ var (
 	// Precision : 23.8 bits for 2^{15} slots.
 	// Failure : 2^{-138.7} for 2^{15} slots.
 	N16QP1767H32768H32 = defaultParametersLiteral{
-		float.ParametersLiteral{
+		hefloat.ParametersLiteral{
 			LogN:            16,
 			LogQ:            []int{60, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40},
 			LogP:            []int{61, 61, 61, 61, 61, 61},
@@ -134,7 +134,7 @@ var (
 	// Precision : 29.8 bits for 2^{15} slots.
 	// Failure : 2^{-138.7} for 2^{15} slots.
 	N16QP1788H32768H32 = defaultParametersLiteral{
-		float.ParametersLiteral{
+		hefloat.ParametersLiteral{
 			LogN:            16,
 			LogQ:            []int{60, 45, 45, 45, 45, 45, 45, 45, 45, 45},
 			LogP:            []int{61, 61, 61, 61, 61},
@@ -157,7 +157,7 @@ var (
 	// Precision : 17.8 bits for 2^{15} slots.
 	// Failure : 2^{-138.7} for 2^{15} slots.
 	N16QP1793H32768H32 = defaultParametersLiteral{
-		float.ParametersLiteral{
+		hefloat.ParametersLiteral{
 			LogN:            16,
 			LogQ:            []int{55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 30},
 			LogP:            []int{61, 61, 61, 61, 61},
@@ -179,7 +179,7 @@ var (
 	// Precision : 17.3 bits for 2^{14} slots.
 	// Failure : 2^{-139.7} for 2^{14} slots.
 	N15QP880H16384H32 = defaultParametersLiteral{
-		float.ParametersLiteral{
+		hefloat.ParametersLiteral{
 			LogN:            15,
 			LogQ:            []int{40, 31, 31, 31, 31},
 			LogP:            []int{56, 56},

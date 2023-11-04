@@ -1,17 +1,17 @@
-package float
+package hefloat
 
 import (
 	"fmt"
 	"math"
 
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
 	"github.com/tuneinsight/lattigo/v4/he"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 // EvaluatorForInverse defines a set of common and scheme agnostic
 // methods that are necessary to instantiate an InverseEvaluator.
-// The default float.Evaluator is compliant to this interface.
+// The default hefloat.Evaluator is compliant to this interface.
 type EvaluatorForInverse interface {
 	EvaluatorForMinimaxCompositePolynomial
 	SetScale(ct *rlwe.Ciphertext, scale rlwe.Scale) (err error)
@@ -27,7 +27,7 @@ type InverseEvaluator struct {
 }
 
 // NewInverseEvaluator instantiates a new InverseEvaluator.
-// The default float.Evaluator is compliant to the EvaluatorForInverse interface.
+// The default hefloat.Evaluator is compliant to the EvaluatorForInverse interface.
 // The field he.Bootstrapper[rlwe.Ciphertext] can be nil if the parameters have enough levels to support the computation.
 // This method is allocation free.
 func NewInverseEvaluator(params Parameters, eval EvaluatorForInverse, btp he.Bootstrapper[rlwe.Ciphertext]) InverseEvaluator {

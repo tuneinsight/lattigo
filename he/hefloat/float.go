@@ -1,10 +1,10 @@
-// Package float implements Homomorphic Encryption for fixed-point approximate arithmetic over the reals/complexes.
-package float
+// Package hefloat implements Homomorphic Encryption for fixed-point approximate arithmetic over the reals/complexes.
+package hefloat
 
 import (
 	"testing"
 
-	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
 	"github.com/tuneinsight/lattigo/v4/schemes/ckks"
 )
 

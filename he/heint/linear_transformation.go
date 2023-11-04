@@ -1,10 +1,10 @@
-package integer
+package heint
 
 import (
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
 	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
-	"github.com/tuneinsight/lattigo/v4/rlwe/ringqp"
+	"github.com/tuneinsight/lattigo/v4/ring/ringqp"
 )
 
 type intEncoder[T Integer, U ring.Poly | ringqp.Poly | *rlwe.Plaintext] struct {
@@ -66,7 +66,7 @@ type LinearTransformationEvaluator struct {
 }
 
 // NewLinearTransformationEvaluator instantiates a new LinearTransformationEvaluator from a circuit.EvaluatorForLinearTransformation.
-// The default *integer.Evaluator is compliant to the circuit.EvaluatorForLinearTransformation interface.
+// The default heint.Evaluator is compliant to the circuit.EvaluatorForLinearTransformation interface.
 func NewLinearTransformationEvaluator(eval he.EvaluatorForLinearTransformation) (linTransEval *LinearTransformationEvaluator) {
 	return &LinearTransformationEvaluator{
 		EvaluatorForLinearTransformation: eval,

@@ -1,12 +1,12 @@
-package integer
+package mheint
 
 import (
 	"fmt"
 
-	"github.com/tuneinsight/lattigo/v4/he/integer"
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
+	"github.com/tuneinsight/lattigo/v4/he/heint"
 	"github.com/tuneinsight/lattigo/v4/mhe"
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
 )
@@ -15,17 +15,17 @@ import (
 // required by the encryption-to-shares protocol.
 type EncToShareProtocol struct {
 	mhe.KeySwitchProtocol
-	params integer.Parameters
+	params heint.Parameters
 
 	maskSampler *ring.UniformSampler
-	encoder     *integer.Encoder
+	encoder     *heint.Encoder
 
 	zero              *rlwe.SecretKey
 	tmpPlaintextRingT ring.Poly
 	tmpPlaintextRingQ ring.Poly
 }
 
-func NewAdditiveShare(params integer.Parameters) mhe.AdditiveShare {
+func NewAdditiveShare(params heint.Parameters) mhe.AdditiveShare {
 	return mhe.NewAdditiveShare(params.RingT())
 }
 
@@ -54,8 +54,8 @@ func (e2s EncToShareProtocol) ShallowCopy() EncToShareProtocol {
 	}
 }
 
-// NewEncToShareProtocol creates a new EncToShareProtocol struct from the passed integer.Parameters.
-func NewEncToShareProtocol(params integer.Parameters, noiseFlooding ring.DistributionParameters) (EncToShareProtocol, error) {
+// NewEncToShareProtocol creates a new EncToShareProtocol struct from the passed heint.Parameters.
+func NewEncToShareProtocol(params heint.Parameters, noiseFlooding ring.DistributionParameters) (EncToShareProtocol, error) {
 	e2s := EncToShareProtocol{}
 
 	var err error
@@ -64,7 +64,7 @@ func NewEncToShareProtocol(params integer.Parameters, noiseFlooding ring.Distrib
 	}
 
 	e2s.params = params
-	e2s.encoder = integer.NewEncoder(params)
+	e2s.encoder = heint.NewEncoder(params)
 	prng, err := sampling.NewPRNG()
 
 	// Sanity check, this error should not happen.
@@ -120,16 +120,16 @@ func (e2s EncToShareProtocol) GetShare(secretShare *mhe.AdditiveShare, aggregate
 // required by the shares-to-encryption protocol.
 type ShareToEncProtocol struct {
 	mhe.KeySwitchProtocol
-	params integer.Parameters
+	params heint.Parameters
 
-	encoder *integer.Encoder
+	encoder *heint.Encoder
 
 	zero              *rlwe.SecretKey
 	tmpPlaintextRingQ ring.Poly
 }
 
 // NewShareToEncProtocol creates a new ShareToEncProtocol struct from the passed integer parameters.
-func NewShareToEncProtocol(params integer.Parameters, noiseFlooding ring.DistributionParameters) (ShareToEncProtocol, error) {
+func NewShareToEncProtocol(params heint.Parameters, noiseFlooding ring.DistributionParameters) (ShareToEncProtocol, error) {
 	s2e := ShareToEncProtocol{}
 
 	var err error
@@ -138,7 +138,7 @@ func NewShareToEncProtocol(params integer.Parameters, noiseFlooding ring.Distrib
 	}
 
 	s2e.params = params
-	s2e.encoder = integer.NewEncoder(params)
+	s2e.encoder = heint.NewEncoder(params)
 	s2e.zero = rlwe.NewSecretKey(params.Parameters)
 	s2e.tmpPlaintextRingQ = params.RingQ().NewPoly()
 	return s2e, nil

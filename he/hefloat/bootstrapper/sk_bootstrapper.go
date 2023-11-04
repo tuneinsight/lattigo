@@ -1,16 +1,16 @@
 package bootstrapper
 
 import (
-	"github.com/tuneinsight/lattigo/v4/he/float"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
+	"github.com/tuneinsight/lattigo/v4/he/hefloat"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 // SecretKeyBootstrapper is an implementation of the rlwe.Bootstrapping interface that
 // uses the secret-key to decrypt and re-encrypt the bootstrapped ciphertext.
 type SecretKeyBootstrapper struct {
-	float.Parameters
-	*float.Encoder
+	hefloat.Parameters
+	*hefloat.Encoder
 	*rlwe.Decryptor
 	*rlwe.Encryptor
 	sk       *rlwe.SecretKey
@@ -19,10 +19,10 @@ type SecretKeyBootstrapper struct {
 	MinLevel int
 }
 
-func NewSecretKeyBootstrapper(params float.Parameters, sk *rlwe.SecretKey) *SecretKeyBootstrapper {
+func NewSecretKeyBootstrapper(params hefloat.Parameters, sk *rlwe.SecretKey) *SecretKeyBootstrapper {
 	return &SecretKeyBootstrapper{
 		Parameters: params,
-		Encoder:    float.NewEncoder(params),
+		Encoder:    hefloat.NewEncoder(params),
 		Decryptor:  rlwe.NewDecryptor(params, sk),
 		Encryptor:  rlwe.NewEncryptor(params, sk),
 		sk:         sk,
@@ -34,7 +34,7 @@ func (d *SecretKeyBootstrapper) Bootstrap(ct *rlwe.Ciphertext) (*rlwe.Ciphertext
 	if err := d.Decode(d.DecryptNew(ct), values); err != nil {
 		return nil, err
 	}
-	pt := float.NewPlaintext(d.Parameters, d.MaxLevel())
+	pt := hefloat.NewPlaintext(d.Parameters, d.MaxLevel())
 	pt.MetaData = ct.MetaData
 	pt.Scale = d.Parameters.DefaultScale()
 	if err := d.Encode(values, pt); err != nil {

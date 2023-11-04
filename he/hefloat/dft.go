@@ -1,4 +1,4 @@
-package float
+package hefloat
 
 import (
 	"encoding/json"
@@ -6,16 +6,16 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
 	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/schemes/ckks"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 // EvaluatorForDFT is an interface defining the set of methods required to instantiate a DFTEvaluator.
-// The default float.Evaluator is compliant to this interface.
+// The default hefloat.Evaluator is compliant to this interface.
 type EvaluatorForDFT interface {
 	rlwe.ParameterProvider
 	he.EvaluatorForLinearTransformation
@@ -131,7 +131,7 @@ type DFTEvaluator struct {
 }
 
 // NewDFTEvaluator instantiates a new DFTEvaluator.
-// The default float.Evaluator is compliant to the EvaluatorForDFT interface.
+// The default hefloat.Evaluator is compliant to the EvaluatorForDFT interface.
 func NewDFTEvaluator(params Parameters, eval EvaluatorForDFT) *DFTEvaluator {
 	dfteval := new(DFTEvaluator)
 	dfteval.EvaluatorForDFT = eval

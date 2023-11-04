@@ -1,4 +1,4 @@
-package float_test
+package hefloat_test
 
 import (
 	"encoding/json"
@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tuneinsight/lattigo/v4/he/float"
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
+	"github.com/tuneinsight/lattigo/v4/he/hefloat"
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -21,7 +21,7 @@ import (
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short.")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 
-func GetTestName(params float.Parameters, opname string) string {
+func GetTestName(params hefloat.Parameters, opname string) string {
 	return fmt.Sprintf("%s/RingType=%s/logN=%d/logQP=%d/Qi=%d/Pi=%d/LogScale=%d",
 		opname,
 		params.RingType(),
@@ -33,28 +33,28 @@ func GetTestName(params float.Parameters, opname string) string {
 }
 
 type testContext struct {
-	params      float.Parameters
+	params      hefloat.Parameters
 	ringQ       *ring.Ring
 	ringP       *ring.Ring
 	prng        sampling.PRNG
-	encoder     *float.Encoder
+	encoder     *hefloat.Encoder
 	kgen        *rlwe.KeyGenerator
 	sk          *rlwe.SecretKey
 	pk          *rlwe.PublicKey
 	encryptorPk *rlwe.Encryptor
 	encryptorSk *rlwe.Encryptor
 	decryptor   *rlwe.Decryptor
-	evaluator   *float.Evaluator
+	evaluator   *hefloat.Evaluator
 }
 
 func TestFloat(t *testing.T) {
 
 	var err error
 
-	var testParams []float.ParametersLiteral
+	var testParams []hefloat.ParametersLiteral
 	switch {
 	case *flagParamString != "": // the custom test suite reads the parameters from the -params flag
-		testParams = append(testParams, float.ParametersLiteral{})
+		testParams = append(testParams, hefloat.ParametersLiteral{})
 		if err = json.Unmarshal([]byte(*flagParamString), &testParams[0]); err != nil {
 			t.Fatal(err)
 		}
@@ -72,8 +72,8 @@ func TestFloat(t *testing.T) {
 				paramsLiteral.LogN = 10
 			}
 
-			var params float.Parameters
-			if params, err = float.NewParametersFromLiteral(paramsLiteral); err != nil {
+			var params hefloat.Parameters
+			if params, err = hefloat.NewParametersFromLiteral(paramsLiteral); err != nil {
 				t.Fatal(err)
 			}
 
@@ -93,7 +93,7 @@ func TestFloat(t *testing.T) {
 	}
 }
 
-func genTestParams(defaultParam float.Parameters) (tc *testContext, err error) {
+func genTestParams(defaultParam hefloat.Parameters) (tc *testContext, err error) {
 
 	tc = new(testContext)
 
@@ -112,12 +112,12 @@ func genTestParams(defaultParam float.Parameters) (tc *testContext, err error) {
 		return nil, err
 	}
 
-	tc.encoder = float.NewEncoder(tc.params)
+	tc.encoder = hefloat.NewEncoder(tc.params)
 
 	tc.encryptorPk = rlwe.NewEncryptor(tc.params, tc.pk)
 	tc.encryptorSk = rlwe.NewEncryptor(tc.params, tc.sk)
 	tc.decryptor = rlwe.NewDecryptor(tc.params, tc.sk)
-	tc.evaluator = float.NewEvaluator(tc.params, rlwe.NewMemEvaluationKeySet(tc.kgen.GenRelinearizationKeyNew(tc.sk)))
+	tc.evaluator = hefloat.NewEvaluator(tc.params, rlwe.NewMemEvaluationKeySet(tc.kgen.GenRelinearizationKeyNew(tc.sk)))
 
 	return tc, nil
 
@@ -129,7 +129,7 @@ func newTestVectors(tc *testContext, encryptor *rlwe.Encryptor, a, b complex128,
 
 	prec := tc.encoder.Prec()
 
-	pt = float.NewPlaintext(tc.params, tc.params.MaxLevel())
+	pt = hefloat.NewPlaintext(tc.params, tc.params.MaxLevel())
 
 	values = make([]*bignum.Complex, pt.Slots())
 
@@ -201,7 +201,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 			values[i][1].Quo(values[i][1], nB)
 		}
 
-		float.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+		hefloat.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(params, "LinearTransform/BSGS=True"), func(t *testing.T) {
@@ -215,7 +215,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		one := new(big.Float).SetInt64(1)
 		zero := new(big.Float)
 
-		diagonals := make(float.Diagonals[*bignum.Complex])
+		diagonals := make(hefloat.Diagonals[*bignum.Complex])
 		for _, i := range nonZeroDiags {
 			diagonals[i] = make([]*bignum.Complex, slots)
 
@@ -224,7 +224,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 			}
 		}
 
-		ltparams := float.LinearTransformationParameters{
+		ltparams := hefloat.LinearTransformationParameters{
 			DiagonalsIndexList:       nonZeroDiags,
 			Level:                    ciphertext.Level(),
 			Scale:                    rlwe.NewScale(params.Q()[ciphertext.Level()]),
@@ -233,16 +233,16 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		}
 
 		// Allocate the linear transformation
-		linTransf := float.NewLinearTransformation(params, ltparams)
+		linTransf := hefloat.NewLinearTransformation(params, ltparams)
 
 		// Encode on the linear transformation
-		require.NoError(t, float.EncodeLinearTransformation[*bignum.Complex](tc.encoder, diagonals, linTransf))
+		require.NoError(t, hefloat.EncodeLinearTransformation[*bignum.Complex](tc.encoder, diagonals, linTransf))
 
-		galEls := float.GaloisElementsForLinearTransformation(params, ltparams)
+		galEls := hefloat.GaloisElementsForLinearTransformation(params, ltparams)
 
 		evk := rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)
 
-		ltEval := float.NewLinearTransformationEvaluator(tc.evaluator.WithKey(evk))
+		ltEval := hefloat.NewLinearTransformationEvaluator(tc.evaluator.WithKey(evk))
 
 		require.NoError(t, ltEval.Evaluate(ciphertext, linTransf, ciphertext))
 
@@ -262,7 +262,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 			values[i].Add(values[i], tmp[(i+15)%slots])
 		}
 
-		float.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+		hefloat.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(params, "LinearTransform/BSGS=False"), func(t *testing.T) {
@@ -276,7 +276,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		one := new(big.Float).SetInt64(1)
 		zero := new(big.Float)
 
-		diagonals := make(float.Diagonals[*bignum.Complex])
+		diagonals := make(hefloat.Diagonals[*bignum.Complex])
 		for _, i := range nonZeroDiags {
 			diagonals[i] = make([]*bignum.Complex, slots)
 
@@ -285,7 +285,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 			}
 		}
 
-		ltparams := float.LinearTransformationParameters{
+		ltparams := hefloat.LinearTransformationParameters{
 			DiagonalsIndexList:       nonZeroDiags,
 			Level:                    ciphertext.Level(),
 			Scale:                    rlwe.NewScale(params.Q()[ciphertext.Level()]),
@@ -294,16 +294,16 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		}
 
 		// Allocate the linear transformation
-		linTransf := float.NewLinearTransformation(params, ltparams)
+		linTransf := hefloat.NewLinearTransformation(params, ltparams)
 
 		// Encode on the linear transformation
-		require.NoError(t, float.EncodeLinearTransformation[*bignum.Complex](tc.encoder, diagonals, linTransf))
+		require.NoError(t, hefloat.EncodeLinearTransformation[*bignum.Complex](tc.encoder, diagonals, linTransf))
 
-		galEls := float.GaloisElementsForLinearTransformation(params, ltparams)
+		galEls := hefloat.GaloisElementsForLinearTransformation(params, ltparams)
 
 		evk := rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)
 
-		ltEval := float.NewLinearTransformationEvaluator(tc.evaluator.WithKey(evk))
+		ltEval := hefloat.NewLinearTransformationEvaluator(tc.evaluator.WithKey(evk))
 
 		require.NoError(t, ltEval.Evaluate(ciphertext, linTransf, ciphertext))
 
@@ -323,7 +323,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 			values[i].Add(values[i], tmp[(i+15)%slots])
 		}
 
-		float.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+		hefloat.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 }
 
@@ -333,7 +333,7 @@ func testEvaluatePolynomial(tc *testContext, t *testing.T) {
 
 	var err error
 
-	polyEval := float.NewPolynomialEvaluator(params, tc.evaluator)
+	polyEval := hefloat.NewPolynomialEvaluator(params, tc.evaluator)
 
 	t.Run(GetTestName(params, "EvaluatePoly/PolySingle/Exp"), func(t *testing.T) {
 
@@ -366,7 +366,7 @@ func testEvaluatePolynomial(tc *testContext, t *testing.T) {
 			t.Fatal(err)
 		}
 
-		float.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+		hefloat.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(GetTestName(params, "Polynomial/PolyVector/Exp"), func(t *testing.T) {
@@ -407,13 +407,13 @@ func testEvaluatePolynomial(tc *testContext, t *testing.T) {
 			valuesWant[j] = poly.Evaluate(values[j])
 		}
 
-		polyVector, err := float.NewPolynomialVector([]bignum.Polynomial{poly}, slotIndex)
+		polyVector, err := hefloat.NewPolynomialVector([]bignum.Polynomial{poly}, slotIndex)
 		require.NoError(t, err)
 
 		if ciphertext, err = polyEval.Evaluate(ciphertext, polyVector, ciphertext.Scale); err != nil {
 			t.Fatal(err)
 		}
 
-		float.VerifyTestVectors(params, tc.encoder, tc.decryptor, valuesWant, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+		hefloat.VerifyTestVectors(params, tc.encoder, tc.decryptor, valuesWant, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 }

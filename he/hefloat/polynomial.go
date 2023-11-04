@@ -1,4 +1,4 @@
-package float
+package hefloat
 
 import (
 	"github.com/tuneinsight/lattigo/v4/he"

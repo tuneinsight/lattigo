@@ -1,13 +1,13 @@
-package float
+package mhefloat
 
 import (
-	"github.com/tuneinsight/lattigo/v4/he/float"
+	"github.com/tuneinsight/lattigo/v4/he/hefloat"
 )
 
 var (
 
 	// testInsecurePrec45 are insecure parameters used for the sole purpose of fast testing.
-	testInsecurePrec45 = float.ParametersLiteral{
+	testInsecurePrec45 = hefloat.ParametersLiteral{
 		LogN: 10,
 		Q: []uint64{
 			0x80000000080001,
@@ -26,7 +26,7 @@ var (
 	}
 
 	// testInsecurePrec90 are insecure parameters used for the sole purpose of fast testing.
-	testInsecurePrec90 = float.ParametersLiteral{
+	testInsecurePrec90 = hefloat.ParametersLiteral{
 		LogN: 10,
 		Q: []uint64{
 			0x80000000080001,
@@ -49,5 +49,5 @@ var (
 		LogDefaultScale: 90,
 	}
 
-	testParamsLiteral = []float.ParametersLiteral{testInsecurePrec45, testInsecurePrec90}
+	testParamsLiteral = []hefloat.ParametersLiteral{testInsecurePrec45, testInsecurePrec90}
 )

@@ -1,4 +1,4 @@
-package integer_test
+package heint_test
 
 import (
 	"encoding/json"
@@ -9,9 +9,9 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/tuneinsight/lattigo/v4/he/integer"
+	"github.com/tuneinsight/lattigo/v4/core/rlwe"
+	"github.com/tuneinsight/lattigo/v4/he/heint"
 	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/rlwe"
 	"github.com/tuneinsight/lattigo/v4/utils"
 
 	"github.com/stretchr/testify/require"
@@ -22,7 +22,7 @@ import (
 var flagPrintNoise = flag.Bool("print-noise", false, "print the residual noise")
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short.")
 
-func GetTestName(opname string, p integer.Parameters, lvl int) string {
+func GetTestName(opname string, p heint.Parameters, lvl int) string {
 	return fmt.Sprintf("%s/LogN=%d/logQ=%d/logP=%d/LogSlots=%dx%d/logT=%d/Qi=%d/Pi=%d/lvl=%d",
 		opname,
 		p.LogN(),
@@ -43,11 +43,11 @@ func TestInteger(t *testing.T) {
 	paramsLiterals := testParams
 
 	if *flagParamString != "" {
-		var jsonParams integer.ParametersLiteral
+		var jsonParams heint.ParametersLiteral
 		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
 			t.Fatal(err)
 		}
-		paramsLiterals = []integer.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
+		paramsLiterals = []heint.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, p := range paramsLiterals[:] {
@@ -56,8 +56,8 @@ func TestInteger(t *testing.T) {
 
 			p.PlaintextModulus = plaintextModulus
 
-			var params integer.Parameters
-			if params, err = integer.NewParametersFromLiteral(p); err != nil {
+			var params heint.Parameters
+			if params, err = heint.NewParametersFromLiteral(p); err != nil {
 				t.Error(err)
 				t.Fail()
 			}
@@ -79,23 +79,23 @@ func TestInteger(t *testing.T) {
 }
 
 type testContext struct {
-	params      integer.Parameters
+	params      heint.Parameters
 	ringQ       *ring.Ring
 	ringT       *ring.Ring
 	prng        sampling.PRNG
 	uSampler    *ring.UniformSampler
-	encoder     *integer.Encoder
+	encoder     *heint.Encoder
 	kgen        *rlwe.KeyGenerator
 	sk          *rlwe.SecretKey
 	pk          *rlwe.PublicKey
 	encryptorPk *rlwe.Encryptor
 	encryptorSk *rlwe.Encryptor
 	decryptor   *rlwe.Decryptor
-	evaluator   *integer.Evaluator
+	evaluator   *heint.Evaluator
 	testLevel   []int
 }
 
-func genTestParams(params integer.Parameters) (tc *testContext, err error) {
+func genTestParams(params heint.Parameters) (tc *testContext, err error) {
 
 	tc = new(testContext)
 	tc.params = params
@@ -110,12 +110,12 @@ func genTestParams(params integer.Parameters) (tc *testContext, err error) {
 	tc.uSampler = ring.NewUniformSampler(tc.prng, tc.ringT)
 	tc.kgen = rlwe.NewKeyGenerator(tc.params)
 	tc.sk, tc.pk = tc.kgen.GenKeyPairNew()
-	tc.encoder = integer.NewEncoder(tc.params)
+	tc.encoder = heint.NewEncoder(tc.params)
 
 	tc.encryptorPk = rlwe.NewEncryptor(tc.params, tc.pk)
 	tc.encryptorSk = rlwe.NewEncryptor(tc.params, tc.sk)
 	tc.decryptor = rlwe.NewDecryptor(tc.params, tc.sk)
-	tc.evaluator = integer.NewEvaluator(tc.params, rlwe.NewMemEvaluationKeySet(tc.kgen.GenRelinearizationKeyNew(tc.sk)))
+	tc.evaluator = heint.NewEvaluator(tc.params, rlwe.NewMemEvaluationKeySet(tc.kgen.GenRelinearizationKeyNew(tc.sk)))
 
 	tc.testLevel = []int{0, params.MaxLevel()}
 
@@ -128,7 +128,7 @@ func newTestVectorsLvl(level int, scale rlwe.Scale, tc *testContext, encryptor *
 		coeffs.Coeffs[0][i] = uint64(i)
 	}
 
-	plaintext = integer.NewPlaintext(tc.params, level)
+	plaintext = heint.NewPlaintext(tc.params, level)
 	plaintext.Scale = scale
 	tc.encoder.Encode(coeffs.Coeffs[0], plaintext)
 	if encryptor != nil {
@@ -179,7 +179,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 		values, _, ciphertext := newTestVectorsLvl(level, tc.params.DefaultScale(), tc, tc.encryptorSk)
 
-		diagonals := make(integer.Diagonals[uint64])
+		diagonals := make(heint.Diagonals[uint64])
 
 		totSlots := values.N()
 
@@ -205,7 +205,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 			diagonals[15][i] = 1
 		}
 
-		ltparams := integer.LinearTransformationParameters{
+		ltparams := heint.LinearTransformationParameters{
 			DiagonalsIndexList:       []int{-15, -4, -1, 0, 1, 2, 3, 4, 15},
 			Level:                    ciphertext.Level(),
 			Scale:                    tc.params.DefaultScale(),
@@ -214,15 +214,15 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		}
 
 		// Allocate the linear transformation
-		linTransf := integer.NewLinearTransformation(params, ltparams)
+		linTransf := heint.NewLinearTransformation(params, ltparams)
 
 		// Encode on the linear transformation
-		require.NoError(t, integer.EncodeLinearTransformation[uint64](tc.encoder, diagonals, linTransf))
+		require.NoError(t, heint.EncodeLinearTransformation[uint64](tc.encoder, diagonals, linTransf))
 
-		galEls := integer.GaloisElementsForLinearTransformation(params, ltparams)
+		galEls := heint.GaloisElementsForLinearTransformation(params, ltparams)
 
 		eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...))
-		ltEval := integer.NewLinearTransformationEvaluator(eval)
+		ltEval := heint.NewLinearTransformationEvaluator(eval)
 
 		require.NoError(t, ltEval.Evaluate(ciphertext, linTransf, ciphertext))
 
@@ -275,7 +275,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 			diagonals[15][i] = 1
 		}
 
-		ltparams := integer.LinearTransformationParameters{
+		ltparams := heint.LinearTransformationParameters{
 			DiagonalsIndexList:       []int{-15, -4, -1, 0, 1, 2, 3, 4, 15},
 			Level:                    ciphertext.Level(),
 			Scale:                    tc.params.DefaultScale(),
@@ -284,15 +284,15 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		}
 
 		// Allocate the linear transformation
-		linTransf := integer.NewLinearTransformation(params, ltparams)
+		linTransf := heint.NewLinearTransformation(params, ltparams)
 
 		// Encode on the linear transformation
-		require.NoError(t, integer.EncodeLinearTransformation[uint64](tc.encoder, diagonals, linTransf))
+		require.NoError(t, heint.EncodeLinearTransformation[uint64](tc.encoder, diagonals, linTransf))
 
-		galEls := integer.GaloisElementsForLinearTransformation(params, ltparams)
+		galEls := heint.GaloisElementsForLinearTransformation(params, ltparams)
 
 		eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...))
-		ltEval := integer.NewLinearTransformationEvaluator(eval)
+		ltEval := heint.NewLinearTransformationEvaluator(eval)
 
 		require.NoError(t, ltEval.Evaluate(ciphertext, linTransf, ciphertext))
 
@@ -334,7 +334,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 			t.Run(GetTestName("Standard", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 
-				polyEval := integer.NewPolynomialEvaluator(tc.params, tc.evaluator, false)
+				polyEval := heint.NewPolynomialEvaluator(tc.params, tc.evaluator, false)
 
 				res, err := polyEval.Evaluate(ciphertext, poly, tc.params.DefaultScale())
 				require.NoError(t, err)
@@ -346,7 +346,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 			t.Run(GetTestName("Invariant", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 
-				polyEval := integer.NewPolynomialEvaluator(tc.params, tc.evaluator, true)
+				polyEval := heint.NewPolynomialEvaluator(tc.params, tc.evaluator, true)
 
 				res, err := polyEval.Evaluate(ciphertext, poly, tc.params.DefaultScale())
 				require.NoError(t, err)
@@ -382,7 +382,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 			mapping[0] = idx0
 			mapping[1] = idx1
 
-			polyVector, err := integer.NewPolynomialVector([][]uint64{
+			polyVector, err := heint.NewPolynomialVector([][]uint64{
 				coeffs0,
 				coeffs1,
 			}, mapping)
@@ -397,7 +397,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 			t.Run(GetTestName("Standard", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 
-				polyEval := integer.NewPolynomialEvaluator(tc.params, tc.evaluator, false)
+				polyEval := heint.NewPolynomialEvaluator(tc.params, tc.evaluator, false)
 
 				res, err := polyEval.Evaluate(ciphertext, polyVector, tc.params.DefaultScale())
 				require.NoError(t, err)
@@ -409,7 +409,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 			t.Run(GetTestName("Invariant", tc.params, tc.params.MaxLevel()), func(t *testing.T) {
 
-				polyEval := integer.NewPolynomialEvaluator(tc.params, tc.evaluator, true)
+				polyEval := heint.NewPolynomialEvaluator(tc.params, tc.evaluator, true)
 
 				res, err := polyEval.Evaluate(ciphertext, polyVector, tc.params.DefaultScale())
 				require.NoError(t, err)

@@ -33,7 +33,7 @@ All notable changes to this library are documented in this file.
         - Homomorphic modular reduction (x mod 1)
         - GoldschmidtDivision (x in [0, 2])
         - Full domain division (x in [-max, -min] U [min, max])
-        - Sign and Step piece wise functions (x in [-1, 1] and [0, 1] respectively)
+        - Sign and Step piece-wise functions (x in [-1, 1] and [0, 1] respectively)
         - Min/Max between values in [-0.5, 0.5]
     - `he/hefloat/bootstrapper`: Package `bootstrapper` implements a bootstrapping helper above the package `he/hefloat/bootstrapper/bootstrapping`. It notably enables:
         - Bootstrapping batches of ciphertexts of smaller dimension and/or with sparse packing with ring-degree switching and depth-less packing/unpacking.
@@ -106,6 +106,7 @@ All notable changes to this library are documented in this file.
         - Renamed `Evaluator.Merge` to `Evaluator.Pack` and generalized `Evaluator.Pack` to be able to take into account the packing `X^{N/n}` of the ciphertext.
         - `Evaluator.Pack` is not recursive anymore and gives the option to zero (or not) slots which are not multiples of `X^{N/n}`.
         - Added the methods `CheckAndGetGaloisKey` and `CheckAndGetRelinearizationKey` to safely check and get the corresponding `EvaluationKeys`.
+        - Added the method `InnerFunction` which applies an user defined bi-operand function on the Ciphertext with a tree-like combination.
     - Changes to the Keys structs:
         - Added `EvaluationKeySet`, which enables users to provide custom loading/saving/persistence policies and implementation for the `EvaluationKeys`.
         - `SwitchingKey` has been renamed `EvaluationKey` to better convey that theses are public keys used during the evaluation phase of a circuit. All methods and variables names have been accordingly renamed.

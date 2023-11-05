@@ -1,7 +1,7 @@
 # MHE
-The MHE package implements several ring-learning-with-errors-based Multiparty Homomorphic Encryption (MHE) primitives.
+The MHE package implements several Ring-Learning-with-Errors (RLWE) based Multiparty Homomorphic Encryption (MHE) primitives.
 It provides generic interfaces for the local steps of the MHE-based Secure Multiparty Computation (MHE-MPC) protocol that are common between all the RLWE distributed schemes implemented in Lattigo (e.g., collective key generation).
-The `mhe/integer` and `mhe/float` packages import `mhe` and provide scheme-specific functionalities (e.g., collective bootstrapping/refresh).
+The `mhe/heinteger` and `mhe/hefloat` packages import `mhe` and provide scheme-specific functionalities (e.g., interactive bootstrapping).
 
 This package implements local operations only, hence does not assume or provide any network-layer protocol implementation.
 However, it provides serialization methods for all relevant structures that implement the standard `encoding.BinaryMarshaller` and `encoding.BinaryUnmarshaller` interfaces (see [https://pkg.go.dev/encoding](https://pkg.go.dev/encoding)) as well as the `io.WriterTo` and `io.ReaderFrom` interfaces (see [https://pkg.go.dev/encoding](https://pkg.go.dev/io)).
@@ -40,6 +40,7 @@ An execution of the MHE-based MPC protocol has two phases: the Setup phase and t
 
 
 ## MHE-MPC Protocol Steps Description
+
 This section provides a description for each sub-protocol of the MHE-MPC protocol and provides pointers to the relevant Lattigo types and methods.
 This description is a first draft and will evolve in the future.
 For concrete code examples, see the `example/mhe` folders.
@@ -150,7 +151,7 @@ It is a two-step process with an optional pre-processing step when using the t-o
 In the first step, Collective Key-Switching, the parties re-encrypt the desired ciphertext under the receiver's secret-key.
 The second step is the local decryption of this re-encrypted ciphertext by the receiver.
 
-#### 2.iii.a Collective Key-Switching
+##### 2.iii.a Collective Key-Switching
 The parties perform a re-encryption of the desired ciphertext(s) from being encrypted under the _ideal secret-key_ to being encrypted under the receiver's secret-key.
 There are two instantiations of the Collective Key-Switching protocol:
 - Collective Key-Switching (KeySwitch), implemented as the `mhe.KeySwitchProtocol` interface: it enables the parties to switch from their _ideal secret-key_ _s_ to another _ideal secret-key_ _s'_ when s' is collectively known by the parties. In the case where _s' = 0_, this is equivalent to a collective decryption protocol that can be used when the receiver is one of the input-parties. 
@@ -161,6 +162,6 @@ While both protocol variants have slightly different local operations, their ste
 - Each party discloses its `mhe.KeySwitchShare` over the public channel. The shares are aggregated with the `(Public)KeySwitchProtocol.AggregateShares` method.
 - From the aggregated `mhe.KeySwitchShare`, any party can derive the ciphertext re-encrypted under _s'_ by using the `(Public)KeySwitchProtocol.KeySwitch` method.
 
-#### 2.iii.b Decryption
+##### 2.iii.b Decryption
 Once the receivers have obtained the ciphertext re-encrypted under their respective keys, they can use the usual decryption algorithm of the single-party scheme to obtain the plaintext result (see [rlwe.Decryptor](../rlwe/decryptor.go).
 

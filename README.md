@@ -25,7 +25,7 @@ The library exposes the following packages:
 
   - `hebin`: Blind rotations (a.k.a Lookup Tables) over RLWE ciphertexts. 
 
-  - `hefloat`: Homomorphic Encryption for fixed-point approximate arithmetic over the reals/complexes.
+  - `hefloat`: Homomorphic Encryption for fixed-point approximate arithmetic over the complex or real numbers.
 
     - `bootstrapper`: State-of-the-Art bootstrapping for fixed-point approximate arithmetic over 
       the reals/complexes with advanced parameterization.

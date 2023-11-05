@@ -201,13 +201,12 @@ All notable changes to this library are documented in this file.
             - `Vector[T any] []T`
         - All the above structs comply to the following interfaces:
             - `(T) CopyNew() *T`
+            - `(T) BinarySize() (int)`
             - `(T) WriteTo(io.Writer) (int64, error)`
             - `(T) ReadFrom(io.Reader) (int64, error)`
-            - `(T) BinarySize() (int)`
-            - `(T) Encode([]byte) (int, error)`
-            - `(T) Decode([]byte) (int, error)`
             - `(T) MarshalBinary() ([]byte, error)`
-            - `(T) UnmarshalBinary([]]byte) (error)`
+            - `(T) UnmarshalBinary([]byte) (error)`
+            - `(T) Equal(T) bool`
     
 ## [4.1.0] - 2022-11-22 
 - Further improved the generalization of the code across schemes through the `rlwe` package and the introduction of a generic scale management interface.

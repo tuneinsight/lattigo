@@ -3,28 +3,28 @@
 All notable changes to this library are documented in this file.
 
 ## UNRELEASED [5.0.0] - xxxx-xx-xx
-- Go versions `1.14`, `1.15`, `1.16` and `1.17` are not supported anymore by the library due to `func (b *Writer) AvailableBuffer() []byte` missing. The minimum version is now `1.18`.
+- Deprecated Go versions `1.14`, `1.15`, `1.16` and `1.17`. The minimum version is now `1.18` which enabled to simplify many parts of the code using generics.
 - Golang Security Checker pass.
 - Dereferenced most inputs and pointers methods whenever possible. Pointers methods/inputs are now mostly used when the struct implementing the method and/or the input is intended to be modified.
-- Due to the minimum Go version being `1.18`, many aspects of the code base were simplified using generics.
-- Global changes to serialization:
-    - Low-entropy structs (such as parameters or rings) have been updated to use `json.Marshal` as underlying marshaller.
+- Improved serialization interface:
+    - Low-entropy structs (such as parameters or rings) have been updated to use more compatible `json.Marshal` as underlying marshaller.
     - High-entropy structs, such as structs storing key material or encrypted values now all comply to the following interface:
+        - `WriteTo(io.Writer) (int64, error)`: writes the object to a standard `io.Writer` interface. The method is optimized and most efficient when writing on writers that expose their own internal buffer (see the `buffer.Writer` interface).
+        - `ReadFrom(io.Reader) (int64, error)`: reads an object from a standard `io.Reader` interface. The method is optimized and most efficient when reading from readers that expose their own internal buffers (see the `buffer.Writer` interface).
+        - `MarshalBinary() ([]byte, error)`: the previously available, standard `encoding.BinaryMarshaler` interface.
+        - `UnmarshalBinary([]byte) (error)`: the previously available, standard `encoding.BinaryUnmarshaler` interface.
         - `BinarySize() int`: size in bytes when written to an `io.Writer` or when marshalled.
-        - `WriteTo(io.Writer) (int64, error)`: highly efficient writing on any `io.Writer` that exposes its internal buffer.
-        - `ReadFrom(io.Reader) (int64, error)`: highly efficient reading from any `io.Reader` that exposes its internal buffer.
-        - `MarshalBinary() ([]byte, error)`: standard serialization.
-        - `UnmarshalBinary([]byte) (error)`: standard deserialization.
-    - Streamlined and simplified all tests related to serialization. They can now be implemented with a single line of code with `RequireSerializerCorrect` which checks the correctness of all the above interface as well as equality between bites writen using `WriteTo` and bytes generated using `MarshalBinary`.
-- Improved consistency across method names:
+        
+    - Streamlined and simplified all tests related to serialization. They can now be implemented with a single line of code with `RequireSerializerCorrect` which checks the correctness of all the above interface as well as equality between bites written using `WriteTo` and bytes generated using `MarshalBinary`.
+- Improved consistency across method names and accross packages/schemes:
     - All sub-strings `NoMod`, `NoModDown` and `Constant` in methods names have been replaced by the sub-string `Lazy`. For example `AddNoMod` and `MulCoeffsMontgomeryConstant` become `AddLazy` and `MulCoeffsMontgomeryLazy` respectively.
     - All sub-strings `And` in methods names have been replaced by the sub-string `Then`. For example `MulAndAdd` becomes `MulThenAdd`.
     - All sub-strings `Inv` have been replaced by `I` for consistency. For example `InvNTT` becomes `INTT`.
     - All sub-strings `Params` and alike referring to pre-computed constants have been replaced by `Constant`. For example `ModUpParams` becomes `ModUpConstants`.
-- New Packages:
-    - `he`: Package `he` implements scheme agnostic functionalities for the RLWE-based HE schemes implemented in Lattigo.
-        - Linear Transformations
-        - Polynomial Evaluation
+-  New top-level packages that provide more convenient and streamlined user-interface to HE:
+    - `he`: Package `he` defines common high-level interfaces and implements common high-level operations in a scheme-agnostic way.
+        - The core operations in Linear Transformations
+        - The core operations Polynomial Evaluation
     - `he/hefloat`: Package `hefloat` implements fixed-point approximate encrypted arithmetic over reals/complex numbers. This package provides all the functionalities of the `schemes/ckks` package, as well as additional more advanced circuits, such as:
         - Linear Transformations
         - Homomorphic encoding/decoding
@@ -39,7 +39,7 @@ All notable changes to this library are documented in this file.
         - Bootstrapping batches of ciphertexts of smaller dimension and/or with sparse packing with ring-degree switching and depth-less packing/unpacking.
         - Bootstrapping for the Conjugate Invariant CKKS with optimal throughput.
     - `he/hefloat/bootstrapper/bootstrapping`: Package `bootstrapping` implements the core of the bootstrapping for approximate homomorphic encryption with a very parameterization granularity.
-        - Decorelation between the bootstrapping parameters and residual parameters: the user doesn't need to manage two sets of parameters anymore and the user only needs to provide the residual parameters (what should remains after the evaluation of the bootstrapping circuit)
+        - Decorrelation between the bootstrapping parameters and residual parameters: the user doesn't need to manage two sets of parameters anymore and the user only needs to provide the residual parameters (what should remains after the evaluation of the bootstrapping circuit)
         - Right out of the box usability with default parameterization independent of the residual parameters
         - In depth parameterization for advanced users with 16 tunable parameters
         - Improved the implementation of META-BTS, providing arbitrary precision bootstrapping from only one additional small prime
@@ -55,11 +55,11 @@ All notable changes to this library are documented in this file.
     - The unified scheme offers all the functionalities of the BFV and BGV schemes under a single scheme.
     - Changes to the `Encoder`:
         - `NewEncoder` now returns an `*Encoder` instead of an interface.
-        - Updated and uniformized the `Encoder` API. See `Encoder` for the specific changes.
+        - Updated and uniformized the `Encoder` API. It now complies to the generic `he.Encoder` interface.
         - The encoding will be performed according to the plaintext `MetaData`.
     - Changes to the `Evaluator`:
         - `NewEvaluator` now returns an `*Evaluator` instead of an interface.
-        - Updated and uniformized the `Evaluator` API. See `Evaluator` for the specific changes.
+        - Updated and uniformized the `Evaluator` API. It now complies to the generic `he.Evaluator` interface.
     - Changes to the `Parameters`:
         - Enabled plaintext modulus with a smaller 2N-th root of unity than the ring degree.
         - Replaced the default parameters by a single example parameter.
@@ -69,12 +69,12 @@ All notable changes to this library are documented in this file.
     - Changes to the `Encoder`:
         - Enabled the encoding of plaintexts of any sparsity (previously hard-capped at a minimum of 8 slots).
         - Unified `encoderComplex128` and `encoderBigComplex`.
-        - Updated and uniformized the `Encoder`API. See `Encoder` for the specific changes.
+        - Updated and uniformized the `Encoder`API. It now complies to the generic `he.Encoder` interface.
         - The encoding will be performed according to the plaintext `MetaData`.
 
     - Changes to the `Evaluator`: 
         - `NewEvaluator` now returns an `*Evaluator` instead of an interface.
-        - Updated and uniformized the `Evaluator` API. See `Evaluator` for the specific changes.
+        - Updated and uniformized the `Evaluator` API. It now complies to the generic `he.Evaluator` interface.
         - Improved and generalized the internal working of the `Evaluator` to enable arbitrary precision encrypted arithmetic.
 
     - Changes to the `Parameters`:
@@ -91,6 +91,7 @@ All notable changes to this library are documented in this file.
     - The package `rlwe` has been moved to `core/rlwe`.
     - The package `ringqp` has been moved to `ring/ringqp`.
     - Changes to the `Parameters`:
+        - It is now possible to specify both the secret and error distributions via the `Xs` and `Xe` fields of the `ParameterLiteral` struct.
         - Removed the concept of rotation, everything is now defined in term of Galois elements.
         - Renamed many methods to better reflect there purpose and generalize them.
         - Added many methods related to plaintext parameters and noise.
@@ -111,7 +112,7 @@ All notable changes to this library are documented in this file.
         - Added `EvaluationKeySet`, which enables users to provide custom loading/saving/persistence policies and implementation for the `EvaluationKeys`.
         - `SwitchingKey` has been renamed `EvaluationKey` to better convey that theses are public keys used during the evaluation phase of a circuit. All methods and variables names have been accordingly renamed.
         - The struct `RotationKeySet` holding a map of `SwitchingKeys` has been replaced by the struct `GaloisKey` holding a single `EvaluationKey`.
-        - The `RelinearizationKey` has been simplified to only store `s^2`, which is aligned with the capabilities of the schemes.
+        - The `RelinearizationKey` type now stores a single GSW-like encryption of `s^2`, which is what schemes' relinearization methods are currently supporting.
     - Changes to the `KeyGenerator`:
         - The `NewKeyGenerator` returns a `*KeyGenerator` instead of an interface.
         - Simplified the `KeyGenerator`: methods to generate specific sets of `rlwe.GaloisKey` have been removed, instead the corresponding method on `rlwe.Parameters` allows to get the appropriate `GaloisElement`s.
@@ -131,13 +132,13 @@ All notable changes to this library are documented in this file.
         - Substantially increased the test coverage of `rlwe` (both for the amount of operations but also parameters).
         - Substantially increased the number of benchmarked operations in `rlwe`.
     - Other changes:
-        - Added generic `Element[T]` which serve as a common underlying type for all cryptographic objects.
+        - Added generic `Element[T]` which serve as a common underlying type for ciphertext types.
         - The argument `level` is now optional for `NewCiphertext` and `NewPlaintext`.
         - `EvaluationKey` (and all parent structs) and `GadgetCiphertext` now takes an optional argument `rlwe.EvaluationKeyParameters` that allows to specify the level `Q` and `P` and the `BaseTwoDecomposition`.
         - Allocating zero `rlwe.EvaluationKey`, `rlwe.GaloisKey` and `rlwe.RelinearizationKey` now takes an optional struct `rlwe.EvaluationKeyParameters` specifying the levels `Q` and `P` and the `BaseTwoDecomposition` of the key.
         - Changed `[]*ring.Poly` to `structs.Vector[ring.Poly]` and `[]ringqp.Poly` to `structs.Vector[ringqp.Poly]`.
         - Replaced the struct `CiphertextQP` by `Element[ringqp.Poly]`.
-        - Added basic interfaces description for Parameters, Encryptor, PRNGEncryptor, Decryptor, Evaluator and PolynomialEvaluator.
+        - Added basic interfaces description for `Parameters`, `Encryptor`, `PRNGEncryptor`, `Decryptor`, `Evaluator` and `PolynomialEvaluator`.
         - Structs that can be serialized now all implement the method V Equal(V) bool.
         - Setting the Hamming weight of the secret or the standard deviation of the error through `NewParameters` to negative values will instantiate these fields as zero values and return a warning (as an error).
 - DRLWE:
@@ -169,7 +170,7 @@ All notable changes to this library are documented in this file.
 - RING: 
     - Changes to sampling:
         - Updated Gaussian sampling to work with arbitrary size standard deviation and bounds.
-        - Added `Sampler` interface.
+        - Added a generic `Sampler` interface.
     - Added finite field polynomial interpolation.
     - Re-enabled NTT for ring degree smaller than 16.
     - Replaced  `Log2OfInnerSum` by `Log2OfStandardDeviation` in the `ring` package, which returns the log2 of the standard deviation of the coefficients of a polynomial.
@@ -181,7 +182,7 @@ All notable changes to this library are documented in this file.
         - The `ring.Ring` object is now composed of a slice of `ring.SubRings` structs, which store the pre-computations for modular arithmetic and NTT for their respective prime.
         - The methods `ModuliChain`, `ModuliChainLength`, `MaxLevel`, `Level` have been added to the `ring.Ring` type. 
         - Added the `BinaryMarshaller` interface implementation for `ring.Ring` types. It marshals the factors and the primitive roots, removing the need for factorization and enabling a deterministic ring reconstruction.
-        - Removed all methods with the API `[...]Lvl(level, ...)`. Instead, to perform operations at a specific level, a `ring.Ring` type can be obtained using `ring.Ring.AtLevel(level)` (which is allocation free).
+        - Removed all methods with the API `[...]Lvl(level, ...)`. Instead, to perform operations at a specific level, a lower-level `ring.Ring` type can be obtained using `ring.Ring.AtLevel(level)` (which is allocation free).
         - Subring-level methods such as `NTTSingle` or `AddVec` are now accessible via `ring.Ring.SubRing[level].Method(*)`. Note that the consistency changes across method names also apply to those methods. So for example, `NTTSingle` and `AddVec` are now simply `NTT` and `Add` when called via a `SubRing` object.
         - Updated `ModDownQPtoQNTT` to round the RNS division (instead of flooring).
         - The `NumberTheoreticTransformer` interface now longer has to be implemented for arbitrary `*SubRing` and abstracts this parameterization being its instantiation.

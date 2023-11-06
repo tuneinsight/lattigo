@@ -123,6 +123,8 @@ Lattigo is licensed under the Apache 2.0 License. See [LICENSE](https://github.c
 
 ## Contact
 
+Before contacting us directly, please make sure that your request cannot be handled through an issue.
+
 If you want to contribute to Lattigo, have a feature proposal or request, to report a security issue or simply want to contact us directly, please do so using the following email: [lattigo@tuneinsight.com](mailto:lattigo@tuneinsight.com).
 
 ## Citing

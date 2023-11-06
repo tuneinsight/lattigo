@@ -1,17 +1,17 @@
 package he
 
 // Bootstrapper is a scheme independent generic interface to handle bootstrapping.
-type Bootstrapper[T any] interface {
+type Bootstrapper[CiphertextType any] interface {
 
 	// Bootstrap defines a method that takes a single Ciphertext as input and applies
 	// an in place scheme-specific bootstrapping. The result is also returned.
-	// An error should notably be returned if ct.Level() < MinimumInputLevel().
-	Bootstrap(ct *T) (*T, error)
+	// An error should notably be returned if ct.Level() < Bootstrapper.MinimumInputLevel().
+	Bootstrap(ct *CiphertextType) (*CiphertextType, error)
 
 	// BootstrapMany defines a method that takes a slice of Ciphertexts as input and applies an
 	// in place scheme-specific bootstrapping to each Ciphertext. The result is also returned.
-	// An error should notably be returned if ct.Level() < MinimumInputLevel().
-	BootstrapMany(cts []T) ([]T, error)
+	// An error should notably be returned if cts[i].Level() < Bootstrapper.MinimumInputLevel().
+	BootstrapMany(cts []CiphertextType) ([]CiphertextType, error)
 
 	// Depth is the number of levels consumed by the bootstrapping circuit.
 	// This value is equivalent to params.MaxLevel() - OutputLevel().

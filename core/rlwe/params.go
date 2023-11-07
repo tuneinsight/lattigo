@@ -450,12 +450,12 @@ func (p Parameters) LogQ() (logq float64) {
 	return p.ringQ.LogModuli()
 }
 
-// LogQi returns the bit-size of each primes of the modulus Q.
+// LogQi returns round(log2) of each primes of the modulus Q.
 func (p Parameters) LogQi() (logqi []int) {
 	qi := p.Q()
 	logqi = make([]int, len(qi))
 	for i := range qi {
-		logqi[i] = bits.Len64(qi[i])
+		logqi[i] = int(math.Round(math.Log2(float64(qi[i]))))
 	}
 	return
 }
@@ -468,12 +468,12 @@ func (p Parameters) LogP() (logp float64) {
 	return p.ringP.LogModuli()
 }
 
-// LogPi returns the bit-size of each primes of the modulus P.
+// LogPi returns the round(log2) of each primes of the modulus P.
 func (p Parameters) LogPi() (logpi []int) {
 	pi := p.Q()
 	logpi = make([]int, len(pi))
 	for i := range pi {
-		logpi[i] = bits.Len64(pi[i])
+		logpi[i] = int(math.Round(math.Log2(float64(pi[i]))))
 	}
 	return
 }

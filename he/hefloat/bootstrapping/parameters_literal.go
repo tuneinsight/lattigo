@@ -139,6 +139,13 @@ type ParametersLiteral struct {
 	Mod1InvDegree                               *int                        // Default: 0
 }
 
+type CircuitOrder int
+
+const (
+	ModUpThenEncode = CircuitOrder(0) // ScaleDown -> ModUp -> CoeffsToSlots -> EvalMod -> SlotsToCoeffs.
+	DecodeThenModup = CircuitOrder(1) // SlotsToCoeffs -> ScaleDown -> ModUp -> CoeffsToSlots -> EvalMod -> .
+)
+
 const (
 	// DefaultLogN is the default ring degree for the bootstrapping.
 	DefaultLogN = 16
@@ -195,7 +202,7 @@ func (p *ParametersLiteral) UnmarshalBinary(data []byte) (err error) {
 }
 
 // GetLogN returns the LogN field of the target ParametersLiteral.
-// The default value DefaultLogN is returned is the field is nil.
+// The default value DefaultLogN is returned if the field is nil.
 func (p ParametersLiteral) GetLogN() (LogN int) {
 	if v := p.LogN; v == nil {
 		LogN = DefaultLogN
@@ -207,7 +214,7 @@ func (p ParametersLiteral) GetLogN() (LogN int) {
 }
 
 // GetDefaultXs returns the Xs field of the target ParametersLiteral.
-// The default value DefaultXs is returned is the field is nil.
+// The default value DefaultXs is returned if the field is nil.
 func (p ParametersLiteral) GetDefaultXs() (Xs ring.DistributionParameters) {
 	if v := p.Xs; v == nil {
 		Xs = DefaultXs
@@ -219,7 +226,7 @@ func (p ParametersLiteral) GetDefaultXs() (Xs ring.DistributionParameters) {
 }
 
 // GetDefaultXe returns the Xe field of the target ParametersLiteral.
-// The default value DefaultXe is returned is the field is nil.
+// The default value DefaultXe is returned if the field is nil.
 func (p ParametersLiteral) GetDefaultXe() (Xe ring.DistributionParameters) {
 	if v := p.Xe; v == nil {
 		Xe = DefaultXe
@@ -247,7 +254,7 @@ func (p ParametersLiteral) GetLogP(NumberOfQi int) (LogP []int) {
 }
 
 // GetLogSlots returns the LogSlots field of the target ParametersLiteral.
-// The default value LogN-1 is returned is the field is nil.
+// The default value LogN-1 is returned if the field is nil.
 func (p ParametersLiteral) GetLogSlots() (LogSlots int, err error) {
 
 	LogN := p.GetLogN()
@@ -313,7 +320,7 @@ func (p ParametersLiteral) GetSlotsToCoeffsFactorizationDepthAndLogScales(LogSlo
 }
 
 // GetEvalMod1LogScale returns the EvalModLogScale field of the target ParametersLiteral.
-// The default value DefaultEvalModLogScale is returned is the field is nil.
+// The default value DefaultEvalModLogScale is returned if the field is nil.
 func (p ParametersLiteral) GetEvalMod1LogScale() (EvalModLogScale int, err error) {
 	if v := p.EvalModLogScale; v == nil {
 		EvalModLogScale = DefaultEvalModLogScale
@@ -356,7 +363,7 @@ func (p ParametersLiteral) GetIterationsParameters() (Iterations *IterationsPara
 }
 
 // GetLogMessageRatio returns the LogMessageRatio field of the target ParametersLiteral.
-// The default value DefaultLogMessageRatio is returned is the field is nil.
+// The default value DefaultLogMessageRatio is returned if the field is nil.
 func (p ParametersLiteral) GetLogMessageRatio() (LogMessageRatio int, err error) {
 	if v := p.LogMessageRatio; v == nil {
 		LogMessageRatio = DefaultLogMessageRatio
@@ -372,7 +379,7 @@ func (p ParametersLiteral) GetLogMessageRatio() (LogMessageRatio int, err error)
 }
 
 // GetK returns the K field of the target ParametersLiteral.
-// The default value DefaultK is returned is the field is nil.
+// The default value DefaultK is returned if the field is nil.
 func (p ParametersLiteral) GetK() (K int, err error) {
 	if v := p.K; v == nil {
 		K = DefaultK
@@ -388,13 +395,13 @@ func (p ParametersLiteral) GetK() (K int, err error) {
 }
 
 // GetMod1Type returns the Mod1Type field of the target ParametersLiteral.
-// The default value DefaultMod1Type is returned is the field is nil.
+// The default value DefaultMod1Type is returned if the field is nil.
 func (p ParametersLiteral) GetMod1Type() (Mod1Type hefloat.Mod1Type) {
 	return p.Mod1Type
 }
 
 // GetDoubleAngle returns the DoubleAngle field of the target ParametersLiteral.
-// The default value DefaultDoubleAngle is returned is the field is nil.
+// The default value DefaultDoubleAngle is returned if the field is nil.
 func (p ParametersLiteral) GetDoubleAngle() (DoubleAngle int, err error) {
 
 	if v := p.DoubleAngle; v == nil {
@@ -417,7 +424,7 @@ func (p ParametersLiteral) GetDoubleAngle() (DoubleAngle int, err error) {
 }
 
 // GetMod1Degree returns the Mod1Degree field of the target ParametersLiteral.
-// The default value DefaultMod1Degree is returned is the field is nil.
+// The default value DefaultMod1Degree is returned if the field is nil.
 func (p ParametersLiteral) GetMod1Degree() (Mod1Degree int, err error) {
 	if v := p.Mod1Degree; v == nil {
 		Mod1Degree = DefaultMod1Degree
@@ -432,7 +439,7 @@ func (p ParametersLiteral) GetMod1Degree() (Mod1Degree int, err error) {
 }
 
 // GetMod1InvDegree returns the Mod1InvDegree field of the target ParametersLiteral.
-// The default value DefaultMod1InvDegree is returned is the field is nil.
+// The default value DefaultMod1InvDegree is returned if the field is nil.
 func (p ParametersLiteral) GetMod1InvDegree() (Mod1InvDegree int, err error) {
 	if v := p.Mod1InvDegree; v == nil {
 		Mod1InvDegree = DefaultMod1InvDegree
@@ -448,7 +455,7 @@ func (p ParametersLiteral) GetMod1InvDegree() (Mod1InvDegree int, err error) {
 }
 
 // GetEphemeralSecretWeight returns the EphemeralSecretWeight field of the target ParametersLiteral.
-// The default value DefaultEphemeralSecretWeight is returned is the field is nil.
+// The default value DefaultEphemeralSecretWeight is returned if the field is nil.
 func (p ParametersLiteral) GetEphemeralSecretWeight() (EphemeralSecretWeight int, err error) {
 	if v := p.EphemeralSecretWeight; v == nil {
 		EphemeralSecretWeight = DefaultEphemeralSecretWeight

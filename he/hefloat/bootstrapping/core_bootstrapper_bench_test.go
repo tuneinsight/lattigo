@@ -1,7 +1,6 @@
 package bootstrapping
 
 import (
-	"math"
 	"testing"
 	"time"
 
@@ -35,52 +34,46 @@ func BenchmarkBootstrap(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 
-			bootstrappingScale := rlwe.NewScale(math.Exp2(math.Round(math.Log2(float64(btp.params.Q()[0]) / btp.mod1Parameters.MessageRatio()))))
-
 			b.StopTimer()
 			ct := hefloat.NewCiphertext(params, 1, 0)
-			ct.Scale = bootstrappingScale
 			b.StartTimer()
 
 			var t time.Time
 			var ct0, ct1 *rlwe.Ciphertext
 
+			// ScaleDown
+			t = time.Now()
+			ct, _, err = btp.ScaleDown(ct)
+			require.NoError(b, err)
+			b.Log("ScaleDown:", time.Since(t), ct.Level(), ct.Scale.Float64())
+
 			// ModUp ct_{Q_0} -> ct_{Q_L}
 			t = time.Now()
-			ct, err = btp.modUpFromQ0(ct)
+			ct, err = btp.ModUp(ct)
 			require.NoError(b, err)
-			b.Log("After ModUp  :", time.Since(t), ct.Level(), ct.Scale.Float64())
-
-			//SubSum X -> (N/dslots) * Y^dslots
-			t = time.Now()
-			require.NoError(b, btp.Trace(ct, ct.LogDimensions.Cols, ct))
-			b.Log("After SubSum :", time.Since(t), ct.Level(), ct.Scale.Float64())
+			b.Log("ModUp    :", time.Since(t), ct.Level(), ct.Scale.Float64())
 
 			// Part 1 : Coeffs to slots
 			t = time.Now()
-			ct0, ct1, err = btp.CoeffsToSlotsNew(ct, btp.ctsMatrices)
+			ct0, ct1, err = btp.CoeffsToSlots(ct)
 			require.NoError(b, err)
-			b.Log("After CtS    :", time.Since(t), ct0.Level(), ct0.Scale.Float64())
+			b.Log("CtS      :", time.Since(t), ct0.Level(), ct0.Scale.Float64())
 
 			// Part 2 : SineEval
 			t = time.Now()
-			ct0, err = btp.Mod1Evaluator.EvaluateNew(ct0)
+			ct0, err = btp.EvalMod(ct0)
 			require.NoError(b, err)
-			ct0.Scale = btp.params.DefaultScale()
-
 			if ct1 != nil {
-				ct1, err = btp.Mod1Evaluator.EvaluateNew(ct1)
+				ct1, err = btp.EvalMod(ct1)
 				require.NoError(b, err)
-				ct1.Scale = btp.params.DefaultScale()
 			}
-			b.Log("After Sine   :", time.Since(t), ct0.Level(), ct0.Scale.Float64())
+			b.Log("EvalMod  :", time.Since(t), ct0.Level(), ct0.Scale.Float64())
 
 			// Part 3 : Slots to coeffs
 			t = time.Now()
-			ct0, err = btp.SlotsToCoeffsNew(ct0, ct1, btp.stcMatrices)
+			ct0, err = btp.SlotsToCoeffs(ct0, ct1)
 			require.NoError(b, err)
-			ct0.Scale = rlwe.NewScale(math.Exp2(math.Round(math.Log2(ct0.Scale.Float64()))))
-			b.Log("After StC    :", time.Since(t), ct0.Level(), ct0.Scale.Float64())
+			b.Log("StC      :", time.Since(t), ct0.Level(), ct0.Scale.Float64())
 		}
 	})
 }

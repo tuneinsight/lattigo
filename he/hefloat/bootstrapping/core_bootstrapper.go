@@ -201,37 +201,47 @@ func (btp CoreBootstrapper) OutputLevel() int {
 // See the bootstrapping parameters for more information about the message ratio or other parameters related to the bootstrapping.
 // If the input ciphertext is at level one or more, the input scale does not need to be an exact power of two as one level
 // can be used to do a scale matching.
+//
+// The circuit has two variants, each consisting in 5 steps.
+// Variant I:
+// 1) ScaleDown: scales the ciphertext to q/|m| and bringing it down to q
+// 2) ModUp: brings the modulus from q to Q
+// 3) CoeffsToSlots: homomorphic encoding
+// 4) EvalMod: homomorphic modular reduction
+// 5) SlotsToCoeffs: homomorphic decoding
+//
+// Variant II:
+// 1) SlotsToCoeffs: homomorphic decoding
+// 2) ScaleDown: scales the ciphertext to q/|m| and bringing it down to q
+// 3) ModUp: brings the modulus from q to Q
+// 4) CoeffsToSlots: homomorphic encoding
+// 5) EvalMod: homomorphic modular reduction
 func (btp CoreBootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err error) {
 
-	// Pre-processing
-	ctDiff := ctIn.CopyNew()
+	if btp.IterationsParameters == nil {
+		ctOut, _, err = btp.bootstrap(ctIn)
+		return
 
-	var errScale *rlwe.Scale
+	} else {
 
-	// [M^{d}/q1]
-	if ctDiff, errScale, err = btp.scaleDownToQ0OverMessageRatio(ctDiff); err != nil {
-		return nil, err
-	}
+		var errScale *rlwe.Scale
+		// [M^{d}/q1 + e^{d-logprec}]
+		if ctOut, errScale, err = btp.bootstrap(ctIn.CopyNew()); err != nil {
+			return nil, err
+		}
 
-	// [M^{d}/q1 + e^{d-logprec}]
-	if ctOut, err = btp.bootstrap(ctDiff.CopyNew()); err != nil {
-		return nil, err
-	}
+		// Stores by how much a ciphertext must be scaled to get back
+		// to the input scale
+		// Error correcting factor of the approximate division by q1
+		// diffScale = ctIn.Scale / (ctOut.Scale * errScale)
+		diffScale := ctIn.Scale.Div(ctOut.Scale)
+		diffScale = diffScale.Div(*errScale)
 
-	// Error correcting factor of the approximate division by q1
-	ctOut.Scale = ctOut.Scale.Mul(*errScale)
-
-	// Stores by how much a ciphertext must be scaled to get back
-	// to the input scale
-	diffScale := ctIn.Scale.Div(ctOut.Scale).Bigint()
-
-	// [M^{d} + e^{d-logprec}]
-	if err = btp.Evaluator.Mul(ctOut, diffScale, ctOut); err != nil {
-		return nil, err
-	}
-	ctOut.Scale = ctIn.Scale
-
-	if btp.IterationsParameters != nil {
+		// [M^{d} + e^{d-logprec}]
+		if err = btp.Evaluator.Mul(ctOut, diffScale.BigInt(), ctOut); err != nil {
+			return nil, err
+		}
+		ctOut.Scale = ctIn.Scale
 
 		var totLogPrec float64
 
@@ -248,7 +258,7 @@ func (btp CoreBootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Cipher
 			log2TimesLogPrec.Add(bignum.Exp(log2TimesLogPrec), new(big.Float).SetFloat64(0.5)).Int(prec)
 
 			// round(q1/logprec)
-			scale := new(big.Int).Set(diffScale)
+			scale := new(big.Int).Set(diffScale.BigInt())
 			bignum.DivRound(scale, prec, scale)
 
 			// Checks that round(q1/logprec) >= 2^{logprec}
@@ -272,13 +282,8 @@ func (btp CoreBootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Cipher
 
 			tmp.Scale = ctOut.Scale
 
-			// [e^{d}] / q1 -> [e^{d}/q1]
-			if tmp, errScale, err = btp.scaleDownToQ0OverMessageRatio(tmp); err != nil {
-				return nil, err
-			}
-
-			// [e^{d}/q1] -> [e^{d}/q1 + e'^{d-logprec}]
-			if tmp, err = btp.bootstrap(tmp); err != nil {
+			// [e^{d}] -> [e^{d}/q1] -> [e^{d}/q1 + e'^{d-logprec}]
+			if tmp, errScale, err = btp.bootstrap(tmp); err != nil {
 				return nil, err
 			}
 
@@ -293,7 +298,7 @@ func (btp CoreBootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Cipher
 			} else {
 
 				// Else we compute the floating point ratio
-				ss := new(big.Float).SetInt(diffScale)
+				ss := new(big.Float).SetInt(diffScale.BigInt())
 				ss.Quo(ss, new(big.Float).SetInt(prec))
 
 				// Do a scaled multiplication by the last prime
@@ -328,8 +333,13 @@ func checkMessageRatio(ct *rlwe.Ciphertext, msgRatio float64, r *ring.Ring) bool
 	return currentMessageRatio.Cmp(rlwe.NewScale(r.SubRings[level].Modulus).Mul(rlwe.NewScale(msgRatio))) > -1
 }
 
-// The purpose of this pre-processing step is to bring the ciphertext level to zero and scaling factor to Q[0]/MessageRatio
-func (btp CoreBootstrapper) scaleDownToQ0OverMessageRatio(ctIn *rlwe.Ciphertext) (*rlwe.Ciphertext, *rlwe.Scale, error) {
+// ScaleDown brings the ciphertext level to zero and scaling factor to Q[0]/MessageRatio
+// It multiplies the ciphertexts by round(currentMessageRatio / targetMessageRatio) where:
+// - currentMessageRatio = Q/ctIn.Scale
+// - targetMessageRatio = q/|m|
+// and updates the scale of ctIn accordingly
+// It then rescales the ciphertext down to q if necessary and also returns the rescaling error from this process
+func (btp CoreBootstrapper) ScaleDown(ctIn *rlwe.Ciphertext) (*rlwe.Ciphertext, *rlwe.Scale, error) {
 
 	params := &btp.params
 
@@ -351,13 +361,13 @@ func (btp CoreBootstrapper) scaleDownToQ0OverMessageRatio(ctIn *rlwe.Ciphertext)
 	scaleUp := currentMessageRatio.Div(targetMessageRatio)
 
 	if scaleUp.Cmp(rlwe.NewScale(0.5)) == -1 {
-		return nil, nil, fmt.Errorf("cannot scaleDownToQ0OverMessageRatio: initial Q/Scale < 0.5*Q[0]/MessageRatio")
+		return nil, nil, fmt.Errorf("initial Q/Scale < 0.5*Q[0]/MessageRatio")
 	}
 
-	scaleUpBigint := scaleUp.Bigint()
+	scaleUpBigint := scaleUp.BigInt()
 
 	if err := btp.Evaluator.Mul(ctIn, scaleUpBigint, ctIn); err != nil {
-		return nil, nil, fmt.Errorf("cannot scaleDownToQ0OverMessageRatio: %w", err)
+		return nil, nil, err
 	}
 
 	ctIn.Scale = ctIn.Scale.Mul(rlwe.NewScale(scaleUpBigint))
@@ -368,80 +378,35 @@ func (btp CoreBootstrapper) scaleDownToQ0OverMessageRatio(ctIn *rlwe.Ciphertext)
 
 	if ctIn.Level() != 0 {
 		if err := btp.RescaleTo(ctIn, rlwe.NewScale(targetScale), ctIn); err != nil {
-			return nil, nil, fmt.Errorf("cannot scaleDownToQ0OverMessageRatio: %w", err)
+			return nil, nil, err
 		}
 	}
 
+	// Rescaling error (if any)
 	errScale := ctIn.Scale.Div(rlwe.NewScale(targetScale))
 
 	return ctIn, &errScale, nil
 }
 
-func (btp *CoreBootstrapper) bootstrap(ctIn *rlwe.Ciphertext) (opOut *rlwe.Ciphertext, err error) {
-
-	// Step 1 : Extend the basis from q to Q
-	if opOut, err = btp.modUpFromQ0(ctIn); err != nil {
-		return
-	}
-
-	// Scale the message from Q0/|m| to QL/|m|, where QL is the largest modulus used during the bootstrapping.
-	if scale := (btp.Mod1Parameters.ScalingFactor().Float64() / btp.Mod1Parameters.MessageRatio()) / opOut.Scale.Float64(); scale > 1 {
-		if err = btp.ScaleUp(opOut, rlwe.NewScale(scale), opOut); err != nil {
-			return nil, err
-		}
-	}
-
-	//SubSum X -> (N/dslots) * Y^dslots
-	if err = btp.Trace(opOut, opOut.LogDimensions.Cols, opOut); err != nil {
-		return nil, err
-	}
-
-	// Step 2 : CoeffsToSlots (Homomorphic encoding)
-	ctReal, ctImag, err := btp.CoeffsToSlotsNew(opOut, btp.ctsMatrices)
-	if err != nil {
-		return nil, err
-	}
-
-	// Step 3 : EvalMod (Homomorphic modular reduction)
-	// ctReal = Ecd(real)
-	// ctImag = Ecd(imag)
-	// If n < N/2 then ctReal = Ecd(real|imag)
-	if ctReal, err = btp.Mod1Evaluator.EvaluateNew(ctReal); err != nil {
-		return nil, err
-	}
-	ctReal.Scale = btp.params.DefaultScale()
-
-	if ctImag != nil {
-		if ctImag, err = btp.Mod1Evaluator.EvaluateNew(ctImag); err != nil {
-			return nil, err
-		}
-		ctImag.Scale = btp.params.DefaultScale()
-	}
-
-	// Step 4 : SlotsToCoeffs (Homomorphic decoding)
-	opOut, err = btp.SlotsToCoeffsNew(ctReal, ctImag, btp.stcMatrices)
-
-	return
-}
-
-func (btp *CoreBootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, error) {
+// ModUp raise the modulus from q to Q, scales the message  and applies the Trace if the ciphertext is sparsely packed.
+func (btp *CoreBootstrapper) ModUp(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err error) {
 
 	// Switch to the sparse key
 	if btp.EvkDenseToSparse != nil {
-		if err := btp.ApplyEvaluationKey(ct, btp.EvkDenseToSparse, ct); err != nil {
+		if err := btp.ApplyEvaluationKey(ctIn, btp.EvkDenseToSparse, ctIn); err != nil {
 			return nil, err
 		}
 	}
 
-	ringQ := btp.params.RingQ().AtLevel(ct.Level())
+	ringQ := btp.params.RingQ().AtLevel(ctIn.Level())
 	ringP := btp.params.RingP()
 
-	for i := range ct.Value {
-		ringQ.INTT(ct.Value[i], ct.Value[i])
+	for i := range ctIn.Value {
+		ringQ.INTT(ctIn.Value[i], ctIn.Value[i])
 	}
 
 	// Extend the ciphertext from q to Q with zero values.
-	ct.Resize(ct.Degree(), btp.params.MaxLevel())
+	ctIn.Resize(ctIn.Degree(), btp.params.MaxLevel())
 
 	levelQ := btp.params.QCount() - 1
 	levelP := btp.params.PCount() - 1
@@ -458,10 +423,10 @@ func (btp *CoreBootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) (*rlwe.Ciphertext,
 
 	N := ringQ.N()
 
-	// ModUp q->Q for ct[0] centered around q
+	// ModUp q->Q for ctIn[0] centered around q
 	for j := 0; j < N; j++ {
 
-		coeff = ct.Value[0].Coeffs[0][j]
+		coeff = ctIn.Value[0].Coeffs[0][j]
 		pos, neg = 1, 0
 		if coeff >= (q >> 1) {
 			coeff = q - coeff
@@ -470,7 +435,7 @@ func (btp *CoreBootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) (*rlwe.Ciphertext,
 
 		for i := 1; i < levelQ+1; i++ {
 			tmp = ring.BRedAdd(coeff, Q[i], BRCQ[i])
-			ct.Value[0].Coeffs[i][j] = tmp*pos + (Q[i]-tmp)*neg
+			ctIn.Value[0].Coeffs[i][j] = tmp*pos + (Q[i]-tmp)*neg
 		}
 	}
 
@@ -478,10 +443,10 @@ func (btp *CoreBootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) (*rlwe.Ciphertext,
 
 		ks := btp.Evaluator.Evaluator
 
-		// ModUp q->QP for ct[1] centered around q
+		// ModUp q->QP for ctIn[1] centered around q
 		for j := 0; j < N; j++ {
 
-			coeff = ct.Value[1].Coeffs[0][j]
+			coeff = ctIn.Value[1].Coeffs[0][j]
 			pos, neg = 1, 0
 			if coeff > (q >> 1) {
 				coeff = q - coeff
@@ -508,21 +473,21 @@ func (btp *CoreBootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) (*rlwe.Ciphertext,
 			ringP.NTT(ks.BuffDecompQP[0].P, ks.BuffDecompQP[i].P)
 		}
 
-		ringQ.NTT(ct.Value[0], ct.Value[0])
+		ringQ.NTT(ctIn.Value[0], ctIn.Value[0])
 
 		ctTmp := &rlwe.Ciphertext{}
-		ctTmp.Value = []ring.Poly{ks.BuffQP[1].Q, ct.Value[1]}
-		ctTmp.MetaData = ct.MetaData
+		ctTmp.Value = []ring.Poly{ks.BuffQP[1].Q, ctIn.Value[1]}
+		ctTmp.MetaData = ctIn.MetaData
 
 		// Switch back to the dense key
 		ks.GadgetProductHoisted(levelQ, ks.BuffDecompQP, &btp.EvkSparseToDense.GadgetCiphertext, ctTmp)
-		ringQ.Add(ct.Value[0], ctTmp.Value[0], ct.Value[0])
+		ringQ.Add(ctIn.Value[0], ctTmp.Value[0], ctIn.Value[0])
 
 	} else {
 
 		for j := 0; j < N; j++ {
 
-			coeff = ct.Value[1].Coeffs[0][j]
+			coeff = ctIn.Value[1].Coeffs[0][j]
 			pos, neg = 1, 0
 			if coeff >= (q >> 1) {
 				coeff = q - coeff
@@ -531,13 +496,81 @@ func (btp *CoreBootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) (*rlwe.Ciphertext,
 
 			for i := 1; i < levelQ+1; i++ {
 				tmp = ring.BRedAdd(coeff, Q[i], BRCQ[i])
-				ct.Value[1].Coeffs[i][j] = tmp*pos + (Q[i]-tmp)*neg
+				ctIn.Value[1].Coeffs[i][j] = tmp*pos + (Q[i]-tmp)*neg
 			}
 		}
 
-		ringQ.NTT(ct.Value[0], ct.Value[0])
-		ringQ.NTT(ct.Value[1], ct.Value[1])
+		ringQ.NTT(ctIn.Value[0], ctIn.Value[0])
+		ringQ.NTT(ctIn.Value[1], ctIn.Value[1])
 	}
 
-	return ct, nil
+	// Scale the message from Q0/|m| to QL/|m|, where QL is the largest modulus used during the bootstrapping.
+	if scale := (btp.Mod1Parameters.ScalingFactor().Float64() / btp.Mod1Parameters.MessageRatio()) / ctIn.Scale.Float64(); scale > 1 {
+		if err = btp.ScaleUp(ctIn, rlwe.NewScale(scale), ctIn); err != nil {
+			return nil, err
+		}
+	}
+
+	//SubSum X -> (N/dslots) * Y^dslots
+	return ctIn, btp.Trace(ctIn, ctIn.LogDimensions.Cols, ctIn)
+}
+
+// CoeffsToSlots applies the homomorphic decoding
+func (btp *CoreBootstrapper) CoeffsToSlots(ctIn *rlwe.Ciphertext) (ctReal, ctImag *rlwe.Ciphertext, err error) {
+	return btp.CoeffsToSlotsNew(ctIn, btp.ctsMatrices)
+}
+
+// EvalMod applies the homomorphic modular reduction by q.
+func (btp *CoreBootstrapper) EvalMod(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err error) {
+
+	if ctOut, err = btp.Mod1Evaluator.EvaluateNew(ctIn); err != nil {
+		return nil, err
+	}
+	ctOut.Scale = btp.params.DefaultScale()
+	return
+}
+
+func (btp *CoreBootstrapper) SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err error) {
+	return btp.SlotsToCoeffsNew(ctReal, ctImag, btp.stcMatrices)
+}
+
+func (btp *CoreBootstrapper) bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, errScale *rlwe.Scale, err error) {
+
+	// Step 1: scale to q/|m|
+	if ctOut, errScale, err = btp.ScaleDown(ctIn); err != nil {
+		return
+	}
+
+	// Step 2 : Extend the basis from q to Q
+	if ctOut, err = btp.ModUp(ctOut); err != nil {
+		return
+	}
+
+	// Step 3 : CoeffsToSlots (Homomorphic encoding)
+	// ctReal = Ecd(real)
+	// ctImag = Ecd(imag)
+	// If n < N/2 then ctReal = Ecd(real||imag)
+	var ctReal, ctImag *rlwe.Ciphertext
+	if ctReal, ctImag, err = btp.CoeffsToSlots(ctOut); err != nil {
+		return
+	}
+
+	// Step 4 : EvalMod (Homomorphic modular reduction)
+	if ctReal, err = btp.EvalMod(ctReal); err != nil {
+		return
+	}
+
+	// Step 4 : EvalMod (Homomorphic modular reduction)
+	if ctImag != nil {
+		if ctImag, err = btp.EvalMod(ctImag); err != nil {
+			return
+		}
+	}
+
+	// Step 5 : SlotsToCoeffs (Homomorphic decoding)
+	if ctOut, err = btp.SlotsToCoeffs(ctReal, ctImag); err != nil {
+		return
+	}
+
+	return
 }

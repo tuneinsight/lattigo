@@ -154,8 +154,8 @@ func main() {
 	//========================
 
 	// Instantiates the bootstrapper
-	var btp *bootstrapping.Bootstrapper
-	if btp, err = bootstrapping.NewBootstrapper(btpParams, evk); err != nil {
+	var eval *bootstrapping.Evaluator
+	if eval, err = bootstrapping.NewEvaluator(btpParams, evk); err != nil {
 		panic(err)
 	}
 
@@ -189,7 +189,7 @@ func main() {
 	// To equalize the scale, the function evaluator.SetScale(ciphertext, parameters.DefaultScale()) can be used at the expense of one level.
 	// If the ciphertext is is at level one or greater when given to the bootstrapper, this equalization is automatically done.
 	fmt.Println("Bootstrapping...")
-	ciphertext2, err := btp.Bootstrap(ciphertext1)
+	ciphertext2, err := eval.Bootstrap(ciphertext1)
 	if err != nil {
 		panic(err)
 	}

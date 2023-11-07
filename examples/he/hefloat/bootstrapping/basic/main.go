@@ -12,7 +12,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/core/rlwe"
 	"github.com/tuneinsight/lattigo/v4/he/hefloat"
-	"github.com/tuneinsight/lattigo/v4/he/hefloat/bootstrapper"
+	"github.com/tuneinsight/lattigo/v4/he/hefloat/bootstrapping"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/sampling"
@@ -68,8 +68,8 @@ func main() {
 	// For this first example, we do not specify any circuit specific optional field in the bootstrapping parameters literal.
 	// Thus we expect the bootstrapping to give a precision of 27.25 bits with H=192 (and 23.8 with H=N/2)
 	// if the plaintext values are uniformly distributed in [-1, 1] for both the real and imaginary part.
-	// See `he/float/bootstrapper/bootstrapping/parameters_literal.go` for detailed information about the optional fields.
-	btpParametersLit := bootstrapper.ParametersLiteral{
+	// See `he/float/bootstrapping/parameters_literal.go` for detailed information about the optional fields.
+	btpParametersLit := bootstrapping.ParametersLiteral{
 		// We specify LogN to ensure that both the residual parameters and the bootstrapping parameters
 		// have the same LogN. This is not required, but we want it for this example.
 		LogN: utils.Pointy(LogN),
@@ -93,7 +93,7 @@ func main() {
 	// ring used by the bootstrapping circuit.
 	// The bootstrapping parameters are a wrapper of hefloat.Parameters, with additional information.
 	// They therefore has the same API as the hefloat.Parameters and we can use this API to print some information.
-	btpParams, err := bootstrapper.NewParametersFromLiteral(params, btpParametersLit)
+	btpParams, err := bootstrapping.NewParametersFromLiteral(params, btpParametersLit)
 	if err != nil {
 		panic(err)
 	}
@@ -105,25 +105,25 @@ func main() {
 
 	// We print some information about the residual parameters.
 	fmt.Printf("Residual parameters: logN=%d, logSlots=%d, H=%d, sigma=%f, logQP=%f, levels=%d, scale=2^%d\n",
-		params.LogN(),
-		params.LogMaxSlots(),
-		params.XsHammingWeight(),
-		params.Xe(), params.LogQP(),
-		params.MaxLevel(),
-		params.LogDefaultScale())
+		btpParams.ResidualParameters.LogN(),
+		btpParams.ResidualParameters.LogMaxSlots(),
+		btpParams.ResidualParameters.XsHammingWeight(),
+		btpParams.ResidualParameters.Xe(), params.LogQP(),
+		btpParams.ResidualParameters.MaxLevel(),
+		btpParams.ResidualParameters.LogDefaultScale())
 
 	// And some information about the bootstrapping parameters.
 	// We can notably check that the LogQP of the bootstrapping parameters is smaller than 1550, which ensures
 	// 128-bit of security as explained above.
 	fmt.Printf("Bootstrapping parameters: logN=%d, logSlots=%d, H(%d; %d), sigma=%f, logQP=%f, levels=%d, scale=2^%d\n",
-		btpParams.LogN(),
-		btpParams.LogMaxSlots(),
-		btpParams.XsHammingWeight(),
+		btpParams.BootstrappingParameters.LogN(),
+		btpParams.BootstrappingParameters.LogMaxSlots(),
+		btpParams.BootstrappingParameters.XsHammingWeight(),
 		btpParams.EphemeralSecretWeight,
-		btpParams.Xe(),
-		btpParams.LogQP(),
-		btpParams.QCount(),
-		btpParams.LogDefaultScale())
+		btpParams.BootstrappingParameters.Xe(),
+		btpParams.BootstrappingParameters.LogQP(),
+		btpParams.BootstrappingParameters.QCount(),
+		btpParams.BootstrappingParameters.LogDefaultScale())
 
 	//===========================
 	//=== 4) KEYGEN & ENCRYPT ===
@@ -142,8 +142,8 @@ func main() {
 	encryptor := rlwe.NewEncryptor(params, pk)
 
 	fmt.Println()
-	fmt.Println("Generating bootstrapping keys...")
-	evk, _, err := btpParams.GenBootstrappingKeys(sk)
+	fmt.Println("Generating bootstrapping evaluation keys...")
+	evk, _, err := btpParams.GenEvaluationKeys(sk)
 	if err != nil {
 		panic(err)
 	}
@@ -154,8 +154,8 @@ func main() {
 	//========================
 
 	// Instantiates the bootstrapper
-	var btp *bootstrapper.Bootstrapper
-	if btp, err = bootstrapper.NewBootstrapper(btpParams, evk); err != nil {
+	var btp *bootstrapping.Bootstrapper
+	if btp, err = bootstrapping.NewBootstrapper(btpParams, evk); err != nil {
 		panic(err)
 	}
 

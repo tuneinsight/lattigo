@@ -27,8 +27,10 @@ The library exposes the following packages:
 
   - `hefloat`: Homomorphic Encryption for fixed-point approximate arithmetic over the complex or real numbers.
 
-    - `bootstrapper`: State-of-the-Art bootstrapping for fixed-point approximate arithmetic over 
-      the reals/complexes with advanced parameterization.
+    - `bootstrapper`: State-of-the-Art bootstrapping for fixed-point approximate arithmetic over the real
+      and comples numbers, with support for the Conjugate Invariant ring, batch bootstrapping with automatic
+      packing/unpacking of sparsely packed/smaller ring degree ciphertexts, arbitrary precision bootstrapping
+      and advanced circuit customization/parameterization.
 
   - `heint`: Homomorphic Encryption for modular arithmetic over the integers.
 

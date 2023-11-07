@@ -1,20 +1,196 @@
-// Package bootstrapping implement the bootstrapping for fixed-point fixed-point approximate arithmetic over the reals/complexes
 package bootstrapping
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/tuneinsight/lattigo/v4/core/rlwe"
+	"github.com/tuneinsight/lattigo/v4/he/hefloat"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
-func (btp Bootstrapper) MinimumInputLevel() int {
+// CoreBootstrapper is a struct to store a memory buffer with the plaintext matrices,
+// the polynomial approximation, and the keys for the bootstrapping.
+type CoreBootstrapper struct {
+	*hefloat.Evaluator
+	*hefloat.DFTEvaluator
+	*hefloat.Mod1Evaluator
+	*bootstrapperBase
+	SkDebug *rlwe.SecretKey
+}
+
+type bootstrapperBase struct {
+	Parameters
+	*EvaluationKeys
+	params hefloat.Parameters
+
+	dslots    int // Number of plaintext slots after the re-encoding: min(2*slots, N/2)
+	logdslots int // log2(dslots)
+
+	mod1Parameters hefloat.Mod1Parameters
+	stcMatrices    hefloat.DFTMatrix
+	ctsMatrices    hefloat.DFTMatrix
+
+	q0OverMessageRatio float64
+}
+
+// NewCoreBootstrapper creates a new CoreBootstrapper.
+func NewCoreBootstrapper(btpParams Parameters, evk *EvaluationKeys) (btp *CoreBootstrapper, err error) {
+
+	if btpParams.Mod1ParametersLiteral.Mod1Type == hefloat.SinContinuous && btpParams.Mod1ParametersLiteral.DoubleAngle != 0 {
+		return nil, fmt.Errorf("cannot use double angle formula for Mod1Type = Sin -> must use Mod1Type = Cos")
+	}
+
+	if btpParams.Mod1ParametersLiteral.Mod1Type == hefloat.CosDiscrete && btpParams.Mod1ParametersLiteral.Mod1Degree < 2*(btpParams.Mod1ParametersLiteral.K-1) {
+		return nil, fmt.Errorf("Mod1Type 'hefloat.CosDiscrete' uses a minimum degree of 2*(K-1) but EvalMod degree is smaller")
+	}
+
+	if btpParams.CoeffsToSlotsParameters.LevelStart-btpParams.CoeffsToSlotsParameters.Depth(true) != btpParams.Mod1ParametersLiteral.LevelStart {
+		return nil, fmt.Errorf("starting level and depth of CoeffsToSlotsParameters inconsistent starting level of SineEvalParameters")
+	}
+
+	if btpParams.Mod1ParametersLiteral.LevelStart-btpParams.Mod1ParametersLiteral.Depth() != btpParams.SlotsToCoeffsParameters.LevelStart {
+		return nil, fmt.Errorf("starting level and depth of SineEvalParameters inconsistent starting level of CoeffsToSlotsParameters")
+	}
+
+	params := btpParams.BootstrappingParameters
+
+	btp = new(CoreBootstrapper)
+	if btp.bootstrapperBase, err = newBootstrapperBase(params, btpParams, evk); err != nil {
+		return
+	}
+
+	if err = btp.bootstrapperBase.CheckKeys(evk); err != nil {
+		return nil, fmt.Errorf("invalid bootstrapping key: %w", err)
+	}
+
+	btp.EvaluationKeys = evk
+
+	btp.Evaluator = hefloat.NewEvaluator(params, evk)
+
+	btp.DFTEvaluator = hefloat.NewDFTEvaluator(params, btp.Evaluator)
+
+	btp.Mod1Evaluator = hefloat.NewMod1Evaluator(btp.Evaluator, hefloat.NewPolynomialEvaluator(params, btp.Evaluator), btp.bootstrapperBase.mod1Parameters)
+
+	return
+}
+
+// ShallowCopy creates a shallow copy of this CoreBootstrapper in which all the read-only data-structures are
+// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
+// CoreBootstrapper can be used concurrently.
+func (btp CoreBootstrapper) ShallowCopy() *CoreBootstrapper {
+	Evaluator := btp.Evaluator.ShallowCopy()
+	params := btp.BootstrappingParameters
+	return &CoreBootstrapper{
+		Evaluator:        Evaluator,
+		bootstrapperBase: btp.bootstrapperBase,
+		DFTEvaluator:     hefloat.NewDFTEvaluator(params, Evaluator),
+		Mod1Evaluator:    hefloat.NewMod1Evaluator(Evaluator, hefloat.NewPolynomialEvaluator(params, Evaluator), btp.bootstrapperBase.mod1Parameters),
+	}
+}
+
+// CheckKeys checks if all the necessary keys are present in the instantiated CoreBootstrapper
+func (bb *bootstrapperBase) CheckKeys(evk *EvaluationKeys) (err error) {
+
+	if _, err = evk.GetRelinearizationKey(); err != nil {
+		return
+	}
+
+	for _, galEl := range bb.GaloisElements(bb.params) {
+		if _, err = evk.GetGaloisKey(galEl); err != nil {
+			return
+		}
+	}
+
+	if evk.EvkDenseToSparse == nil && bb.EphemeralSecretWeight != 0 {
+		return fmt.Errorf("rlwe.EvaluationKey key dense to sparse is nil")
+	}
+
+	if evk.EvkSparseToDense == nil && bb.EphemeralSecretWeight != 0 {
+		return fmt.Errorf("rlwe.EvaluationKey key sparse to dense is nil")
+	}
+
+	return
+}
+
+func newBootstrapperBase(params hefloat.Parameters, btpParams Parameters, evk *EvaluationKeys) (bb *bootstrapperBase, err error) {
+	bb = new(bootstrapperBase)
+	bb.params = params
+	bb.Parameters = btpParams
+
+	bb.logdslots = btpParams.LogMaxDimensions().Cols
+	bb.dslots = 1 << bb.logdslots
+	if maxLogSlots := params.LogMaxDimensions().Cols; bb.dslots < maxLogSlots {
+		bb.dslots <<= 1
+		bb.logdslots++
+	}
+
+	if bb.mod1Parameters, err = hefloat.NewMod1ParametersFromLiteral(params, btpParams.Mod1ParametersLiteral); err != nil {
+		return nil, err
+	}
+
+	scFac := bb.mod1Parameters.ScFac()
+	K := bb.mod1Parameters.K() / scFac
+
+	// Correcting factor for approximate division by Q
+	// The second correcting factor for approximate multiplication by Q is included in the coefficients of the EvalMod polynomials
+	qDiff := bb.mod1Parameters.QDiff()
+
+	Q0 := params.Q()[0]
+
+	// Q0/|m|
+	bb.q0OverMessageRatio = math.Exp2(math.Round(math.Log2(float64(Q0) / bb.mod1Parameters.MessageRatio())))
+
+	// If the scale used during the EvalMod step is smaller than Q0, then we cannot increase the scale during
+	// the EvalMod step to get a free division by MessageRatio, and we need to do this division (totally or partly)
+	// during the CoeffstoSlots step
+	qDiv := bb.mod1Parameters.ScalingFactor().Float64() / math.Exp2(math.Round(math.Log2(float64(Q0))))
+
+	// Sets qDiv to 1 if there is enough room for the division to happen using scale manipulation.
+	if qDiv > 1 {
+		qDiv = 1
+	}
+
+	encoder := hefloat.NewEncoder(bb.params)
+
+	// CoeffsToSlots vectors
+	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + eventual scaling factor for the double angle formula
+
+	if bb.CoeffsToSlotsParameters.Scaling == nil {
+		bb.CoeffsToSlotsParameters.Scaling = new(big.Float).SetFloat64(qDiv / (K * scFac * qDiff))
+	} else {
+		bb.CoeffsToSlotsParameters.Scaling.Mul(bb.CoeffsToSlotsParameters.Scaling, new(big.Float).SetFloat64(qDiv/(K*scFac*qDiff)))
+	}
+
+	if bb.ctsMatrices, err = hefloat.NewDFTMatrixFromLiteral(params, bb.CoeffsToSlotsParameters, encoder); err != nil {
+		return
+	}
+
+	// SlotsToCoeffs vectors
+	// Rescaling factor to set the final ciphertext to the desired scale
+
+	if bb.SlotsToCoeffsParameters.Scaling == nil {
+		bb.SlotsToCoeffsParameters.Scaling = new(big.Float).SetFloat64(bb.params.DefaultScale().Float64() / (bb.mod1Parameters.ScalingFactor().Float64() / bb.mod1Parameters.MessageRatio()))
+	} else {
+		bb.SlotsToCoeffsParameters.Scaling.Mul(bb.SlotsToCoeffsParameters.Scaling, new(big.Float).SetFloat64(bb.params.DefaultScale().Float64()/(bb.mod1Parameters.ScalingFactor().Float64()/bb.mod1Parameters.MessageRatio())))
+	}
+
+	if bb.stcMatrices, err = hefloat.NewDFTMatrixFromLiteral(params, bb.SlotsToCoeffsParameters, encoder); err != nil {
+		return
+	}
+
+	encoder = nil // For the GC
+
+	return
+}
+
+func (btp CoreBootstrapper) MinimumInputLevel() int {
 	return btp.params.LevelsConsumedPerRescaling()
 }
 
-func (btp Bootstrapper) OutputLevel() int {
+func (btp CoreBootstrapper) OutputLevel() int {
 	return btp.params.MaxLevel() - btp.Depth()
 }
 
@@ -25,7 +201,7 @@ func (btp Bootstrapper) OutputLevel() int {
 // See the bootstrapping parameters for more information about the message ratio or other parameters related to the bootstrapping.
 // If the input ciphertext is at level one or more, the input scale does not need to be an exact power of two as one level
 // can be used to do a scale matching.
-func (btp Bootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err error) {
+func (btp CoreBootstrapper) Bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err error) {
 
 	// Pre-processing
 	ctDiff := ctIn.CopyNew()
@@ -153,7 +329,7 @@ func checkMessageRatio(ct *rlwe.Ciphertext, msgRatio float64, r *ring.Ring) bool
 }
 
 // The purpose of this pre-processing step is to bring the ciphertext level to zero and scaling factor to Q[0]/MessageRatio
-func (btp Bootstrapper) scaleDownToQ0OverMessageRatio(ctIn *rlwe.Ciphertext) (*rlwe.Ciphertext, *rlwe.Scale, error) {
+func (btp CoreBootstrapper) scaleDownToQ0OverMessageRatio(ctIn *rlwe.Ciphertext) (*rlwe.Ciphertext, *rlwe.Scale, error) {
 
 	params := &btp.params
 
@@ -201,7 +377,7 @@ func (btp Bootstrapper) scaleDownToQ0OverMessageRatio(ctIn *rlwe.Ciphertext) (*r
 	return ctIn, &errScale, nil
 }
 
-func (btp *Bootstrapper) bootstrap(ctIn *rlwe.Ciphertext) (opOut *rlwe.Ciphertext, err error) {
+func (btp *CoreBootstrapper) bootstrap(ctIn *rlwe.Ciphertext) (opOut *rlwe.Ciphertext, err error) {
 
 	// Step 1 : Extend the basis from q to Q
 	if opOut, err = btp.modUpFromQ0(ctIn); err != nil {
@@ -248,10 +424,11 @@ func (btp *Bootstrapper) bootstrap(ctIn *rlwe.Ciphertext) (opOut *rlwe.Ciphertex
 	return
 }
 
-func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, error) {
+func (btp *CoreBootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, error) {
 
-	if btp.EvkDtS != nil {
-		if err := btp.ApplyEvaluationKey(ct, btp.EvkDtS, ct); err != nil {
+	// Switch to the sparse key
+	if btp.EvkDenseToSparse != nil {
+		if err := btp.ApplyEvaluationKey(ct, btp.EvkDenseToSparse, ct); err != nil {
 			return nil, err
 		}
 	}
@@ -263,7 +440,7 @@ func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, err
 		ringQ.INTT(ct.Value[i], ct.Value[i])
 	}
 
-	// Extend the ciphertext with zero polynomials.
+	// Extend the ciphertext from q to Q with zero values.
 	ct.Resize(ct.Degree(), btp.params.MaxLevel())
 
 	levelQ := btp.params.QCount() - 1
@@ -297,7 +474,7 @@ func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, err
 		}
 	}
 
-	if btp.EvkStD != nil {
+	if btp.EvkSparseToDense != nil {
 
 		ks := btp.Evaluator.Evaluator
 
@@ -337,7 +514,8 @@ func (btp *Bootstrapper) modUpFromQ0(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, err
 		ctTmp.Value = []ring.Poly{ks.BuffQP[1].Q, ct.Value[1]}
 		ctTmp.MetaData = ct.MetaData
 
-		ks.GadgetProductHoisted(levelQ, ks.BuffDecompQP, &btp.EvkStD.GadgetCiphertext, ctTmp)
+		// Switch back to the dense key
+		ks.GadgetProductHoisted(levelQ, ks.BuffDecompQP, &btp.EvkSparseToDense.GadgetCiphertext, ctTmp)
 		ringQ.Add(ct.Value[0], ctTmp.Value[0], ct.Value[0])
 
 	} else {

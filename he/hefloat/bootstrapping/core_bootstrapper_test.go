@@ -1,7 +1,6 @@
 package bootstrapping
 
 import (
-	"flag"
 	"fmt"
 	"runtime"
 	"sync"
@@ -15,9 +14,6 @@ import (
 )
 
 var minPrec float64 = 12.0
-
-var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure bootstrapping). Overrides -short and requires -timeout=0.")
-var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 
 func ParamsToString(params hefloat.Parameters, LogSlots int, opname string) string {
 	return fmt.Sprintf("%slogN=%d/LogSlots=%d/logQP=%f/levels=%d/a=%d/b=%d",
@@ -163,16 +159,17 @@ func testbootstrap(params hefloat.Parameters, btpParams Parameters, level int, t
 
 	t.Run(ParamsToString(params, btpParams.LogMaxSlots(), ""), func(t *testing.T) {
 
-		kgen := rlwe.NewKeyGenerator(btpParams.Parameters)
+		kgen := rlwe.NewKeyGenerator(btpParams.BootstrappingParameters)
 		sk := kgen.GenSecretKeyNew()
 		encoder := hefloat.NewEncoder(params)
 
 		encryptor := rlwe.NewEncryptor(params, sk)
 		decryptor := rlwe.NewDecryptor(params, sk)
 
-		evk := btpParams.GenEvaluationKeySetNew(sk)
+		evk, _, err := btpParams.GenEvaluationKeys(sk)
+		require.NoError(t, err)
 
-		btp, err := NewBootstrapper(btpParams, evk)
+		btp, err := NewCoreBootstrapper(btpParams, evk)
 		require.NoError(t, err)
 
 		values := make([]complex128, 1<<btpParams.LogMaxSlots())
@@ -196,7 +193,7 @@ func testbootstrap(params hefloat.Parameters, btpParams Parameters, level int, t
 		n := 1
 
 		ciphertexts := make([]*rlwe.Ciphertext, n)
-		bootstrappers := make([]*Bootstrapper, n)
+		bootstrappers := make([]*CoreBootstrapper, n)
 		bootstrappers[0] = btp
 		ciphertexts[0], err = encryptor.EncryptNew(plaintext)
 		require.NoError(t, err)
@@ -260,15 +257,16 @@ func testBootstrapHighPrecision(paramSet defaultParametersLiteral, t *testing.T)
 
 		t.Run(ParamsToString(params, btpParams.LogMaxSlots(), ""), func(t *testing.T) {
 
-			kgen := rlwe.NewKeyGenerator(btpParams.Parameters)
+			kgen := rlwe.NewKeyGenerator(btpParams.BootstrappingParameters)
 			sk := kgen.GenSecretKeyNew()
 			encoder := hefloat.NewEncoder(params, 164)
 			encryptor := rlwe.NewEncryptor(params, sk)
 			decryptor := rlwe.NewDecryptor(params, sk)
 
-			evk := btpParams.GenEvaluationKeySetNew(sk)
+			evk, _, err := btpParams.GenEvaluationKeys(sk)
+			require.NoError(t, err)
 
-			bootstrapper, err := NewBootstrapper(btpParams, evk)
+			bootstrapper, err := NewCoreBootstrapper(btpParams, evk)
 			require.NoError(t, err)
 
 			values := make([]complex128, 1<<btpParams.LogMaxSlots())

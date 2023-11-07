@@ -1,4 +1,4 @@
-package bootstrapper
+package bootstrapping
 
 import (
 	"flag"
@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/core/rlwe"
-	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/he/hefloat"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/utils"
@@ -25,9 +24,6 @@ var testPrec45 = hefloat.ParametersLiteral{
 }
 
 func TestBootstrapping(t *testing.T) {
-
-	// Check that the bootstrapper complies to the rlwe.Bootstrapper interface
-	var _ he.Bootstrapper[rlwe.Ciphertext] = (*Bootstrapper)(nil)
 
 	t.Run("BootstrappingWithoutRingDegreeSwitch", func(t *testing.T) {
 
@@ -48,8 +44,8 @@ func TestBootstrapping(t *testing.T) {
 
 		// Insecure params for fast testing only
 		if !*flagLongTest {
-			btpParams.SlotsToCoeffsParameters.LogSlots = btpParams.LogN() - 1
-			btpParams.CoeffsToSlotsParameters.LogSlots = btpParams.LogN() - 1
+			btpParams.SlotsToCoeffsParameters.LogSlots = btpParams.BootstrappingParameters.LogN() - 1
+			btpParams.CoeffsToSlotsParameters.LogSlots = btpParams.BootstrappingParameters.LogN() - 1
 
 			// Corrects the message ratio to take into account the smaller number of slots and keep the same precision
 			btpParams.Mod1ParametersLiteral.LogMessageRatio += 16 - params.LogN()
@@ -57,10 +53,10 @@ func TestBootstrapping(t *testing.T) {
 
 		t.Logf("ParamsN2: LogN=%d/LogSlots=%d/LogQP=%f", params.LogN(), params.LogMaxSlots(), params.LogQP())
 
-		sk := rlwe.NewKeyGenerator(btpParams.Parameters.Parameters).GenSecretKeyNew()
+		sk := rlwe.NewKeyGenerator(btpParams.BootstrappingParameters).GenSecretKeyNew()
 
 		t.Log("Generating Bootstrapping Keys")
-		btpKeys, _, err := btpParams.GenBootstrappingKeys(sk)
+		btpKeys, _, err := btpParams.GenEvaluationKeys(sk)
 		require.NoError(t, err)
 
 		bootstrapper, err := NewBootstrapper(btpParams, btpKeys)
@@ -127,20 +123,20 @@ func TestBootstrapping(t *testing.T) {
 
 		// Insecure params for fast testing only
 		if !*flagLongTest {
-			btpParams.SlotsToCoeffsParameters.LogSlots = btpParams.LogN() - 1
-			btpParams.CoeffsToSlotsParameters.LogSlots = btpParams.LogN() - 1
+			btpParams.SlotsToCoeffsParameters.LogSlots = btpParams.BootstrappingParameters.LogN() - 1
+			btpParams.CoeffsToSlotsParameters.LogSlots = btpParams.BootstrappingParameters.LogN() - 1
 
 			// Corrects the message ratio to take into account the smaller number of slots and keep the same precision
 			btpParams.Mod1ParametersLiteral.LogMessageRatio += 16 - params.LogN()
 		}
 
-		t.Logf("Params: LogN=%d/LogSlots=%d/LogQP=%f", params.LogN(), params.LogMaxSlots(), params.LogQP())
-		t.Logf("BTPParams: LogN=%d/LogSlots=%d/LogQP=%f", btpParams.LogN(), btpParams.LogMaxSlots(), btpParams.LogQP())
+		t.Logf("Params: LogN=%d/LogSlots=%d/LogQP=%f", btpParams.ResidualParameters.LogN(), btpParams.ResidualParameters.LogMaxSlots(), btpParams.ResidualParameters.LogQP())
+		t.Logf("BTPParams: LogN=%d/LogSlots=%d/LogQP=%f", btpParams.BootstrappingParameters.LogN(), btpParams.BootstrappingParameters.LogMaxSlots(), btpParams.BootstrappingParameters.LogQP())
 
 		sk := rlwe.NewKeyGenerator(params).GenSecretKeyNew()
 
 		t.Log("Generating Bootstrapping Keys")
-		btpKeys, _, err := btpParams.GenBootstrappingKeys(sk)
+		btpKeys, _, err := btpParams.GenEvaluationKeys(sk)
 		require.Nil(t, err)
 
 		bootstrapper, err := NewBootstrapper(btpParams, btpKeys)
@@ -210,20 +206,20 @@ func TestBootstrapping(t *testing.T) {
 
 		// Insecure params for fast testing only
 		if !*flagLongTest {
-			btpParams.SlotsToCoeffsParameters.LogSlots = btpParams.LogN() - 1
-			btpParams.CoeffsToSlotsParameters.LogSlots = btpParams.LogN() - 1
+			btpParams.SlotsToCoeffsParameters.LogSlots = btpParams.BootstrappingParameters.LogN() - 1
+			btpParams.CoeffsToSlotsParameters.LogSlots = btpParams.BootstrappingParameters.LogN() - 1
 
 			// Corrects the message ratio to take into account the smaller number of slots and keep the same precision
 			btpParams.Mod1ParametersLiteral.LogMessageRatio += 16 - params.LogN()
 		}
 
-		t.Logf("Params: LogN=%d/LogSlots=%d/LogQP=%f", params.LogN(), params.LogMaxSlots(), params.LogQP())
-		t.Logf("BTPParams: LogN=%d/LogSlots=%d/LogQP=%f", btpParams.LogN(), btpParams.LogMaxSlots(), btpParams.LogQP())
+		t.Logf("Params: LogN=%d/LogSlots=%d/LogQP=%f", btpParams.ResidualParameters.LogN(), btpParams.ResidualParameters.LogMaxSlots(), btpParams.ResidualParameters.LogQP())
+		t.Logf("BTPParams: LogN=%d/LogSlots=%d/LogQP=%f", btpParams.BootstrappingParameters.LogN(), btpParams.BootstrappingParameters.LogMaxSlots(), btpParams.BootstrappingParameters.LogQP())
 
 		sk := rlwe.NewKeyGenerator(params).GenSecretKeyNew()
 
 		t.Log("Generating Bootstrapping Keys")
-		btpKeys, _, err := btpParams.GenBootstrappingKeys(sk)
+		btpKeys, _, err := btpParams.GenEvaluationKeys(sk)
 		require.Nil(t, err)
 
 		bootstrapper, err := NewBootstrapper(btpParams, btpKeys)
@@ -297,13 +293,13 @@ func TestBootstrapping(t *testing.T) {
 			btpParams.Mod1ParametersLiteral.LogMessageRatio += 16 - params.LogN()
 		}
 
-		t.Logf("Params: LogN=%d/LogSlots=%d/LogQP=%f", params.LogN(), params.LogMaxSlots(), params.LogQP())
-		t.Logf("BTPParams: LogN=%d/LogSlots=%d/LogQP=%f", btpParams.LogN(), btpParams.LogMaxSlots(), btpParams.LogQP())
+		t.Logf("Params: LogN=%d/LogSlots=%d/LogQP=%f", btpParams.ResidualParameters.LogN(), btpParams.ResidualParameters.LogMaxSlots(), btpParams.ResidualParameters.LogQP())
+		t.Logf("BTPParams: LogN=%d/LogSlots=%d/LogQP=%f", btpParams.BootstrappingParameters.LogN(), btpParams.BootstrappingParameters.LogMaxSlots(), btpParams.BootstrappingParameters.LogQP())
 
 		sk := rlwe.NewKeyGenerator(params).GenSecretKeyNew()
 
 		t.Log("Generating Bootstrapping Keys")
-		btpKeys, _, err := btpParams.GenBootstrappingKeys(sk)
+		btpKeys, _, err := btpParams.GenEvaluationKeys(sk)
 		require.Nil(t, err)
 
 		bootstrapper, err := NewBootstrapper(btpParams, btpKeys)

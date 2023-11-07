@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v4/core/rlwe"
 	"github.com/tuneinsight/lattigo/v4/he/hefloat"
-	"github.com/tuneinsight/lattigo/v4/he/hefloat/bootstrapper"
+	"github.com/tuneinsight/lattigo/v4/he/hefloat/bootstrapping"
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
@@ -39,7 +39,7 @@ func TestInverse(t *testing.T) {
 		dec := tc.decryptor
 		kgen := tc.kgen
 
-		btp := bootstrapper.NewSecretKeyBootstrapper(params, sk)
+		btp := bootstrapping.NewSecretKeyBootstrapper(params, sk)
 
 		logmin := -30.0
 		logmax := 10.0

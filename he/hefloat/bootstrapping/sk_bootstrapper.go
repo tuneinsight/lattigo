@@ -1,4 +1,4 @@
-package bootstrapper
+package bootstrapping
 
 import (
 	"github.com/tuneinsight/lattigo/v4/core/rlwe"

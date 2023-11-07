@@ -14,15 +14,23 @@ import (
 // Parameters is a struct storing the parameters
 // of the bootstrapping circuit.
 type Parameters struct {
-	hefloat.Parameters
+	// ResidualParameters: Parameters outside of the bootstrapping circuit
+	ResidualParameters hefloat.Parameters
+	// BootstrappingParameters: Parameters during the bootstrapping circuit
+	BootstrappingParameters hefloat.Parameters
+	// SlotsToCoeffsParameters Parameters of the homomorphic decoding linear transformation
 	SlotsToCoeffsParameters hefloat.DFTMatrixLiteral
-	Mod1ParametersLiteral   hefloat.Mod1ParametersLiteral
+	// Mod1ParametersLiteral: Parameters of the homomorphic modular reduction
+	Mod1ParametersLiteral hefloat.Mod1ParametersLiteral
+	// CoeffsToSlotsParameters: Parameters of the homomorphic encoding linear transformation
 	CoeffsToSlotsParameters hefloat.DFTMatrixLiteral
-	IterationsParameters    *IterationsParameters
-	EphemeralSecretWeight   int // Hamming weight of the ephemeral secret. If 0, no ephemeral secret is used during the bootstrapping.
+	// IterationsParameters: Parameters of the bootstrapping iterations (META-BTS)
+	IterationsParameters *IterationsParameters
+	// EphemeralSecretWeight: Hamming weight of the ephemeral secret. If 0, no ephemeral secret is used during the bootstrapping.
+	EphemeralSecretWeight int
 }
 
-// NewParametersFromLiteral instantiates a bootstrapping.Parameters from the residual hefloat.Parameters and
+// NewParametersFromLiteral instantiates a Parameters from the residual hefloat.Parameters and
 // a bootstrapping.ParametersLiteral struct.
 //
 // The residualParameters corresponds to the hefloat.Parameters that are left after the bootstrapping circuit is evaluated.
@@ -50,8 +58,8 @@ func NewParametersFromLiteral(residualParameters hefloat.Parameters, btpLit Para
 
 		// If ConjugateInvariant, then the bootstrapping LogN must be at least 1 greater
 		// than the residualParameters LogN
-		if LogN <= residualParameters.LogN() {
-			return Parameters{}, fmt.Errorf("cannot NewParametersFromLiteral: LogN of bootstrapping parameters must be greater than LogN of residual parameters if ringtype is ConjugateInvariant")
+		if LogN != residualParameters.LogN()+1 {
+			return Parameters{}, fmt.Errorf("cannot NewParametersFromLiteral: LogN of bootstrapping parameters must be equal to LogN+ of residual parameters if ringtype is ConjugateInvariant")
 		}
 
 		// Takes the greatest NthRoot between the residualParameters NthRoot and the bootstrapping NthRoot
@@ -317,7 +325,8 @@ func NewParametersFromLiteral(residualParameters hefloat.Parameters, btpLit Para
 	}
 
 	return Parameters{
-		Parameters:              params,
+		ResidualParameters:      residualParameters,
+		BootstrappingParameters: params,
 		EphemeralSecretWeight:   EphemeralSecretWeight,
 		SlotsToCoeffsParameters: S2CParams,
 		Mod1ParametersLiteral:   Mod1ParametersLiteral,
@@ -327,8 +336,8 @@ func NewParametersFromLiteral(residualParameters hefloat.Parameters, btpLit Para
 }
 
 func (p Parameters) Equal(other *Parameters) (res bool) {
-	res = p.Parameters.Equal(&other.Parameters)
-
+	res = p.ResidualParameters.Equal(&other.ResidualParameters)
+	res = p.BootstrappingParameters.Equal(&other.BootstrappingParameters)
 	res = res && p.EphemeralSecretWeight == other.EphemeralSecretWeight
 	res = res && cmp.Equal(p.SlotsToCoeffsParameters, other.SlotsToCoeffsParameters)
 	res = res && cmp.Equal(p.Mod1ParametersLiteral, other.Mod1ParametersLiteral)
@@ -367,7 +376,7 @@ func (p Parameters) Depth() (depth int) {
 	return p.DepthCoeffsToSlots() + p.DepthEvalMod() + p.DepthSlotsToCoeffs()
 }
 
-// MarshalBinary returns a JSON representation of the bootstrapping Parameters struct.
+// MarshalBinary returns a JSON representation of the Parameters struct.
 // See `Marshal` from the `encoding/json` package.
 func (p Parameters) MarshalBinary() (data []byte, err error) {
 	return json.Marshal(p)
@@ -381,14 +390,16 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 
 func (p Parameters) MarshalJSON() (data []byte, err error) {
 	return json.Marshal(struct {
-		Parameters              hefloat.Parameters
+		ResidualParameters      hefloat.Parameters
+		BootstrappingParameters hefloat.Parameters
 		SlotsToCoeffsParameters hefloat.DFTMatrixLiteral
 		Mod1ParametersLiteral   hefloat.Mod1ParametersLiteral
 		CoeffsToSlotsParameters hefloat.DFTMatrixLiteral
 		IterationsParameters    *IterationsParameters
 		EphemeralSecretWeight   int
 	}{
-		Parameters:              p.Parameters,
+		ResidualParameters:      p.ResidualParameters,
+		BootstrappingParameters: p.BootstrappingParameters,
 		SlotsToCoeffsParameters: p.SlotsToCoeffsParameters,
 		Mod1ParametersLiteral:   p.Mod1ParametersLiteral,
 		CoeffsToSlotsParameters: p.CoeffsToSlotsParameters,
@@ -399,7 +410,8 @@ func (p Parameters) MarshalJSON() (data []byte, err error) {
 
 func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 	var params struct {
-		Parameters              hefloat.Parameters
+		ResidualParameters      hefloat.Parameters
+		BootstrappingParameters hefloat.Parameters
 		SlotsToCoeffsParameters hefloat.DFTMatrixLiteral
 		Mod1ParametersLiteral   hefloat.Mod1ParametersLiteral
 		CoeffsToSlotsParameters hefloat.DFTMatrixLiteral
@@ -411,7 +423,8 @@ func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 		return
 	}
 
-	p.Parameters = params.Parameters
+	p.ResidualParameters = params.ResidualParameters
+	p.BootstrappingParameters = params.BootstrappingParameters
 	p.SlotsToCoeffsParameters = params.SlotsToCoeffsParameters
 	p.Mod1ParametersLiteral = params.Mod1ParametersLiteral
 	p.CoeffsToSlotsParameters = params.CoeffsToSlotsParameters

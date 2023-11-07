@@ -2,7 +2,7 @@
 # Changelog
 All notable changes to this library are documented in this file.
 
-## UNRELEASED [5.0.0] - xxxx-xx-xx
+## UNRELEASED [5.0.0] - 15.11.2023
 - Deprecated Go versions `1.14`, `1.15`, `1.16` and `1.17`. The minimum version is now `1.18` which enabled to simplify many parts of the code using generics.
 - Golang Security Checker pass.
 - Dereferenced most inputs and pointers methods whenever possible. Pointers methods/inputs are now mostly used when the struct implementing the method and/or the input is intended to be modified.
@@ -14,9 +14,8 @@ All notable changes to this library are documented in this file.
         - `MarshalBinary() ([]byte, error)`: the previously available, standard `encoding.BinaryMarshaler` interface.
         - `UnmarshalBinary([]byte) (error)`: the previously available, standard `encoding.BinaryUnmarshaler` interface.
         - `BinarySize() int`: size in bytes when written to an `io.Writer` or when marshalled.
-        
     - Streamlined and simplified all tests related to serialization. They can now be implemented with a single line of code with `RequireSerializerCorrect` which checks the correctness of all the above interface as well as equality between bites written using `WriteTo` and bytes generated using `MarshalBinary`.
-- Improved consistency across method names and accross packages/schemes:
+- Improved consistency across method names and across packages/schemes:
     - All sub-strings `NoMod`, `NoModDown` and `Constant` in methods names have been replaced by the sub-string `Lazy`. For example `AddNoMod` and `MulCoeffsMontgomeryConstant` become `AddLazy` and `MulCoeffsMontgomeryLazy` respectively.
     - All sub-strings `And` in methods names have been replaced by the sub-string `Then`. For example `MulAndAdd` becomes `MulThenAdd`.
     - All sub-strings `Inv` have been replaced by `I` for consistency. For example `InvNTT` becomes `INTT`.
@@ -25,7 +24,8 @@ All notable changes to this library are documented in this file.
     - `he`: Package `he` defines common high-level interfaces and implements common high-level operations in a scheme-agnostic way.
         - The core operations in Linear Transformations
         - The core operations Polynomial Evaluation
-    - `he/hefloat`: Package `hefloat` implements fixed-point approximate encrypted arithmetic over reals/complex numbers. This package provides all the functionalities of the `schemes/ckks` package, as well as additional more advanced circuits, such as:
+    - `he/hefloat`: Package `hefloat` implements fixed-point approximate encrypted arithmetic over reals/complex numbers. 
+      This package provides all the functionalities of the `schemes/ckks` package, as well as additional more advanced circuits, such as:
         - Linear Transformations
         - Homomorphic encoding/decoding
         - Polynomial Evaluation
@@ -35,14 +35,15 @@ All notable changes to this library are documented in this file.
         - Full domain division (x in [-max, -min] U [min, max])
         - Sign and Step piece-wise functions (x in [-1, 1] and [0, 1] respectively)
         - Min/Max between values in [-0.5, 0.5]
-    - `he/hefloat/bootstrapper`: Package `bootstrapper` implements a bootstrapping helper above the package `he/hefloat/bootstrapper/bootstrapping`. It notably enables:
-        - Bootstrapping batches of ciphertexts of smaller dimension and/or with sparse packing with ring-degree switching and depth-less packing/unpacking.
+    - `he/hefloat/bootstrapper`: Package `bootstrapper` implements bootstrapping for fixed-point approximate homomorphic encryption over the complex/real numbers.
+    It improves on the original implementation with the following features:
+        - Bootstrapping batches of ciphertexts of smaller dimension and/or with sparse packing with automatic ring-degree switching and depth-less packing/unpacking.
         - Bootstrapping for the Conjugate Invariant CKKS with optimal throughput.
-    - `he/hefloat/bootstrapper/bootstrapping`: Package `bootstrapping` implements the core of the bootstrapping for approximate homomorphic encryption with a very parameterization granularity.
-        - Decorrelation between the bootstrapping parameters and residual parameters: the user doesn't need to manage two sets of parameters anymore and the user only needs to provide the residual parameters (what should remains after the evaluation of the bootstrapping circuit)
-        - Right out of the box usability with default parameterization independent of the residual parameters
-        - In depth parameterization for advanced users with 16 tunable parameters
-        - Improved the implementation of META-BTS, providing arbitrary precision bootstrapping from only one additional small prime
+        - Decorrelation between the bootstrapping parameters and residual parameters: the user doesn't need to manage two sets of parameters anymore and the user 
+          only needs to provide the residual parameters (what should remains after the evaluation of the bootstrapping circuit)
+        - Right out of the box usability with default parameterization independent of the residual parameters.
+        - In depth parameterization for advanced users with 16 tunable parameters.
+        - Improved the implementation of META-BTS, providing arbitrary precision bootstrapping from only one additional small prime.
     - `he/heint`: Package `heint` implements encrypted modular arithmetic modular arithmetic over the integers.
         - Linear Transformations
         - Polynomial Evaluation 
@@ -71,20 +72,16 @@ All notable changes to this library are documented in this file.
         - Unified `encoderComplex128` and `encoderBigComplex`.
         - Updated and uniformized the `Encoder`API. It now complies to the generic `he.Encoder` interface.
         - The encoding will be performed according to the plaintext `MetaData`.
-
     - Changes to the `Evaluator`: 
         - `NewEvaluator` now returns an `*Evaluator` instead of an interface.
         - Updated and uniformized the `Evaluator` API. It now complies to the generic `he.Evaluator` interface.
         - Improved and generalized the internal working of the `Evaluator` to enable arbitrary precision encrypted arithmetic.
-
     - Changes to the `Parameters`:
         - Replaced the default parameters by a single example parameter.
         - Renamed the field `LogScale` of the `ParametersLiteralStruct` to `LogPlaintextScale`.
-
     - Changes to the tests:
         - Test do not use the default parameters anymore but specific and optimized test parameters.
         - Added two test parameters `TESTPREC45` for 45 bits precision and `TESTPREC90` for 90 bit precision.
-
     - Others:
         - Updated the Chebyshev interpolation with arbitrary precision arithmetic and moved the code to `utils/bignum/approximation`.
 - RLWE:

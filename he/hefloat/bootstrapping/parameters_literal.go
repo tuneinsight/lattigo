@@ -30,7 +30,16 @@ import (
 // Optional fields (with default values)
 // =====================================
 //
-// NumberOfPi: the number of auxiliary primes #Pi used during the key-switching operation. The default value is max(1, floor(sqrt(#Qi))).
+// LogN: the log2 of the ring degree of the bootstrapping parameters. The default value is 16.
+//
+// LogP: the log2 of the auxiliary primes during the key-switching operation of the bootstrapping parameters.
+// The default value is [61]*max(1, floor(sqrt(#Qi))).
+//
+// Xs: the distribution of the secret-key used to generate the bootstrapping evaluation keys.
+// The default value is ring.Ternary{H: 192}.
+//
+// Xe: the distribution of the error sampled to generate the bootstrapping evaluation keys.
+// The default value is rlwe.DefaultXe.
 //
 // LogSlots: the maximum number of slots of the ciphertext. Default value: LogN-1.
 //

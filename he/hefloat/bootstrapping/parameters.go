@@ -337,7 +337,7 @@ func NewParametersFromLiteral(residualParameters hefloat.Parameters, btpLit Para
 
 func (p Parameters) Equal(other *Parameters) (res bool) {
 	res = p.ResidualParameters.Equal(&other.ResidualParameters)
-	res = p.BootstrappingParameters.Equal(&other.BootstrappingParameters)
+	res = res && p.BootstrappingParameters.Equal(&other.BootstrappingParameters)
 	res = res && p.EphemeralSecretWeight == other.EphemeralSecretWeight
 	res = res && cmp.Equal(p.SlotsToCoeffsParameters, other.SlotsToCoeffsParameters)
 	res = res && cmp.Equal(p.Mod1ParametersLiteral, other.Mod1ParametersLiteral)

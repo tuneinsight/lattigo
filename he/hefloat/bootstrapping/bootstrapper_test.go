@@ -59,7 +59,7 @@ func TestBootstrapping(t *testing.T) {
 		btpKeys, _, err := btpParams.GenEvaluationKeys(sk)
 		require.NoError(t, err)
 
-		bootstrapper, err := NewBootstrapper(btpParams, btpKeys)
+		evaluator, err := NewEvaluator(btpParams, btpKeys)
 		require.NoError(t, err)
 
 		ecd := hefloat.NewEncoder(params)
@@ -90,7 +90,7 @@ func TestBootstrapping(t *testing.T) {
 			require.True(t, ctQ0.Level() == 0)
 
 			// Bootstrapps the ciphertext
-			ctQL, err := bootstrapper.Bootstrap(ctQ0)
+			ctQL, err := evaluator.Bootstrap(ctQ0)
 			require.NoError(t, err)
 
 			// Checks that the output ciphertext is at the max level of paramsN1
@@ -139,7 +139,7 @@ func TestBootstrapping(t *testing.T) {
 		btpKeys, _, err := btpParams.GenEvaluationKeys(sk)
 		require.Nil(t, err)
 
-		bootstrapper, err := NewBootstrapper(btpParams, btpKeys)
+		evaluator, err := NewEvaluator(btpParams, btpKeys)
 		require.Nil(t, err)
 
 		ecd := hefloat.NewEncoder(params)
@@ -170,7 +170,7 @@ func TestBootstrapping(t *testing.T) {
 			require.True(t, ctQ0.Level() == 0)
 
 			// Bootstrapps the ciphertext
-			ctQL, err := bootstrapper.Bootstrap(ctQ0)
+			ctQL, err := evaluator.Bootstrap(ctQ0)
 
 			if err != nil {
 				t.Fatal(err)
@@ -222,7 +222,7 @@ func TestBootstrapping(t *testing.T) {
 		btpKeys, _, err := btpParams.GenEvaluationKeys(sk)
 		require.Nil(t, err)
 
-		bootstrapper, err := NewBootstrapper(btpParams, btpKeys)
+		evaluator, err := NewEvaluator(btpParams, btpKeys)
 		require.Nil(t, err)
 
 		ecd := hefloat.NewEncoder(params)
@@ -254,7 +254,7 @@ func TestBootstrapping(t *testing.T) {
 			cts[i] = *ct
 		}
 
-		if cts, err = bootstrapper.BootstrapMany(cts); err != nil {
+		if cts, err = evaluator.BootstrapMany(cts); err != nil {
 			t.Fatal(err)
 		}
 
@@ -302,7 +302,7 @@ func TestBootstrapping(t *testing.T) {
 		btpKeys, _, err := btpParams.GenEvaluationKeys(sk)
 		require.Nil(t, err)
 
-		bootstrapper, err := NewBootstrapper(btpParams, btpKeys)
+		evaluator, err := NewEvaluator(btpParams, btpKeys)
 		require.Nil(t, err)
 
 		ecd := hefloat.NewEncoder(params)
@@ -336,7 +336,7 @@ func TestBootstrapping(t *testing.T) {
 			require.True(t, ctRightQ0.Level() == 0)
 
 			// Bootstraps the ciphertext
-			ctLeftQL, ctRightQL, err := bootstrapper.refreshConjugateInvariant(ctLeftQ0, ctRightQ0)
+			ctLeftQL, ctRightQL, err := evaluator.EvaluateConjugateInvariant(ctLeftQ0, ctRightQ0)
 
 			require.NoError(t, err)
 

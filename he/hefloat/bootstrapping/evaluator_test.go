@@ -26,7 +26,7 @@ func ParamsToString(params hefloat.Parameters, LogSlots int, opname string) stri
 		params.BaseRNSDecompositionVectorSize(params.MaxLevelQ(), params.MaxLevelP()))
 }
 
-func TestBootstrapParametersMarshalling(t *testing.T) {
+func TestParametersMarshalling(t *testing.T) {
 
 	t.Run("ParametersLiteral", func(t *testing.T) {
 
@@ -70,7 +70,7 @@ func TestBootstrapParametersMarshalling(t *testing.T) {
 	})
 }
 
-func TestBootstrappingWithEncapsulation(t *testing.T) {
+func TestCircuitWithEncapsulation(t *testing.T) {
 
 	if runtime.GOARCH == "wasm" {
 		t.Skip("skipping bootstrapping tests for GOARCH=wasm")
@@ -105,14 +105,14 @@ func TestBootstrappingWithEncapsulation(t *testing.T) {
 			btpParams.Mod1ParametersLiteral.LogMessageRatio += utils.Min(utils.Max(15-LogSlots, 0), 8)
 		}
 
-		testbootstrap(params, btpParams, level, t)
+		testRawCircuit(params, btpParams, level, t)
 		runtime.GC()
 	}
 
-	testBootstrapHighPrecision(paramSet, t)
+	testRawCircuitHighPrecision(paramSet, t)
 }
 
-func TestBootstrappingOriginal(t *testing.T) {
+func TestCircuitOriginal(t *testing.T) {
 
 	if runtime.GOARCH == "wasm" {
 		t.Skip("skipping bootstrapping tests for GOARCH=wasm")
@@ -148,14 +148,14 @@ func TestBootstrappingOriginal(t *testing.T) {
 			btpParams.Mod1ParametersLiteral.LogMessageRatio += utils.Min(utils.Max(15-LogSlots, 0), 8)
 		}
 
-		testbootstrap(params, btpParams, level, t)
+		testRawCircuit(params, btpParams, level, t)
 		runtime.GC()
 	}
 
-	testBootstrapHighPrecision(paramSet, t)
+	testRawCircuitHighPrecision(paramSet, t)
 }
 
-func testbootstrap(params hefloat.Parameters, btpParams Parameters, level int, t *testing.T) {
+func testRawCircuit(params hefloat.Parameters, btpParams Parameters, level int, t *testing.T) {
 
 	t.Run(ParamsToString(params, btpParams.LogMaxSlots(), ""), func(t *testing.T) {
 
@@ -169,7 +169,7 @@ func testbootstrap(params hefloat.Parameters, btpParams Parameters, level int, t
 		evk, _, err := btpParams.GenEvaluationKeys(sk)
 		require.NoError(t, err)
 
-		btp, err := NewCoreBootstrapper(btpParams, evk)
+		eval, err := NewEvaluator(btpParams, evk)
 		require.NoError(t, err)
 
 		values := make([]complex128, 1<<btpParams.LogMaxSlots())
@@ -193,14 +193,14 @@ func testbootstrap(params hefloat.Parameters, btpParams Parameters, level int, t
 		n := 1
 
 		ciphertexts := make([]*rlwe.Ciphertext, n)
-		bootstrappers := make([]*CoreBootstrapper, n)
-		bootstrappers[0] = btp
+		evaluators := make([]*Evaluator, n)
+		evaluators[0] = eval
 		ciphertexts[0], err = encryptor.EncryptNew(plaintext)
 		require.NoError(t, err)
 		for i := 1; i < len(ciphertexts); i++ {
 			ciphertexts[i], err = encryptor.EncryptNew(plaintext)
 			require.NoError(t, err)
-			bootstrappers[i] = bootstrappers[0].ShallowCopy()
+			evaluators[i] = evaluators[0].ShallowCopy()
 		}
 
 		var wg sync.WaitGroup
@@ -208,7 +208,7 @@ func testbootstrap(params hefloat.Parameters, btpParams Parameters, level int, t
 		for i := range ciphertexts {
 			go func(index int) {
 				var err error
-				ciphertexts[index], err = bootstrappers[index].Bootstrap(ciphertexts[index])
+				ciphertexts[index], err = evaluators[index].Evaluate(ciphertexts[index])
 				require.NoError(t, err)
 				wg.Done()
 			}(i)
@@ -225,7 +225,7 @@ func testbootstrap(params hefloat.Parameters, btpParams Parameters, level int, t
 	})
 }
 
-func testBootstrapHighPrecision(paramSet defaultParametersLiteral, t *testing.T) {
+func testRawCircuitHighPrecision(paramSet defaultParametersLiteral, t *testing.T) {
 
 	t.Run("HighPrecision", func(t *testing.T) {
 
@@ -266,7 +266,7 @@ func testBootstrapHighPrecision(paramSet defaultParametersLiteral, t *testing.T)
 			evk, _, err := btpParams.GenEvaluationKeys(sk)
 			require.NoError(t, err)
 
-			bootstrapper, err := NewCoreBootstrapper(btpParams, evk)
+			eval, err := NewEvaluator(btpParams, evk)
 			require.NoError(t, err)
 
 			values := make([]complex128, 1<<btpParams.LogMaxSlots())
@@ -294,7 +294,7 @@ func testBootstrapHighPrecision(paramSet defaultParametersLiteral, t *testing.T)
 			ciphertext, err := encryptor.EncryptNew(plaintext)
 			require.NoError(t, err)
 
-			ciphertext, err = bootstrapper.Bootstrap(ciphertext)
+			ciphertext, err = eval.Evaluate(ciphertext)
 			require.NoError(t, err)
 
 			require.True(t, ciphertext.Level() == level)

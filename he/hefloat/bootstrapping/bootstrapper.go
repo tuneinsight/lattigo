@@ -8,7 +8,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 )
 
-// Ensures that the bootstrapper complies to the he.Bootstrapper interface
+// Ensures that the Evaluator complies to the he.Bootstrapper interface
 var _ he.Bootstrapper[rlwe.Ciphertext] = (*Evaluator)(nil)
 
 // Bootstrap bootstraps a single ciphertext and returns the bootstrapped ciphertext.

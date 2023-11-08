@@ -143,8 +143,8 @@ type CircuitOrder int
 
 const (
 	ModUpThenEncode = CircuitOrder(0) // ScaleDown -> ModUp -> CoeffsToSlots -> EvalMod -> SlotsToCoeffs.
-	DecodeThenModUp = CircuitOrder(1) // SlotsToCoeffs -> ScaleDown -> ModUp -> CoeffsToSlots -> EvalMod ->
-	Custom = CircuitOrder(2) // Custom order
+	DecodeThenModUp = CircuitOrder(1) // SlotsToCoeffs -> ScaleDown -> ModUp -> CoeffsToSlots -> EvalMod.
+	Custom          = CircuitOrder(2) // Custom order (e.g. partial bootstrapping), disables checks.
 )
 
 const (

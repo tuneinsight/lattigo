@@ -136,7 +136,7 @@ func NewMod1ParametersFromLiteral(params Parameters, evm Mod1ParametersLiteral) 
 	qDiff := float64(Q) / math.Exp2(math.Round(math.Log2(float64(Q))))
 	scaling := evm.Scaling
 
-	if scaling == 0{
+	if scaling == 0 {
 		scaling = 1
 	}
 
@@ -146,7 +146,7 @@ func NewMod1ParametersFromLiteral(params Parameters, evm Mod1ParametersLiteral) 
 
 		coeffs := make([]complex128, evm.Mod1InvDegree+1)
 
-		coeffs[1] = 0.15915494309189535 * complex(qDiff * scaling, 0)
+		coeffs[1] = 0.15915494309189535 * complex(qDiff*scaling, 0)
 
 		for i := 3; i < evm.Mod1InvDegree+1; i += 2 {
 			coeffs[i] = coeffs[i-2] * complex(float64(i*i-4*i+4)/float64(i*i-i), 0)

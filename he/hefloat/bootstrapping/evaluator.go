@@ -80,7 +80,7 @@ func NewEvaluator(btpParams Parameters, evk *EvaluationKeys) (eval *Evaluator, e
 		return nil, fmt.Errorf("Mod1Type 'hefloat.CosDiscrete' uses a minimum degree of 2*(K-1) but EvalMod degree is smaller")
 	}
 
-	switch btpParams.CircuitOrder{
+	switch btpParams.CircuitOrder {
 	case ModUpThenEncode:
 		if btpParams.CoeffsToSlotsParameters.LevelStart-btpParams.CoeffsToSlotsParameters.Depth(true) != btpParams.Mod1ParametersLiteral.LevelStart {
 			return nil, fmt.Errorf("starting level and depth of CoeffsToSlotsParameters inconsistent starting level of Mod1ParametersLiteral")
@@ -90,14 +90,13 @@ func NewEvaluator(btpParams Parameters, evk *EvaluationKeys) (eval *Evaluator, e
 			return nil, fmt.Errorf("starting level and depth of Mod1ParametersLiteral inconsistent starting level of CoeffsToSlotsParameters")
 		}
 	case DecodeThenModUp:
-		if btpParams.BootstrappingParameters.MaxLevel() - btpParams.CoeffsToSlotsParameters.Depth(true) != btpParams.Mod1ParametersLiteral.LevelStart{
+		if btpParams.BootstrappingParameters.MaxLevel()-btpParams.CoeffsToSlotsParameters.Depth(true) != btpParams.Mod1ParametersLiteral.LevelStart {
 			return nil, fmt.Errorf("starting level and depth of Mod1ParametersLiteral inconsistent starting level of CoeffsToSlotsParameters")
 		}
 	case Custom:
 	default:
 		return nil, fmt.Errorf("invalid CircuitOrder value")
 	}
-	
 
 	if err = eval.initialize(btpParams); err != nil {
 		return
@@ -191,7 +190,7 @@ func (eval *Evaluator) initialize(btpParams Parameters) (err error) {
 	// CoeffsToSlots vectors
 	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + eventual scaling factor for the double angle formula
 
-	switch btpParams.CircuitOrder{
+	switch btpParams.CircuitOrder {
 	case ModUpThenEncode:
 
 		if eval.CoeffsToSlotsParameters.Scaling == nil {
@@ -235,7 +234,6 @@ func (eval *Evaluator) initialize(btpParams Parameters) (err error) {
 
 	fmt.Println(eval.SlotsToCoeffsParameters.Scaling)
 	fmt.Println(eval.CoeffsToSlotsParameters.Scaling)
-
 
 	encoder = nil // For the GC
 

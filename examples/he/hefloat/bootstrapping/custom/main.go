@@ -62,7 +62,8 @@ func main() {
 	// parameters are the same. But in practice the residual parameters would not contain the
 	// moduli for the CoeffsToSlots and EvalMod steps.
 	// With LogN=16, LogQP=1221 and H=192, these parameters achieve well over 128-bit of security.
-	// For the purpose of the example, only one prime
+	// For the purpose of the example, only one prime is allocated to the circuit in the slots domain
+	// and no prime is allocated to the circuit in the coeffs domain.
 
 	LogDefaultScale := 40
 

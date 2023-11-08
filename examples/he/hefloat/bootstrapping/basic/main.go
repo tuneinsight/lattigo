@@ -41,7 +41,7 @@ func main() {
 	// For this example, we have a LogN=16, logQ = 55 + 10*40 and logP = 3*61, so LogQP = 638.
 	// With LogN=16, LogQP=638 and H=192, these parameters achieve well over 128-bit of security.
 	params, err := hefloat.NewParametersFromLiteral(hefloat.ParametersLiteral{
-		LogN:            LogN,                                              // Log2 of the ringdegree
+		LogN:            LogN,                                              // Log2 of the ring degree
 		LogQ:            []int{55, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40}, // Log2 of the ciphertext prime moduli
 		LogP:            []int{61, 61, 61},                                 // Log2 of the key-switch auxiliary prime moduli
 		LogDefaultScale: 40,                                                // Log2 of the scale

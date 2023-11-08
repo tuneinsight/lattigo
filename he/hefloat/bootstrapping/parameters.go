@@ -28,6 +28,8 @@ type Parameters struct {
 	IterationsParameters *IterationsParameters
 	// EphemeralSecretWeight: Hamming weight of the ephemeral secret. If 0, no ephemeral secret is used during the bootstrapping.
 	EphemeralSecretWeight int
+	// CircuitOrder: Value indicating the order of the circuit (default: ModUpThenEncode)
+	CircuitOrder CircuitOrder
 }
 
 // NewParametersFromLiteral instantiates a Parameters from the residual hefloat.Parameters and

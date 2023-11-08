@@ -80,13 +80,24 @@ func NewEvaluator(btpParams Parameters, evk *EvaluationKeys) (eval *Evaluator, e
 		return nil, fmt.Errorf("Mod1Type 'hefloat.CosDiscrete' uses a minimum degree of 2*(K-1) but EvalMod degree is smaller")
 	}
 
-	if btpParams.CoeffsToSlotsParameters.LevelStart-btpParams.CoeffsToSlotsParameters.Depth(true) != btpParams.Mod1ParametersLiteral.LevelStart {
-		return nil, fmt.Errorf("starting level and depth of CoeffsToSlotsParameters inconsistent starting level of SineEvalParameters")
-	}
+	switch btpParams.CircuitOrder{
+	case ModUpThenEncode:
+		if btpParams.CoeffsToSlotsParameters.LevelStart-btpParams.CoeffsToSlotsParameters.Depth(true) != btpParams.Mod1ParametersLiteral.LevelStart {
+			return nil, fmt.Errorf("starting level and depth of CoeffsToSlotsParameters inconsistent starting level of Mod1ParametersLiteral")
+		}
 
-	if btpParams.Mod1ParametersLiteral.LevelStart-btpParams.Mod1ParametersLiteral.Depth() != btpParams.SlotsToCoeffsParameters.LevelStart {
-		return nil, fmt.Errorf("starting level and depth of SineEvalParameters inconsistent starting level of CoeffsToSlotsParameters")
+		if btpParams.Mod1ParametersLiteral.LevelStart-btpParams.Mod1ParametersLiteral.Depth() != btpParams.SlotsToCoeffsParameters.LevelStart {
+			return nil, fmt.Errorf("starting level and depth of Mod1ParametersLiteral inconsistent starting level of CoeffsToSlotsParameters")
+		}
+	case DecodeThenModUp:
+		if btpParams.BootstrappingParameters.MaxLevel() - btpParams.CoeffsToSlotsParameters.Depth(true) != btpParams.Mod1ParametersLiteral.LevelStart{
+			return nil, fmt.Errorf("starting level and depth of Mod1ParametersLiteral inconsistent starting level of CoeffsToSlotsParameters")
+		}
+	case Custom:
+	default:
+		return nil, fmt.Errorf("invalid CircuitOrder value")
 	}
+	
 
 	if err = eval.initialize(btpParams); err != nil {
 		return
@@ -180,28 +191,51 @@ func (eval *Evaluator) initialize(btpParams Parameters) (err error) {
 	// CoeffsToSlots vectors
 	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + eventual scaling factor for the double angle formula
 
-	if eval.CoeffsToSlotsParameters.Scaling == nil {
-		eval.CoeffsToSlotsParameters.Scaling = new(big.Float).SetFloat64(qDiv / (K * scFac * qDiff))
-	} else {
-		eval.CoeffsToSlotsParameters.Scaling.Mul(eval.CoeffsToSlotsParameters.Scaling, new(big.Float).SetFloat64(qDiv/(K*scFac*qDiff)))
+	switch btpParams.CircuitOrder{
+	case ModUpThenEncode:
+
+		if eval.CoeffsToSlotsParameters.Scaling == nil {
+			eval.CoeffsToSlotsParameters.Scaling = new(big.Float).SetFloat64(qDiv / (K * scFac * qDiff))
+		} else {
+			eval.CoeffsToSlotsParameters.Scaling.Mul(eval.CoeffsToSlotsParameters.Scaling, new(big.Float).SetFloat64(qDiv/(K*scFac*qDiff)))
+		}
+
+		if eval.SlotsToCoeffsParameters.Scaling == nil {
+			eval.SlotsToCoeffsParameters.Scaling = new(big.Float).SetFloat64(params.DefaultScale().Float64() / (eval.Mod1Parameters.ScalingFactor().Float64() / eval.Mod1Parameters.MessageRatio()))
+		} else {
+			eval.SlotsToCoeffsParameters.Scaling.Mul(eval.SlotsToCoeffsParameters.Scaling, new(big.Float).SetFloat64(params.DefaultScale().Float64()/(eval.Mod1Parameters.ScalingFactor().Float64()/eval.Mod1Parameters.MessageRatio())))
+		}
+
+	case DecodeThenModUp:
+
+		if eval.CoeffsToSlotsParameters.Scaling == nil {
+			eval.CoeffsToSlotsParameters.Scaling = new(big.Float).SetFloat64(qDiv / (K * scFac * qDiff))
+		} else {
+			eval.CoeffsToSlotsParameters.Scaling.Mul(eval.CoeffsToSlotsParameters.Scaling, new(big.Float).SetFloat64(qDiv/(K*scFac*qDiff)))
+		}
+
+		if eval.SlotsToCoeffsParameters.Scaling == nil {
+			eval.SlotsToCoeffsParameters.Scaling = new(big.Float).SetFloat64(params.DefaultScale().Float64() / (eval.Mod1Parameters.ScalingFactor().Float64() / eval.Mod1Parameters.MessageRatio()))
+		} else {
+			eval.SlotsToCoeffsParameters.Scaling.Mul(eval.SlotsToCoeffsParameters.Scaling, new(big.Float).SetFloat64(params.DefaultScale().Float64()/(eval.Mod1Parameters.ScalingFactor().Float64()/eval.Mod1Parameters.MessageRatio())))
+		}
+
+	case Custom:
+	default:
+		return fmt.Errorf("invalid CircuitOrder")
 	}
 
 	if eval.C2SDFTMatrix, err = hefloat.NewDFTMatrixFromLiteral(params, eval.CoeffsToSlotsParameters, encoder); err != nil {
 		return
 	}
 
-	// SlotsToCoeffs vectors
-	// Rescaling factor to set the final ciphertext to the desired scale
-
-	if eval.SlotsToCoeffsParameters.Scaling == nil {
-		eval.SlotsToCoeffsParameters.Scaling = new(big.Float).SetFloat64(params.DefaultScale().Float64() / (eval.Mod1Parameters.ScalingFactor().Float64() / eval.Mod1Parameters.MessageRatio()))
-	} else {
-		eval.SlotsToCoeffsParameters.Scaling.Mul(eval.SlotsToCoeffsParameters.Scaling, new(big.Float).SetFloat64(params.DefaultScale().Float64()/(eval.Mod1Parameters.ScalingFactor().Float64()/eval.Mod1Parameters.MessageRatio())))
-	}
-
 	if eval.S2CDFTMatrix, err = hefloat.NewDFTMatrixFromLiteral(params, eval.SlotsToCoeffsParameters, encoder); err != nil {
 		return
 	}
+
+	fmt.Println(eval.SlotsToCoeffsParameters.Scaling)
+	fmt.Println(eval.CoeffsToSlotsParameters.Scaling)
+
 
 	encoder = nil // For the GC
 

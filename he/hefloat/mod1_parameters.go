@@ -32,6 +32,7 @@ type Mod1ParametersLiteral struct {
 	LevelStart      int      // Starting level of x mod 1
 	LogScale        int      // Log2 of the scaling factor used during x mod 1
 	Mod1Type        Mod1Type // Chose between [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
+	Scaling         float64  // Value by which the output is scaled by
 	LogMessageRatio int      // Log2 of the ratio between Q0 and m, i.e. Q[0]/|m|
 	K               int      // K parameter (interpolation in the range -K to K)
 	Mod1Degree      int      // Degree of f: x mod 1
@@ -133,6 +134,11 @@ func NewMod1ParametersFromLiteral(params Parameters, evm Mod1ParametersLiteral) 
 
 	Q := params.Q()[0]
 	qDiff := float64(Q) / math.Exp2(math.Round(math.Log2(float64(Q))))
+	scaling := evm.Scaling
+
+	if scaling == 0{
+		scaling = 1
+	}
 
 	if evm.Mod1InvDegree > 0 {
 
@@ -140,7 +146,7 @@ func NewMod1ParametersFromLiteral(params Parameters, evm Mod1ParametersLiteral) 
 
 		coeffs := make([]complex128, evm.Mod1InvDegree+1)
 
-		coeffs[1] = 0.15915494309189535 * complex(qDiff, 0)
+		coeffs[1] = 0.15915494309189535 * complex(qDiff * scaling, 0)
 
 		for i := 3; i < evm.Mod1InvDegree+1; i += 2 {
 			coeffs[i] = coeffs[i-2] * complex(float64(i*i-4*i+4)/float64(i*i-i), 0)
@@ -158,7 +164,7 @@ func NewMod1ParametersFromLiteral(params Parameters, evm Mod1ParametersLiteral) 
 		}
 
 	} else {
-		sqrt2pi = math.Pow(0.15915494309189535*qDiff, 1.0/scFac)
+		sqrt2pi = math.Pow(0.15915494309189535*qDiff*scaling, 1.0/scFac)
 	}
 
 	switch evm.Mod1Type {

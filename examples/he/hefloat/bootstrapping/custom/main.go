@@ -98,21 +98,21 @@ func main() {
 	CoeffsToSlotsParameters := hefloat.DFTMatrixLiteral{
 		Type:            hefloat.HomomorphicEncode,
 		LogSlots:        params.LogMaxSlots(),
-		RepackImag2Real: true,
+		RepackImag2Real: true, // Repacks as (reals|imag)
 		LevelStart:      params.MaxLevel(),
 		LogBSGSRatio:    1,
-		Levels:          []int{1, 1, 1, 1}, //{56, 56, 56, 56}
+		Levels:          []int{1, 1, 1, 1}, //qiCoeffsToSlots
 	}
 
 	// Parameters of the homomorphic modular reduction x mod 1
 	Mod1ParametersLiteral := hefloat.Mod1ParametersLiteral{
-		LogScale:        60,
-		Mod1Type:        hefloat.CosDiscrete,
-		Mod1Degree:      30,
-		DoubleAngle:     3,
-		K:               16,
-		LogMessageRatio: 5,
-		Mod1InvDegree:   0,
+		LogScale:        60,                  // Matches qiEvalMod
+		Mod1Type:        hefloat.CosDiscrete, // Multi-interval Chebyshev interpolation
+		Mod1Degree:      30,                  // Depth 5
+		DoubleAngle:     3,                   // Depth 3
+		K:               16,                  // With EphemeralSecretWeight = 32 and 2^{15} slots, ensures < 2^{-138.7} failure probability
+		LogMessageRatio: 5,                   // q/|m| = 2^5
+		Mod1InvDegree:   0,                   // Depth 0
 		LevelStart:      params.MaxLevel() - len(CoeffsToSlotsParameters.Levels),
 	}
 
@@ -128,7 +128,7 @@ func main() {
 		RepackImag2Real: false,
 		Scaling:         new(big.Float).SetFloat64(math.Exp2(float64(Mod1ParametersLiteral.LogMessageRatio))),
 		LogBSGSRatio:    1,
-		Levels:          []int{1, 1, 1},
+		Levels:          []int{1, 1, 1}, // qiSlotsToCoeffs
 	}
 
 	SlotsToCoeffsParameters.LevelStart = len(SlotsToCoeffsParameters.Levels)
@@ -141,7 +141,7 @@ func main() {
 		SlotsToCoeffsParameters: SlotsToCoeffsParameters,
 		Mod1ParametersLiteral:   Mod1ParametersLiteral,
 		CoeffsToSlotsParameters: CoeffsToSlotsParameters,
-		EphemeralSecretWeight:   32,
+		EphemeralSecretWeight:   32, // > 128bit secure for LogN=16 and LogQP = 115.
 		CircuitOrder:            bootstrapping.DecodeThenModUp,
 	}
 

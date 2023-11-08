@@ -229,12 +229,16 @@ func testRawCircuitHighPrecision(paramSet defaultParametersLiteral, t *testing.T
 
 	t.Run("HighPrecision", func(t *testing.T) {
 
-		level := utils.Min(4, len(paramSet.SchemeParams.LogQ))
+		level := utils.Min(1, len(paramSet.SchemeParams.LogQ))
 
 		paramSet.SchemeParams.LogQ = paramSet.SchemeParams.LogQ[:level+1]
 
+		paramSet.SchemeParams.LogDefaultScale = 80
+
+		fmt.Println(paramSet.SchemeParams.LogQ)
+
 		paramSet.BootstrappingParams.IterationsParameters = &IterationsParameters{
-			BootstrappingPrecision: []float64{24.5, 24.5, 24.5, 24.5, 24.5},
+			BootstrappingPrecision: []float64{25, 25},
 			ReservedPrimeBitSize:   28,
 		}
 
@@ -259,7 +263,7 @@ func testRawCircuitHighPrecision(paramSet defaultParametersLiteral, t *testing.T
 
 			kgen := rlwe.NewKeyGenerator(btpParams.BootstrappingParameters)
 			sk := kgen.GenSecretKeyNew()
-			encoder := hefloat.NewEncoder(params, 164)
+			encoder := hefloat.NewEncoder(params)
 			encryptor := rlwe.NewEncryptor(params, sk)
 			decryptor := rlwe.NewDecryptor(params, sk)
 
@@ -282,11 +286,8 @@ func testRawCircuitHighPrecision(paramSet defaultParametersLiteral, t *testing.T
 				values[3] = complex(0.9238795325112867, 0.3826834323650898)
 			}
 
-			plaintext := hefloat.NewPlaintext(params, level-1)
+			plaintext := hefloat.NewPlaintext(params, level)
 			plaintext.Scale = params.DefaultScale()
-			for i := 0; i < plaintext.Level(); i++ {
-				plaintext.Scale = plaintext.Scale.Mul(rlwe.NewScale(1 << 40))
-			}
 
 			plaintext.LogDimensions = btpParams.LogMaxDimensions()
 			encoder.Encode(values, plaintext)

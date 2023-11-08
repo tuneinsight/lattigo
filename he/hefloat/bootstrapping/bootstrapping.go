@@ -10,6 +10,7 @@ import (
 	"github.com/tuneinsight/lattigo/v4/core/rlwe"
 	"github.com/tuneinsight/lattigo/v4/he/hefloat"
 	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/schemes/ckks"
 	"github.com/tuneinsight/lattigo/v4/utils"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
@@ -30,7 +31,7 @@ import (
 // 5) SlotsToCoeffs: homomorphic decoding
 func (eval Evaluator) Evaluate(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err error) {
 
-	if eval.IterationsParameters == nil {
+	if eval.IterationsParameters == nil && eval.ResidualParameters.PrecisionMode() != ckks.PREC128 {
 		ctOut, _, err = eval.bootstrap(ctIn)
 		return
 
@@ -55,82 +56,118 @@ func (eval Evaluator) Evaluate(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, e
 		}
 		ctOut.Scale = ctIn.Scale
 
-		var totLogPrec float64
+		if eval.IterationsParameters != nil {
 
-		for i := 0; i < len(eval.IterationsParameters.BootstrappingPrecision); i++ {
+			QiReserved := eval.BootstrappingParameters.Q()[eval.ResidualParameters.MaxLevel()+1]
 
-			logPrec := eval.IterationsParameters.BootstrappingPrecision[i]
+			var totLogPrec float64
 
-			totLogPrec += logPrec
+			for i := 0; i < len(eval.IterationsParameters.BootstrappingPrecision); i++ {
 
-			// prec = round(2^{logprec})
-			log2 := bignum.Log(new(big.Float).SetPrec(256).SetUint64(2))
-			log2TimesLogPrec := log2.Mul(log2, new(big.Float).SetFloat64(totLogPrec))
-			prec := new(big.Int)
-			log2TimesLogPrec.Add(bignum.Exp(log2TimesLogPrec), new(big.Float).SetFloat64(0.5)).Int(prec)
+				logPrec := eval.IterationsParameters.BootstrappingPrecision[i]
 
-			// round(q1/logprec)
-			scale := new(big.Int).Set(diffScale.BigInt())
-			bignum.DivRound(scale, prec, scale)
+				totLogPrec += logPrec
 
-			// Checks that round(q1/logprec) >= 2^{logprec}
-			requiresReservedPrime := scale.Cmp(new(big.Int).SetUint64(1)) < 0
+				// prec = round(2^{logprec})
+				log2 := bignum.Log(new(big.Float).SetPrec(256).SetUint64(2))
+				log2TimesLogPrec := log2.Mul(log2, new(big.Float).SetFloat64(totLogPrec))
+				prec := new(big.Int)
+				log2TimesLogPrec.Add(bignum.Exp(log2TimesLogPrec), new(big.Float).SetFloat64(0.5)).Int(prec)
 
-			if requiresReservedPrime && eval.IterationsParameters.ReservedPrimeBitSize == 0 {
-				return ctOut, fmt.Errorf("warning: early stopping at iteration k=%d: reason: round(q1/2^{logprec}) < 1 and no reserverd prime was provided", i+1)
-			}
+				// Corrects the last iteration 2^{logprec} such that diffScale / prec * QReserved is as close to an integer as possible.
+				// This is necessary to not lose bits of precision during the last iteration is a reserved prime is used.
+				// If this correct is not done, what can happen is that there is a loss of up to 2^{logprec/2} bits from the last iteration.
+				if eval.IterationsParameters.ReservedPrimeBitSize != 0 && i == len(eval.IterationsParameters.BootstrappingPrecision)-1 {
 
-			// [M^{d} + e^{d-logprec}] - [M^{d}] -> [e^{d-logprec}]
-			tmp, err := eval.Evaluator.SubNew(ctOut, ctIn)
+					// 1) Computes the scale = diffScale / prec * QReserved
+					scale := new(big.Float).Quo(&diffScale.Value, new(big.Float).SetInt(prec))
+					scale.Mul(scale, new(big.Float).SetUint64(QiReserved))
 
-			if err != nil {
-				return nil, err
-			}
+					// 2) Finds the closest integer to scale with scale = round(scale)
+					scale.Add(scale, new(big.Float).SetFloat64(0.5))
+					tmp := new(big.Int)
+					scale.Int(tmp)
+					scale.SetInt(tmp)
 
-			// prec * [e^{d-logprec}] -> [e^{d}]
-			if err = eval.Evaluator.Mul(tmp, prec, tmp); err != nil {
-				return nil, err
-			}
+					// 3) Computes the corrected precision = diffScale * QReserved / round(scale)
+					preccorrected := new(big.Float).Quo(&diffScale.Value, scale)
+					preccorrected.Mul(preccorrected, new(big.Float).SetUint64(QiReserved))
+					preccorrected.Add(preccorrected, new(big.Float).SetFloat64(0.5))
 
-			tmp.Scale = ctOut.Scale
-
-			// [e^{d}] -> [e^{d}/q1] -> [e^{d}/q1 + e'^{d-logprec}]
-			if tmp, errScale, err = eval.bootstrap(tmp); err != nil {
-				return nil, err
-			}
-
-			tmp.Scale = tmp.Scale.Mul(*errScale)
-
-			// [[e^{d}/q1 + e'^{d-logprec}] * q1/logprec -> [e^{d-logprec} + e'^{d-2logprec}*q1]
-			// If scale > 2^{logprec}, then we ensure a precision of at least 2^{logprec} even with a rounding of the scale
-			if !requiresReservedPrime {
-				if err = eval.Evaluator.Mul(tmp, scale, tmp); err != nil {
-					return nil, err
+					// 4) Updates with the corrected precision
+					preccorrected.Int(prec)
 				}
-			} else {
 
-				// Else we compute the floating point ratio
-				ss := new(big.Float).SetInt(diffScale.BigInt())
-				ss.Quo(ss, new(big.Float).SetInt(prec))
+				// round(q1/logprec)
+				scale := new(big.Int).Set(diffScale.BigInt())
+				bignum.DivRound(scale, prec, scale)
 
-				// Do a scaled multiplication by the last prime
-				if err = eval.Evaluator.Mul(tmp, ss, tmp); err != nil {
+				// Checks that round(q1/logprec) >= 2^{logprec}
+				requiresReservedPrime := scale.Cmp(new(big.Int).SetUint64(1)) < 0
+
+				if requiresReservedPrime && eval.IterationsParameters.ReservedPrimeBitSize == 0 {
+					return ctOut, fmt.Errorf("warning: early stopping at iteration k=%d: reason: round(q1/2^{logprec}) < 1 and no reserverd prime was provided", i+1)
+				}
+
+				// [M^{d} + e^{d-logprec}] - [M^{d}] -> [e^{d-logprec}]
+				tmp, err := eval.Evaluator.SubNew(ctOut, ctIn)
+
+				if err != nil {
 					return nil, err
 				}
 
-				// And rescale
-				if err = eval.Evaluator.Rescale(tmp, tmp); err != nil {
+				// prec * [e^{d-logprec}] -> [e^{d}]
+				if err = eval.Evaluator.Mul(tmp, prec, tmp); err != nil {
+					return nil, err
+				}
+
+				tmp.Scale = ctOut.Scale
+
+				// [e^{d}] -> [e^{d}/q1] -> [e^{d}/q1 + e'^{d-logprec}]
+				if tmp, errScale, err = eval.bootstrap(tmp); err != nil {
+					return nil, err
+				}
+
+				tmp.Scale = tmp.Scale.Mul(*errScale)
+
+				// [[e^{d}/q1 + e'^{d-logprec}] * q1/logprec -> [e^{d-logprec} + e'^{d-2logprec}*q1]
+				if eval.IterationsParameters.ReservedPrimeBitSize == 0 {
+					if err = eval.Evaluator.Mul(tmp, scale, tmp); err != nil {
+						return nil, err
+					}
+				} else {
+
+					// Else we compute the floating point ratio
+					scale := new(big.Float).SetInt(diffScale.BigInt())
+					scale.Quo(scale, new(big.Float).SetInt(prec))
+
+					if new(big.Float).Mul(scale, new(big.Float).SetUint64(QiReserved)).Cmp(new(big.Float).SetUint64(1)) == -1 {
+						return ctOut, fmt.Errorf("warning: early stopping at iteration k=%d: reason: maximum precision achieved", i+1)
+					}
+
+					// Do a scaled multiplication by the last prime
+					if err = eval.Evaluator.Mul(tmp, scale, tmp); err != nil {
+						return nil, err
+					}
+
+					// And rescale
+					if err = eval.Evaluator.Rescale(tmp, tmp); err != nil {
+						return nil, err
+					}
+				}
+
+				// This is a given
+				tmp.Scale = ctOut.Scale
+
+				// [M^{d} + e^{d-logprec}] - [e^{d-logprec} + e'^{d-2logprec}*q1] -> [M^{d} + e'^{d-2logprec}*q1]
+				if err = eval.Evaluator.Sub(ctOut, tmp, ctOut); err != nil {
 					return nil, err
 				}
 			}
+		}
 
-			// This is a given
-			tmp.Scale = ctOut.Scale
-
-			// [M^{d} + e^{d-logprec}] - [e^{d-logprec} + e'^{d-2logprec}*q1] -> [M^{d} + e'^{d-2logprec}*q1]
-			if err = eval.Evaluator.Sub(ctOut, tmp, ctOut); err != nil {
-				return nil, err
-			}
+		for ctOut.Level() > eval.ResidualParameters.MaxLevel() {
+			eval.Evaluator.DropLevel(ctOut, 1)
 		}
 	}
 
@@ -264,7 +301,7 @@ func (eval Evaluator) ScaleDown(ctIn *rlwe.Ciphertext) (*rlwe.Ciphertext, *rlwe.
 	scaleUp := currentMessageRatio.Div(targetMessageRatio)
 
 	if scaleUp.Cmp(rlwe.NewScale(0.5)) == -1 {
-		return nil, nil, fmt.Errorf("initial Q/Scale < 0.5*Q[0]/MessageRatio")
+		return nil, nil, fmt.Errorf("initial Q/Scale = %f < 0.5*Q[0]/MessageRatio = %f", currentMessageRatio.Float64(), targetMessageRatio.Float64())
 	}
 
 	scaleUpBigint := scaleUp.BigInt()

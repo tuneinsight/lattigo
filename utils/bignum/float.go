@@ -55,6 +55,21 @@ func NewFloat(x interface{}, prec uint) (y *big.Float) {
 	return
 }
 
+// Round returns round(x).
+func Round(x *big.Float) (r *big.Float) {
+	r = new(big.Float).Set(x)
+	if r.Cmp(new(big.Float)) >= 0 {
+		r.Add(r, new(big.Float).SetFloat64(0.5))
+	} else {
+		r.Sub(r, new(big.Float).SetFloat64(0.5))
+	}
+
+	tmp := new(big.Int)
+	r.Int(tmp)
+	r.SetInt(tmp)
+	return
+}
+
 // Cos is an iterative arbitrary precision computation of Cos(x)
 // Iterative process with an error of ~10^{−0.60206*k} = (1/4)^k after k iterations.
 // ref : Johansson, B. Tomas, An elementary algorithm to evaluate trigonometric functions to high precision, 2018

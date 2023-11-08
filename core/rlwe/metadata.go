@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
 
 // MetaData is a struct storing metadata.
@@ -132,6 +133,14 @@ func (m PlaintextMetaData) Slots() int {
 // LogSlots returns the log2 of the total number of slots that the plaintext holds.
 func (m PlaintextMetaData) LogSlots() int {
 	return m.LogDimensions.Cols + m.LogDimensions.Rows
+}
+
+// LogScale returns log2(scale).
+func (m PlaintextMetaData) LogScale() float64 {
+	ln := bignum.Log(&m.Scale.Value)
+	ln.Quo(ln, bignum.Log2(ln.Prec()))
+	log2, _ := ln.Float64()
+	return log2
 }
 
 func (m *PlaintextMetaData) Equal(other *PlaintextMetaData) (res bool) {

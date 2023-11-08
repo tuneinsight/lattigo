@@ -8,6 +8,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v4/he/hefloat"
 	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v4/schemes/ckks"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
@@ -312,12 +313,21 @@ func NewParametersFromLiteral(residualParameters hefloat.Parameters, btpLit Para
 		primesNew[logpi] = primesNew[logpi][1:]
 	}
 
+	// Ensure that ckks.PrecisionMode = PREC64 when using PREC128 residual parameters.
+	var LogDefaultScale int
+	switch residualParameters.PrecisionMode() {
+	case ckks.PREC64:
+		LogDefaultScale = residualParameters.LogDefaultScale()
+	case ckks.PREC128:
+		LogDefaultScale = residualParameters.LogQi()[0] - LogMessageRatio
+	}
+
 	// Instantiates the hefloat.Parameters of the bootstrapping circuit.
 	params, err := hefloat.NewParametersFromLiteral(hefloat.ParametersLiteral{
 		LogN:            LogN,
 		Q:               Q,
 		P:               P,
-		LogDefaultScale: residualParameters.LogDefaultScale(),
+		LogDefaultScale: LogDefaultScale,
 		Xs:              btpLit.GetDefaultXs(),
 		Xe:              btpLit.GetDefaultXe(),
 	})

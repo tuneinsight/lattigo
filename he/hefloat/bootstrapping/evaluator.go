@@ -190,38 +190,22 @@ func (eval *Evaluator) initialize(btpParams Parameters) (err error) {
 	// CoeffsToSlots vectors
 	// Change of variable for the evaluation of the Chebyshev polynomial + cancelling factor for the DFT and SubSum + eventual scaling factor for the double angle formula
 
-	switch btpParams.CircuitOrder {
-	case ModUpThenEncode:
+	scale := eval.BootstrappingParameters.DefaultScale().Float64()
+	offset := eval.Mod1Parameters.ScalingFactor().Float64() / eval.Mod1Parameters.MessageRatio()
 
-		if eval.CoeffsToSlotsParameters.Scaling == nil {
-			eval.CoeffsToSlotsParameters.Scaling = new(big.Float).SetFloat64(qDiv / (K * scFac * qDiff))
-		} else {
-			eval.CoeffsToSlotsParameters.Scaling.Mul(eval.CoeffsToSlotsParameters.Scaling, new(big.Float).SetFloat64(qDiv/(K*scFac*qDiff)))
-		}
+	C2SScaling := new(big.Float).SetFloat64(qDiv / (K * scFac * qDiff))
+	StCScaling := new(big.Float).SetFloat64(scale / offset)
 
-		if eval.SlotsToCoeffsParameters.Scaling == nil {
-			eval.SlotsToCoeffsParameters.Scaling = new(big.Float).SetFloat64(params.DefaultScale().Float64() / (eval.Mod1Parameters.ScalingFactor().Float64() / eval.Mod1Parameters.MessageRatio()))
-		} else {
-			eval.SlotsToCoeffsParameters.Scaling.Mul(eval.SlotsToCoeffsParameters.Scaling, new(big.Float).SetFloat64(params.DefaultScale().Float64()/(eval.Mod1Parameters.ScalingFactor().Float64()/eval.Mod1Parameters.MessageRatio())))
-		}
+	if eval.CoeffsToSlotsParameters.Scaling == nil {
+		eval.CoeffsToSlotsParameters.Scaling = C2SScaling
+	} else {
+		eval.CoeffsToSlotsParameters.Scaling.Mul(eval.CoeffsToSlotsParameters.Scaling, C2SScaling)
+	}
 
-	case DecodeThenModUp:
-
-		if eval.CoeffsToSlotsParameters.Scaling == nil {
-			eval.CoeffsToSlotsParameters.Scaling = new(big.Float).SetFloat64(qDiv / (K * scFac * qDiff))
-		} else {
-			eval.CoeffsToSlotsParameters.Scaling.Mul(eval.CoeffsToSlotsParameters.Scaling, new(big.Float).SetFloat64(qDiv/(K*scFac*qDiff)))
-		}
-
-		if eval.SlotsToCoeffsParameters.Scaling == nil {
-			eval.SlotsToCoeffsParameters.Scaling = new(big.Float).SetFloat64(params.DefaultScale().Float64() / (eval.Mod1Parameters.ScalingFactor().Float64() / eval.Mod1Parameters.MessageRatio()))
-		} else {
-			eval.SlotsToCoeffsParameters.Scaling.Mul(eval.SlotsToCoeffsParameters.Scaling, new(big.Float).SetFloat64(params.DefaultScale().Float64()/(eval.Mod1Parameters.ScalingFactor().Float64()/eval.Mod1Parameters.MessageRatio())))
-		}
-
-	case Custom:
-	default:
-		return fmt.Errorf("invalid CircuitOrder")
+	if eval.SlotsToCoeffsParameters.Scaling == nil {
+		eval.SlotsToCoeffsParameters.Scaling = StCScaling
+	} else {
+		eval.SlotsToCoeffsParameters.Scaling.Mul(eval.SlotsToCoeffsParameters.Scaling, StCScaling)
 	}
 
 	if eval.C2SDFTMatrix, err = hefloat.NewDFTMatrixFromLiteral(params, eval.CoeffsToSlotsParameters, encoder); err != nil {
@@ -231,9 +215,6 @@ func (eval *Evaluator) initialize(btpParams Parameters) (err error) {
 	if eval.S2CDFTMatrix, err = hefloat.NewDFTMatrixFromLiteral(params, eval.SlotsToCoeffsParameters, encoder); err != nil {
 		return
 	}
-
-	fmt.Println(eval.SlotsToCoeffsParameters.Scaling)
-	fmt.Println(eval.CoeffsToSlotsParameters.Scaling)
 
 	encoder = nil // For the GC
 

@@ -51,6 +51,18 @@ func NewCiphertext(params Parameters, degree, level int) *rlwe.Ciphertext {
 	return ckks.NewCiphertext(params.Parameters, degree, level)
 }
 
+func NewEncryptor(params Parameters, key rlwe.EncryptionKey) *rlwe.Encryptor {
+	return rlwe.NewEncryptor(params, key)
+}
+
+func NewDecryptor(params Parameters, key *rlwe.SecretKey) *rlwe.Decryptor {
+	return rlwe.NewDecryptor(params, key)
+}
+
+func NewKeyGenerator(params Parameters) *rlwe.KeyGenerator {
+	return rlwe.NewKeyGenerator(params)
+}
+
 type Encoder struct {
 	ckks.Encoder
 }

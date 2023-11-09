@@ -235,8 +235,6 @@ func testRawCircuitHighPrecision(paramSet defaultParametersLiteral, t *testing.T
 
 		paramSet.SchemeParams.LogDefaultScale = 80
 
-		fmt.Println(paramSet.SchemeParams.LogQ)
-
 		paramSet.BootstrappingParams.IterationsParameters = &IterationsParameters{
 			BootstrappingPrecision: []float64{25, 25},
 			ReservedPrimeBitSize:   28,

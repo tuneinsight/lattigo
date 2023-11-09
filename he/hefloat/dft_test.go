@@ -46,13 +46,13 @@ func TestHomomorphicDFT(t *testing.T) {
 func testDFTMatrixLiteralMarshalling(t *testing.T) {
 	t.Run("Marshalling", func(t *testing.T) {
 		m := hefloat.DFTMatrixLiteral{
-			LogSlots:        15,
-			Type:            hefloat.HomomorphicDecode,
-			LevelStart:      12,
-			LogBSGSRatio:    2,
-			Levels:          []int{1, 1, 1},
-			BitReversed:     true,
-			RepackImag2Real: true,
+			LogSlots:     15,
+			Type:         hefloat.HomomorphicDecode,
+			Format:       hefloat.RepackImagAsReal,
+			LevelStart:   12,
+			LogBSGSRatio: 2,
+			Levels:       []int{1, 1, 1},
+			BitReversed:  true,
 		}
 
 		data, err := m.MarshalBinary()
@@ -117,11 +117,11 @@ func testHomomorphicEncoding(params hefloat.Parameters, LogSlots int, t *testing
 		}
 
 		CoeffsToSlotsParametersLiteral := hefloat.DFTMatrixLiteral{
-			LogSlots:        LogSlots,
-			Type:            hefloat.HomomorphicEncode,
-			RepackImag2Real: true,
-			LevelStart:      params.MaxLevel(),
-			Levels:          Levels,
+			LogSlots:   LogSlots,
+			Type:       hefloat.HomomorphicEncode,
+			Format:     hefloat.RepackImagAsReal,
+			LevelStart: params.MaxLevel(),
+			Levels:     Levels,
 		}
 
 		kgen := rlwe.NewKeyGenerator(params)
@@ -321,11 +321,11 @@ func testHomomorphicDecoding(params hefloat.Parameters, LogSlots int, t *testing
 		}
 
 		SlotsToCoeffsParametersLiteral := hefloat.DFTMatrixLiteral{
-			LogSlots:        LogSlots,
-			Type:            hefloat.HomomorphicDecode,
-			RepackImag2Real: true,
-			LevelStart:      params.MaxLevel(),
-			Levels:          Levels,
+			LogSlots:   LogSlots,
+			Type:       hefloat.HomomorphicDecode,
+			Format:     hefloat.RepackImagAsReal,
+			LevelStart: params.MaxLevel(),
+			Levels:     Levels,
 		}
 
 		kgen := rlwe.NewKeyGenerator(params)

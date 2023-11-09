@@ -124,12 +124,12 @@ func NewParametersFromLiteral(residualParameters hefloat.Parameters, btpLit Para
 
 	// SlotsToCoeffs parameters (homomorphic decoding)
 	S2CParams := hefloat.DFTMatrixLiteral{
-		Type:            hefloat.HomomorphicDecode,
-		LogSlots:        LogSlots,
-		RepackImag2Real: true,
-		LevelStart:      residualParameters.MaxLevel() + len(SlotsToCoeffsFactorizationDepthAndLogScales) + hasReservedIterationPrime,
-		LogBSGSRatio:    1,
-		Levels:          SlotsToCoeffsLevels,
+		Type:         hefloat.HomomorphicDecode,
+		LogSlots:     LogSlots,
+		Format:       hefloat.RepackImagAsReal,
+		LevelStart:   residualParameters.MaxLevel() + len(SlotsToCoeffsFactorizationDepthAndLogScales) + hasReservedIterationPrime,
+		LogBSGSRatio: 1,
+		Levels:       SlotsToCoeffsLevels,
 	}
 
 	// Scaling factor of the homomorphic modular reduction x mod 1
@@ -199,12 +199,12 @@ func NewParametersFromLiteral(residualParameters hefloat.Parameters, btpLit Para
 
 	// Parameters of the CoeffsToSlots (homomorphic encoding)
 	C2SParams := hefloat.DFTMatrixLiteral{
-		Type:            hefloat.HomomorphicEncode,
-		LogSlots:        LogSlots,
-		RepackImag2Real: true,
-		LevelStart:      Mod1ParametersLiteral.LevelStart + len(CoeffsToSlotsFactorizationDepthAndLogScales),
-		LogBSGSRatio:    1,
-		Levels:          CoeffsToSlotsLevels,
+		Type:         hefloat.HomomorphicEncode,
+		Format:       hefloat.RepackImagAsReal,
+		LogSlots:     LogSlots,
+		LevelStart:   Mod1ParametersLiteral.LevelStart + len(CoeffsToSlotsFactorizationDepthAndLogScales),
+		LogBSGSRatio: 1,
+		Levels:       CoeffsToSlotsLevels,
 	}
 
 	// List of the prime-size of all primes required by the bootstrapping circuit.

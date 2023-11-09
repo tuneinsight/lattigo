@@ -36,6 +36,27 @@ const (
 	HomomorphicDecode = DFTType(1) // Homomorphic Decoding (DFT)
 )
 
+// DFTFormat is a type used to distinguish between the
+// different input/output formats of the Homomorphic DFT.
+type DFTFormat int
+
+const (
+	// Standard: designates the regular DFT.
+	// Example: [a+bi, c+di] -> DFT([a+bi, c+di])
+	Standard = DFTFormat(0)
+	// SplitRealAndImag: HomomorphicEncode will return the real and
+	// imaginary part into separate ciphertexts, both as real vectors.
+	// Example: [a+bi, c+di] -> DFT([a, c]) and DFT([b, d])
+	SplitRealAndImag = DFTFormat(1)
+	// RepackImagAsReal: behaves the same as SplitRealAndImag except that
+	// if the ciphertext is sparsely packed (at most N/4 slots), HomomorphicEncode
+	// will repacks the real part into the left N/2 slots and the imaginary part
+	// into the right N/2 slots. HomomorphicDecode must be specified with the same
+	// format for correctness.
+	// Example: [a+bi, 0, c+di, 0] -> [DFT([a, b]), DFT([b, d])]
+	RepackImagAsReal = DFTFormat(2)
+)
+
 // DFTMatrix is a struct storing the factorized IDFT, DFT matrices, which are
 // used to homomorphically encode and decode a ciphertext respectively.
 type DFTMatrix struct {
@@ -53,7 +74,7 @@ type DFTMatrix struct {
 //   - Levels: depth of the linear transform (i.e. the degree of factorization of the encoding matrix)
 //
 // Optional:
-//   - RepackImag2Real: if true, the imaginary part is repacked into the right n slots of the real part
+//   - Format: which post-processing (if any) to apply to the DFT.
 //   - Scaling: constant by which the matrix is multiplied
 //   - BitReversed: if true, then applies the transformation bit-reversed and expects bit-reversed inputs
 //   - LogBSGSRatio: log2 of the ratio between the inner and outer loop of the baby-step giant-step algorithm
@@ -64,10 +85,10 @@ type DFTMatrixLiteral struct {
 	LevelStart int
 	Levels     []int
 	// Optional
-	RepackImag2Real bool       // Default: False.
-	Scaling         *big.Float // Default 1.0.
-	BitReversed     bool       // Default: False.
-	LogBSGSRatio    int        // Default: 0.
+	Format       DFTFormat  // Default: standard.
+	Scaling      *big.Float // Default 1.0.
+	BitReversed  bool       // Default: False.
+	LogBSGSRatio int        // Default: 0.
 }
 
 // Depth returns the number of levels allocated to the linear transform.
@@ -88,11 +109,13 @@ func (d DFTMatrixLiteral) Depth(actual bool) (depth int) {
 func (d DFTMatrixLiteral) GaloisElements(params Parameters) (galEls []uint64) {
 	rotations := []int{}
 
+	imgRepack := d.Format == RepackImagAsReal
+
 	logSlots := d.LogSlots
 	logN := params.LogN()
 	slots := 1 << logSlots
 	dslots := slots
-	if logSlots < logN-1 && d.RepackImag2Real {
+	if logSlots < logN-1 && imgRepack {
 		dslots <<= 1
 		if d.Type == HomomorphicEncode {
 			rotations = append(rotations, slots)
@@ -104,7 +127,7 @@ func (d DFTMatrixLiteral) GaloisElements(params Parameters) (galEls []uint64) {
 	// Coeffs to Slots rotations
 	for i, pVec := range indexCtS {
 		N1 := he.FindBestBSGSRatio(utils.GetKeys(pVec), dslots, d.LogBSGSRatio)
-		rotations = addMatrixRotToList(pVec, rotations, N1, slots, d.Type == HomomorphicDecode && logSlots < logN-1 && i == 0 && d.RepackImag2Real)
+		rotations = addMatrixRotToList(pVec, rotations, N1, slots, d.Type == HomomorphicDecode && logSlots < logN-1 && i == 0 && imgRepack)
 	}
 
 	return params.GaloisElements(rotations)
@@ -145,7 +168,7 @@ func NewDFTMatrixFromLiteral(params Parameters, d DFTMatrixLiteral, encoder *Enc
 
 	logSlots := d.LogSlots
 	logdSlots := logSlots
-	if maxLogSlots := params.LogMaxDimensions().Cols; logdSlots < maxLogSlots && d.RepackImag2Real {
+	if maxLogSlots := params.LogMaxDimensions().Cols; logdSlots < maxLogSlots && d.Format == RepackImagAsReal {
 		logdSlots++
 	}
 
@@ -219,7 +242,7 @@ func (eval *DFTEvaluator) CoeffsToSlotsNew(ctIn *rlwe.Ciphertext, ctsMatrices DF
 // If the packing is dense (n == N/2), then returns ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
 func (eval *DFTEvaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices DFTMatrix, ctReal, ctImag *rlwe.Ciphertext) (err error) {
 
-	if ctsMatrices.RepackImag2Real {
+	if ctsMatrices.Format == RepackImagAsReal || ctsMatrices.Format == SplitRealAndImag {
 
 		zV := ctIn.CopyNew()
 
@@ -262,7 +285,7 @@ func (eval *DFTEvaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices DFTMa
 		}
 
 		// If repacking, then ct0 and ct1 right n/2 slots are zero.
-		if ctsMatrices.LogSlots < eval.parameters.LogMaxSlots() {
+		if ctsMatrices.Format == RepackImagAsReal && ctsMatrices.LogSlots < eval.parameters.LogMaxSlots() {
 			if err = eval.Rotate(tmp, 1<<ctIn.LogDimensions.Cols, tmp); err != nil {
 				return fmt.Errorf("cannot CoeffsToSlots: %w", err)
 			}
@@ -515,7 +538,7 @@ func (d DFTMatrixLiteral) computeBootstrappingDFTIndexMap(logN int) (rotationMap
 
 	logSlots := d.LogSlots
 	ltType := d.Type
-	repacki2r := d.RepackImag2Real
+	repacki2r := d.Format == RepackImagAsReal
 	bitreversed := d.BitReversed
 	maxDepth := d.Depth(false)
 
@@ -634,9 +657,10 @@ func (d DFTMatrixLiteral) GenMatrices(LogN int, prec uint) (plainVector []Diagon
 	maxDepth := d.Depth(false)
 	ltType := d.Type
 	bitreversed := d.BitReversed
+	imagRepack := d.Format == RepackImagAsReal
 
 	logdSlots := logSlots
-	if logdSlots < LogN-1 && d.RepackImag2Real {
+	if logdSlots < LogN-1 && imagRepack {
 		logdSlots++
 	}
 
@@ -683,7 +707,7 @@ func (d DFTMatrixLiteral) GenMatrices(LogN int, prec uint) (plainVector []Diagon
 	fftLevel = logSlots
 	for i := 0; i < maxDepth; i++ {
 
-		if logSlots != logdSlots && ltType == HomomorphicDecode && i == 0 && d.RepackImag2Real {
+		if logSlots != logdSlots && ltType == HomomorphicDecode && i == 0 && imagRepack {
 
 			// Special initial matrix for the repacking before DFT
 			plainVector[i] = genRepackMatrix(logSlots, prec, bitreversed)
@@ -714,7 +738,7 @@ func (d DFTMatrixLiteral) GenMatrices(LogN int, prec uint) (plainVector []Diagon
 	}
 
 	// Repacking after the IDFT (we multiply the last matrix with the vector [1, 1, ..., 1, 1, 0, 0, ..., 0, 0]).
-	if logSlots != logdSlots && ltType == HomomorphicEncode && d.RepackImag2Real {
+	if logSlots != logdSlots && ltType == HomomorphicEncode && imagRepack {
 		for j := range plainVector[maxDepth-1] {
 			v := plainVector[maxDepth-1][j]
 			for x := 0; x < slots; x++ {
@@ -733,7 +757,7 @@ func (d DFTMatrixLiteral) GenMatrices(LogN int, prec uint) (plainVector []Diagon
 	// If DFT matrix, rescale by 1/N
 	if ltType == HomomorphicEncode {
 		// Real/Imag extraction 1/2 factor
-		if d.RepackImag2Real {
+		if d.Format == RepackImagAsReal || d.Format == SplitRealAndImag {
 			scaling.Quo(scaling, new(big.Float).SetFloat64(float64(2*slots)))
 		} else {
 			scaling.Quo(scaling, new(big.Float).SetFloat64(float64(slots)))

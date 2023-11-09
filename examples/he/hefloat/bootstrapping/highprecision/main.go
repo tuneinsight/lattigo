@@ -1,4 +1,18 @@
-// Package main implements an example showcasing high-precision bootstrapping for fixed-point approximate arithmetic over the reals/complexes.
+// Package main implements an example showcasing high-precision bootstrapping for high-precision fixed-
+// point approximate arithmetic over the reals/complexes.
+// High-precision bootstrapping is achieved by bootstrapping the residual error iteratively until it
+// becomes smaller than the initial ciphertext error. Assume that the bootstrapping circuit has `d` bits
+// of precision and that a ciphertext encrypts a message `m` with `kd` bits of scaling factor. Then the procedure
+// works as follow:
+//
+// 1) Input: ctIn[2^{kd} * m]
+// 2) Bootstrap(ctIn[2^{kd} * m] / 2^{(k-1)d})*2^{(k-1)d} -> ctOut[2^{kd} * m + 2^{(k-1)d} * e0]
+// 3) Bootstrap((ctOut - ctIn)/2^{(k-2)d}) * 2^{(k-2)d} -> ctIn = [2^{(k-1)d} * e0 + 2^{(k-2)d} * e1]
+// 4) ctOut = ctOut - ctIn = [2^{kd} * m + 2^{(k-2)d} * e1]
+// 4) We can repeat this process k-2 additional times to get a bootstrapping of k * d bits of precision.
+//
+// The method is described in details by Bae et al. in META-BTS: Bootstrapping Precision Beyond the Limit (https://eprint.iacr.org/2022/1167).
+//
 // This example assumes that the user is already familiar with the bootstrapping and its different steps.
 // See the basic example `lattigo/examples/he/hefloat/bootstrapping/basic` for an introduction into the
 // bootstrapping.

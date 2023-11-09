@@ -1,5 +1,11 @@
-// Package main implements an example showcasing a custom parameterization and re-ordering of the circuit
-// for bootstrapping for fixed-point approximate arithmetic over the reals/complexes numbers.
+// Package main implements an example showcasing slim for bootstrapping for fixed-point approximate
+// arithmetic over the reals/complexes numbers.
+// This re-ordering of the bootstrapping steps was first proposed for the BFV/BGV schemes by Chen and Han
+// in Homomorphic Lower Digits Removal and Improved FHE Bootstrapping (https://eprint.iacr.org/2018/067).
+// It was also used by Kim and Guyot in Optimized Privacy-Preserving CNN Inference With Fully Homomorphic
+// Encryption (https://ieeexplore.ieee.org/document/10089847) to efficiently perform the convolution in
+// the coefficient domain.
+//
 // This example assumes that the user is already familiar with the bootstrapping and its different steps.
 // See the basic example `lattigo/examples/he/hefloat/bootstrapping/basic` for an introduction into the
 // bootstrapping.
@@ -13,7 +19,7 @@
 // 4) EvalMod: Homomorphic modular reduction
 // 5) SlotsToCoeffs (and go back to 0): Homomorphic Decoding
 //
-// This example shows a custom parameterization and circuit evaluating:
+// This example instantiates a custom order of the circuit evaluating:
 //
 // 0) User defined circuit in the slots domain
 // 1) SlotsToCoeffs: Homomorphic Decoding
@@ -96,12 +102,12 @@ func main() {
 
 	// CoeffsToSlots parameters (homomorphic encoding)
 	CoeffsToSlotsParameters := hefloat.DFTMatrixLiteral{
-		Type:            hefloat.HomomorphicEncode,
-		LogSlots:        params.LogMaxSlots(),
-		RepackImag2Real: true, // Repacks as (reals|imag)
-		LevelStart:      params.MaxLevel(),
-		LogBSGSRatio:    1,
-		Levels:          []int{1, 1, 1, 1}, //qiCoeffsToSlots
+		Type:         hefloat.HomomorphicEncode,
+		Format:       hefloat.RepackImagAsReal, // Returns the real and imaginary part into separate ciphertexts
+		LogSlots:     params.LogMaxSlots(),
+		LevelStart:   params.MaxLevel(),
+		LogBSGSRatio: 1,
+		Levels:       []int{1, 1, 1, 1}, //qiCoeffsToSlots
 	}
 
 	// Parameters of the homomorphic modular reduction x mod 1
@@ -123,12 +129,11 @@ func main() {
 
 	// SlotsToCoeffs parameters (homomorphic decoding)
 	SlotsToCoeffsParameters := hefloat.DFTMatrixLiteral{
-		Type:            hefloat.HomomorphicDecode,
-		LogSlots:        params.LogMaxSlots(),
-		RepackImag2Real: false,
-		Scaling:         new(big.Float).SetFloat64(math.Exp2(float64(Mod1ParametersLiteral.LogMessageRatio))),
-		LogBSGSRatio:    1,
-		Levels:          []int{1, 1, 1}, // qiSlotsToCoeffs
+		Type:         hefloat.HomomorphicDecode,
+		LogSlots:     params.LogMaxSlots(),
+		Scaling:      new(big.Float).SetFloat64(math.Exp2(float64(Mod1ParametersLiteral.LogMessageRatio))),
+		LogBSGSRatio: 1,
+		Levels:       []int{1, 1, 1}, // qiSlotsToCoeffs
 	}
 
 	SlotsToCoeffsParameters.LevelStart = len(SlotsToCoeffsParameters.Levels)
@@ -225,7 +230,6 @@ func main() {
 	// Step 0: Some circuit in the slots domain
 
 	// Step 1 : SlotsToCoeffs (Homomorphic decoding)
-
 	if ciphertext, err = eval.SlotsToCoeffs(ciphertext, nil); err != nil {
 		panic(err)
 	}
@@ -234,7 +238,9 @@ func main() {
 	// Note: the result of SlotsToCoeffs is naturaly given in bit-reversed order
 	// In this example, we multiply by the monomial X^{N/2} (which is the imaginary
 	// unit in the slots domain)
-	eval.Evaluator.Mul(ciphertext, 1i, ciphertext)
+	if err = eval.Evaluator.Mul(ciphertext, 1i, ciphertext); err != nil {
+		panic(err)
+	}
 
 	// Then we need to apply the same mapping to the reference values:
 

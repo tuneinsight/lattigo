@@ -69,8 +69,9 @@ func NewEvaluator(params ParameterProvider, evk EvaluationKeySet) (eval *Evaluat
 
 	if p.RingP() != nil {
 		eval.BasisExtender = ring.NewBasisExtender(p.RingQ(), p.RingP())
-		eval.Decomposer = ring.NewDecomposer(p.RingQ(), p.RingP())
 	}
+
+	eval.Decomposer = ring.NewDecomposer(p.RingQ(), p.RingP())
 
 	eval.EvaluationKeySet = evk
 

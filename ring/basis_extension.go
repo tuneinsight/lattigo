@@ -321,50 +321,53 @@ func NewDecomposer(ringQ, ringP *Ring) (decomposer *Decomposer) {
 	decomposer.ringQ = ringQ
 	decomposer.ringP = ringP
 
-	Q := ringQ.ModuliChain()
-	P := ringP.ModuliChain()
+	if ringP != nil {
 
-	decomposer.ModUpConstants = make([][][]ModUpConstants, ringP.MaxLevel())
+		Q := ringQ.ModuliChain()
+		P := ringP.ModuliChain()
 
-	for lvlP := 0; lvlP < ringP.MaxLevel(); lvlP++ {
+		decomposer.ModUpConstants = make([][][]ModUpConstants, ringP.MaxLevel())
 
-		P := P[:lvlP+2]
+		for lvlP := 0; lvlP < ringP.MaxLevel(); lvlP++ {
 
-		nbPi := len(P)
-		BaseRNSDecompositionVectorSize := int(math.Ceil(float64(len(Q)) / float64(nbPi)))
+			P := P[:lvlP+2]
 
-		xnbPi := make([]int, BaseRNSDecompositionVectorSize)
-		for i := range xnbPi {
-			xnbPi[i] = nbPi
-		}
+			nbPi := len(P)
+			BaseRNSDecompositionVectorSize := int(math.Ceil(float64(len(Q)) / float64(nbPi)))
 
-		if len(Q)%nbPi != 0 {
-			xnbPi[BaseRNSDecompositionVectorSize-1] = len(Q) % nbPi
-		}
+			xnbPi := make([]int, BaseRNSDecompositionVectorSize)
+			for i := range xnbPi {
+				xnbPi[i] = nbPi
+			}
 
-		decomposer.ModUpConstants[lvlP] = make([][]ModUpConstants, BaseRNSDecompositionVectorSize)
+			if len(Q)%nbPi != 0 {
+				xnbPi[BaseRNSDecompositionVectorSize-1] = len(Q) % nbPi
+			}
 
-		// Create ModUpConstants for each possible combination of [Qi,Pj] according to xnbPi
-		for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
+			decomposer.ModUpConstants[lvlP] = make([][]ModUpConstants, BaseRNSDecompositionVectorSize)
 
-			decomposer.ModUpConstants[lvlP][i] = make([]ModUpConstants, xnbPi[i]-1)
+			// Create ModUpConstants for each possible combination of [Qi,Pj] according to xnbPi
+			for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
 
-			for j := 0; j < xnbPi[i]-1; j++ {
+				decomposer.ModUpConstants[lvlP][i] = make([]ModUpConstants, xnbPi[i]-1)
 
-				Qi := make([]uint64, j+2)
-				Pi := make([]uint64, len(Q)+len(P))
+				for j := 0; j < xnbPi[i]-1; j++ {
 
-				for k := 0; k < j+2; k++ {
-					Qi[k] = Q[i*nbPi+k]
+					Qi := make([]uint64, j+2)
+					Pi := make([]uint64, len(Q)+len(P))
+
+					for k := 0; k < j+2; k++ {
+						Qi[k] = Q[i*nbPi+k]
+					}
+
+					copy(Pi, Q)
+
+					for k := len(Q); k < len(Q)+len(P); k++ {
+						Pi[k] = P[k-len(Q)]
+					}
+
+					decomposer.ModUpConstants[lvlP][i][j] = GenModUpConstants(Qi, Pi)
 				}
-
-				copy(Pi, Q)
-
-				for k := len(Q); k < len(Q)+len(P); k++ {
-					Pi[k] = P[k-len(Q)]
-				}
-
-				decomposer.ModUpConstants[lvlP][i][j] = GenModUpConstants(Qi, Pi)
 			}
 		}
 	}
@@ -377,7 +380,11 @@ func NewDecomposer(ringQ, ringP *Ring) (decomposer *Decomposer) {
 func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, BaseRNSDecompositionVectorSize int, p0Q, p1Q, p1P Poly) {
 
 	ringQ := decomposer.ringQ.AtLevel(levelQ)
-	ringP := decomposer.ringP.AtLevel(levelP)
+
+	var ringP *Ring
+	if decomposer.ringP != nil {
+		ringP = decomposer.ringP.AtLevel(levelP)
+	}
 
 	N := ringQ.N()
 
@@ -396,9 +403,15 @@ func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, BaseRNSDec
 		var pos, neg, coeff, tmp uint64
 
 		Q := ringQ.ModuliChain()
-		P := ringP.ModuliChain()
 		BRCQ := ringQ.BRedConstants()
-		BRCP := ringP.BRedConstants()
+
+		var P []uint64
+		var BRCP [][]uint64
+
+		if ringP != nil {
+			P = ringP.ModuliChain()
+			BRCP = ringP.BRedConstants()
+		}
 
 		for j := 0; j < N; j++ {
 

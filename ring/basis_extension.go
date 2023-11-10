@@ -398,7 +398,7 @@ func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, BaseRNSDec
 	}
 
 	// First we check if the vector can simply by coping and rearranging elements (the case where no reconstruction is needed)
-	if decompLvl == -1 {
+	if decompLvl < 0 {
 
 		var pos, neg, coeff, tmp uint64
 

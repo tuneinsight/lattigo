@@ -1,4 +1,4 @@
-// Package hefloat implements Homomorphic Encryption for fixed-point approximate arithmetic over the complex or real numbers.
+// Package hefloat implements Homomorphic Encryption with fixed-point approximate arithmetic over the complex or real numbers.
 package hefloat
 
 import (

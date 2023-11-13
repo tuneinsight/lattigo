@@ -12,9 +12,8 @@ primitives and Multiparty-Homomorphic-Encryption-based secure protocols. The lib
 - Advanced and scheme agnostic implementation of RLWE-based primitives, key-generation, and their multiparty version.
 - Implementation of the BFV/BGV and CKKS schemes and their multiparty version.
 - Support for RGSW, external product and LMKCDEY blind rotations.
-- Comparable performance to state-of-the-art C++ libraries.
-- A pure Go implementation that enables cross-platform builds, including WASM compilation for
-  browser clients.
+- A pure Go implementation, enabling cross-platform builds, including WASM compilation for
+browser clients, with comparable performance to state-of-the-art C++ libraries.
 
 Lattigo is meant to support HE in distributed systems and microservices architectures, for which Go
 is a common choice thanks to its natural concurrency model and portability.

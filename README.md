@@ -8,9 +8,9 @@
 
 Lattigo is a Go module that implements full-RNS Ring-Learning-With-Errors-based homomorphic-encryption
 primitives and Multiparty-Homomorphic-Encryption-based secure protocols. The library features:
-- Optimized arithmetic over of power-of-two cyclotomic rings ($\mathbb{Z}_{Q}[X]/(X^{2^{d}}+1)$ and $\mathbb{Z}_{Q}[X+X^{-1}]/(X^{2^{d}}+1)$).
+- Optimized arithmetic for power-of-two cyclotomic rings.
 - Advanced and scheme agnostic implementation of RLWE-based primitives, key-generation, and their multiparty version.
-- Implementation of the BFV/BGV and CKKS schemes and their respective multiparty versions.
+- Implementation of the BFV/BGV and CKKS schemes and their multiparty version.
 - Support for RGSW, external product and LMKCDEY blind rotations.
 - Comparable performance to state-of-the-art C++ libraries.
 - A pure Go implementation that enables cross-platform builds, including WASM compilation for

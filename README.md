@@ -83,6 +83,29 @@ The library exposes the following packages:
   - `sampling`: Secure bytes sampling.
   - `structs`: Generic structs for maps, vectors and matrices, including serialization.
 
+```mermaid
+---
+title: Packages Dependency & Organization
+---
+flowchart LR
+RING(RING) --> RLWE(RLWE)
+RLWE --> RGSW(RGSW)
+RLWE --> HE([HE])
+RLWE --> CKKS{{CKKS}}
+RGSW --> HEBin{HEBin}
+HE --> HEFloat{HEFloat}
+HE --> HEInt{HEInt}
+BFV/BGV --> HEInt
+CKKS --> HEFloat
+RLWE --> BFV/BGV{{BFV/BGV}}
+MHE --> MHEFloat
+HEFloat --> MHEFloat((MHEFloat))
+HEFloat --> Bootstrapping
+HEInt --> MHEInt((MHEInt))
+RLWE --> MHE([MHE])
+MHE --> MHEInt
+```
+
 ## Versions and Roadmap
 
 The Lattigo library was originally exclusively developed by the EPFL Laboratory for Data Security

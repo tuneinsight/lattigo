@@ -1,3 +1,10 @@
+// Package main showcases how lookup tables can complement fixed-point approximate
+// homomorphic encryption to compute non-linear functions such as sign.
+// The example starts by homomorphically decoding the ciphertext from the SIMD
+// encoding to the coefficient encoding: IDFT(m(X)) -> m(X).
+// It then evaluates a Lookup-Table (LUT) on each coefficient of m(X): m(X)[i] -> LUT(m(X)[i])
+// and repacks each LUT(m(X)[i]) in a single RLWE ciphertext: Repack(LUT(m(X)[i])) -> LUT(m(X)).
+// Finally, it homomorphically switches LUT(m(X)) back to the SIMD domain: LUT(m(X)) -> IDFT(LUT(m(X))).
 package main
 
 import (
@@ -12,14 +19,6 @@ import (
 	"github.com/tuneinsight/lattigo/v4/ring"
 	"github.com/tuneinsight/lattigo/v4/utils"
 )
-
-// This example showcases how lookup tables can complement fixed-point approximate
-// homomorphic encryption to compute non-linear functions such as sign.
-// The example starts by homomorphically decoding the ciphertext from the SIMD
-// encoding to the coefficient encoding: IDFT(m(X)) -> m(X).
-// It then evaluates a Lookup-Table (LUT) on each coefficient of m(X): m(X)[i] -> LUT(m(X)[i])
-// and repacks each LUT(m(X)[i]) in a single RLWE ciphertext: Repack(LUT(m(X)[i])) -> LUT(m(X)).
-// Finally, it homomorphically switches LUT(m(X)) back to the SIMD domain: LUT(m(X)) -> IDFT(LUT(m(X))).
 
 // ========================================
 // Functions to evaluate with BlindRotation

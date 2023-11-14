@@ -48,6 +48,7 @@ All notable changes to this library are documented in this file.
         - Linear Transformations
         - Polynomial Evaluation 
     - `he/hebin`: Package`hebin` implements blind rotations evaluation for R-LWE schemes.
+- Moved the default parameters of all schemes to the `examples` package, where they are now referred to as **example** parameter sets to better convey the idea that they are not to be used as such in actual applications.
 - BFV: 
     - The code of the package `bfv` has replaced by a wrapper of the package `bgv` and moved to the package `schemes/bfv`.
 - BGV:

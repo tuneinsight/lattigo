@@ -43,3 +43,11 @@ Tutorials are examples showcasing the basic capabilities of the library.
  - `int_pir`: an example showcasing multi-party private information retrieval.
  - `int_psi`: an example showcasing multi-party private set intersection.
  - `thresh_eval_key_gen`: an example showcasing multi-party threshold key-generation.
+
+## Parameters
+
+The `params.go` file contains several example sets of parameters for both `heint` and `hefloat`.
+These parameter are chosen to reflect several degrees of homomorphic capacity for a fixed 128-bit security
+(according to the current standard estimates). They do not, however, represent a set of default parameters, 
+to be used in real HE applications. Rather, they are meant to facilitate quick tests and experimentation 
+with the library. 

@@ -1,11 +1,11 @@
 package mheint
 
 import (
-	"github.com/tuneinsight/lattigo/v4/he/heint"
-	"github.com/tuneinsight/lattigo/v4/mhe"
-	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v5/he/heint"
+	"github.com/tuneinsight/lattigo/v5/mhe"
+	"github.com/tuneinsight/lattigo/v5/ring"
 
-	"github.com/tuneinsight/lattigo/v4/core/rlwe"
+	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 )
 
 // RefreshProtocol is a struct storing the relevant parameters for the Refresh protocol.

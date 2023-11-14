@@ -3,9 +3,9 @@ package bootstrapping
 import (
 	"fmt"
 
-	"github.com/tuneinsight/lattigo/v4/core/rlwe"
-	"github.com/tuneinsight/lattigo/v4/he"
-	"github.com/tuneinsight/lattigo/v4/ring"
+	"github.com/tuneinsight/lattigo/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo/v5/he"
+	"github.com/tuneinsight/lattigo/v5/ring"
 )
 
 // Ensures that the Evaluator complies to the he.Bootstrapper interface

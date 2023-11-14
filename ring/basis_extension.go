@@ -5,7 +5,7 @@ import (
 	"math/bits"
 	"unsafe"
 
-	"github.com/tuneinsight/lattigo/v4/utils/bignum"
+	"github.com/tuneinsight/lattigo/v5/utils/bignum"
 )
 
 // BasisExtender stores the necessary parameters for RNS basis extension.

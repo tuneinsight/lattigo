@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/tuneinsight/lattigo/v4/core/rlwe"
-	"github.com/tuneinsight/lattigo/v4/he"
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo/v5/he"
+	"github.com/tuneinsight/lattigo/v5/utils"
 )
 
 // EvaluatorForInverse defines a set of common and scheme agnostic

@@ -1,4 +1,4 @@
-module github.com/tuneinsight/lattigo/v4
+module github.com/tuneinsight/lattigo/v5
 
 go 1.18
 

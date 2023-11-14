@@ -1,7 +1,7 @@
 package mhe
 
 import (
-	"github.com/tuneinsight/lattigo/v4/utils/sampling"
+	"github.com/tuneinsight/lattigo/v5/utils/sampling"
 )
 
 // CRS is an interface for Common Reference Strings.

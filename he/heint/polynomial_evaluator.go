@@ -3,11 +3,11 @@ package heint
 import (
 	"fmt"
 
-	"github.com/tuneinsight/lattigo/v4/core/rlwe"
-	"github.com/tuneinsight/lattigo/v4/he"
-	"github.com/tuneinsight/lattigo/v4/schemes/bfv"
-	"github.com/tuneinsight/lattigo/v4/schemes/bgv"
-	"github.com/tuneinsight/lattigo/v4/utils/bignum"
+	"github.com/tuneinsight/lattigo/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo/v5/he"
+	"github.com/tuneinsight/lattigo/v5/schemes/bfv"
+	"github.com/tuneinsight/lattigo/v5/schemes/bgv"
+	"github.com/tuneinsight/lattigo/v5/utils/bignum"
 )
 
 // PolynomialEvaluator is a wrapper of the he.PolynomialEvaluator.

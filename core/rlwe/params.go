@@ -8,9 +8,9 @@ import (
 	"math/bits"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/ring/ringqp"
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v5/ring"
+	"github.com/tuneinsight/lattigo/v5/ring/ringqp"
+	"github.com/tuneinsight/lattigo/v5/utils"
 )
 
 // MaxLogN is the log2 of the largest supported polynomial modulus degree.

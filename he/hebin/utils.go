@@ -3,8 +3,8 @@ package hebin
 import (
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v4/ring"
-	"github.com/tuneinsight/lattigo/v4/utils/bignum"
+	"github.com/tuneinsight/lattigo/v5/ring"
+	"github.com/tuneinsight/lattigo/v5/utils/bignum"
 )
 
 // MulBySmallMonomialMod2N multiplies pol by x^n, with 0 <= n < N

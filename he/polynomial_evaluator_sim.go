@@ -1,7 +1,7 @@
 package he
 
 import (
-	"github.com/tuneinsight/lattigo/v4/core/rlwe"
+	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 )
 
 // SimOperand is a dummy operand that

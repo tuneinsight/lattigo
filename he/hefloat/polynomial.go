@@ -1,6 +1,8 @@
 package hefloat
 
 import (
+	"math/big"
+
 	"github.com/tuneinsight/lattigo/v4/he"
 	"github.com/tuneinsight/lattigo/v4/utils/bignum"
 )
@@ -28,4 +30,26 @@ func (p PolynomialVector) Depth() int {
 func NewPolynomialVector(polys []bignum.Polynomial, mapping map[int][]int) (PolynomialVector, error) {
 	p, err := he.NewPolynomialVector(polys, mapping)
 	return PolynomialVector(p), err
+}
+
+func (p PolynomialVector) ChangeOfBasis(slots int) (scalar, constant []*big.Float) {
+
+	scalar = make([]*big.Float, slots)
+	constant = make([]*big.Float, slots)
+
+	for i := 0; i < slots; i++ {
+		scalar[i] = new(big.Float)
+		constant[i] = new(big.Float)
+	}
+
+	for i := range p.Mapping {
+		m := p.Mapping[i]
+		s, c := p.Value[i].ChangeOfBasis()
+		for _, j := range m {
+			scalar[j] = s
+			constant[j] = c
+		}
+	}
+
+	return
 }

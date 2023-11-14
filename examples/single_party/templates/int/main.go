@@ -1,4 +1,4 @@
-// Package main is a template encrypted arithmetic with floating point values, with a set of example parameters, key generation, encoding, encryption, decryption and decoding.
+// Package main is a template encrypted modular arithmetic integers, with a set of example parameters, key generation, encoding, encryption, decryption and decoding.
 package main
 
 import (
@@ -6,20 +6,22 @@ import (
 	"math/rand"
 
 	"github.com/tuneinsight/lattigo/v4/core/rlwe"
-	"github.com/tuneinsight/lattigo/v4/he/hefloat"
+	"github.com/tuneinsight/lattigo/v4/he/heint"
+	"github.com/tuneinsight/lattigo/v4/utils"
 )
 
 func main() {
 	var err error
-	var params hefloat.Parameters
+	var params heint.Parameters
 
 	// 128-bit secure parameters enabling depth-7 circuits.
-	if params, err = hefloat.NewParametersFromLiteral(
-		hefloat.ParametersLiteral{
-			LogN:            14,                                    // log2(ring degree)
-			LogQ:            []int{55, 45, 45, 45, 45, 45, 45, 45}, // log2(primes Q) (ciphertext modulus)
-			LogP:            []int{61},                             // log2(primes P) (auxiliary modulus)
-			LogDefaultScale: 45,                                    // log2(scale)
+	// LogN:14, LogQP: 431.
+	if params, err = heint.NewParametersFromLiteral(
+		heint.ParametersLiteral{
+			LogN:             14,                                    // log2(ring degree)
+			LogQ:             []int{55, 45, 45, 45, 45, 45, 45, 45}, // log2(primes Q) (ciphertext modulus)
+			LogP:             []int{61},                             // log2(primes P) (auxiliary modulus)
+			PlaintextModulus: 0x10001,                               // log2(scale)
 		}); err != nil {
 		panic(err)
 	}
@@ -31,7 +33,7 @@ func main() {
 	sk := kgen.GenSecretKeyNew()
 
 	// Encoder
-	ecd := hefloat.NewEncoder(params)
+	ecd := heint.NewEncoder(params)
 
 	// Encryptor
 	enc := rlwe.NewEncryptor(params, sk)
@@ -40,22 +42,23 @@ func main() {
 	dec := rlwe.NewDecryptor(params, sk)
 
 	// Vector of plaintext values
-	values := make([]float64, params.MaxSlots())
+	values := make([]uint64, params.MaxSlots())
 
 	// Source for sampling random plaintext values (not cryptographically secure)
 	/* #nosec G404 */
 	r := rand.New(rand.NewSource(0))
 
 	// Populates the vector of plaintext values
+	T := params.PlaintextModulus()
 	for i := range values {
-		values[i] = 2*r.Float64() - 1 // uniform in [-1, 1]
+		values[i] = r.Uint64() % T
 	}
 
 	// Allocates a plaintext at the max level.
 	// Default rlwe.MetaData:
 	// - IsBatched = true (slots encoding)
 	// - Scale = params.DefaultScale()
-	pt := hefloat.NewPlaintext(params, params.MaxLevel())
+	pt := heint.NewPlaintext(params, params.MaxLevel())
 
 	// Encodes the vector of plaintext values
 	if err = ecd.Encode(values, pt); err != nil {
@@ -69,14 +72,14 @@ func main() {
 	}
 
 	// Allocates a vector for the reference values
-	want := make([]float64, params.MaxSlots())
+	want := make([]uint64, params.MaxSlots())
 	copy(want, values)
 
 	PrintPrecisionStats(params, ct, want, ecd, dec)
 }
 
 // PrintPrecisionStats decrypts, decodes and prints the precision stats of a ciphertext.
-func PrintPrecisionStats(params hefloat.Parameters, ct *rlwe.Ciphertext, want []float64, ecd *hefloat.Encoder, dec *rlwe.Decryptor) {
+func PrintPrecisionStats(params heint.Parameters, ct *rlwe.Ciphertext, want []uint64, ecd *heint.Encoder, dec *rlwe.Decryptor) {
 
 	var err error
 
@@ -84,7 +87,7 @@ func PrintPrecisionStats(params hefloat.Parameters, ct *rlwe.Ciphertext, want []
 	pt := dec.DecryptNew(ct)
 
 	// Decodes the plaintext
-	have := make([]float64, params.MaxSlots())
+	have := make([]uint64, params.MaxSlots())
 	if err = ecd.Decode(pt, have); err != nil {
 		panic(err)
 	}
@@ -92,16 +95,17 @@ func PrintPrecisionStats(params hefloat.Parameters, ct *rlwe.Ciphertext, want []
 	// Pretty prints some values
 	fmt.Printf("Have: ")
 	for i := 0; i < 4; i++ {
-		fmt.Printf("%20.15f ", have[i])
+		fmt.Printf("%d ", have[i])
 	}
 	fmt.Printf("...\n")
 
 	fmt.Printf("Want: ")
 	for i := 0; i < 4; i++ {
-		fmt.Printf("%20.15f ", want[i])
+		fmt.Printf("%d ", want[i])
 	}
 	fmt.Printf("...\n")
 
-	// Pretty prints the precision stats
-	fmt.Println(hefloat.GetPrecisionStats(params, ecd, dec, have, want, 0, false).String())
+	if !utils.EqualSlice(want, have) {
+		panic("wrong result: bad decryption or encrypted/plaintext circuits do not match")
+	}
 }

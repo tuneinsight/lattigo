@@ -1,6 +1,6 @@
 # MHE
-The MHE package implements several Ring-Learning-with-Errors (RLWE) based Multiparty Homomorphic Encryption (MHE) primitives.
-It provides generic interfaces for the local steps of the MHE-based Secure Multiparty Computation (MHE-MPC) protocol that are common between all the RLWE distributed schemes implemented in Lattigo (e.g., collective key generation).
+The MHE package implements several Multiparty Homomorphic Encryption (MHE) primitives based on Ring-Learning-with-Errors (RLWE).
+It provides generic interfaces for the local steps of the MHE-based Secure Multiparty Computation (MHE-MPC) protocol that are common across all the RLWE distributed schemes implemented in Lattigo (e.g., collective key generation).
 The `mhe/heinteger` and `mhe/hefloat` packages import `mhe` and provide scheme-specific functionalities (e.g., interactive bootstrapping).
 
 This package implements local operations only, hence does not assume or provide any network-layer protocol implementation.
@@ -62,7 +62,7 @@ However, unlike LSSS-based MPC, the setup produces public-keys that can be re-us
 
 #### 1.i Secret Keys Generation
 The parties generate their individual secret-keys locally by using a `rlwe.KeyGenerator`; this provides them with a `rlwe.SecretKey` type.
-See [rlwe/keygen.go](../rlwe/keygen.go) for further information on key-generation.
+See [core/rlwe/keygenerator.go](../core/rlwe/keygenerator.go) for further information on key-generation.
 
 The _ideal secret-key_ is implicitly defined as the sum of all secret-keys.
 Hence, this secret-key enforces an _N-out-N_ access structure which requires all the parties to collaborate in a ciphertext decryption and thus tolerates N-1 dishonest parties.
@@ -97,7 +97,7 @@ After the execution of this protocol, the parties have access to the collective 
 In order to evaluate circuits on the collectively-encrypted inputs, the parties must generate the evaluation-keys that correspond to the operations they wish to support.
 The generation of a relinearization-key, which enables compact homomorphic multiplication, is described below (see `mhe.RelinearizationKeyGenProtocol`).
 Additionally, and given that the circuit requires it, the parties can generate evaluation-keys to support rotations and other kinds of Galois automorphisms (see `mhe.GaloisKeyGenProtocol` below).
-Finally, it is possible to generate generic evaluation-keys to homomoprhically re-encrypt a ciphertext from a secret-key to another (see `mhe.EvaluationKeyGenProtocol`).
+Finally, it is possible to generate generic evaluation-keys to homomorphically re-encrypt a ciphertext from a secret-key to another (see `mhe.EvaluationKeyGenProtocol`).
 
 ##### 1.iv.a Relinearization Key
 This protocol provides the parties with a public relinearization-key (`rlwe.RelinearizationKey`) for the _ideal secret-key_. This public-key enables compact multiplications in RLWE schemes. Out of the described protocols in this package, this is the only two-round protocol.
@@ -138,12 +138,12 @@ The protocol is implemented by the  `mhe.EvaluationKeyGenProtocol` type and its 
 The parties provide their inputs for the computation during the Input Phase.
 They use the collective encryption-key generated during the Setup Phase to encrypt their inputs, and send them through the public channel.
 Since the collective encryption-key is a valid RLWE public encryption-key, it can be used directly with the single-party scheme.
-Hence, the parties can use the `Encoder` and `Encryptor` interfaces of the desired encryption scheme (see [integer.Encoder](../he/integer/encoder.go), [float.Encoder](../he/float/encoder.go) and [rlwe.Encryptor](../rlwe/encryptor.go)).
+Hence, the parties can use the `Encoder` and `Encryptor` interfaces of the desired encryption scheme (see [heint.Encoder](../he/heint/heint.go), [hefloat.Encoder](../he/hefloat/hefloat.go) and [rlwe.Encryptor](../core/rlwe/encryptor.go)).
 
 #### 2.ii Circuit Evaluation step
 The computation of the desired function is performed homomorphically during the Evaluation Phase.
 The step can be performed by the parties themselves or can be outsourced to a cloud-server. 
-Since the ciphertexts in the multiparty schemes are valid ciphertexts for the single-party ones, the homomorphic operation of the latter can be used directly (see [integer.Evaluator](../he/integer/evaluator.go) and [float.Evaluator](../he/float/evaluator.go)).
+Since the ciphertexts in the multiparty schemes are valid ciphertexts for the single-party ones, the homomorphic operation of the latter can be used directly (see [heint.Evaluator](../he/heint/heint.go) and [hefloat.Evaluator](../he/hefloat/hefloat.go)).
 
 #### 2.iii Output step
 The receiver(s) obtain their outputs through the final Output Phase, whose aim is to decrypt the ciphertexts resulting from the Evaluation Phase.
@@ -163,7 +163,7 @@ While both protocol variants have slightly different local operations, their ste
 - From the aggregated `mhe.KeySwitchShare`, any party can derive the ciphertext re-encrypted under _s'_ by using the `(Public)KeySwitchProtocol.KeySwitch` method.
 
 ##### 2.iii.b Decryption
-Once the receivers have obtained the ciphertext re-encrypted under their respective keys, they can use the usual decryption algorithm of the single-party scheme to obtain the plaintext result (see [rlwe.Decryptor](../rlwe/decryptor.go).
+Once the receivers have obtained the ciphertext re-encrypted under their respective keys, they can use the usual decryption algorithm of the single-party scheme to obtain the plaintext result (see [rlwe.Decryptor](../core/rlwe/decryptor.go).
 
 ## References
 

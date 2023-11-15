@@ -2,7 +2,7 @@
 
 ## Applications
 
-Application examples are examples showcasing specific capabilities of the library or scaled down real world scenarios.
+Application examples are examples showcasing specific capabilities of the library on scaled-down real world scenarios.
 
 ### Binary
 
@@ -11,13 +11,13 @@ Application examples are examples showcasing specific capabilities of the librar
 ### Integers
 
 - `int_ride_hailing`: an example on privacy preserving ride hailing.
-- `int_vectorized_OLE`: an example on vectorized oblivious linear evaluation using RLWE trapdoor.
+- `int_vectorized_OLE`: an example on vectorized oblivious linear evaluation using an RLWE trapdoor.
 
 ### Reals/Complexes
 
-- `reals_bootstrapping`: a series of example showcasing the capabilities of the bootstrapping for fixed point arithmetic.
+- `reals_bootstrapping`: a series of examples showcasing the capabilities of the bootstrapping for fixed point arithmetic.
   - `basics`: an example showcasing the basic capabilities of the bootstrapping.
-  - `high_precision`: an example showcasing high precision bootstrapping.
+  - `high_precision`: an example showcasing high-precision bootstrapping.
   - `slim`: an example showcasing slim bootstrapping, i.e. re-ordering the steps of the bootstrapping.
 
 - `reals_scheme_switching`: an example showcasing scheme switching between `hefloat` and `hebin` to complement fixed-point arithmetic with lookup tables.
@@ -46,8 +46,8 @@ Tutorials are examples showcasing the basic capabilities of the library.
 
 ## Parameters
 
-The `params.go` file contains several example sets of parameters for both `heint` and `hefloat`.
-These parameter are chosen to reflect several degrees of homomorphic capacity for a fixed 128-bit security
-(according to the current standard estimates). They do not, however, represent a set of default parameters, 
+The `params.go` file contains several sets of example parameters for both `heint` and `hefloat`.
+These parameter are chosen to represent several degrees of homomorphic capacity for a fixed 128-bit security
+(according to the standard estimates at the time of writing). They do not represent a set of default parameters 
 to be used in real HE applications. Rather, they are meant to facilitate quick tests and experimentation 
-with the library. 
+with the library.

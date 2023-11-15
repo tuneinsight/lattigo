@@ -8,8 +8,9 @@
 
 Lattigo is a Go module that implements full-RNS Ring-Learning-With-Errors-based homomorphic-encryption
 primitives and Multiparty-Homomorphic-Encryption-based secure protocols. The library features:
+
 - Optimized arithmetic for power-of-two cyclotomic rings.
-- Advanced and scheme agnostic implementation of RLWE-based primitives, key-generation, and their multiparty version.
+- Advanced and scheme-agnostic implementation of RLWE-based primitives, key-generation, and their multiparty version.
 - Implementation of the BFV/BGV and CKKS schemes and their multiparty version.
 - Support for RGSW, external product and LMKCDEY blind rotations.
 - A pure Go implementation, enabling cross-platform builds, including WASM compilation for
@@ -23,15 +24,15 @@ is a common choice thanks to its natural concurrency model and portability.
 The library exposes the following packages:
 
 - `lattigo/he`: The main package of the library which provides scheme-agnostic interfaces
-  and Homomorphic Encryption based on the plaintext domain.
+  and Homomorphic Encryption for different plaintext domains.
 
-  - `hebin`: Blind rotations (a.k.a Lookup Tables) over RLWE ciphertexts. 
+  - `hebin`: Homomorphic Encryption for binary arithmetic. It comprises blind rotations (a.k.a Lookup Tables) over RLWE ciphertexts.
 
   - `hefloat`: Homomorphic Encryption for fixed-point approximate arithmetic over the complex or real numbers.
 
-    - `bootstrapper`: State-of-the-Art bootstrapping for fixed-point approximate arithmetic over the real
-      and comples numbers, with support for the Conjugate Invariant ring, batch bootstrapping with automatic
-      packing/unpacking of sparsely packed/smaller ring degree ciphertexts, arbitrary precision bootstrapping
+    - `bootstrapper`: Bootstrapping for fixed-point approximate arithmetic over the real
+      and complex numbers, with support for the Conjugate Invariant ring, batch bootstrapping with automatic
+      packing/unpacking of sparsely packed/smaller ring degree ciphertexts, arbitrary precision bootstrapping,
       and advanced circuit customization/parameterization.
 
   - `heint`: Homomorphic Encryption for modular arithmetic over the integers.
@@ -62,7 +63,7 @@ The library exposes the following packages:
 - `lattigo/core`: A package implementing the core cryptographic functionalities of the library.
 
   - `rlwe`: Common base for generic RLWE-based homomorphic encryption.
-  It provides all homomorphic functionalities and defines all structs that are not scheme specific.
+  It provides all homomorphic functionalities and defines all structs that are not scheme-specific.
   This includes plaintext, ciphertext, key-generation, encryption, decryption and key-switching, as
   well as other more advanced primitives such as RLWE-repacking.
 

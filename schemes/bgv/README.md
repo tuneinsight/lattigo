@@ -1,12 +1,12 @@
 
 # BGV
 
-The BGV package provides a unified RNS-accelerated variant of the Fan-Vercauteren version of the Brakerski's scale invariant homomorphic encryption scheme (BFV) and Brakerski-Gentry-Vaikuntanathan (BGV) homomorphic encryption scheme. It enables SIMD modular arithmetic over encrypted vectors or integers.
+The BGV package provides a unified RNS-accelerated variant of the Brakerski-Fan-Vercauteren (BFV) scale invariant homomorphic encryption scheme and Brakerski-Gentry-Vaikuntanathan (BGV) homomorphic encryption scheme. It enables SIMD modular arithmetic over encrypted vectors or integers.
 
 ## Implementation Notes
 
 The proposed implementation provides all the functionalities of the BFV and BGV schemes under a unified scheme.
-This enabled by the equivalency between the LSB and MSB encoding when T is coprime to Q (Appendix A of <https://eprint.iacr.org/2013/372>).
+This is enabled by the equivalence between the LSB and MSB encoding when T is coprime to Q (Appendix A of <https://eprint.iacr.org/2013/372>).
 
 ### Intuition
 
@@ -51,8 +51,9 @@ The tensoring operations have to be slightly modified to take into account the a
 The above change enables an implementation of the BGV scheme with an MSB encoding, which is essentially the BFV scheme. In other words, if $T$ is coprime with $Q$ then the BFV and BGV encoding (and thus scheme) are indistinguishable up to a plaintext scaling factor of $T^{-1}\mod Q$. 
 
 This unified scheme can also be seen as a variant of the BGV scheme with two tensoring operations:
-- The BGV-style tensoring with a noise growth proportional to the current noise
-- The BFV-style tensoring with a noise growth invariant to the current noise
+
+- The BGV-style tensoring with a noise growth proportional to the current noise,
+- The BFV-style tensoring with a noise growth invariant to the current noise.
 
 ## References
 

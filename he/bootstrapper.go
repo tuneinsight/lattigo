@@ -1,6 +1,6 @@
 package he
 
-// Bootstrapper is a scheme independent generic interface to handle bootstrapping.
+// Bootstrapper is a scheme-independent generic interface to handle bootstrapping.
 type Bootstrapper[CiphertextType any] interface {
 
 	// Bootstrap defines a method that takes a single Ciphertext as input and applies

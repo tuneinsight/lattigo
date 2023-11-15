@@ -53,3 +53,9 @@ The above change enables an implementation of the BGV scheme with an MSB encodin
 This unified scheme can also be seen as a variant of the BGV scheme with two tensoring operations:
 - The BGV-style tensoring with a noise growth proportional to the current noise
 - The BFV-style tensoring with a noise growth invariant to the current noise
+
+## References
+
+1. Practical Bootstrapping in Quasilinear Time (<https://eprint.iacr.org/2013/372>)
+2. A Full RNS Variant of FV Like Somewhat Homomorphic Encryption Schemes (<https://eprint.iacr.org/2016/510>)
+3. An Improved RNS Variant of the BFV Homomorphic Encryption Scheme (<https://eprint.iacr.org/2018/117>)

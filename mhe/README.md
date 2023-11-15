@@ -165,3 +165,7 @@ While both protocol variants have slightly different local operations, their ste
 ##### 2.iii.b Decryption
 Once the receivers have obtained the ciphertext re-encrypted under their respective keys, they can use the usual decryption algorithm of the single-party scheme to obtain the plaintext result (see [rlwe.Decryptor](../rlwe/decryptor.go).
 
+## References
+
+1. Multiparty Homomorphic Encryption from Ring-Learning-With-Errors (<https://eprint.iacr.org/2020/304>)
+2. An Efficient Threshold Access-Structure for RLWE-Based Multiparty Homomorphic Encryption (<https://eprint.iacr.org/2022/780>)

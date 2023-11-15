@@ -159,41 +159,13 @@ If you want to contribute to Lattigo, have a feature proposal or request, to rep
 Please use the following BibTex entry for citing Lattigo:
 
     @misc{lattigo,
-	    title = {Lattigo v4},
+	    title = {Lattigo v5},
 	    howpublished = {Online: \url{https://github.com/tuneinsight/lattigo}},
-	    month = Aug,
-	    year = 2022,
+	    month = Nov,
+	    year = 2023,
 	    note = {EPFL-LDS, Tune Insight SA}
     }
     
-## References
-
-1. Efficient Bootstrapping for Approximate Homomorphic Encryption with Non-Sparse Keys
-   (<https://eprint.iacr.org/2020/1203>)
-1. Bootstrapping for Approximate Homomorphic Encryption with Negligible Failure-Probability by Using Sparse-Secret Encapsulation
-   (<https://eprint.iacr.org/2022/024>)
-1. Somewhat Practical Fully Homomorphic Encryption (<https://eprint.iacr.org/2012/144>)
-1. Multiparty Homomorphic Encryption from Ring-Learning-With-Errors (<https://eprint.iacr.org/2020/304>)
-2. An Efficient Threshold Access-Structure for RLWE-Based Multiparty Homomorphic Encryption (<https://eprint.iacr.org/2022/780>)
-3. A Full RNS Variant of FV Like Somewhat Homomorphic Encryption Schemes
-   (<https://eprint.iacr.org/2016/510>)
-4. An Improved RNS Variant of the BFV Homomorphic Encryption Scheme
-   (<https://eprint.iacr.org/2018/117>)
-5. Homomorphic Encryption for Arithmetic of Approximate Numbers (<https://eprint.iacr.org/2016/421>)
-6. A Full RNS Variant of Approximate Homomorphic Encryption (<https://eprint.iacr.org/2018/931>)
-7. Improved Bootstrapping for Approximate Homomorphic Encryption
-1. Fully Homomorphic Encryption without Bootstrapping (<https://eprint.iacr.org/2011/277>)     
-1. Homomorphic Encryption for Arithmetic of Approximate Numbers (<https://eprint.iacr.org/2016/421>)
-1. A Full RNS Variant of Approximate Homomorphic Encryption (<https://eprint.iacr.org/2018/931>)
-1. Improved Bootstrapping for Approximate Homomorphic Encryption
-   (<https://eprint.iacr.org/2018/1043>)
-8. Better Bootstrapping for Approximate Homomorphic Encryption (<https://eprint.iacr.org/2019/688>)
-9.  Post-quantum key exchange - a new hope (<https://eprint.iacr.org/2015/1092>)
-10. Faster arithmetic for number-theoretic transforms (<https://arxiv.org/abs/1205.2926>)
-11. Speeding up the Number Theoretic Transform for Faster Ideal Lattice-Based Cryptography
-   (<https://eprint.iacr.org/2016/504>)
-12. Gaussian sampling in lattice-based cryptography
-   (<https://tel.archives-ouvertes.fr/tel-01245066v2>)
 
 The Lattigo logo is a lattice-based version of the original Golang mascot by [Renee
 French](http://reneefrench.blogspot.com/).

@@ -167,3 +167,11 @@ entropy, by modifying their distribution to {(1-p)/2, p, (1-p)/2}, for any p bet
 for p>>1/3 can result in low Hamming weight keys (*sparse* keys). *We recall that it has been shown
 that the security of sparse keys can be considerably lower than that of fully entropic keys, and the
 CKKS security parameters should be re-evaluated if sparse keys are used*.
+
+## References
+
+1. Homomorphic Encryption for Arithmetic of Approximate Numbers (<https://eprint.iacr.org/2016/421>)
+2. A Full RNS Variant of Approximate Homomorphic Encryption (<https://eprint.iacr.org/2018/931>)
+3. Approximate Homomorphic Encryption over the Conjugate-invariant Ring (<https://eprint.iacr.org/2018/952>)
+4. Approximate Homomorphic Encryption with Reduced Approximation Error (<https://eprint.iacr.org/2020/1118>)
+5. On the precision loss in approximate homomorphic encryption (<https://eprint.iacr.org/2022/162>)

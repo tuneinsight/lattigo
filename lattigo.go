@@ -1,10 +1,7 @@
 /*
-Package lattigo is a cryptographic library implementing lattice-based cryptographic primitives. The library features:
-
-  - A pure Go implementation enabling code-simplicity and easy builds.
-  - A public interface for an efficient multi-precision polynomial arithmetic layer.
-  - Comparable performance to state-of-the-art C++ libraries.
-
-Lattigo aims at enabling fast prototyping of secure-multiparty computation solutions based on distributed homomorphic cryptosystems, by harnessing Go's natural concurrency model.
+Package lattigo is the open-source community-version of Tune Insight's Homomorphic Encryption library.
+It provides a pure Go implementation of state-of-the-art Homomorphic Encryption (HE) and Multiparty Homomorphic
+Encryption (MHE) schemes, enabling code-simplicity, cross-platform compatibility and easy builds, while retaining
+the same performance as C++ libraries.
 */
 package lattigo

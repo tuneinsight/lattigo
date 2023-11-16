@@ -2,9 +2,10 @@ package ring
 
 import (
 	"math"
-	"math/big"
 	"math/bits"
 	"unsafe"
+
+	"github.com/tuneinsight/lattigo/v5/utils/bignum"
 )
 
 // BasisExtender stores the necessary parameters for RNS basis extension.
@@ -17,8 +18,8 @@ type BasisExtender struct {
 	modDownConstantsPtoQ [][]uint64
 	modDownConstantsQtoP [][]uint64
 
-	buffQ *Poly
-	buffP *Poly
+	buffQ Poly
+	buffP Poly
 }
 
 func genmodDownConstants(ringQ, ringP *Ring) (constants [][]uint64) {
@@ -183,13 +184,13 @@ func (be *BasisExtender) ShallowCopy() *BasisExtender {
 // ModUpQtoP extends the RNS basis of a polynomial from Q to QP.
 // Given a polynomial with coefficients in basis {Q0,Q1....Qlevel},
 // it extends its basis from {Q0,Q1....Qlevel} to {Q0,Q1....Qlevel,P0,P1...Pj}
-func (be *BasisExtender) ModUpQtoP(levelQ, levelP int, polQ, polP *Poly) {
+func (be *BasisExtender) ModUpQtoP(levelQ, levelP int, polQ, polP Poly) {
 
 	ringQ := be.ringQ.AtLevel(levelQ)
 	ringP := be.ringP.AtLevel(levelP)
 	buffQ := be.buffQ
 
-	QHalf := new(big.Int).Set(ringQ.ModulusAtLevel[levelQ])
+	QHalf := bignum.NewInt(ringQ.ModulusAtLevel[levelQ])
 	QHalf.Rsh(QHalf, 1)
 
 	ringQ.AddScalarBigint(polQ, QHalf, buffQ)
@@ -200,13 +201,13 @@ func (be *BasisExtender) ModUpQtoP(levelQ, levelP int, polQ, polP *Poly) {
 // ModUpPtoQ extends the RNS basis of a polynomial from P to PQ.
 // Given a polynomial with coefficients in basis {P0,P1....Plevel},
 // it extends its basis from {P0,P1....Plevel} to {Q0,Q1...Qj}
-func (be *BasisExtender) ModUpPtoQ(levelP, levelQ int, polP, polQ *Poly) {
+func (be *BasisExtender) ModUpPtoQ(levelP, levelQ int, polP, polQ Poly) {
 
 	ringQ := be.ringQ.AtLevel(levelQ)
 	ringP := be.ringP.AtLevel(levelP)
 	buffP := be.buffP
 
-	PHalf := new(big.Int).Set(ringP.ModulusAtLevel[levelP])
+	PHalf := bignum.NewInt(ringP.ModulusAtLevel[levelP])
 	PHalf.Rsh(PHalf, 1)
 
 	ringP.AddScalarBigint(polP, PHalf, buffP)
@@ -218,7 +219,7 @@ func (be *BasisExtender) ModUpPtoQ(levelP, levelQ int, polP, polQ *Poly) {
 // Given a polynomial with coefficients in basis {Q0,Q1....Qlevel} and {P0,P1...Pj},
 // it reduces its basis from {Q0,Q1....Qlevel} and {P0,P1...Pj} to {Q0,Q1....Qlevel}
 // and does a rounded integer division of the result by P.
-func (be *BasisExtender) ModDownQPtoQ(levelQ, levelP int, p1Q, p1P, p2Q *Poly) {
+func (be *BasisExtender) ModDownQPtoQ(levelQ, levelP int, p1Q, p1P, p2Q Poly) {
 
 	ringQ := be.ringQ.AtLevel(levelQ)
 	modDownConstants := be.modDownConstantsPtoQ[levelP]
@@ -236,7 +237,7 @@ func (be *BasisExtender) ModDownQPtoQ(levelQ, levelP int, p1Q, p1P, p2Q *Poly) {
 // it reduces its basis from {Q0,Q1....Qi} and {P0,P1...Pj} to {Q0,Q1....Qi}
 // and does a rounded integer division of the result by P.
 // Inputs must be in the NTT domain.
-func (be *BasisExtender) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q *Poly) {
+func (be *BasisExtender) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q Poly) {
 
 	ringQ := be.ringQ.AtLevel(levelQ)
 	ringP := be.ringP.AtLevel(levelP)
@@ -259,7 +260,7 @@ func (be *BasisExtender) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q *Poly
 // Given a polynomial with coefficients in basis {Q0,Q1....QlevelQ} and {P0,P1...PlevelP},
 // it reduces its basis from {Q0,Q1....QlevelQ} and {P0,P1...PlevelP} to {P0,P1...PlevelP}
 // and does a floored integer division of the result by Q.
-func (be *BasisExtender) ModDownQPtoP(levelQ, levelP int, p1Q, p1P, p2P *Poly) {
+func (be *BasisExtender) ModDownQPtoP(levelQ, levelP int, p1Q, p1P, p2P Poly) {
 
 	ringP := be.ringP.AtLevel(levelP)
 	modDownConstants := be.modDownConstantsQtoP[levelQ]
@@ -299,6 +300,7 @@ func ModUpExact(p1, p2 [][]uint64, ringQ, ringP *Ring, MUC ModUpConstants) {
 	for x := 0; x < len(p1[0]); x = x + 8 {
 		reconstructRNS(0, levelQ+1, x, p1, &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, Q, mredQ, qoverqiinvqi)
 		for j := 0; j < levelP+1; j++ {
+			/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2[j])%8 != 0*/
 			multSum(levelQ, (*[8]uint64)(unsafe.Pointer(&p2[j][x])), &rlo, &rhi, &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, P[j], mredP[j], vtimesqmodp[j], qoverqimodp[j])
 		}
 	}
@@ -319,50 +321,53 @@ func NewDecomposer(ringQ, ringP *Ring) (decomposer *Decomposer) {
 	decomposer.ringQ = ringQ
 	decomposer.ringP = ringP
 
-	Q := ringQ.ModuliChain()
-	P := ringP.ModuliChain()
+	if ringP != nil {
 
-	decomposer.ModUpConstants = make([][][]ModUpConstants, ringP.MaxLevel())
+		Q := ringQ.ModuliChain()
+		P := ringP.ModuliChain()
 
-	for lvlP := 0; lvlP < ringP.MaxLevel(); lvlP++ {
+		decomposer.ModUpConstants = make([][][]ModUpConstants, ringP.MaxLevel())
 
-		P := P[:lvlP+2]
+		for lvlP := 0; lvlP < ringP.MaxLevel(); lvlP++ {
 
-		nbPi := len(P)
-		decompRNS := int(math.Ceil(float64(len(Q)) / float64(nbPi)))
+			P := P[:lvlP+2]
 
-		xnbPi := make([]int, decompRNS)
-		for i := range xnbPi {
-			xnbPi[i] = nbPi
-		}
+			nbPi := len(P)
+			BaseRNSDecompositionVectorSize := int(math.Ceil(float64(len(Q)) / float64(nbPi)))
 
-		if len(Q)%nbPi != 0 {
-			xnbPi[decompRNS-1] = len(Q) % nbPi
-		}
+			xnbPi := make([]int, BaseRNSDecompositionVectorSize)
+			for i := range xnbPi {
+				xnbPi[i] = nbPi
+			}
 
-		decomposer.ModUpConstants[lvlP] = make([][]ModUpConstants, decompRNS)
+			if len(Q)%nbPi != 0 {
+				xnbPi[BaseRNSDecompositionVectorSize-1] = len(Q) % nbPi
+			}
 
-		// Create ModUpConstants for each possible combination of [Qi,Pj] according to xnbPi
-		for i := 0; i < decompRNS; i++ {
+			decomposer.ModUpConstants[lvlP] = make([][]ModUpConstants, BaseRNSDecompositionVectorSize)
 
-			decomposer.ModUpConstants[lvlP][i] = make([]ModUpConstants, xnbPi[i]-1)
+			// Create ModUpConstants for each possible combination of [Qi,Pj] according to xnbPi
+			for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
 
-			for j := 0; j < xnbPi[i]-1; j++ {
+				decomposer.ModUpConstants[lvlP][i] = make([]ModUpConstants, xnbPi[i]-1)
 
-				Qi := make([]uint64, j+2)
-				Pi := make([]uint64, len(Q)+len(P))
+				for j := 0; j < xnbPi[i]-1; j++ {
 
-				for k := 0; k < j+2; k++ {
-					Qi[k] = Q[i*nbPi+k]
+					Qi := make([]uint64, j+2)
+					Pi := make([]uint64, len(Q)+len(P))
+
+					for k := 0; k < j+2; k++ {
+						Qi[k] = Q[i*nbPi+k]
+					}
+
+					copy(Pi, Q)
+
+					for k := len(Q); k < len(Q)+len(P); k++ {
+						Pi[k] = P[k-len(Q)]
+					}
+
+					decomposer.ModUpConstants[lvlP][i][j] = GenModUpConstants(Qi, Pi)
 				}
-
-				copy(Pi, Q)
-
-				for k := len(Q); k < len(Q)+len(P); k++ {
-					Pi[k] = P[k-len(Q)]
-				}
-
-				decomposer.ModUpConstants[lvlP][i][j] = GenModUpConstants(Qi, Pi)
 			}
 		}
 	}
@@ -372,31 +377,41 @@ func NewDecomposer(ringQ, ringP *Ring) (decomposer *Decomposer) {
 
 // DecomposeAndSplit decomposes a polynomial p(x) in basis Q, reduces it modulo qi, and returns
 // the result in basis QP separately.
-func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, decompRNS int, p0Q, p1Q, p1P *Poly) {
+func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, BaseRNSDecompositionVectorSize int, p0Q, p1Q, p1P Poly) {
 
 	ringQ := decomposer.ringQ.AtLevel(levelQ)
-	ringP := decomposer.ringP.AtLevel(levelP)
+
+	var ringP *Ring
+	if decomposer.ringP != nil {
+		ringP = decomposer.ringP.AtLevel(levelP)
+	}
 
 	N := ringQ.N()
 
-	lvlQStart := decompRNS * nbPi
+	lvlQStart := BaseRNSDecompositionVectorSize * nbPi
 
 	var decompLvl int
-	if levelQ > nbPi*(decompRNS+1)-1 {
+	if levelQ > nbPi*(BaseRNSDecompositionVectorSize+1)-1 {
 		decompLvl = nbPi - 2
 	} else {
 		decompLvl = (levelQ % nbPi) - 1
 	}
 
 	// First we check if the vector can simply by coping and rearranging elements (the case where no reconstruction is needed)
-	if decompLvl == -1 {
+	if decompLvl < 0 {
 
 		var pos, neg, coeff, tmp uint64
 
 		Q := ringQ.ModuliChain()
-		P := ringP.ModuliChain()
 		BRCQ := ringQ.BRedConstants()
-		BRCP := ringP.BRedConstants()
+
+		var P []uint64
+		var BRCP [][]uint64
+
+		if ringP != nil {
+			P = ringP.ModuliChain()
+			BRCP = ringP.BRedConstants()
+		}
 
 		for j := 0; j < N; j++ {
 
@@ -422,14 +437,14 @@ func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, decompRNS 
 		// Otherwise, we apply a fast exact base conversion for the reconstruction
 	} else {
 
-		p0idxst := decompRNS * nbPi
+		p0idxst := BaseRNSDecompositionVectorSize * nbPi
 		p0idxed := p0idxst + nbPi
 
 		if p0idxed > levelQ+1 {
 			p0idxed = levelQ + 1
 		}
 
-		MUC := decomposer.ModUpConstants[nbPi-2][decompRNS][decompLvl]
+		MUC := decomposer.ModUpConstants[nbPi-2][BaseRNSDecompositionVectorSize][decompLvl]
 
 		var v, rlo, rhi [8]uint64
 		var vi [8]float64
@@ -443,15 +458,17 @@ func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, decompRNS 
 		vtimesqmodp := MUC.vtimesqmodp
 		qoverqimodp := MUC.qoverqimodp
 
-		QBig := NewUint(1)
+		QBig := bignum.NewInt(1)
 		for i := p0idxst; i < p0idxed; i++ {
-			QBig.Mul(QBig, NewUint(Q[i]))
+			QBig.Mul(QBig, bignum.NewInt(Q[i]))
 		}
 
-		QHalf := new(big.Int).Rsh(QBig, 1)
+		QHalf := bignum.NewInt(QBig)
+		QHalf.Rsh(QHalf, 1)
 		QHalfModqi := make([]uint64, p0idxed-p0idxst)
+		tmp := bignum.NewInt(0)
 		for i, j := 0, p0idxst; j < p0idxed; i, j = i+1, j+1 {
-			QHalfModqi[i] = new(big.Int).Mod(QHalf, NewUint(Q[j])).Uint64()
+			QHalfModqi[i] = tmp.Mod(QHalf, bignum.NewInt(Q[j])).Uint64()
 		}
 
 		// We loop over each coefficient and apply the basis extension
@@ -461,16 +478,19 @@ func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, decompRNS 
 
 			// Coefficients of index smaller than the ones to be decomposed
 			for j := 0; j < p0idxst; j++ {
+				/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1Q.Coeffs[j])%8 != 0 */
 				multSum(decompLvl+1, (*[8]uint64)(unsafe.Pointer(&p1Q.Coeffs[j][x])), &rlo, &rhi, &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, Q[j], mredQ[j], vtimesqmodp[j], qoverqimodp[j])
 			}
 
 			// Coefficients of index greater than the ones to be decomposed
 			for j := p0idxed; j < levelQ+1; j++ {
+				/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1Q.Coeffs[j])%8 != 0 */
 				multSum(decompLvl+1, (*[8]uint64)(unsafe.Pointer(&p1Q.Coeffs[j][x])), &rlo, &rhi, &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, Q[j], mredQ[j], vtimesqmodp[j], qoverqimodp[j])
 			}
 
 			// Coefficients of the special primes Pi
 			for j, u := 0, len(Q); j < levelP+1; j, u = j+1, u+1 {
+				/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1P.Coeffs[j])%8 != 0 */
 				multSum(decompLvl+1, (*[8]uint64)(unsafe.Pointer(&p1P.Coeffs[j][x])), &rlo, &rhi, &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, P[j], mredP[j], vtimesqmodp[u], qoverqimodp[u])
 			}
 		}
@@ -492,6 +512,7 @@ func reconstructRNSCentered(start, end, x int, p [][]uint64, v *[8]uint64, vi *[
 		mredConstant := mredQ[j]
 		qif := float64(qi)
 
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p[j])%8 != 0 */
 		px := (*[8]uint64)(unsafe.Pointer(&p[j][x]))
 
 		y0[i] = MRed(px[0]+qHalf, qqiinv, qi, mredConstant)
@@ -537,6 +558,8 @@ func reconstructRNS(start, end, x int, p [][]uint64, v *[8]uint64, y0, y1, y2, y
 		qi = Q[i]
 		qiInv = QInv[i]
 		qif = float64(qi)
+
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p[i])%8 != 0 */
 		pTmp := (*[8]uint64)(unsafe.Pointer(&p[i][x]))
 
 		y0[j] = MRed(pTmp[0], qoverqiinvqi, qi, qiInv)

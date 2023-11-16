@@ -1,79 +1,80 @@
 package ring
 
 import (
+	"fmt"
 	"math"
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v5/utils/sampling"
 )
+
+const ternarySamplerPrecision = uint64(56)
 
 // TernarySampler keeps the state of a polynomial sampler in the ternary distribution.
 type TernarySampler struct {
 	baseSampler
-	matrixProba  [2][precision - 1]uint8
+	matrixProba  [2][ternarySamplerPrecision - 1]uint8
 	matrixValues [][3]uint64
-	p            float64
+	invDensity   float64
 	hw           int
-	sample       func(poly *Poly)
+	sample       func(poly Poly, f func(a, b, c uint64) uint64)
 }
 
 // NewTernarySampler creates a new instance of TernarySampler from a PRNG, the ring definition and the distribution
-// parameters: p is the probability of a coefficient being 0, (1-p)/2 is the probability of 1 and -1. If "montgomery"
-// is set to true, polynomials read from this sampler are in Montgomery form.
-func NewTernarySampler(prng utils.PRNG, baseRing *Ring, p float64, montgomery bool) *TernarySampler {
-	ternarySampler := new(TernarySampler)
-	ternarySampler.baseRing = baseRing
-	ternarySampler.prng = prng
-	ternarySampler.p = p
-	ternarySampler.sample = ternarySampler.sampleProba
-
-	ternarySampler.initializeMatrix(montgomery)
-
-	if p != 0.5 {
-		ternarySampler.computeMatrixTernary(p)
+// parameters (see type Ternary). If "montgomery" is set to true, polynomials read from this sampler are in Montgomery form.
+func NewTernarySampler(prng sampling.PRNG, baseRing *Ring, X Ternary, montgomery bool) (ts *TernarySampler, err error) {
+	ts = new(TernarySampler)
+	ts.baseRing = baseRing
+	ts.prng = prng
+	ts.initializeMatrix(montgomery)
+	switch {
+	case X.P != 0 && X.H == 0:
+		ts.invDensity = 1 - X.P
+		ts.sample = ts.sampleProba
+		if ts.invDensity != 0.5 {
+			ts.computeMatrixTernary(ts.invDensity)
+		}
+	case X.P == 0 && X.H != 0:
+		ts.hw = X.H
+		ts.sample = ts.sampleSparse
+	default:
+		return nil, fmt.Errorf("invalid TernaryDistribution: at exactly one of (H, P) should be > 0")
 	}
 
-	return ternarySampler
+	return
 }
 
-// AtLevel returns an instance of the target TernarySampler that operates at the target level.
-// This instance is not thread safe and cannot be used concurrently to the base instance.
-func (ts *TernarySampler) AtLevel(level int) *TernarySampler {
+// AtLevel returns an instance of the target TernarySampler to sample at the given level.
+// The returned sampler cannot be used concurrently to the original sampler.
+func (ts *TernarySampler) AtLevel(level int) Sampler {
 	return &TernarySampler{
 		baseSampler:  ts.baseSampler.AtLevel(level),
 		matrixProba:  ts.matrixProba,
 		matrixValues: ts.matrixValues,
-		p:            ts.p,
+		invDensity:   ts.invDensity,
 		hw:           ts.hw,
 		sample:       ts.sample,
 	}
 }
 
-// NewTernarySamplerWithHammingWeight creates a new instance of a fixed-hamming-weight TernarySampler from a PRNG, the ring definition and the desired
-// hamming weight for the output polynomials. If "montgomery" is set to true, polynomials read from this sampler
-// are in Montgomery form.
-func NewTernarySamplerWithHammingWeight(prng utils.PRNG, baseRing *Ring, hw int, montgomery bool) *TernarySampler {
-	ternarySampler := new(TernarySampler)
-	ternarySampler.baseRing = baseRing
-	ternarySampler.prng = prng
-	ternarySampler.hw = hw
-	ternarySampler.sample = ternarySampler.sampleSparse
-
-	ternarySampler.initializeMatrix(montgomery)
-
-	return ternarySampler
-}
-
 // Read samples a polynomial into pol.
-func (ts *TernarySampler) Read(pol *Poly) {
-	ts.sample(pol)
+func (ts *TernarySampler) Read(pol Poly) {
+	ts.sample(pol, func(a, b, c uint64) uint64 {
+		return b
+	})
 }
 
 // ReadNew allocates and samples a polynomial at the max level.
-func (ts *TernarySampler) ReadNew() (pol *Poly) {
+func (ts *TernarySampler) ReadNew() (pol Poly) {
 	pol = ts.baseRing.NewPoly()
-	ts.sample(pol)
+	ts.Read(pol)
 	return pol
+}
+
+func (ts *TernarySampler) ReadAndAdd(pol Poly) {
+	ts.sample(pol, func(a, b, c uint64) uint64 {
+		return CRed(a+b, c)
+	})
 }
 
 func (ts *TernarySampler) initializeMatrix(montgomery bool) {
@@ -105,26 +106,27 @@ func (ts *TernarySampler) computeMatrixTernary(p float64) {
 	var x uint64
 
 	g = p
-	g *= math.Exp2(float64(precision))
+	g *= math.Exp2(float64(ternarySamplerPrecision))
 	x = uint64(g)
 
-	for j := uint64(0); j < precision-1; j++ {
-		ts.matrixProba[0][j] = uint8((x >> (precision - j - 1)) & 1)
+	for j := uint64(0); j < ternarySamplerPrecision-1; j++ {
+		ts.matrixProba[0][j] = uint8((x >> (ternarySamplerPrecision - j - 1)) & 1)
 	}
 
 	g = 1 - p
-	g *= math.Exp2(float64(precision))
+	g *= math.Exp2(float64(ternarySamplerPrecision))
 	x = uint64(g)
 
-	for j := uint64(0); j < precision-1; j++ {
-		ts.matrixProba[1][j] = uint8((x >> (precision - j - 1)) & 1)
+	for j := uint64(0); j < ternarySamplerPrecision-1; j++ {
+		ts.matrixProba[1][j] = uint8((x >> (ternarySamplerPrecision - j - 1)) & 1)
 	}
 
 }
 
-func (ts *TernarySampler) sampleProba(pol *Poly) {
+func (ts *TernarySampler) sampleProba(pol Poly, f func(a, b, c uint64) uint64) {
 
-	if ts.p == 0 {
+	// Sanity check for invalid parameters
+	if ts.invDensity == 0 {
 		panic("cannot sample -> p = 0")
 	}
 
@@ -132,20 +134,26 @@ func (ts *TernarySampler) sampleProba(pol *Poly) {
 	var sign uint64
 	var index uint64
 
-	level := ts.baseRing.level
+	moduli := ts.baseRing.ModuliChain()[:ts.baseRing.Level()+1]
 
 	N := ts.baseRing.N()
 
 	lut := ts.matrixValues
 
-	if ts.p == 0.5 {
+	if ts.invDensity == 0.5 {
 
 		randomBytesCoeffs := make([]byte, N>>3)
 		randomBytesSign := make([]byte, N>>3)
 
-		ts.prng.Read(randomBytesCoeffs)
+		if _, err := ts.prng.Read(randomBytesCoeffs); err != nil {
+			// Sanity check, this error should not happen.
+			panic(err)
+		}
 
-		ts.prng.Read(randomBytesSign)
+		if _, err := ts.prng.Read(randomBytesSign); err != nil {
+			// Sanity check, this error should not happen.
+			panic(err)
+		}
 
 		for i := 0; i < N; i++ {
 			coeff = uint64(uint8(randomBytesCoeffs[i>>3])>>(i&7)) & 1
@@ -153,8 +161,8 @@ func (ts *TernarySampler) sampleProba(pol *Poly) {
 
 			index = (coeff & (sign ^ 1)) | ((sign & coeff) << 1)
 
-			for j := 0; j < level+1; j++ {
-				pol.Coeffs[j][i] = lut[j][index]
+			for j, qi := range moduli {
+				pol.Coeffs[j][i] = f(pol.Coeffs[j][i], lut[j][index], qi)
 			}
 		}
 
@@ -165,7 +173,10 @@ func (ts *TernarySampler) sampleProba(pol *Poly) {
 		pointer := uint8(0)
 		var bytePointer int
 
-		ts.prng.Read(randomBytes)
+		if _, err := ts.prng.Read(randomBytes); err != nil {
+			// Sanity check, this error should not happen.
+			panic(err)
+		}
 
 		for i := 0; i < N; i++ {
 
@@ -173,38 +184,44 @@ func (ts *TernarySampler) sampleProba(pol *Poly) {
 
 			index = (coeff & (sign ^ 1)) | ((sign & coeff) << 1)
 
-			for j := 0; j < level+1; j++ {
-				pol.Coeffs[j][i] = lut[j][index]
+			for j, qi := range moduli {
+				pol.Coeffs[j][i] = f(pol.Coeffs[j][i], lut[j][index], qi)
 			}
 		}
 	}
 }
 
-func (ts *TernarySampler) sampleSparse(pol *Poly) {
+func (ts *TernarySampler) sampleSparse(pol Poly, f func(a, b, c uint64) uint64) {
 
 	N := ts.baseRing.N()
-	hw := ts.hw
 
-	if hw > N {
-		hw = N
+	if ts.hw > N {
+		ts.hw = N
 	}
 
 	var mask, j uint64
 	var coeff uint8
+
+	moduli := ts.baseRing.ModuliChain()[:ts.baseRing.Level()+1]
 
 	index := make([]int, N)
 	for i := 0; i < N; i++ {
 		index[i] = i
 	}
 
-	randomBytes := make([]byte, (uint64(math.Ceil(float64(hw) / 8.0)))) // We sample ceil(hw/8) bytes
+	randomBytes := make([]byte, (uint64(math.Ceil(float64(ts.hw) / 8.0)))) // We sample ceil(hw/8) bytes
 	pointer := uint8(0)
 
-	ts.prng.Read(randomBytes)
+	if _, err := ts.prng.Read(randomBytes); err != nil {
+		// Sanity check, this error should not happen.
+		panic(err)
+	}
 
-	level := ts.baseRing.level
+	coeffs := pol.Coeffs
 
-	for i := 0; i < hw; i++ {
+	m := ts.matrixValues
+
+	for i := 0; i < ts.hw; i++ {
 		mask = (1 << uint64(bits.Len64(uint64(N-i)))) - 1 // rejection sampling of a random variable between [0, len(index)]
 
 		j = randInt32(ts.prng, mask)
@@ -213,8 +230,11 @@ func (ts *TernarySampler) sampleSparse(pol *Poly) {
 		}
 
 		coeff = (uint8(randomBytes[0]) >> (i & 7)) & 1 // random binary digit [0, 1] from the random bytes (0 = 1, 1 = -1)
-		for k := 0; k < level+1; k++ {
-			pol.Coeffs[k][index[j]] = ts.matrixValues[k][coeff+1]
+
+		idxj := index[j]
+
+		for k, qi := range moduli {
+			coeffs[k][idxj] = f(coeffs[k][idxj], m[k][coeff+1], qi)
 		}
 
 		// Remove the element in position j of the slice (order not preserved)
@@ -230,15 +250,14 @@ func (ts *TernarySampler) sampleSparse(pol *Poly) {
 	}
 
 	for _, i := range index {
-		for k := 0; k < level+1; k++ {
-			pol.Coeffs[k][i] = 0
+		for k := range moduli {
+			coeffs[k][i] = 0
 		}
-
 	}
 }
 
 // kysampling uses the binary expansion and random bytes matrix to sample a discrete Gaussian value and its sign.
-func (ts *TernarySampler) kysampling(prng utils.PRNG, randomBytes []byte, pointer uint8, bytePointer, byteLength int) (uint64, uint64, []byte, uint8, int) {
+func (ts *TernarySampler) kysampling(prng sampling.PRNG, randomBytes []byte, pointer uint8, bytePointer, byteLength int) (uint64, uint64, []byte, uint8, int) {
 
 	var sign uint8
 
@@ -273,7 +292,10 @@ func (ts *TernarySampler) kysampling(prng utils.PRNG, randomBytes []byte, pointe
 
 						if bytePointer >= byteLength {
 							bytePointer = 0
-							prng.Read(randomBytes)
+							if _, err := prng.Read(randomBytes); err != nil {
+								// Sanity check, this error should not happen.
+								panic(err)
+							}
 						}
 
 						sign = uint8(randomBytes[bytePointer]) & 1
@@ -298,8 +320,10 @@ func (ts *TernarySampler) kysampling(prng utils.PRNG, randomBytes []byte, pointe
 
 		if bytePointer >= byteLength {
 			bytePointer = 0
-			prng.Read(randomBytes)
+			if _, err := prng.Read(randomBytes); err != nil {
+				// Sanity check, this error should not happen.
+				panic(err)
+			}
 		}
-
 	}
 }

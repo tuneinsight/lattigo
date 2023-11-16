@@ -1,12 +1,12 @@
 package ring
 
 import (
-	"encoding/binary"
 	"fmt"
 	"math/big"
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v5/utils"
+	"github.com/tuneinsight/lattigo/v5/utils/factorization"
 )
 
 // SubRing is a struct storing precomputation
@@ -46,8 +46,8 @@ func NewSubRing(N int, Modulus uint64) (s *SubRing, err error) {
 func NewSubRingWithCustomNTT(N int, Modulus uint64, ntt func(*SubRing, int) NumberTheoreticTransformer, NthRoot int) (s *SubRing, err error) {
 
 	// Checks if N is a power of 2
-	if (N < 16) || (N&(N-1)) != 0 && N != 0 {
-		return nil, fmt.Errorf("invalid degree (must be a power of 2 >= 8)")
+	if N < MinimumRingDegreeForLoopUnrolledOperations || (N&(N-1)) != 0 && N != 0 {
+		return nil, fmt.Errorf("invalid ring degree: must be a power of 2 greater than %d", MinimumRingDegreeForLoopUnrolledOperations)
 	}
 
 	s = &SubRing{}
@@ -82,6 +82,7 @@ func (s *SubRing) Type() Type {
 	case NumberTheoreticTransformerConjugateInvariant:
 		return ConjugateInvariant
 	default:
+		// Sanity check
 		panic(fmt.Errorf("invalid NumberTheoreticTransformer type: %T", s.ntt))
 	}
 }
@@ -122,7 +123,7 @@ func (s *SubRing) generateNTTConstants() (err error) {
 		}
 	}
 
-	logNthRoot := uint64(bits.Len64(NthRoot>>1) - 1)
+	logNthRoot := int(bits.Len64(NthRoot>>1) - 1)
 
 	// 1.1 Computes N^(-1) mod Q in Montgomery form
 	s.NInv = MForm(ModExp(NthRoot>>1, Modulus-2, Modulus), Modulus, s.BRedConstant)
@@ -142,8 +143,8 @@ func (s *SubRing) generateNTTConstants() (err error) {
 	// Computes nttPsi[j] = nttPsi[j-1]*Psi and RootsBackward[j] = RootsBackward[j-1]*PsiInv
 	for j := uint64(1); j < NthRoot>>1; j++ {
 
-		indexReversePrev := utils.BitReverse64(uint64(j-1), logNthRoot)
-		indexReverseNext := utils.BitReverse64(uint64(j), logNthRoot)
+		indexReversePrev := utils.BitReverse64(j-1, logNthRoot)
+		indexReverseNext := utils.BitReverse64(j, logNthRoot)
 
 		s.RootsForward[indexReverseNext] = MRed(s.RootsForward[indexReversePrev], PsiMont, Modulus, s.MRedConstant)
 		s.RootsBackward[indexReverseNext] = MRed(s.RootsBackward[indexReversePrev], PsiInvMont, Modulus, s.MRedConstant)
@@ -162,7 +163,7 @@ func PrimitiveRoot(q uint64, factors []uint64) (uint64, []uint64, error) {
 		}
 	} else {
 
-		factorsBig := utils.GetFactors(new(big.Int).SetUint64(q - 1)) //Factor q-1, might be slow
+		factorsBig := factorization.GetFactors(new(big.Int).SetUint64(q - 1)) //Factor q-1, might be slow
 
 		factors = make([]uint64, len(factorsBig))
 		for i := range factors {
@@ -228,60 +229,48 @@ func CheckPrimitiveRoot(g, q uint64, factors []uint64) (err error) {
 	return
 }
 
-// MarshalBinarySize returns the length in bytes of the target SubRing.
-func (s *SubRing) MarshalBinarySize() (dataLen int) {
-	dataLen++                     // RingType
-	dataLen++                     // LogN
-	dataLen++                     // NthRoot
-	dataLen += 8                  // Modulus
-	dataLen++                     // #Factors
-	dataLen += len(s.Factors) * 8 // Factors
-	dataLen += 8                  // PrimitiveRoot
-	return
+// subRingParametersLiteral is a struct to store the minimum information
+// to uniquely identify a SubRing and be able to reconstruct it efficiently.
+// This struct's purpose is to faciliate marshalling of SubRings.
+type subRingParametersLiteral struct {
+	Type          uint8    // Standard or ConjugateInvariant
+	LogN          uint8    // Log2 of the ring degree
+	NthRoot       uint8    // N/NthRoot
+	Modulus       uint64   // Modulus
+	Factors       []uint64 // Factors of Modulus-1
+	PrimitiveRoot uint64   // Primitive root used
 }
 
-// Encode encodes the target SubRing on a slice of bytes and returns
-// the number of bytes written.
-func (s *SubRing) Encode(data []byte) (ptr int, err error) {
-	data[ptr] = uint8(s.Type())
-	ptr++
-	data[ptr] = uint8(bits.Len64(uint64(s.N - 1)))
-	ptr++
-	data[ptr] = uint8(int(s.NthRoot) / s.N)
-	ptr++
-	binary.LittleEndian.PutUint64(data[ptr:], s.Modulus)
-	ptr += 8
-	data[ptr] = uint8(len(s.Factors))
-	ptr++
-	for i := range s.Factors {
-		binary.LittleEndian.PutUint64(data[ptr:], s.Factors[i])
-		ptr += 8
+// ParametersLiteral returns the SubRingParametersLiteral of the SubRing.
+func (s *SubRing) parametersLiteral() subRingParametersLiteral {
+	Factors := make([]uint64, len(s.Factors))
+	copy(Factors, s.Factors)
+	return subRingParametersLiteral{
+		Type:          uint8(s.Type()),
+		LogN:          uint8(bits.Len64(uint64(s.N - 1))),
+		NthRoot:       uint8(int(s.NthRoot) / s.N),
+		Modulus:       s.Modulus,
+		Factors:       Factors,
+		PrimitiveRoot: s.PrimitiveRoot,
 	}
-	binary.LittleEndian.PutUint64(data[ptr:], s.PrimitiveRoot)
-	ptr += 8
-	return
 }
 
-// Decode decodes the input slice of bytes on the target SubRing and
-// returns the number of bytes read.
-func (s *SubRing) Decode(data []byte) (ptr int, err error) {
-	ringType := Type(data[ptr])
-	ptr++
-	s.N = 1 << int(data[ptr])
-	ptr++
+// newSubRingFromParametersLiteral creates a new SubRing from the provided subRingParametersLiteral.
+func newSubRingFromParametersLiteral(p subRingParametersLiteral) (s *SubRing, err error) {
+
+	s = new(SubRing)
+
+	s.N = 1 << int(p.LogN)
+
 	s.NTTTable = new(NTTTable)
-	s.NthRoot = uint64(s.N) * uint64(data[ptr])
-	ptr++
-	s.Modulus = binary.LittleEndian.Uint64(data[ptr:])
-	ptr += 8
-	s.Factors = make([]uint64, data[ptr])
-	ptr++
-	for i := range s.Factors {
-		s.Factors[i] = binary.LittleEndian.Uint64(data[ptr:])
-		ptr += 8
-	}
-	s.PrimitiveRoot = binary.LittleEndian.Uint64(data[ptr:])
-	ptr += 8
+	s.NthRoot = uint64(s.N) * uint64(p.NthRoot)
+
+	s.Modulus = p.Modulus
+
+	s.Factors = make([]uint64, len(p.Factors))
+	copy(s.Factors, p.Factors)
+
+	s.PrimitiveRoot = p.PrimitiveRoot
 
 	s.Mask = (1 << uint64(bits.Len64(s.Modulus-1))) - 1
 
@@ -294,13 +283,13 @@ func (s *SubRing) Decode(data []byte) (ptr int, err error) {
 		s.MRedConstant = MRedConstant(s.Modulus)
 	}
 
-	switch ringType {
+	switch Type(p.Type) {
 	case Standard:
 
 		s.ntt = NewNumberTheoreticTransformerStandard(s, s.N)
 
 		if int(s.NthRoot) < s.N<<1 {
-			return ptr, fmt.Errorf("invalid ring type: NthRoot must be at least 2N but is %dN", int(s.NthRoot)/s.N)
+			return nil, fmt.Errorf("invalid ring type: NthRoot must be at least 2N but is %dN", int(s.NthRoot)/s.N)
 		}
 
 	case ConjugateInvariant:
@@ -308,16 +297,12 @@ func (s *SubRing) Decode(data []byte) (ptr int, err error) {
 		s.ntt = NewNumberTheoreticTransformerConjugateInvariant(s, s.N)
 
 		if int(s.NthRoot) < s.N<<2 {
-			return ptr, fmt.Errorf("invalid ring type: NthRoot must be at least 4N but is %dN", int(s.NthRoot)/s.N)
+			return nil, fmt.Errorf("invalid ring type: NthRoot must be at least 4N but is %dN", int(s.NthRoot)/s.N)
 		}
 
 	default:
-		return ptr, fmt.Errorf("invalid ring type")
+		return nil, fmt.Errorf("invalid ring type")
 	}
 
-	if err = s.generateNTTConstants(); err != nil {
-		return
-	}
-
-	return
+	return s, s.generateNTTConstants()
 }

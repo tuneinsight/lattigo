@@ -1,23 +1,20 @@
 package ring
 
-import (
-	"github.com/tuneinsight/lattigo/v4/utils"
-)
-
 // UnfoldConjugateInvariantToStandard maps the compressed representation (N/2 coefficients)
 // of Z_Q[X+X^-1]/(X^2N + 1) to full representation in Z_Q[X]/(X^2N+1).
-// Requires degree(polyConjugateInvariant) = 2*degree(polyStd).
-// Requires that polyStd and polyConjugateInvariant share the same moduli.
-func (r *Ring) UnfoldConjugateInvariantToStandard(polyConjugateInvariant, polyStd *Poly) {
+// Requires degree(polyConjugateInvariant) = 2*degree(polyStandard).
+// Requires that polyStandard and polyConjugateInvariant share the same moduli.
+func (r Ring) UnfoldConjugateInvariantToStandard(polyConjugateInvariant, polyStandard Poly) {
 
-	if 2*len(polyConjugateInvariant.Coeffs[0]) != len(polyStd.Coeffs[0]) {
-		panic("cannot UnfoldConjugateInvariantToStandard: Ring degree of polyConjugateInvariant must be twice the ring degree of polyStd")
+	// Sanity check
+	if 2*polyConjugateInvariant.N() != polyStandard.N() {
+		panic("cannot UnfoldConjugateInvariantToStandard: Ring degree of polyConjugateInvariant must be twice the ring degree of polyStandard")
 	}
 
-	N := len(polyConjugateInvariant.Coeffs[0])
+	N := polyConjugateInvariant.N()
 
 	for i := 0; i < r.level+1; i++ {
-		tmp2, tmp1 := polyStd.Coeffs[i], polyConjugateInvariant.Coeffs[i]
+		tmp2, tmp1 := polyStandard.Coeffs[i], polyConjugateInvariant.Coeffs[i]
 		copy(tmp2, tmp1)
 		for idx, jdx := N-1, N; jdx < 2*N; idx, jdx = idx-1, jdx+1 {
 			tmp2[jdx] = tmp1[idx]
@@ -26,19 +23,20 @@ func (r *Ring) UnfoldConjugateInvariantToStandard(polyConjugateInvariant, polySt
 }
 
 // FoldStandardToConjugateInvariant folds [X]/(X^N+1) to [X+X^-1]/(X^N+1) in compressed form (N/2 coefficients).
-// Requires degree(polyConjugateInvariant) = 2*degree(polyStd).
-// Requires that polyStd and polyConjugateInvariant share the same moduli.
-func (r *Ring) FoldStandardToConjugateInvariant(polyStandard *Poly, permuteNTTIndexInv []uint64, polyConjugateInvariant *Poly) {
+// Requires degree(polyConjugateInvariant) = 2*degree(polyStandard).
+// Requires that polyStandard and polyConjugateInvariant share the same moduli.
+func (r Ring) FoldStandardToConjugateInvariant(polyStandard Poly, permuteNTTIndexInv []uint64, polyConjugateInvariant Poly) {
 
-	if len(polyStandard.Coeffs[0]) != 2*len(polyConjugateInvariant.Coeffs[0]) {
-		panic("cannot FoldStandardToConjugateInvariant: Ring degree of p2 must be 2N and ring degree of p1 must be N")
+	// Sanity check
+	if polyStandard.N() != 2*polyConjugateInvariant.N() {
+		panic("cannot FoldStandardToConjugateInvariant: Ring degree of polyStandard must be 2N and ring degree of polyConjugateInvariant must be N")
 	}
 
 	N := r.N()
 
 	level := r.level
 
-	r.PermuteNTTWithIndex(polyStandard, permuteNTTIndexInv, polyConjugateInvariant)
+	r.AutomorphismNTTWithIndex(polyStandard, permuteNTTIndexInv, polyConjugateInvariant)
 
 	for i, s := range r.SubRings[:level+1] {
 		s.Add(polyConjugateInvariant.Coeffs[i][:N], polyStandard.Coeffs[i][:N], polyConjugateInvariant.Coeffs[i][:N])
@@ -46,33 +44,29 @@ func (r *Ring) FoldStandardToConjugateInvariant(polyStandard *Poly, permuteNTTIn
 }
 
 // PadDefaultRingToConjugateInvariant converts a polynomial in Z[X]/(X^N +1) to a polynomial in Z[X+X^-1]/(X^2N+1).
-func PadDefaultRingToConjugateInvariant(p1 *Poly, ringQ *Ring, IsNTT bool, p2 *Poly) {
+func (r Ring) PadDefaultRingToConjugateInvariant(polyStandard Poly, IsNTT bool, polyConjugateInvariant Poly) {
 
-	if p1 == p2 {
-		panic("cannot PadDefaultRingToConjugateInvariant: p1 == p2 but method cannot be used in place")
+	// Sanity check
+	if polyConjugateInvariant.N() != 2*polyStandard.N() {
+		panic("cannot PadDefaultRingToConjugateInvariant: polyConjugateInvariant degree must be twice the one of polyStandard")
 	}
 
-	level := utils.MinInt(p1.Level(), p2.Level())
-	n := len(p1.Coeffs[0])
+	N := polyStandard.N()
 
-	for i := 0; i < level+1; i++ {
-		qi := ringQ.SubRings[i].Modulus
+	for i := 0; i < r.level+1; i++ {
+		qi := r.SubRings[i].Modulus
 
-		if len(p2.Coeffs[i]) != 2*len(p1.Coeffs[i]) {
-			panic("cannot PadDefaultRingToConjugateInvariant: p2 degree must be twice the one of p1")
-		}
+		copy(polyConjugateInvariant.Coeffs[i], polyStandard.Coeffs[i])
 
-		copy(p2.Coeffs[i], p1.Coeffs[i])
-
-		tmp := p2.Coeffs[i]
+		tmp := polyConjugateInvariant.Coeffs[i]
 		if IsNTT {
-			for j := 0; j < n; j++ {
-				tmp[n-j-1] = tmp[j]
+			for j := 0; j < N; j++ {
+				tmp[N-j-1] = tmp[j]
 			}
 		} else {
 			tmp[0] = 0
-			for j := 1; j < n; j++ {
-				tmp[n-j] = qi - tmp[j]
+			for j := 1; j < N; j++ {
+				tmp[N-j] = qi - tmp[j]
 			}
 		}
 	}

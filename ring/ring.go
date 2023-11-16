@@ -4,16 +4,24 @@ package ring
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
+	"math"
 	"math/big"
+	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v4/utils"
+	"github.com/tuneinsight/lattigo/v5/utils"
+	"github.com/tuneinsight/lattigo/v5/utils/bignum"
 )
 
-// GaloisGen is an integer of order N/2 modulo M that spans Z_M with the integer -1.
-// The j-th ring automorphism takes the root zeta to zeta^(5j).
-const GaloisGen uint64 = 5
+const (
+	// GaloisGen is an integer of order N/2 modulo M that spans Z_M with the integer -1.
+	// The j-th ring automorphism takes the root zeta to zeta^(5j).
+	GaloisGen uint64 = 5
+
+	// MinimumRingDegreeForLoopUnrolledOperations is the minimum ring degree required to
+	// safely perform loop-unrolled operations
+	MinimumRingDegreeForLoopUnrolledOperations = 8
+)
 
 // Type is the type of ring used by the cryptographic scheme
 type Type int
@@ -76,15 +84,15 @@ type Ring struct {
 // If `r.Type()==ConjugateInvariant`, then the method returns the receiver.
 // if `r.Type()==Standard`, then the method returns a ring with ring degree N/2.
 // The returned Ring is a shallow copy of the receiver.
-func (r *Ring) ConjugateInvariantRing() (*Ring, error) {
+func (r Ring) ConjugateInvariantRing() (*Ring, error) {
 
 	var err error
 
 	if r.Type() == ConjugateInvariant {
-		return r, nil
+		return &r, nil
 	}
 
-	cr := *r
+	cr := r
 
 	cr.SubRings = make([]*SubRing, len(r.SubRings))
 
@@ -106,15 +114,15 @@ func (r *Ring) ConjugateInvariantRing() (*Ring, error) {
 // If `r.Type()==Standard`, then the method returns the receiver.
 // if `r.Type()==ConjugateInvariant`, then the method returns a ring with ring degree 2N.
 // The returned Ring is a shallow copy of the receiver.
-func (r *Ring) StandardRing() (*Ring, error) {
+func (r Ring) StandardRing() (*Ring, error) {
 
 	var err error
 
 	if r.Type() == Standard {
-		return r, nil
+		return &r, nil
 	}
 
-	sr := *r
+	sr := r
 
 	sr.SubRings = make([]*SubRing, len(r.SubRings))
 
@@ -133,33 +141,48 @@ func (r *Ring) StandardRing() (*Ring, error) {
 }
 
 // N returns the ring degree.
-func (r *Ring) N() int {
+func (r Ring) N() int {
 	return r.SubRings[0].N
 }
 
+// LogN returns log2(ring degree).
+func (r Ring) LogN() int {
+	return bits.Len64(uint64(r.N() - 1))
+}
+
+// LogModuli returns the size of the extended modulus P in bits
+func (r Ring) LogModuli() (logmod float64) {
+	for _, qi := range r.ModuliChain() {
+		logmod += math.Log2(float64(qi))
+	}
+	return
+}
+
 // NthRoot returns the multiplicative order of the primitive root.
-func (r *Ring) NthRoot() uint64 {
+func (r Ring) NthRoot() uint64 {
 	return r.SubRings[0].NthRoot
 }
 
 // ModuliChainLength returns the number of primes in the RNS basis of the ring.
-func (r *Ring) ModuliChainLength() int {
+func (r Ring) ModuliChainLength() int {
 	return len(r.SubRings)
 }
 
 // Level returns the level of the current ring.
-func (r *Ring) Level() int {
+func (r Ring) Level() int {
 	return r.level
 }
 
 // AtLevel returns an instance of the target ring that operates at the target level.
 // This instance is thread safe and can be use concurrently with the base ring.
-func (r *Ring) AtLevel(level int) *Ring {
+func (r Ring) AtLevel(level int) *Ring {
 
+	// Sanity check
 	if level < 0 {
 		panic("level cannot be negative")
 	}
 
+	// Sanity check
 	if level > r.MaxLevel() {
 		panic("level cannot be larger than max level")
 	}
@@ -173,12 +196,12 @@ func (r *Ring) AtLevel(level int) *Ring {
 }
 
 // MaxLevel returns the maximum level allowed by the ring (#NbModuli -1).
-func (r *Ring) MaxLevel() int {
+func (r Ring) MaxLevel() int {
 	return r.ModuliChainLength() - 1
 }
 
 // ModuliChain returns the list of primes in the modulus chain.
-func (r *Ring) ModuliChain() (moduli []uint64) {
+func (r Ring) ModuliChain() (moduli []uint64) {
 	moduli = make([]uint64, len(r.SubRings))
 	for i := range r.SubRings {
 		moduli[i] = r.SubRings[i].Modulus
@@ -189,13 +212,13 @@ func (r *Ring) ModuliChain() (moduli []uint64) {
 
 // Modulus returns the modulus of the target ring at the currently
 // set level in *big.Int.
-func (r *Ring) Modulus() *big.Int {
+func (r Ring) Modulus() *big.Int {
 	return r.ModulusAtLevel[r.level]
 }
 
 // MRedConstants returns the concatenation of the Montgomery constants
 // of the target ring.
-func (r *Ring) MRedConstants() (MRC []uint64) {
+func (r Ring) MRedConstants() (MRC []uint64) {
 	MRC = make([]uint64, len(r.SubRings))
 	for i := range r.SubRings {
 		MRC[i] = r.SubRings[i].MRedConstant
@@ -206,7 +229,7 @@ func (r *Ring) MRedConstants() (MRC []uint64) {
 
 // BRedConstants returns the concatenation of the Barrett constants
 // of the target ring.
-func (r *Ring) BRedConstants() (BRC [][]uint64) {
+func (r Ring) BRedConstants() (BRC [][]uint64) {
 	BRC = make([][]uint64, len(r.SubRings))
 	for i := range r.SubRings {
 		BRC[i] = r.SubRings[i].BRedConstant
@@ -253,23 +276,23 @@ func NewRingWithCustomNTT(N int, ModuliChain []uint64, ntt func(*SubRing, int) N
 	r = new(Ring)
 
 	// Checks if N is a power of 2
-	if (N < 16) || (N&(N-1)) != 0 && N != 0 {
-		return nil, errors.New("invalid ring degree (must be a power of 2 >= 8)")
+	if N < MinimumRingDegreeForLoopUnrolledOperations || (N&(N-1)) != 0 && N != 0 {
+		return nil, fmt.Errorf("invalid ring degree: must be a power of 2 greater than %d", MinimumRingDegreeForLoopUnrolledOperations)
 	}
 
 	if len(ModuliChain) == 0 {
-		return nil, errors.New("invalid ModuliChain (must be a non-empty []uint64)")
+		return nil, fmt.Errorf("invalid ModuliChain (must be a non-empty []uint64)")
 	}
 
 	if !utils.AllDistinct(ModuliChain) {
-		return nil, errors.New("invalid ModuliChain (moduli are not distinct)")
+		return nil, fmt.Errorf("invalid ModuliChain (moduli are not distinct)")
 	}
 
 	// Computes bigQ for all levels
 	r.ModulusAtLevel = make([]*big.Int, len(ModuliChain))
-	r.ModulusAtLevel[0] = NewUint(ModuliChain[0])
+	r.ModulusAtLevel[0] = bignum.NewInt(ModuliChain[0])
 	for i := 1; i < len(ModuliChain); i++ {
-		r.ModulusAtLevel[i] = new(big.Int).Mul(r.ModulusAtLevel[i-1], NewUint(ModuliChain[i]))
+		r.ModulusAtLevel[i] = new(big.Int).Mul(r.ModulusAtLevel[i-1], bignum.NewInt(ModuliChain[i]))
 	}
 
 	r.SubRings = make([]*SubRing, len(ModuliChain))
@@ -332,12 +355,37 @@ func (r *Ring) generateNTTConstants(primitiveRoots []uint64, factors [][]uint64)
 }
 
 // NewPoly creates a new polynomial with all coefficients set to 0.
-func (r *Ring) NewPoly() *Poly {
+func (r Ring) NewPoly() Poly {
 	return NewPoly(r.N(), r.level)
 }
 
+// NewMonomialXi returns a polynomial X^{i}.
+func (r Ring) NewMonomialXi(i int) (p Poly) {
+
+	p = r.NewPoly()
+
+	N := r.N()
+
+	i &= (N << 1) - 1
+
+	if i >= N {
+		i -= N << 1
+	}
+
+	for k, s := range r.SubRings[:r.level+1] {
+
+		if i < 0 {
+			p.Coeffs[k][N+i] = s.Modulus - 1
+		} else {
+			p.Coeffs[k][i] = 1
+		}
+	}
+
+	return
+}
+
 // SetCoefficientsBigint sets the coefficients of p1 from an array of Int variables.
-func (r *Ring) SetCoefficientsBigint(coeffs []*big.Int, p1 *Poly) {
+func (r Ring) SetCoefficientsBigint(coeffs []*big.Int, p1 Poly) {
 
 	QiBigint := new(big.Int)
 	coeffTmp := new(big.Int)
@@ -354,7 +402,7 @@ func (r *Ring) SetCoefficientsBigint(coeffs []*big.Int, p1 *Poly) {
 }
 
 // PolyToString reconstructs p1 and returns the result in an array of string.
-func (r *Ring) PolyToString(p1 *Poly) []string {
+func (r Ring) PolyToString(p1 Poly) []string {
 
 	coeffsBigint := make([]*big.Int, r.N())
 	r.PolyToBigint(p1, 1, coeffsBigint)
@@ -371,7 +419,7 @@ func (r *Ring) PolyToString(p1 *Poly) []string {
 // gap defines coefficients X^{i*gap} that will be reconstructed.
 // For example, if gap = 1, then all coefficients are reconstructed, while
 // if gap = 2 then only coefficients X^{2*i} are reconstructed.
-func (r *Ring) PolyToBigint(p1 *Poly, gap int, coeffsBigint []*big.Int) {
+func (r Ring) PolyToBigint(p1 Poly, gap int, coeffsBigint []*big.Int) {
 
 	crtReconstruction := make([]*big.Int, r.level+1)
 
@@ -395,7 +443,7 @@ func (r *Ring) PolyToBigint(p1 *Poly, gap int, coeffsBigint []*big.Int) {
 		coeffsBigint[i] = new(big.Int)
 
 		for k := 0; k < r.level+1; k++ {
-			coeffsBigint[i].Add(coeffsBigint[i], tmp.Mul(NewUint(p1.Coeffs[k][j]), crtReconstruction[k]))
+			coeffsBigint[i].Add(coeffsBigint[i], tmp.Mul(bignum.NewInt(p1.Coeffs[k][j]), crtReconstruction[k]))
 		}
 
 		coeffsBigint[i].Mod(coeffsBigint[i], modulusBigint)
@@ -407,7 +455,7 @@ func (r *Ring) PolyToBigint(p1 *Poly, gap int, coeffsBigint []*big.Int) {
 // gap defines coefficients X^{i*gap} that will be reconstructed.
 // For example, if gap = 1, then all coefficients are reconstructed, while
 // if gap = 2 then only coefficients X^{2*i} are reconstructed.
-func (r *Ring) PolyToBigintCentered(p1 *Poly, gap int, coeffsBigint []*big.Int) {
+func (r Ring) PolyToBigintCentered(p1 Poly, gap int, coeffsBigint []*big.Int) {
 
 	crtReconstruction := make([]*big.Int, r.level+1)
 
@@ -435,7 +483,7 @@ func (r *Ring) PolyToBigintCentered(p1 *Poly, gap int, coeffsBigint []*big.Int) 
 		coeffsBigint[i].SetUint64(0)
 
 		for k := 0; k < r.level+1; k++ {
-			coeffsBigint[i].Add(coeffsBigint[i], tmp.Mul(NewUint(p1.Coeffs[k][j]), crtReconstruction[k]))
+			coeffsBigint[i].Add(coeffsBigint[i], tmp.Mul(bignum.NewInt(p1.Coeffs[k][j]), crtReconstruction[k]))
 		}
 
 		coeffsBigint[i].Mod(coeffsBigint[i], modulusBigint)
@@ -450,7 +498,7 @@ func (r *Ring) PolyToBigintCentered(p1 *Poly, gap int, coeffsBigint []*big.Int) 
 }
 
 // Equal checks if p1 = p2 in the given Ring.
-func (r *Ring) Equal(p1, p2 *Poly) bool {
+func (r Ring) Equal(p1, p2 Poly) bool {
 
 	for i := 0; i < r.level+1; i++ {
 		if len(p1.Coeffs[i]) != len(p2.Coeffs[i]) {
@@ -461,95 +509,77 @@ func (r *Ring) Equal(p1, p2 *Poly) bool {
 	r.Reduce(p1, p1)
 	r.Reduce(p2, p2)
 
-	N := r.N()
+	return p1.Equal(&p2)
+}
 
-	for i := 0; i < r.level+1; i++ {
-		for j := 0; j < N; j++ {
-			if p1.Coeffs[i][j] != p2.Coeffs[i][j] {
-				return false
-			}
-		}
+// ringParametersLiteral is a struct to store the minimum information
+// to uniquely identify a Ring and be able to reconstruct it efficiently.
+// This struct's purpose is to facilitate the marshalling of Rings.
+type ringParametersLiteral []subRingParametersLiteral
+
+// parametersLiteral returns the RingParametersLiteral of the Ring.
+func (r Ring) parametersLiteral() ringParametersLiteral {
+	p := make([]subRingParametersLiteral, len(r.SubRings))
+
+	for i, s := range r.SubRings {
+		p[i] = s.parametersLiteral()
 	}
 
-	return true
+	return ringParametersLiteral(p)
 }
 
-// MarshalBinarySize returns the size in bytes of the target Ring.
-func (r *Ring) MarshalBinarySize() (dataLen int) {
-	dataLen++ // #SubRings
-	dataLen++ // level
-	for i := range r.SubRings {
-		dataLen += r.SubRings[i].MarshalBinarySize()
-	}
-
-	return
+// MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
+func (r Ring) MarshalBinary() (data []byte, err error) {
+	return r.MarshalJSON()
 }
 
-// MarshalBinary encodes the target ring on a slice of bytes.
-func (r *Ring) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, r.MarshalBinarySize())
-	_, err = r.Encode(data)
-	return
-}
-
-// UnmarshalBinary decodes a slice of bytes on the target ring.
+// UnmarshalBinary decodes a slice of bytes generated by MarshalBinary or MarshalJSON on the object.
 func (r *Ring) UnmarshalBinary(data []byte) (err error) {
-	var ptr int
-	if ptr, err = r.Decode(data); err != nil {
+	return r.UnmarshalJSON(data)
+}
+
+// MarshalJSON encodes the object into a binary form on a newly allocated slice of bytes with the json codec.
+func (r Ring) MarshalJSON() (data []byte, err error) {
+	return json.Marshal(r.parametersLiteral())
+}
+
+// UnmarshalJSON decodes a slice of bytes generated by MarshalJSON or MarshalBinary on the object.
+func (r *Ring) UnmarshalJSON(data []byte) (err error) {
+
+	p := ringParametersLiteral{}
+
+	if err = json.Unmarshal(data, &p); err != nil {
 		return
 	}
 
-	if ptr != len(data) {
-		return fmt.Errorf("remaining unparsed data")
+	var rr *Ring
+	if rr, err = newRingFromparametersLiteral(p); err != nil {
+		return
 	}
+
+	*r = *rr
 
 	return
 }
 
-// Encode encodes the target Ring on a slice of bytes and returns
-// the number of bytes written.
-func (r *Ring) Encode(data []byte) (ptr int, err error) {
+// newRingFromparametersLiteral creates a new Ring from the provided RingParametersLiteral.
+func newRingFromparametersLiteral(p ringParametersLiteral) (r *Ring, err error) {
 
-	data[ptr] = uint8(len(r.SubRings))
-	ptr++
-	data[ptr] = uint8(r.level)
-	ptr++
+	r = new(Ring)
 
-	var inc int
-	for i := range r.SubRings {
-		if inc, err = r.SubRings[i].Encode(data[ptr:]); err != nil {
-			return
-		}
+	r.SubRings = make([]*SubRing, len(p))
 
-		ptr += inc
-	}
+	r.level = len(p) - 1
 
-	return
-}
-
-// Decode decodes the input slice of bytes on the target Ring and
-// returns the number of bytes read.
-func (r *Ring) Decode(data []byte) (ptr int, err error) {
-
-	r.SubRings = make([]*SubRing, data[ptr])
-	ptr++
-
-	r.level = int(data[ptr])
-	ptr++
-
-	var inc int
 	for i := range r.SubRings {
 
-		r.SubRings[i] = new(SubRing)
-
-		if inc, err = r.SubRings[i].Decode(data[ptr:]); err != nil {
+		if r.SubRings[i], err = newSubRingFromParametersLiteral(p[i]); err != nil {
 			return
 		}
-		ptr += inc
 
 		if i > 0 {
 			if r.SubRings[i].N != r.SubRings[i-1].N || r.SubRings[i].NthRoot != r.SubRings[i-1].NthRoot {
-				return ptr, fmt.Errorf("invalid SubRings: all SubRings must have the same ring degree and NthRoot")
+				return nil, fmt.Errorf("invalid SubRings: all SubRings must have the same ring degree and NthRoot")
 			}
 		}
 	}
@@ -565,4 +595,47 @@ func (r *Ring) Decode(data []byte) (ptr int, err error) {
 	r.RescaleConstants = rewRescaleConstants(r.SubRings)
 
 	return
+}
+
+// Log2OfStandardDeviation returns base 2 logarithm of the standard deviation of the coefficients
+// of the polynomial.
+func (r Ring) Log2OfStandardDeviation(poly Poly) (std float64) {
+
+	N := r.N()
+
+	prec := uint(128)
+
+	coeffs := make([]*big.Int, N)
+
+	for i := 0; i < N; i++ {
+		coeffs[i] = new(big.Int)
+	}
+
+	r.PolyToBigintCentered(poly, 1, coeffs)
+
+	mean := bignum.NewFloat(0, prec)
+	tmp := bignum.NewFloat(0, prec)
+
+	for i := 0; i < N; i++ {
+		mean.Add(mean, tmp.SetInt(coeffs[i]))
+	}
+
+	mean.Quo(mean, bignum.NewFloat(float64(N), prec))
+
+	stdFloat := bignum.NewFloat(0, prec)
+
+	for i := 0; i < N; i++ {
+		tmp.SetInt(coeffs[i])
+		tmp.Sub(tmp, mean)
+		tmp.Mul(tmp, tmp)
+		stdFloat.Add(stdFloat, tmp)
+	}
+
+	stdFloat.Quo(stdFloat, bignum.NewFloat(float64(N-1), prec))
+
+	stdFloat.Sqrt(stdFloat)
+
+	stdF64, _ := stdFloat.Float64()
+
+	return math.Log2(stdF64)
 }

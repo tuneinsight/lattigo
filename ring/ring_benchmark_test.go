@@ -23,7 +23,6 @@ func BenchmarkRing(b *testing.B) {
 		benchMarshalling(tc, b)
 		benchSampling(tc, b)
 		benchMontgomery(tc, b)
-		benchNTT(tc, b)
 		benchMulCoeffs(tc, b)
 		benchAddCoeffs(tc, b)
 		benchSubCoeffs(tc, b)
@@ -144,37 +143,6 @@ func benchMontgomery(tc *testParams, b *testing.B) {
 	b.Run(testString("Montgomery/InvMForm", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			tc.ringQ.IMForm(p, p)
-		}
-	})
-}
-
-func benchNTT(tc *testParams, b *testing.B) {
-
-	p := tc.uniformSamplerQ.ReadNew()
-
-	b.Run(testString("NTT/Forward/Standard", tc.ringQ), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			tc.ringQ.NTT(p, p)
-		}
-	})
-
-	b.Run(testString("NTT/Backward/Standard", tc.ringQ), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			tc.ringQ.INTT(p, p)
-		}
-	})
-
-	ringQConjugateInvariant, _ := NewRingConjugateInvariant(tc.ringQ.N(), tc.ringQ.ModuliChain())
-
-	b.Run(testString("NTT/Forward/ConjugateInvariant4NthRoot", tc.ringQ), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			ringQConjugateInvariant.NTT(p, p)
-		}
-	})
-
-	b.Run(testString("NTT/Backward/ConjugateInvariant4NthRoot", tc.ringQ), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			ringQConjugateInvariant.INTT(p, p)
 		}
 	})
 }

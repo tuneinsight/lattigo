@@ -66,6 +66,8 @@ func testBlindRotation(t *testing.T) {
 		NTTFlag: NTTFlag,
 	})
 
+	require.NoError(t, err)
+
 	evkParams := rlwe.EvaluationKeyParameters{BaseTwoDecomposition: utils.Pointy(7)}
 
 	require.NoError(t, err)

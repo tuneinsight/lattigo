@@ -55,13 +55,49 @@ func BenchmarkHEInt(b *testing.B) {
 		}
 
 		for _, testSet := range []func(tc *testContext, b *testing.B){
+			benchKeyGenerator,
 			benchEncoder,
+			benchEncryptor,
 			benchEvaluator,
 		} {
 			testSet(tc, b)
 			runtime.GC()
 		}
 	}
+}
+
+func benchKeyGenerator(tc *testContext, b *testing.B) {
+
+	params := tc.params
+
+	b.Run(GetBenchName(params, "KeyGenerator/GenSecretKey"), func(b *testing.B) {
+		sk := rlwe.NewSecretKey(params)
+		kgen := tc.kgen
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			kgen.GenSecretKey(sk)
+		}
+	})
+
+	b.Run(GetBenchName(params, "KeyGenerator/GenPublicKey"), func(b *testing.B) {
+		sk := tc.sk
+		pk := rlwe.NewPublicKey(params)
+		kgen := tc.kgen
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			kgen.GenPublicKey(sk, pk)
+		}
+	})
+
+	b.Run(GetBenchName(params, "KeyGenerator/GenEvaluationKey"), func(b *testing.B) {
+		sk := tc.sk
+		kgen := tc.kgen
+		evk := rlwe.NewEvaluationKey(params)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			kgen.GenEvaluationKey(sk, sk, evk)
+		}
+	})
 }
 
 func benchEncoder(tc *testContext, b *testing.B) {
@@ -119,6 +155,80 @@ func benchEncoder(tc *testContext, b *testing.B) {
 				b.Log(err)
 				b.Fail()
 			}
+		}
+	})
+}
+
+func benchEncryptor(tc *testContext, b *testing.B) {
+
+	params := tc.params
+
+	b.Run(GetBenchName(params, "Encryptor/Encrypt/Sk"), func(b *testing.B) {
+
+		pt := heint.NewPlaintext(params, params.MaxLevel())
+
+		poly := tc.uSampler.ReadNew()
+		params.RingT().Reduce(poly, poly)
+
+		if err := tc.encoder.Encode(poly.Coeffs[0], pt); err != nil {
+			b.Log(err)
+			b.Fail()
+		}
+
+		ct := heint.NewCiphertext(params, 1, pt.Level())
+
+		enc := tc.encryptorSk
+
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			if err := enc.Encrypt(pt, ct); err != nil {
+				b.Log(err)
+				b.Fail()
+			}
+		}
+	})
+
+	b.Run(GetBenchName(params, "Encryptor/Encrypt/Pk"), func(b *testing.B) {
+
+		pt := heint.NewPlaintext(params, params.MaxLevel())
+
+		poly := tc.uSampler.ReadNew()
+		params.RingT().Reduce(poly, poly)
+
+		if err := tc.encoder.Encode(poly.Coeffs[0], pt); err != nil {
+			b.Log(err)
+			b.Fail()
+		}
+
+		ct := heint.NewCiphertext(params, 1, pt.Level())
+
+		enc := tc.encryptorPk
+
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			if err := enc.Encrypt(pt, ct); err != nil {
+				b.Log(err)
+				b.Fail()
+			}
+		}
+	})
+
+	b.Run(GetBenchName(params, "Decryptor/Decrypt"), func(b *testing.B) {
+
+		pt := heint.NewPlaintext(params, params.MaxLevel())
+
+		ct := rlwe.NewCiphertextRandom(tc.prng, params.Parameters, 1, params.MaxLevel())
+
+		*ct.MetaData = *pt.MetaData
+
+		dec := tc.decryptor
+
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			dec.Decrypt(ct, pt)
 		}
 	})
 }

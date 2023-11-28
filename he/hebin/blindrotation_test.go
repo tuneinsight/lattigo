@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/ring"
-	"github.com/tuneinsight/lattigo/v5/utils"
+	"github.com/tuneinsight/lattigo-enterprise/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo-enterprise/v5/ring"
+	"github.com/tuneinsight/lattigo-enterprise/v5/utils"
 )
 
 func testString(params rlwe.Parameters, opname string) string {

@@ -3,9 +3,9 @@ package rlwe
 import (
 	"fmt"
 
-	"github.com/tuneinsight/lattigo/v5/ring"
-	"github.com/tuneinsight/lattigo/v5/ring/ringqp"
-	"github.com/tuneinsight/lattigo/v5/utils"
+	"github.com/tuneinsight/lattigo-enterprise/v5/ring"
+	"github.com/tuneinsight/lattigo-enterprise/v5/ring/ringqp"
+	"github.com/tuneinsight/lattigo-enterprise/v5/utils"
 )
 
 // KeyGenerator is a structure that stores the elements required to create new keys,

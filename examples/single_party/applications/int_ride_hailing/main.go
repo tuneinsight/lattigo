@@ -6,11 +6,11 @@ import (
 	"math"
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/utils/sampling"
+	"github.com/tuneinsight/lattigo-enterprise/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo-enterprise/v5/utils/sampling"
 
-	"github.com/tuneinsight/lattigo/v5/he/heint"
-	"github.com/tuneinsight/lattigo/v5/ring"
+	"github.com/tuneinsight/lattigo-enterprise/v5/he/heint"
+	"github.com/tuneinsight/lattigo-enterprise/v5/ring"
 )
 
 var flagShort = flag.Bool("short", false, "run the example with a smaller and insecure ring degree.")

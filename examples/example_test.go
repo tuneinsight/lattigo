@@ -3,8 +3,8 @@ package examples
 import (
 	"testing"
 
-	"github.com/tuneinsight/lattigo/v5/he/hefloat"
-	"github.com/tuneinsight/lattigo/v5/he/heint"
+	"github.com/tuneinsight/lattigo-enterprise/v5/he/hefloat"
+	"github.com/tuneinsight/lattigo-enterprise/v5/he/heint"
 )
 
 func TestExampleParams(t *testing.T) {

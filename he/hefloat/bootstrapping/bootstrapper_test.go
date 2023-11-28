@@ -6,11 +6,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/he/hefloat"
-	"github.com/tuneinsight/lattigo/v5/ring"
-	"github.com/tuneinsight/lattigo/v5/utils"
-	"github.com/tuneinsight/lattigo/v5/utils/sampling"
+	"github.com/tuneinsight/lattigo-enterprise/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo-enterprise/v5/he/hefloat"
+	"github.com/tuneinsight/lattigo-enterprise/v5/ring"
+	"github.com/tuneinsight/lattigo-enterprise/v5/utils"
+	"github.com/tuneinsight/lattigo-enterprise/v5/utils/sampling"
 )
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure bootstrapping). Overrides -short and requires -timeout=0.")

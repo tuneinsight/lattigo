@@ -1,7 +1,7 @@
 package mhe
 
 import (
-	"github.com/tuneinsight/lattigo/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo-enterprise/v5/core/rlwe"
 )
 
 type TestParametersLiteral struct {

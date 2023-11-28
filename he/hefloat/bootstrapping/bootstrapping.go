@@ -7,12 +7,12 @@ import (
 	"math/big"
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/he/hefloat"
-	"github.com/tuneinsight/lattigo/v5/ring"
-	"github.com/tuneinsight/lattigo/v5/schemes/ckks"
-	"github.com/tuneinsight/lattigo/v5/utils"
-	"github.com/tuneinsight/lattigo/v5/utils/bignum"
+	"github.com/tuneinsight/lattigo-enterprise/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo-enterprise/v5/he/hefloat"
+	"github.com/tuneinsight/lattigo-enterprise/v5/ring"
+	"github.com/tuneinsight/lattigo-enterprise/v5/schemes/ckks"
+	"github.com/tuneinsight/lattigo-enterprise/v5/utils"
+	"github.com/tuneinsight/lattigo-enterprise/v5/utils/bignum"
 )
 
 // Evaluate re-encrypts a ciphertext to a ciphertext at MaxLevel - k where k is the depth of the bootstrapping circuit.

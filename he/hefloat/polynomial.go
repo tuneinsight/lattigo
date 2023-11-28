@@ -3,8 +3,8 @@ package hefloat
 import (
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v5/he"
-	"github.com/tuneinsight/lattigo/v5/utils/bignum"
+	"github.com/tuneinsight/lattigo-enterprise/v5/he"
+	"github.com/tuneinsight/lattigo-enterprise/v5/utils/bignum"
 )
 
 // Polynomial is a type wrapping the type he.Polynomial.

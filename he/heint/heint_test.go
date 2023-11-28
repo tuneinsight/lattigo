@@ -9,14 +9,14 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/he/heint"
-	"github.com/tuneinsight/lattigo/v5/ring"
-	"github.com/tuneinsight/lattigo/v5/utils"
+	"github.com/tuneinsight/lattigo-enterprise/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo-enterprise/v5/he/heint"
+	"github.com/tuneinsight/lattigo-enterprise/v5/ring"
+	"github.com/tuneinsight/lattigo-enterprise/v5/utils"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tuneinsight/lattigo/v5/utils/bignum"
-	"github.com/tuneinsight/lattigo/v5/utils/sampling"
+	"github.com/tuneinsight/lattigo-enterprise/v5/utils/bignum"
+	"github.com/tuneinsight/lattigo-enterprise/v5/utils/sampling"
 )
 
 var flagPrintNoise = flag.Bool("print-noise", false, "print the residual noise")

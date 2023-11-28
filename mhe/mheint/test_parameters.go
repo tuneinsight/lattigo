@@ -1,7 +1,7 @@
 package mheint
 
 import (
-	"github.com/tuneinsight/lattigo/v5/he/heint"
+	"github.com/tuneinsight/lattigo-enterprise/v5/he/heint"
 )
 
 var (

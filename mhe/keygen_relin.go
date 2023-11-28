@@ -3,12 +3,12 @@ package mhe
 import (
 	"io"
 
-	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/ring"
-	"github.com/tuneinsight/lattigo/v5/ring/ringqp"
-	"github.com/tuneinsight/lattigo/v5/utils"
-	"github.com/tuneinsight/lattigo/v5/utils/sampling"
-	"github.com/tuneinsight/lattigo/v5/utils/structs"
+	"github.com/tuneinsight/lattigo-enterprise/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo-enterprise/v5/ring"
+	"github.com/tuneinsight/lattigo-enterprise/v5/ring/ringqp"
+	"github.com/tuneinsight/lattigo-enterprise/v5/utils"
+	"github.com/tuneinsight/lattigo-enterprise/v5/utils/sampling"
+	"github.com/tuneinsight/lattigo-enterprise/v5/utils/structs"
 )
 
 // RelinearizationKeyGenProtocol is the structure storing the parameters and and precomputations for the collective relinearization key generation protocol.

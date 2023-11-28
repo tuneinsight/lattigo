@@ -3,12 +3,12 @@ package mheint
 import (
 	"fmt"
 
-	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/he/heint"
-	"github.com/tuneinsight/lattigo/v5/mhe"
-	"github.com/tuneinsight/lattigo/v5/ring"
-	"github.com/tuneinsight/lattigo/v5/utils"
-	"github.com/tuneinsight/lattigo/v5/utils/sampling"
+	"github.com/tuneinsight/lattigo-enterprise/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo-enterprise/v5/he/heint"
+	"github.com/tuneinsight/lattigo-enterprise/v5/mhe"
+	"github.com/tuneinsight/lattigo-enterprise/v5/ring"
+	"github.com/tuneinsight/lattigo-enterprise/v5/utils"
+	"github.com/tuneinsight/lattigo-enterprise/v5/utils/sampling"
 )
 
 // EncToShareProtocol is the structure storing the parameters and temporary buffers

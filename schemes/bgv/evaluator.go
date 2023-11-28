@@ -27,6 +27,15 @@ type evaluatorBase struct {
 	basisExtenderQ1toQ2 *ring.BasisExtender
 }
 
+func (eval evaluatorBase) ShallowCopy() *evaluatorBase {
+	return &evaluatorBase{
+		tMontgomery:         eval.tMontgomery,
+		levelQMul:           eval.levelQMul,
+		pHalf:               eval.pHalf,
+		basisExtenderQ1toQ2: eval.basisExtenderQ1toQ2.ShallowCopy(),
+	}
+}
+
 func newEvaluatorPrecomp(parameters Parameters) *evaluatorBase {
 	ringQ := parameters.RingQ()
 	ringQMul := parameters.RingQMul()
@@ -122,7 +131,7 @@ func (eval Evaluator) GetParameters() *Parameters {
 // shared with the receiver.
 func (eval Evaluator) ShallowCopy() *Evaluator {
 	return &Evaluator{
-		evaluatorBase:    eval.evaluatorBase,
+		evaluatorBase:    eval.evaluatorBase.ShallowCopy(),
 		Evaluator:        eval.Evaluator.ShallowCopy(),
 		evaluatorBuffers: newEvaluatorBuffer(*eval.GetParameters()),
 		Encoder:          eval.Encoder.ShallowCopy(),

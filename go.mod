@@ -1,6 +1,6 @@
 module github.com/tuneinsight/lattigo-enterprise/v5
 
-go 1.21.1
+go 1.18
 
 require (
 	github.com/ALTree/bigfloat v0.2.0

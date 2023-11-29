@@ -108,39 +108,43 @@ func (g *GaussianSampler) read(pol Poly, f func(a, b, c uint64) uint64) {
 			Qi[i] = bignum.NewInt(qi)
 		}
 
-		var coeffInt *big.Int
-
 		boundInt := new(big.Int)
 		new(big.Float).SetFloat64(bound).Int(boundInt)
 
-		coeffTmp := new(big.Int)
+		coeff := new(big.Int)
 
 		normInt := new(big.Int)
-
-		bias := math.Log2(math.Sqrt(2 * math.Pi)) // Corrects small bias due to discretization
+		normFlo := new(big.Float)
+		normIntLowBits := new(big.Int)
 
 		for i := 0; i < N; i++ {
 
 			for {
+				// Sample norm with sigma = 1 and sign
 				norm, sign = g.normFloat64()
 
-				if norm < 1 {
-					normInt.Rsh(sigmaInt, uint(-(math.Log2(norm))))
-				} else {
-					normInt.Lsh(sigmaInt, uint(math.Log2(norm)+bias))
-				}
+				// Sets normFlo = norm * sigma with precision 53 bits
+				// and 0.5 for rounding discretization
+				normFlo.SetFloat64(norm*sigma + 0.5)
 
-				coeffInt = bignum.RandInt(g.prng, normInt)
+				// Discretizes to an integer
+				normFlo.Int(normInt)
 
-				coeffInt.Mul(coeffInt, bignum.NewInt(2*int64(sign)-1))
+				// Derive the number of zero bits: normInt>>53
+				normIntLowBits.Rsh(normInt, 53)
 
-				if coeffInt.Cmp(boundInt) < 1 {
+				// Sample in the size of the number of zero bits and adds
+				// (normInt + rand(normInt>>53)) * sign
+				normInt.Add(normInt, bignum.RandInt(g.prng, normIntLowBits)) // This might not be constant time
+				normInt.Mul(normInt, bignum.NewInt(2*int64(sign)-1))
+
+				if normInt.Cmp(boundInt) < 1 {
 					break
 				}
 			}
 
 			for j, qi := range moduli {
-				coeffs[j][i] = f(coeffs[j][i], coeffTmp.Mod(coeffInt, Qi[j]).Uint64(), qi)
+				coeffs[j][i] = f(coeffs[j][i], coeff.Mod(normInt, Qi[j]).Uint64(), qi)
 			}
 		}
 

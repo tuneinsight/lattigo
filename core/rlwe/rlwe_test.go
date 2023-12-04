@@ -190,6 +190,12 @@ func testParameters(tc *TestContext, t *testing.T) {
 			require.Equal(t, uint64(1), res)
 		}
 	})
+
+	t.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), 0, "Elements"), func(t *testing.T) {
+		ct := NewCiphertext(tc.params, 1, 0)
+		require.Equal(t, ct.N(), params.N())
+		require.Equal(t, ct.LogN(), params.LogN())
+	})
 }
 
 func testKeyGenerator(tc *TestContext, bpw2 int, t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"math/bits"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/tuneinsight/lattigo-enterprise/v5/ring"
@@ -15,6 +16,8 @@ import (
 
 // ElementInterface is a common interface for Ciphertext and Plaintext types.
 type ElementInterface[T ring.Poly | ringqp.Poly] interface {
+	N() int
+	LogN() int
 	El() *Element[T]
 	Degree() int
 	Level() int
@@ -87,6 +90,24 @@ func NewElementAtLevelFromPoly(level int, poly []ring.Poly) (*Element[ring.Poly]
 	}
 
 	return &Element[ring.Poly]{Value: Value}, nil
+}
+
+// N returns the ring degree used by the target element.
+func (op Element[T]) N() int {
+	switch el := any(op.Value[0]).(type) {
+	case ring.Poly:
+		return el.N()
+	case ringqp.Poly:
+		return el.Q.N()
+	default:
+		// Sanity check
+		panic("invalid Element[type]")
+	}
+}
+
+// LogN returns the log2 of the ring degree used by the target element.
+func (op Element[T]) LogN() int {
+	return bits.Len64(uint64(op.N() - 1))
 }
 
 // Equal performs a deep equal.

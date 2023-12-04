@@ -146,16 +146,16 @@ func GaloisElementsForTrace(params ParameterProvider, logN int) (galEls []uint64
 
 // Expand expands a RLWE Ciphertext encrypting sum ai * X^i to 2^logN ciphertexts,
 // each encrypting ai * X^0 for 0 <= i < 2^LogN. That is, it extracts the first 2^logN
-// coefficients, whose degree is a multiple of 2^logGap, of ctIn and returns an RLWE
-// Ciphertext for each coefficient extracted.
+// coefficients, whose degree is a multiple of 2^logGap, of ct and returns a map
+// with the extracted ciphertext at their respective index.
 //
 // The method will return an error if:
 //   - The input ciphertext degree is not one
 //   - The ring type is not ring.Standard
-func (eval Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (opOut []*Ciphertext, err error) {
+func (eval Evaluator) Expand(ct *Ciphertext, logN, logGap int) (cts map[int]*Ciphertext, err error) {
 
-	if ctIn.Degree() != 1 {
-		return nil, fmt.Errorf("cannot Expand: ctIn.Degree() != 1")
+	if ct.Degree() != 1 {
+		return nil, fmt.Errorf("cannot Expand: ct.Degree() != 1")
 	}
 
 	params := eval.GetRLWEParameters()
@@ -164,18 +164,18 @@ func (eval Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (opOut []*Ciphe
 		return nil, fmt.Errorf("cannot Expand: method is only supported for ring.Type = ring.Standard (X^{-2^{i}} does not exist in the sub-ring Z[X + X^{-1}])")
 	}
 
-	level := ctIn.Level()
+	level := ct.Level()
 
 	ringQ := params.RingQ().AtLevel(level)
 
 	// Compute X^{-2^{i}} from 1 to LogN
 	xPow2 := GenXPow2(ringQ, logN, true)
 
-	opOut = make([]*Ciphertext, 1<<(logN-logGap))
-	opOut[0] = ctIn.CopyNew()
-	opOut[0].LogDimensions = ring.Dimensions{Rows: 0, Cols: 0}
+	cts = map[int]*Ciphertext{}
+	cts[0] = ct.CopyNew()
+	cts[0].LogDimensions = ring.Dimensions{Rows: 0, Cols: 0}
 
-	if ct := opOut[0]; !ctIn.IsNTT {
+	if ct := cts[0]; !ct.IsNTT {
 		ringQ.NTT(ct.Value[0], ct.Value[0])
 		ringQ.NTT(ct.Value[1], ct.Value[1])
 		ct.IsNTT = true
@@ -185,8 +185,8 @@ func (eval Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (opOut []*Ciphe
 	NInv := new(big.Int).SetUint64(1 << logN)
 	NInv.ModInverse(NInv, ringQ.ModulusAtLevel[level])
 
-	ringQ.MulScalarBigint(opOut[0].Value[0], NInv, opOut[0].Value[0])
-	ringQ.MulScalarBigint(opOut[0].Value[1], NInv, opOut[0].Value[1])
+	ringQ.MulScalarBigint(cts[0].Value[0], NInv, cts[0].Value[0])
+	ringQ.MulScalarBigint(cts[0].Value[1], NInv, cts[0].Value[1])
 
 	gap := 1 << logGap
 
@@ -198,7 +198,7 @@ func (eval Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (opOut []*Ciphe
 		panic(err)
 	}
 
-	tmp.MetaData = ctIn.MetaData
+	*tmp.MetaData = *ct.MetaData
 
 	for i := 0; i < logN; i++ {
 
@@ -206,11 +206,9 @@ func (eval Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (opOut []*Ciphe
 
 		galEl := uint64(ringQ.N()/n + 1)
 
-		half := n / gap
+		for j := 0; j < n; j += gap {
 
-		for j := 0; j < (n+gap-1)/gap; j++ {
-
-			c0 := opOut[j]
+			c0 := cts[j]
 
 			// X -> X^{N/n + 1}
 			//[a, b, c, d] -> [a, -b, c, -d]
@@ -218,9 +216,9 @@ func (eval Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (opOut []*Ciphe
 				return
 			}
 
-			if j+half > 0 {
+			if j+n/gap > 0 {
 
-				c1 := opOut[j].CopyNew()
+				c1 := cts[j].CopyNew()
 
 				// Zeroes odd coeffs: [a, b, c, d] + [a, -b, c, -d] -> [2a, 0, 2b, 0]
 				ringQ.Add(c0.Value[0], tmp.Value[0], c0.Value[0])
@@ -234,7 +232,7 @@ func (eval Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (opOut []*Ciphe
 				ringQ.MulCoeffsMontgomery(c1.Value[0], xPow2[i], c1.Value[0])
 				ringQ.MulCoeffsMontgomery(c1.Value[1], xPow2[i], c1.Value[1])
 
-				opOut[j+half] = c1
+				cts[j+n] = c1
 
 			} else {
 
@@ -245,8 +243,8 @@ func (eval Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (opOut []*Ciphe
 		}
 	}
 
-	for _, ct := range opOut {
-		if ct != nil && !ctIn.IsNTT {
+	for _, ct := range cts {
+		if ct != nil && !ct.IsNTT {
 			ringQ.INTT(ct.Value[0], ct.Value[0])
 			ringQ.INTT(ct.Value[1], ct.Value[1])
 			ct.IsNTT = false

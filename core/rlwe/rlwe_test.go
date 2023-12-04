@@ -190,6 +190,12 @@ func testParameters(tc *TestContext, t *testing.T) {
 			require.Equal(t, uint64(1), res)
 		}
 	})
+
+	t.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), 0, "Elements"), func(t *testing.T) {
+		ct := NewCiphertext(tc.params, 1, 0)
+		require.Equal(t, ct.N(), params.N())
+		require.Equal(t, ct.LogN(), params.LogN())
+	})
 }
 
 func testKeyGenerator(tc *TestContext, bpw2 int, t *testing.T) {
@@ -873,7 +879,7 @@ func testSlotOperations(tc *TestContext, level, bpw2 int, t *testing.T) {
 		ringQ := params.RingQ().AtLevel(level)
 
 		logN := 4
-		logGap := 0
+		logGap := 1
 		gap := 1 << logGap
 
 		values := make([]uint64, params.N())
@@ -903,6 +909,15 @@ func testSlotOperations(tc *TestContext, level, bpw2 int, t *testing.T) {
 		ciphertexts, err := eval.WithKey(evk).Expand(ctIn, logN, logGap)
 		require.NoError(t, err)
 
+		for i := 0; i < 1<<logN; i++ {
+			_, ok := ciphertexts[i]
+			if i&(gap-1) == 0 {
+				require.True(t, ok)
+			} else {
+				require.False(t, ok)
+			}
+		}
+
 		Q := ringQ.ModuliChain()
 
 		NoiseBound := float64(params.LogN() - logN + bpw2)
@@ -920,7 +935,7 @@ func testSlotOperations(tc *TestContext, level, bpw2 int, t *testing.T) {
 			}
 
 			for j := 0; j < level+1; j++ {
-				pt.Value.Coeffs[j][0] = ring.CRed(pt.Value.Coeffs[j][0]+Q[j]-values[i*gap], Q[j])
+				pt.Value.Coeffs[j][0] = ring.CRed(pt.Value.Coeffs[j][0]+Q[j]-values[i], Q[j])
 			}
 
 			// Logs the noise

@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/tuneinsight/lattigo-enterprise/v5/core/rgsw"
-	"github.com/tuneinsight/lattigo-enterprise/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo-enterprise/v5/ring"
-	"github.com/tuneinsight/lattigo-enterprise/v5/utils/bignum"
+	"github.com/tuneinsight/lattigo/v5/core/rgsw"
+	"github.com/tuneinsight/lattigo/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo/v5/ring"
+	"github.com/tuneinsight/lattigo/v5/utils/bignum"
 )
 
 // Evaluator is a struct that stores the necessary

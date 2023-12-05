@@ -4,10 +4,10 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/tuneinsight/lattigo-enterprise/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo-enterprise/v5/he/hefloat"
-	"github.com/tuneinsight/lattigo-enterprise/v5/he/hefloat/bootstrapping"
-	"github.com/tuneinsight/lattigo-enterprise/v5/ring"
+	"github.com/tuneinsight/lattigo/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo/v5/he/hefloat"
+	"github.com/tuneinsight/lattigo/v5/he/hefloat/bootstrapping"
+	"github.com/tuneinsight/lattigo/v5/ring"
 
 	"github.com/stretchr/testify/require"
 )

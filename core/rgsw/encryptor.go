@@ -1,8 +1,8 @@
 package rgsw
 
 import (
-	"github.com/tuneinsight/lattigo-enterprise/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo-enterprise/v5/ring/ringqp"
+	"github.com/tuneinsight/lattigo/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo/v5/ring/ringqp"
 )
 
 // Encryptor is a type for encrypting RGSW ciphertexts. It implements the rlwe.Encryptor

@@ -3,8 +3,8 @@ package ring
 import (
 	"math/big"
 
-	"github.com/tuneinsight/lattigo-enterprise/v5/utils"
-	"github.com/tuneinsight/lattigo-enterprise/v5/utils/bignum"
+	"github.com/tuneinsight/lattigo/v5/utils"
+	"github.com/tuneinsight/lattigo/v5/utils/bignum"
 )
 
 // Add evaluates p3 = p1 + p2 coefficient-wise in the ring.

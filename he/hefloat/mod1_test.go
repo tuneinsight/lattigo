@@ -7,10 +7,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tuneinsight/lattigo-enterprise/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo-enterprise/v5/he/hefloat"
-	"github.com/tuneinsight/lattigo-enterprise/v5/ring"
-	"github.com/tuneinsight/lattigo-enterprise/v5/utils/sampling"
+	"github.com/tuneinsight/lattigo/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo/v5/he/hefloat"
+	"github.com/tuneinsight/lattigo/v5/ring"
+	"github.com/tuneinsight/lattigo/v5/utils/sampling"
 )
 
 func TestMod1(t *testing.T) {

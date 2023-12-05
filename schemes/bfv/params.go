@@ -3,9 +3,9 @@ package bfv
 import (
 	"encoding/json"
 
-	"github.com/tuneinsight/lattigo-enterprise/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo-enterprise/v5/ring"
-	"github.com/tuneinsight/lattigo-enterprise/v5/schemes/bgv"
+	"github.com/tuneinsight/lattigo/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo/v5/ring"
+	"github.com/tuneinsight/lattigo/v5/schemes/bgv"
 )
 
 // NewParameters instantiate a set of BFV parameters from the generic RLWE parameters and a plaintext modulus t.

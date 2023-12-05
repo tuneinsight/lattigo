@@ -3,7 +3,7 @@ package factorization
 import (
 	"math/big"
 
-	"github.com/tuneinsight/lattigo-enterprise/v5/utils/sampling"
+	"github.com/tuneinsight/lattigo/v5/utils/sampling"
 )
 
 // Weierstrass is an elliptic curve y^2 = x^3 + ax + b mod N.

@@ -7,10 +7,10 @@ import (
 	"math/big"
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo-enterprise/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo-enterprise/v5/he/hefloat/cosine"
-	"github.com/tuneinsight/lattigo-enterprise/v5/utils"
-	"github.com/tuneinsight/lattigo-enterprise/v5/utils/bignum"
+	"github.com/tuneinsight/lattigo/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo/v5/he/hefloat/cosine"
+	"github.com/tuneinsight/lattigo/v5/utils"
+	"github.com/tuneinsight/lattigo/v5/utils/bignum"
 )
 
 // Mod1Type is the type of function/approximation used to evaluate x mod 1.

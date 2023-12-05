@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/tuneinsight/lattigo-enterprise/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo-enterprise/v5/ring"
-	"github.com/tuneinsight/lattigo-enterprise/v5/utils"
-	"github.com/tuneinsight/lattigo-enterprise/v5/utils/sampling"
+	"github.com/tuneinsight/lattigo/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo/v5/ring"
+	"github.com/tuneinsight/lattigo/v5/utils"
+	"github.com/tuneinsight/lattigo/v5/utils/sampling"
 )
 
 func BenchmarkMHE(b *testing.B) {

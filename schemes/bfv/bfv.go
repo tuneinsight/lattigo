@@ -5,9 +5,9 @@ package bfv
 import (
 	"fmt"
 
-	"github.com/tuneinsight/lattigo-enterprise/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo-enterprise/v5/ring"
-	"github.com/tuneinsight/lattigo-enterprise/v5/schemes/bgv"
+	"github.com/tuneinsight/lattigo/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo/v5/ring"
+	"github.com/tuneinsight/lattigo/v5/schemes/bgv"
 )
 
 // NewPlaintext allocates a new rlwe.Plaintext from the BFV parameters, at the

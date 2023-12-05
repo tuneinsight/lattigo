@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/tuneinsight/lattigo-enterprise/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 )
 
 func GetBenchName(params Parameters, opname string) string {

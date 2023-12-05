@@ -7,11 +7,11 @@ import (
 	"math/bits"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/tuneinsight/lattigo-enterprise/v5/ring"
-	"github.com/tuneinsight/lattigo-enterprise/v5/ring/ringqp"
-	"github.com/tuneinsight/lattigo-enterprise/v5/utils/buffer"
-	"github.com/tuneinsight/lattigo-enterprise/v5/utils/sampling"
-	"github.com/tuneinsight/lattigo-enterprise/v5/utils/structs"
+	"github.com/tuneinsight/lattigo/v5/ring"
+	"github.com/tuneinsight/lattigo/v5/ring/ringqp"
+	"github.com/tuneinsight/lattigo/v5/utils/buffer"
+	"github.com/tuneinsight/lattigo/v5/utils/sampling"
+	"github.com/tuneinsight/lattigo/v5/utils/structs"
 )
 
 // ElementInterface is a common interface for Ciphertext and Plaintext types.

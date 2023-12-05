@@ -6,11 +6,11 @@ import (
 	"io"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/tuneinsight/lattigo-enterprise/v5/ring"
-	"github.com/tuneinsight/lattigo-enterprise/v5/ring/ringqp"
-	"github.com/tuneinsight/lattigo-enterprise/v5/utils"
-	"github.com/tuneinsight/lattigo-enterprise/v5/utils/buffer"
-	"github.com/tuneinsight/lattigo-enterprise/v5/utils/structs"
+	"github.com/tuneinsight/lattigo/v5/ring"
+	"github.com/tuneinsight/lattigo/v5/ring/ringqp"
+	"github.com/tuneinsight/lattigo/v5/utils"
+	"github.com/tuneinsight/lattigo/v5/utils/buffer"
+	"github.com/tuneinsight/lattigo/v5/utils/structs"
 )
 
 // GadgetCiphertext is a struct for storing an encrypted

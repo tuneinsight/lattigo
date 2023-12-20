@@ -223,9 +223,7 @@ func (s *Scale) UnmarshalJSON(p []byte) (err error) {
 	}
 
 	s.Value.SetPrec(ScalePrecision)
-
-	f, _ := new(big.Float).SetString(aux.Value)
-	s.Value.Set(f)
+	s.Value.SetString(aux.Value)
 
 	mod, bool := new(big.Float).SetString(aux.Mod)
 
@@ -255,35 +253,30 @@ func scaleToBigFloat(scale interface{}) (s *big.Float) {
 
 		s = new(big.Float).SetPrec(ScalePrecision)
 		s.SetFloat64(scale)
-		return
 	case *big.Float:
 		if scale.Cmp(new(big.Float).SetFloat64(0)) < 0 || scale.IsInf() {
 			panic(fmt.Errorf("scale cannot be negative, but is %f", scale))
 		}
 		s = new(big.Float).SetPrec(ScalePrecision)
 		s.Set(scale)
-		return
 	case big.Float:
 		if scale.Cmp(new(big.Float).SetFloat64(0)) < 0 || scale.IsInf() {
 			panic(fmt.Errorf("scale cannot be negative, but is %f", &scale))
 		}
 		s = new(big.Float).SetPrec(ScalePrecision)
 		s.Set(&scale)
-		return
 	case *big.Int:
 		if scale.Cmp(new(big.Int).SetInt64(0)) < 0 {
 			panic(fmt.Errorf("scale cannot be negative, but is %f", scale))
 		}
 		s = new(big.Float).SetPrec(ScalePrecision)
 		s.SetInt(scale)
-		return
 	case big.Int:
 		if scale.Cmp(new(big.Int).SetInt64(0)) < 0 {
 			panic(fmt.Errorf("scale cannot be negative, but is %f", &scale))
 		}
 		s = new(big.Float).SetPrec(ScalePrecision)
 		s.SetInt(&scale)
-		return
 	case int:
 		return scaleToBigFloat(new(big.Int).SetInt64(int64(scale)))
 	case int64:
@@ -295,4 +288,10 @@ func scaleToBigFloat(scale interface{}) (s *big.Float) {
 	default:
 		panic(fmt.Errorf("invalid scale.(type): must be int, int64, uint64, float64, *big.Int, *big.Float or *Scale but is %T", scale))
 	}
+
+	// Although the big.Float has 128 bits of precision, it will be
+	// initialized with mant:big.nat{0x0}, i.e. only one mantissa word.
+	// This forces two mantissa words: mant:big.nat{0x0, 0x0}.
+	s.SetString(s.Text('x', ScalePrecisionLog10))
+	return
 }

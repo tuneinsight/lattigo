@@ -85,7 +85,7 @@ func (rfp MaskedTransformProtocol) AllocateShare(levelDecrypt, levelRecrypt int)
 
 // GenShare generates the shares of the PermuteProtocol.
 // ct1 is the degree 1 element of a rlwe.Ciphertext, i.e. rlwe.Ciphertext.Value[1].
-func (rfp MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, ct *rlwe.Ciphertext, scale rlwe.Scale, crs mhe.KeySwitchCRP, transform *MaskedTransformFunc, shareOut *mhe.RefreshShare) (err error) {
+func (rfp MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, ct *rlwe.Ciphertext, crs mhe.KeySwitchCRP, transform *MaskedTransformFunc, shareOut *mhe.RefreshShare) (err error) {
 
 	if ct.Level() < shareOut.EncToShareShare.Value.Level() {
 		return fmt.Errorf("cannot GenShare: ct[1] level must be at least equal to EncToShareShare level")
@@ -101,7 +101,7 @@ func (rfp MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, ct *rlw
 		coeffs := make([]uint64, len(mask.Coeffs[0]))
 
 		if transform.Decode {
-			if err := rfp.e2s.encoder.DecodeRingT(mask, scale, coeffs); err != nil {
+			if err := rfp.e2s.encoder.DecodeRingT(mask, ct.Scale, coeffs); err != nil {
 				return fmt.Errorf("cannot GenShare: %w", err)
 			}
 		} else {
@@ -111,7 +111,7 @@ func (rfp MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, ct *rlw
 		transform.Func(coeffs)
 
 		if transform.Encode {
-			if err := rfp.s2e.encoder.EncodeRingT(coeffs, scale, rfp.tmpMaskPerm); err != nil {
+			if err := rfp.s2e.encoder.EncodeRingT(coeffs, ct.Scale, rfp.tmpMaskPerm); err != nil {
 				return fmt.Errorf("cannot GenShare: %w", err)
 			}
 		} else {
@@ -120,6 +120,9 @@ func (rfp MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, ct *rlw
 
 		mask = rfp.tmpMaskPerm
 	}
+
+	// Stores the ciphertext metadata on the public share
+	shareOut.MetaData = *ct.MetaData
 
 	return rfp.s2e.GenShare(skOut, crs, mhe.AdditiveShare{Value: mask}, &shareOut.ShareToEncShare)
 }
@@ -143,6 +146,10 @@ func (rfp MaskedTransformProtocol) AggregateShares(share1, share2 mhe.RefreshSha
 
 // Transform applies Decrypt, Recode and Recrypt on the input ciphertext.
 func (rfp MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *MaskedTransformFunc, crs mhe.KeySwitchCRP, share mhe.RefreshShare, ciphertextOut *rlwe.Ciphertext) (err error) {
+
+	if !ct.MetaData.Equal(&share.MetaData) {
+		return fmt.Errorf("cannot Transform: input ct.MetaData != share.MetaData")
+	}
 
 	if ct.Level() < share.EncToShareShare.Value.Level() {
 		return fmt.Errorf("cannot Transform: input ciphertext level must be at least equal to e2s level")

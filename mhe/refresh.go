@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"io"
 
+	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 	"github.com/tuneinsight/lattigo/v5/utils/buffer"
 )
 
@@ -11,11 +12,12 @@ import (
 type RefreshShare struct {
 	EncToShareShare KeySwitchShare
 	ShareToEncShare KeySwitchShare
+	MetaData        rlwe.MetaData
 }
 
 // BinarySize returns the serialized size of the object in bytes.
 func (share RefreshShare) BinarySize() int {
-	return share.EncToShareShare.BinarySize() + share.ShareToEncShare.BinarySize()
+	return share.EncToShareShare.BinarySize() + share.ShareToEncShare.BinarySize() + share.MetaData.BinarySize()
 }
 
 // WriteTo writes the object on an io.Writer. It implements the io.WriterTo
@@ -32,11 +34,20 @@ func (share RefreshShare) BinarySize() int {
 func (share RefreshShare) WriteTo(w io.Writer) (n int64, err error) {
 	switch w := w.(type) {
 	case buffer.Writer:
-		if n, err = share.EncToShareShare.WriteTo(w); err != nil {
+
+		if n, err = share.MetaData.WriteTo(w); err != nil {
 			return
 		}
+
 		var inc int64
+		if inc, err = share.EncToShareShare.WriteTo(w); err != nil {
+			return n + inc, err
+		}
+
+		n += inc
+
 		inc, err = share.ShareToEncShare.WriteTo(w)
+
 		return n + inc, err
 	default:
 		return share.WriteTo(bufio.NewWriter(w))
@@ -57,11 +68,20 @@ func (share RefreshShare) WriteTo(w io.Writer) (n int64, err error) {
 func (share *RefreshShare) ReadFrom(r io.Reader) (n int64, err error) {
 	switch r := r.(type) {
 	case buffer.Reader:
-		if n, err = share.EncToShareShare.ReadFrom(r); err != nil {
+
+		if n, err = share.MetaData.ReadFrom(r); err != nil {
 			return
 		}
+
 		var inc int64
+		if inc, err = share.EncToShareShare.ReadFrom(r); err != nil {
+			return
+		}
+
+		n += inc
+
 		inc, err = share.ShareToEncShare.ReadFrom(r)
+
 		return n + inc, err
 	default:
 		return share.ReadFrom(bufio.NewReader(r))

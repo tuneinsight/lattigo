@@ -279,7 +279,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 		ciphertext.Resize(ciphertext.Degree(), minLevel)
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, ciphertext, ciphertext.Scale, crp, &p.share)
+			p.GenShare(p.s, ciphertext, crp, &p.share)
 			if i > 0 {
 				P0.AggregateShares(p.share, P0.share, &P0.share)
 			}
@@ -362,7 +362,7 @@ func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.s, p.s, ciphertext, ciphertext.Scale, crp, maskedTransform, &p.share)
+			p.GenShare(p.s, p.s, ciphertext, crp, maskedTransform, &p.share)
 			if i > 0 {
 				P0.AggregateShares(P0.share, p.share, &P0.share)
 			}
@@ -464,7 +464,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 		}
 
 		for i, p := range RefreshParties {
-			p.GenShare(p.sIn, p.sOut, ciphertext, ciphertext.Scale, crp, transform, &p.share)
+			p.GenShare(p.sIn, p.sOut, ciphertext, crp, transform, &p.share)
 			if i > 0 {
 				P0.AggregateShares(P0.share, p.share, &P0.share)
 			}

@@ -211,19 +211,10 @@ func GenMinimaxCompositePolynomial(prec uint, logalpha, logerr int, deg []int, f
 		fmt.Println()
 	}
 
-	maxInterval := bignum.NewFloat(1, prec)
-	maxInterval.Add(maxInterval, r.MaxErr)
-
-	minInterval := bignum.NewFloat(1, prec)
-	minInterval.Sub(minInterval, r.MinErr)
-
-	maxInterval.Add(maxInterval, e)
-	minInterval.Sub(minInterval, e)
-
+	// Since this is the last polynomial, we can skip the interval scaling.
 	coeffs[len(deg)-1] = make([]*big.Float, deg[len(deg)-1]+1)
 	for j := range coeffs[len(deg)-1] {
 		coeffs[len(deg)-1][j] = new(big.Float).Set(r.Coeffs[j])
-		coeffs[len(deg)-1][j].Quo(coeffs[len(deg)-1][j], maxInterval) // Interval normalization
 	}
 
 	f64, _ := r.MaxErr.Float64()

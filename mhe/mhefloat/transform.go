@@ -187,6 +187,9 @@ func (mltp MaskedLinearTransformationProtocol) GenShare(skIn, skOut *rlwe.Secret
 		return
 	}
 
+	// Stores the metadata of the ciphertext
+	shareOut.MetaData = *ct.MetaData
+
 	// Returns [-a*s_i + LT(M_i) * diffscale + e] on ShareToEncShare
 	return mltp.s2e.GenShare(skOut, crs, ct.MetaData, mhe.AdditiveShareBigint{Value: mask}, &shareOut.ShareToEncShare)
 }
@@ -214,6 +217,10 @@ func (mltp MaskedLinearTransformationProtocol) Transform(ct *rlwe.Ciphertext, tr
 
 	if ct.Level() < share.EncToShareShare.Value.Level() {
 		return fmt.Errorf("cannot Transform: input ciphertext level must be at least equal to e2s level")
+	}
+
+	if !ct.MetaData.Equal(&share.MetaData) {
+		return fmt.Errorf("cannot Transform: input ciphertext MetaData is not equal to share.MetaData")
 	}
 
 	maxLevel := crs.Value.Level()

@@ -30,7 +30,7 @@ The library exposes the following packages:
 
   - `hefloat`: Homomorphic Encryption for fixed-point approximate arithmetic over the complex or real numbers.
 
-    - `bootstrapper`: Bootstrapping for fixed-point approximate arithmetic over the real
+    - `bootstrapping`: Bootstrapping for fixed-point approximate arithmetic over the real
       and complex numbers, with support for the Conjugate Invariant ring, batch bootstrapping with automatic
       packing/unpacking of sparsely packed/smaller ring degree ciphertexts, arbitrary precision bootstrapping,
       and advanced circuit customization/parameterization.
@@ -96,6 +96,7 @@ RLWE --> CKKS{{CKKS}}
 RGSW --> HEBin{HEBin}
 HE --> HEFloat{HEFloat}
 HE --> HEInt{HEInt}
+HE --> HEBin
 BFV/BGV --> HEInt
 CKKS --> HEFloat
 RLWE --> BFV/BGV{{BFV/BGV}}
@@ -124,7 +125,7 @@ on Lattigo:
   for example by changing the imports to `github.com/tuneinsight/lattigo/v[X]/[package]` and by
   running `go mod tidy`.
 
-The current version of Lattigo, (v4.x.x) is fast-evolving and in constant development. Consequently,
+The current version of Lattigo, (v5.x.x) is fast-evolving and in constant development. Consequently,
 there will still be backward-incompatible changes within this major version, in addition to many bug
 fixes and new features. Hence, we encourage all Lattigo users to update to the latest Lattigo version.
 
@@ -144,6 +145,8 @@ require a fair amount of work if done on our side. If you plan to open such a pu
 us before doing so to make sure that the proposed changes are aligned with our development roadmap.
 
 External pull requests only proposing small or trivial changes will be converted to an issue and closed.
+
+External contributions will require to sign a Contribution License Agreement (CLA) based on the [Apache 2 CLA](https://www.apache.org/licenses/contributor-agreements.html).
 
 ## License
 

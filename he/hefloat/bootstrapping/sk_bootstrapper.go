@@ -6,7 +6,7 @@ import (
 	"github.com/tuneinsight/lattigo/v5/utils/bignum"
 )
 
-// SecretKeyBootstrapper is an implementation of the rlwe.Bootstrapping interface that
+// SecretKeyBootstrapper is an implementation of the [rlwe.Bootstrapping] interface that
 // uses the secret-key to decrypt and re-encrypt the bootstrapped ciphertext.
 type SecretKeyBootstrapper struct {
 	hefloat.Parameters

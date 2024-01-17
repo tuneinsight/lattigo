@@ -25,7 +25,7 @@ type Evaluator struct {
 	galoisGenDiscreteLog map[uint64]int
 }
 
-// NewEvaluator instantiates a new Evaluator.
+// NewEvaluator instantiates a new [Evaluator].
 func NewEvaluator(paramsBR, paramsLWE rlwe.ParameterProvider) (eval *Evaluator) {
 	eval = new(Evaluator)
 	eval.Evaluator = rgsw.NewEvaluator(paramsBR, nil)
@@ -43,7 +43,7 @@ func NewEvaluator(paramsBR, paramsLWE rlwe.ParameterProvider) (eval *Evaluator) 
 	return
 }
 
-// EvaluateAndRepack extracts on the fly LWE samples, evaluates the provided blind rotations on the LWE and repacks everything into a single rlwe.Ciphertext.
+// EvaluateAndRepack extracts on the fly LWE samples, evaluates the provided blind rotations on the LWE and repacks everything into a single [rlwe.Ciphertext].
 // testPolyWithSlotIndex : a map with [slot_index] -> blind rotation
 // repackIndex : a map with [slot_index_have] -> slot_index_want
 func (eval *Evaluator) EvaluateAndRepack(ct *rlwe.Ciphertext, testPolyWithSlotIndex map[int]*ring.Poly, repackIndex map[int]int, key BlindRotationEvaluationKeySet, repackKey rlwe.EvaluationKeySet) (res *rlwe.Ciphertext, err error) {

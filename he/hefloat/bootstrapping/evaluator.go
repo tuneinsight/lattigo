@@ -37,7 +37,7 @@ type Evaluator struct {
 	SkDebug *rlwe.SecretKey
 }
 
-// NewEvaluator creates a new Evaluator.
+// NewEvaluator creates a new [Evaluator].
 func NewEvaluator(btpParams Parameters, evk *EvaluationKeys) (eval *Evaluator, err error) {
 
 	eval = &Evaluator{}
@@ -119,7 +119,7 @@ func NewEvaluator(btpParams Parameters, evk *EvaluationKeys) (eval *Evaluator, e
 	return
 }
 
-// ShallowCopy creates a shallow copy of this Evaluator in which all the read-only data-structures are
+// ShallowCopy creates a shallow copy of this [Evaluator] in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Evaluator can be used concurrently.
 func (eval Evaluator) ShallowCopy() *Evaluator {
@@ -153,7 +153,7 @@ func (eval Evaluator) ShallowCopy() *Evaluator {
 	}
 }
 
-// CheckKeys checks if all the necessary keys are present in the instantiated Evaluator
+// CheckKeys checks if all the necessary keys are present in the instantiated [Evaluator]
 func (eval Evaluator) checkKeys(evk *EvaluationKeys) (err error) {
 
 	if _, err = evk.GetRelinearizationKey(); err != nil {

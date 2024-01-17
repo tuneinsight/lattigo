@@ -6,15 +6,15 @@ import (
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 )
 
-// NewPlaintext allocates a new rlwe.Plaintext.
+// NewPlaintext allocates a new [rlwe.Plaintext].
 //
 // inputs:
-//   - params: an rlwe.ParameterProvider interface
+//   - params: an [rlwe.ParameterProvider] interface
 //   - level: the level of the plaintext
 //
-// output: a newly allocated rlwe.Plaintext at the specified level.
+// output: a newly allocated [rlwe.Plaintext] at the specified level.
 //
-// Note: the user can update the field `MetaData` to set a specific scaling factor,
+// Note: the user can update the field MetaData to set a specific scaling factor,
 // plaintext dimensions (if applicable) or encoding domain, before encoding values
 // on the created plaintext.
 func NewPlaintext(params Parameters, level int) (pt *rlwe.Plaintext) {
@@ -25,14 +25,14 @@ func NewPlaintext(params Parameters, level int) (pt *rlwe.Plaintext) {
 	return
 }
 
-// NewCiphertext allocates a new rlwe.Ciphertext.
+// NewCiphertext allocates a new [rlwe.Ciphertext].
 //
 // inputs:
-//   - params: an rlwe.ParameterProvider interface
+//   - params: an [rlwe.ParameterProvider] interface
 //   - degree: the degree of the ciphertext
 //   - level: the level of the Ciphertext
 //
-// output: a newly allocated rlwe.Ciphertext of the specified degree and level.
+// output: a newly allocated [rlwe.Ciphertext] of the specified degree and level.
 func NewCiphertext(params Parameters, degree, level int) (ct *rlwe.Ciphertext) {
 	ct = rlwe.NewCiphertext(params, degree, level)
 	ct.IsBatched = true
@@ -41,34 +41,34 @@ func NewCiphertext(params Parameters, degree, level int) (ct *rlwe.Ciphertext) {
 	return
 }
 
-// NewEncryptor instantiates a new rlwe.Encryptor.
+// NewEncryptor instantiates a new [rlwe.Encryptor].
 //
 // inputs:
-//   - params: an rlwe.ParameterProvider interface
-//   - key: *rlwe.SecretKey or *rlwe.PublicKey
+//   - params: an [rlwe.ParameterProvider] interface
+//   - key: *[rlwe.SecretKey] or *[rlwe.PublicKey]
 //
-// output: an rlwe.Encryptor instantiated with the provided key.
+// output: an [rlwe.Encryptor] instantiated with the provided key.
 func NewEncryptor(params Parameters, key rlwe.EncryptionKey) *rlwe.Encryptor {
 	return rlwe.NewEncryptor(params, key)
 }
 
-// NewDecryptor instantiates a new rlwe.Decryptor.
+// NewDecryptor instantiates a new [rlwe.Decryptor].
 //
 // inputs:
-//   - params: an rlwe.ParameterProvider interface
-//   - key: *rlwe.SecretKey
+//   - params: an [rlwe.ParameterProvider] interface
+//   - key: *[rlwe.SecretKey]
 //
-// output: an rlwe.Decryptor instantiated with the provided key.
+// output: an [rlwe.Decryptor] instantiated with the provided key.
 func NewDecryptor(params Parameters, key *rlwe.SecretKey) *rlwe.Decryptor {
 	return rlwe.NewDecryptor(params, key)
 }
 
-// NewKeyGenerator instantiates a new rlwe.KeyGenerator.
+// NewKeyGenerator instantiates a new [rlwe.KeyGenerator].
 //
 // inputs:
-//   - params: an rlwe.ParameterProvider interface
+//   - params: an [rlwe.ParameterProvider] interface
 //
-// output: an rlwe.KeyGenerator.
+// output: an [rlwe.KeyGenerator].
 func NewKeyGenerator(params Parameters) *rlwe.KeyGenerator {
 	return rlwe.NewKeyGenerator(params)
 }

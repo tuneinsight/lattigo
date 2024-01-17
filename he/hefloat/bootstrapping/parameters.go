@@ -33,20 +33,20 @@ type Parameters struct {
 	CircuitOrder CircuitOrder
 }
 
-// NewParametersFromLiteral instantiates a Parameters from the residual hefloat.Parameters and
+// NewParametersFromLiteral instantiates a Parameters from the residual [hefloat.Parameters] and
 // a bootstrapping.ParametersLiteral struct.
 //
-// The residualParameters corresponds to the hefloat.Parameters that are left after the bootstrapping circuit is evaluated.
+// The residualParameters corresponds to the [hefloat.Parameters] that are left after the bootstrapping circuit is evaluated.
 // These are entirely independent of the bootstrapping parameters with one exception: the ciphertext primes Qi must be
 // congruent to 1 mod 2N of the bootstrapping parameters (note that the auxiliary primes Pi do not need to be).
 // This is required because the primes Qi of the residual parameters and the bootstrapping parameters are the same between
 // the two sets of parameters.
 //
-// The user can ensure that this condition is met by setting the appropriate LogNThRoot in the hefloat.ParametersLiteral before
+// The user can ensure that this condition is met by setting the appropriate LogNThRoot in the [hefloat.ParametersLiteral] before
 // instantiating them.
 //
-// The method NewParametersFromLiteral will automatically allocate the hefloat.Parameters of the bootstrapping circuit based on
-// the provided residualParameters and the information given in the bootstrapping.ParametersLiteral.
+// The method NewParametersFromLiteral will automatically allocate the [hefloat.Parameters] of the bootstrapping circuit based on
+// the provided residualParameters and the information given in the [bootstrapping.ParametersLiteral].
 func NewParametersFromLiteral(residualParameters hefloat.Parameters, btpLit ParametersLiteral) (Parameters, error) {
 
 	var err error
@@ -389,13 +389,13 @@ func (p Parameters) Depth() (depth int) {
 }
 
 // MarshalBinary returns a JSON representation of the Parameters struct.
-// See `Marshal` from the `encoding/json` package.
+// See Marshal from the [encoding/json] package.
 func (p Parameters) MarshalBinary() (data []byte, err error) {
 	return json.Marshal(p)
 }
 
 // UnmarshalBinary reads a JSON representation on the target Parameters struct.
-// See `Unmarshal` from the `encoding/json` package.
+// See Unmarshal from the [encoding/json] package.
 func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	return json.Unmarshal(data, p)
 }

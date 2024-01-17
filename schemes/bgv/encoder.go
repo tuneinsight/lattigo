@@ -45,7 +45,7 @@ type Encoder struct {
 	tInvModQ []*big.Int
 }
 
-// NewEncoder creates a new Encoder from the provided parameters.
+// NewEncoder creates a new [Encoder] from the provided parameters.
 func NewEncoder(parameters Parameters) *Encoder {
 
 	ringQ := parameters.RingQ()
@@ -119,12 +119,12 @@ func permuteMatrix(logN int) (perm []uint64) {
 	return perm
 }
 
-// GetRLWEParameters returns the underlying rlwe.Parameters of the target object.
+// GetRLWEParameters returns the underlying [rlwe.Parameters] of the target object.
 func (ecd Encoder) GetRLWEParameters() *rlwe.Parameters {
 	return &ecd.parameters.Parameters
 }
 
-// Encode encodes an IntegerSlice of size at most N, where N is the smallest value satisfying PlaintextModulus = 1 mod 2N,
+// Encode encodes an [IntegerSlice] of size at most N, where N is the smallest value satisfying PlaintextModulus = 1 mod 2N,
 // on a pre-allocated plaintext.
 func (ecd Encoder) Encode(values IntegerSlice, pt *rlwe.Plaintext) (err error) {
 
@@ -180,7 +180,7 @@ func (ecd Encoder) Encode(values IntegerSlice, pt *rlwe.Plaintext) (err error) {
 	}
 }
 
-// EncodeRingT encodes an IntegerSlice at the given scale on a polynomial pT with coefficients modulo the plaintext modulus PlaintextModulus.
+// EncodeRingT encodes an [IntegerSlice] at the given scale on a polynomial pT with coefficients modulo the plaintext modulus PlaintextModulus.
 func (ecd Encoder) EncodeRingT(values IntegerSlice, scale rlwe.Scale, pT ring.Poly) (err error) {
 	perm := ecd.indexMatrix
 
@@ -240,10 +240,10 @@ func (ecd Encoder) EncodeRingT(values IntegerSlice, scale rlwe.Scale, pT ring.Po
 	return nil
 }
 
-// Embed is a generic method to encode an IntegerSlice on ringqp.Poly or *ring.Poly.
+// Embed is a generic method to encode an IntegerSlice on [ringqp.Poly] or *[ring.Poly].
 // If scaleUp is true, then the values will to be multiplied by PlaintextModulus^{-1} mod Q after being encoded on the polynomial.
 // Encoding is done according to the metadata.
-// Accepted polyOut.(type) are a ringqp.Poly and *ring.Poly
+// Accepted polyOut.(type) are a [ringqp.Poly] and *[ring.Poly]
 func (ecd Encoder) Embed(values IntegerSlice, scaleUp bool, metadata *rlwe.MetaData, polyOut interface{}) (err error) {
 
 	pT := ecd.bufT
@@ -310,7 +310,7 @@ func (ecd Encoder) Embed(values IntegerSlice, scaleUp bool, metadata *rlwe.MetaD
 	return
 }
 
-// DecodeRingT decodes a polynomial pT with coefficients modulo the plaintext modulu PlaintextModulus on an InterSlice at the given scale.
+// DecodeRingT decodes a polynomial pT with coefficients modulo the plaintext modulu PlaintextModulus on an [InterSlice] at the given scale.
 func (ecd Encoder) DecodeRingT(pT ring.Poly, scale rlwe.Scale, values IntegerSlice) (err error) {
 	ringT := ecd.parameters.RingT()
 	ringT.MulScalar(pT, ring.ModExp(scale.Uint64(), ringT.SubRings[0].Modulus-2, ringT.SubRings[0].Modulus), ecd.bufT)

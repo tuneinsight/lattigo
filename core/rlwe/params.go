@@ -38,7 +38,7 @@ type ParameterProvider interface {
 
 // ParametersLiteral is a literal representation of RLWE parameters. It has public fields and
 // is used to express unchecked user-defined parameters literally into Go programs.
-// The NewParametersFromLiteral function is used to generate the actual checked parameters
+// The [NewParametersFromLiteral] function is used to generate the actual checked parameters
 // from the literal representation.
 //
 // Users must set the polynomial degree (LogN) and the coefficient modulus, by either setting
@@ -50,7 +50,7 @@ type ParameterProvider interface {
 //   - the error variance (Sigma) and secrets' density (H) and the ring type (RingType).
 //
 // If left unset, standard default values for these field are substituted at
-// parameter creation (see NewParametersFromLiteral).
+// parameter creation (see [NewParametersFromLiteral]).
 type ParametersLiteral struct {
 	LogN         int
 	LogNthRoot   int                         `json:",omitempty"`
@@ -66,7 +66,7 @@ type ParametersLiteral struct {
 }
 
 // Parameters represents a set of generic RLWE parameters. Its fields are private and
-// immutable. See ParametersLiteral for user-specified parameters.
+// immutable. See [ParametersLiteral] for user-specified parameters.
 type Parameters struct {
 	logN         int
 	qi           []uint64
@@ -81,7 +81,7 @@ type Parameters struct {
 }
 
 // NewParameters returns a new set of generic RLWE parameters from the given ring degree logn, moduli q and p, and
-// error distribution Xs (secret) and Xe (error). It returns the empty parameters Parameters{} and a non-nil error if the
+// error distribution Xs (secret) and Xe (error). It returns the empty parameters [Parameters]{} and a non-nil error if the
 // specified parameters are invalid.
 func NewParameters(logn int, q, p []uint64, xs, xe DistributionLiteral, ringType ring.Type, defaultScale Scale, NTTFlag bool) (params Parameters, err error) {
 
@@ -149,16 +149,16 @@ func NewParameters(logn int, q, p []uint64, xs, xe DistributionLiteral, ringType
 	return params, warning
 }
 
-// NewParametersFromLiteral instantiate a set of generic RLWE parameters from a ParametersLiteral specification.
+// NewParametersFromLiteral instantiate a set of generic RLWE parameters from a [ParametersLiteral] specification.
 // It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
 //
 // If the moduli chain is specified through the LogQ and LogP fields, the method generates a moduli chain matching
-// the specified sizes (see `GenModuli`).
+// the specified sizes (see [GenModuli]).
 //
 // If the secrets' density parameter (H) is left unset, its value is set to 2^(paramDef.LogN-1) to match
 // the standard ternary distribution.
 //
-// If the error variance is left unset, its value is set to `DefaultError`.
+// If the error variance is left unset, its value is set to [DefaultError].
 //
 // If the RingType is left unset, the default value is ring.Standard.
 func NewParametersFromLiteral(paramDef ParametersLiteral) (params Parameters, err error) {
@@ -631,7 +631,7 @@ func (p Parameters) Equal(other *Parameters) (res bool) {
 }
 
 // MarshalBinary returns a []byte representation of the parameter set.
-// This representation corresponds to the MarshalJSON representation.
+// This representation corresponds to the [Parameters.MarshalJSON] representation.
 func (p Parameters) MarshalBinary() ([]byte, error) {
 	buf := buffer.NewBufferSize(p.BinarySize())
 	_, err := p.WriteTo(buf)
@@ -644,12 +644,12 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	return
 }
 
-// MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.
+// MarshalJSON returns a JSON representation of this parameter set. See Marshal from the [encoding/json] package.
 func (p Parameters) MarshalJSON() ([]byte, error) {
 	return json.Marshal(p.ParametersLiteral())
 }
 
-// UnmarshalJSON reads a JSON representation of a parameter set into the receiver Parameter. See `Unmarshal` from the `encoding/json` package.
+// UnmarshalJSON reads a JSON representation of a parameter set into the receiver Parameter. See Unmarshal from the [encoding/json] package.
 func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 	var params ParametersLiteral
 	if err = json.Unmarshal(data, &params); err != nil {

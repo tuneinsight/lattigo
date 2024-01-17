@@ -35,9 +35,9 @@ func NewAdditiveShare(params hefloat.Parameters, logSlots int) mhe.AdditiveShare
 	return mhe.NewAdditiveShareBigint(nValues)
 }
 
-// ShallowCopy creates a shallow copy of EncToShareProtocol in which all the read-only data-structures are
+// ShallowCopy creates a shallow copy of [EncToShareProtocol] in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// EncToShareProtocol can be used concurrently.
+// [EncToShareProtocol] can be used concurrently.
 func (e2s EncToShareProtocol) ShallowCopy() EncToShareProtocol {
 
 	maskBigint := make([]*big.Int, len(e2s.maskBigint))
@@ -54,7 +54,7 @@ func (e2s EncToShareProtocol) ShallowCopy() EncToShareProtocol {
 	}
 }
 
-// NewEncToShareProtocol creates a new EncToShareProtocol struct from the passed parameters.
+// NewEncToShareProtocol creates a new [EncToShareProtocol] struct from the passed parameters.
 func NewEncToShareProtocol(params hefloat.Parameters, noise ring.DistributionParameters) (EncToShareProtocol, error) {
 	e2s := EncToShareProtocol{}
 
@@ -80,11 +80,13 @@ func (e2s EncToShareProtocol) AllocateShare(level int) (share mhe.KeySwitchShare
 
 // GenShare generates a party's share in the encryption-to-shares protocol. This share consist in the additive secret-share of the party
 // which is written in secretShareOut and in the public masked-decryption share written in publicShareOut.
-// This protocol requires additional inputs which are :
-// logBound : the bit length of the masks
-// ct: the ciphertext to share
+// This protocol requires additional inputs which are:
+//
+//   - logBound : the bit length of the masks
+//   - ct: the ciphertext to share
+//
 // publicShareOut is always returned in the NTT domain.
-// The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which EncToShare can be called while still ensure 128-bits of security, as well as the
+// The method [GetMinimumLevelForRefresh] should be used to get the minimum level at which EncToShare can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
 func (e2s EncToShareProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, ct *rlwe.Ciphertext, secretShareOut *mhe.AdditiveShareBigint, publicShareOut *mhe.KeySwitchShare) (err error) {
 
@@ -143,7 +145,7 @@ func (e2s EncToShareProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, ct *rl
 
 // GetShare is the final step of the encryption-to-share protocol. It performs the masked decryption of the target ciphertext followed by a
 // the removal of the caller's secretShare as generated in the GenShare method.
-// If the caller is not secret-key-share holder (i.e., didn't generate a decryption share), `secretShare` can be set to nil.
+// If the caller is not secret-key-share holder (i.e., didn't generate a decryption share), secretShare can be set to nil.
 // Therefore, in order to obtain an additive sharing of the message, only one party should call this method, and the other parties should use
 // the secretShareOut output of the GenShare method.
 func (e2s EncToShareProtocol) GetShare(secretShare *mhe.AdditiveShareBigint, aggregatePublicShare mhe.KeySwitchShare, ct *rlwe.Ciphertext, secretShareOut *mhe.AdditiveShareBigint) {
@@ -194,9 +196,9 @@ type ShareToEncProtocol struct {
 	zero     *rlwe.SecretKey
 }
 
-// ShallowCopy creates a shallow copy of ShareToEncProtocol in which all the read-only data-structures are
+// ShallowCopy creates a shallow copy of [ShareToEncProtocol] in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// ShareToEncProtocol can be used concurrently.
+// [ShareToEncProtocol] can be used concurrently.
 func (s2e ShareToEncProtocol) ShallowCopy() ShareToEncProtocol {
 	return ShareToEncProtocol{
 		KeySwitchProtocol: s2e.KeySwitchProtocol.ShallowCopy(),
@@ -207,7 +209,7 @@ func (s2e ShareToEncProtocol) ShallowCopy() ShareToEncProtocol {
 	}
 }
 
-// NewShareToEncProtocol creates a new ShareToEncProtocol struct from the passed parameters.
+// NewShareToEncProtocol creates a new [ShareToEncProtocol] struct from the passed parameters.
 func NewShareToEncProtocol(params hefloat.Parameters, noise ring.DistributionParameters) (ShareToEncProtocol, error) {
 	s2e := ShareToEncProtocol{}
 
@@ -228,8 +230,8 @@ func (s2e ShareToEncProtocol) AllocateShare(level int) (share mhe.KeySwitchShare
 	return s2e.KeySwitchProtocol.AllocateShare(level)
 }
 
-// GenShare generates a party's in the shares-to-encryption protocol given the party's secret-key share `sk`, a common
-// polynomial sampled from the CRS `crs` and the party's secret share of the message.
+// GenShare generates a party's in the shares-to-encryption protocol given the party's secret-key share sk, a common
+// polynomial sampled from the CRS crs and the party's secret share of the message.
 func (s2e ShareToEncProtocol) GenShare(sk *rlwe.SecretKey, crs mhe.KeySwitchCRP, metadata *rlwe.MetaData, secretShare mhe.AdditiveShareBigint, c0ShareOut *mhe.KeySwitchShare) (err error) {
 
 	if crs.Value.Level() != c0ShareOut.Value.Level() {
@@ -260,8 +262,8 @@ func (s2e ShareToEncProtocol) GenShare(sk *rlwe.SecretKey, crs mhe.KeySwitchCRP,
 	return
 }
 
-// GetEncryption computes the final encryption of the secret-shared message when provided with the aggregation `c0Agg` of the parties'
-// share in the protocol and with the common, CRS-sampled polynomial `crs`.
+// GetEncryption computes the final encryption of the secret-shared message when provided with the aggregation c0Agg of the parties'
+// share in the protocol and with the common, CRS-sampled polynomial crs.
 func (s2e ShareToEncProtocol) GetEncryption(c0Agg mhe.KeySwitchShare, crs mhe.KeySwitchCRP, opOut *rlwe.Ciphertext) (err error) {
 
 	if opOut.Degree() != 1 {

@@ -19,7 +19,7 @@ type Evaluator struct {
 	*rlwe.Evaluator
 }
 
-// NewEvaluator creates a new Evaluator, that can be used to do homomorphic
+// NewEvaluator creates a new [Evaluator], that can be used to do homomorphic
 // operations on the Ciphertexts and/or Plaintexts. It stores a memory buffer
 // and Ciphertexts that will be used for intermediate values.
 func NewEvaluator(parameters Parameters, evk rlwe.EvaluationKeySet) *Evaluator {
@@ -30,12 +30,12 @@ func NewEvaluator(parameters Parameters, evk rlwe.EvaluationKeySet) *Evaluator {
 	}
 }
 
-// GetParameters returns a pointer to the underlying ckks.Parameters.
+// GetParameters returns a pointer to the underlying [ckks.Parameters].
 func (eval Evaluator) GetParameters() *Parameters {
 	return &eval.Encoder.parameters
 }
 
-// GetRLWEParameters returns a pointer to the underlying rlwe.Parameters.
+// GetRLWEParameters returns a pointer to the underlying [rlwe.Parameters].
 func (eval Evaluator) GetRLWEParameters() *rlwe.Parameters {
 	return &eval.Encoder.parameters.Parameters
 }
@@ -58,9 +58,9 @@ func newEvaluatorBuffers(parameters Parameters) *evaluatorBuffers {
 
 // Add adds op1 to op0 and returns the result in opOut.
 // The following types are accepted for op1:
-//   - rlwe.ElementInterface[ring.Poly]
-//   - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
-//   - []complex128, []float64, []*big.Float or []*bignum.Complex of size at most params.MaxSlots()
+//   - [rlwe.ElementInterface][[ring.Poly]]
+//   - complex128, float64, int, int64, uint, uint64, *[big.Int], *[big.Float], *[bignum.Complex]
+//   - []complex128, []float64, []*[big.Float] or []*[bignum.Complex] of size at most params.MaxSlots()
 //
 // Passing an invalid type will return an error.
 func (eval Evaluator) Add(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error) {
@@ -136,9 +136,9 @@ func (eval Evaluator) Add(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 
 // AddNew adds op1 to op0 and returns the result in a newly created element opOut.
 // The following types are accepted for op1:
-//   - rlwe.ElementInterface[ring.Poly]
-//   - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
-//   - []complex128, []float64, []*big.Float or []*bignum.Complex of size at most params.MaxSlots()
+//   - [rlwe.ElementInterface][[ring.Poly]]
+//   - complex128, float64, int, int64, uint, uint64, *[big.Int], *[big.Float], *[bignum.Complex]
+//   - []complex128, []float64, []*[big.Float] or []*[bignum.Complex] of size at most params.MaxSlots()
 //
 // Passing an invalid type will return an error.
 func (eval Evaluator) AddNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlwe.Ciphertext, err error) {
@@ -148,9 +148,9 @@ func (eval Evaluator) AddNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlw
 
 // Sub subtracts op1 from op0 and returns the result in opOut.
 // The following types are accepted for op1:
-//   - rlwe.ElementInterface[ring.Poly]
-//   - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
-//   - []complex128, []float64, []*big.Float or []*bignum.Complex of size at most params.MaxSlots()
+//   - [rlwe.ElementInterface][[ring.Poly]]
+//   - complex128, float64, int, int64, uint, uint64, *[big.Int], *[big.Float], *[bignum.Complex]
+//   - []complex128, []float64, []*[big.Float] or []*[bignum.Complex] of size at most params.MaxSlots()
 //
 // Passing an invalid type will return an error.
 func (eval Evaluator) Sub(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error) {
@@ -233,9 +233,9 @@ func (eval Evaluator) Sub(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 
 // SubNew subtracts op1 from op0 and returns the result in a newly created element opOut.
 // The following types are accepted for op1:
-//   - rlwe.ElementInterface[ring.Poly]
-//   - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
-//   - []complex128, []float64, []*big.Float or []*bignum.Complex of size at most params.MaxSlots()
+//   - [rlwe.ElementInterface][[ring.Poly]]
+//   - complex128, float64, int, int64, uint, uint64, *[big.Int], *[big.Float], *[bignum.Complex]
+//   - []complex128, []float64, []*[big.Float] or []*[bignum.Complex] of size at most params.MaxSlots()
 //
 // Passing an invalid type will return an error.
 func (eval Evaluator) SubNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlwe.Ciphertext, err error) {
@@ -604,9 +604,9 @@ func (eval Evaluator) RescaleTo(op0 *rlwe.Ciphertext, minScale rlwe.Scale, opOut
 // MulNew multiplies op0 with op1 without relinearization and returns the result in a newly created element opOut.
 //
 // op1.(type) can be
-//   - rlwe.ElementInterface[ring.Poly]
-//   - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
-//   - []complex128, []float64, []*big.Float or []*bignum.Complex of size at most params.MaxSlots()
+//   - [rlwe.ElementInterface][[ring.Poly]]
+//   - complex128, float64, int, int64, uint, uint64, *[big.Int], *[big.Float], *[bignum.Complex]
+//   - []complex128, []float64, []*[big.Float] or []*[bignum.Complex] of size at most params.MaxSlots()
 //
 // If op1.(type) == rlwe.ElementInterface[ring.Poly]:
 //   - The procedure will return an error if either op0.Degree or op1.Degree > 1.
@@ -618,13 +618,13 @@ func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlw
 // Mul multiplies op0 with op1 without relinearization and returns the result in opOut.
 //
 // The following types are accepted for op1:
-//   - rlwe.ElementInterface[ring.Poly]
-//   - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
-//   - []complex128, []float64, []*big.Float or []*bignum.Complex of size at most params.MaxSlots()
+//   - [rlwe.ElementInterface][[ring.Poly]]
+//   - complex128, float64, int, int64, uint, uint64, *[big.Int], *[big.Float], *[bignum.Complex]
+//   - []complex128, []float64, []*[big.Float] or []*[bignum.Complex] of size at most params.MaxSlots()
 //
 // Passing an invalid type will return an error.
 //
-// If op1.(type) == rlwe.ElementInterface[ring.Poly]:
+// If op1.(type) == [rlwe.ElementInterface][[ring.Poly]]:
 //   - The procedure will return an error if either op0 or op1 are have a degree higher than 1.
 //   - The procedure will return an error if opOut.Degree != op0.Degree + op1.Degree.
 func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error) {
@@ -730,9 +730,9 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 // MulRelinNew multiplies op0 with op1 with relinearization and returns the result in a newly created element.
 //
 // The following types are accepted for op1:
-//   - rlwe.ElementInterface[ring.Poly]
-//   - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
-//   - []complex128, []float64, []*big.Float or []*bignum.Complex of size at most params.MaxSlots()
+//   - [rlwe.ElementInterface][[ring.Poly]]
+//   - complex128, float64, int, int64, uint, uint64, *[big.Int], *[big.Float], *[bignum.Complex]
+//   - []complex128, []float64, []*[big.Float] or []*[bignum.Complex] of size at most params.MaxSlots()
 //
 // Passing an invalid type will return an error.
 //
@@ -752,9 +752,9 @@ func (eval Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut
 // MulRelin multiplies op0 with op1 with relinearization and returns the result in opOut.
 //
 // The following types are accepted for op1:
-//   - rlwe.ElementInterface[ring.Poly]
-//   - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
-//   - []complex128, []float64, []*big.Float or []*bignum.Complex of size at most params.MaxSlots()
+//   - [rlwe.ElementInterface][[ring.Poly]]
+//   - complex128, float64, int, int64, uint, uint64, *[big.Int], *[big.Float], *[bignum.Complex]
+//   - []complex128, []float64, []*[big.Float] or []*[bignum.Complex] of size at most params.MaxSlots()
 //
 // Passing an invalid type will return an error.
 //
@@ -884,12 +884,12 @@ func (eval Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ring.Poly
 //
 // The following types are accepted for op1:
 //   - rlwe.ElementInterface[ring.Poly]
-//   - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
-//   - []complex128, []float64, []*big.Float or []*bignum.Complex of size at most params.MaxSlots()
+//   - complex128, float64, int, int64, uint, uint64, *[big.Int], *[big.Float], *[bignum.Complex]
+//   - []complex128, []float64, []*[big.Float] or []*[bignum.Complex] of size at most params.MaxSlots()
 //
 // Passing an invalid type will return an error.
 //
-// If op1.(type) is complex128, float64, int, int64, uint64. *big.Float, *big.Int or *ring.Complex:
+// If op1.(type) is complex128, float64, int, int64, uint64. *[big.Float], *[big.Int] or *[ring.Complex]:
 //
 // This function will not modify op0 but will multiply opOut by Q[min(op0.Level(), opOut.Level())] if:
 //   - op0.Scale == opOut.Scale
@@ -901,13 +901,13 @@ func (eval Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ring.Poly
 // To correctly use this function, make sure that either op0.Scale == opOut.Scale or
 // opOut.Scale = op0.Scale * Q[min(op0.Level(), opOut.Level())].
 //
-// If op1.(type) is []complex128, []float64, []*big.Float or []*bignum.Complex:
+// If op1.(type) is []complex128, []float64, []*[big.Float] or []*[bignum.Complex]:
 //   - If opOut.Scale == op0.Scale, op1 will be encoded and scaled by Q[min(op0.Level(), opOut.Level())]
 //   - If opOut.Scale > op0.Scale, op1 will be encoded ans scaled by opOut.Scale/op1.Scale.
 //
-// Then the method will recurse with op1 given as rlwe.ElementInterface[ring.Poly].
+// Then the method will recurse with op1 given as [rlwe.ElementInterface][[ring.Poly]].
 //
-// If op1.(type) is rlwe.ElementInterface[ring.Poly], the multiplication is carried outwithout relinearization and:
+// If op1.(type) is [rlwe.ElementInterface][[ring.Poly]], the multiplication is carried outwithout relinearization and:
 //
 // This function will return an error if op0.Scale > opOut.Scale and user must ensure that opOut.Scale <= op0.Scale * op1.Scale.
 // If opOut.Scale < op0.Scale * op1.Scale, then scales up opOut before adding the result.
@@ -1048,9 +1048,9 @@ func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *
 // MulRelinThenAdd multiplies op0 with op1 with relinearization and adds the result on opOut.
 //
 // The following types are accepted for op1:
-//   - rlwe.ElementInterface[ring.Poly]
-//   - complex128, float64, int, int64, uint, uint64, *big.Int, *big.Float, *bignum.Complex
-//   - []complex128, []float64, []*big.Float or []*bignum.Complex of size at most params.MaxSlots()
+//   - [rlwe.ElementInterface][[ring.Poly]]
+//   - complex128, float64, int, int64, uint, uint64, *[big.Int], *[big.Float], *[bignum.Complex]
+//   - []complex128, []float64, []*[big.Float] or []*[bignum.Complex] of size at most params.MaxSlots()
 //
 // Passing an invalid type will return an error.
 //
@@ -1229,7 +1229,7 @@ func (eval Evaluator) Conjugate(op0 *rlwe.Ciphertext, opOut *rlwe.Ciphertext) (e
 }
 
 // RotateHoistedNew takes an input Ciphertext and a list of rotations and returns a map of Ciphertext, where each element of the map is the input Ciphertext
-// rotation by one element of the list. It is much faster than sequential calls to Rotate.
+// rotation by one element of the list. It is much faster than sequential calls to [Evaluator.Rotate].
 func (eval Evaluator) RotateHoistedNew(ctIn *rlwe.Ciphertext, rotations []int) (opOut map[int]*rlwe.Ciphertext, err error) {
 	opOut = make(map[int]*rlwe.Ciphertext)
 	for _, i := range rotations {
@@ -1241,7 +1241,7 @@ func (eval Evaluator) RotateHoistedNew(ctIn *rlwe.Ciphertext, rotations []int) (
 
 // RotateHoisted takes an input Ciphertext and a list of rotations and populates a map of pre-allocated Ciphertexts,
 // where each element of the map is the input Ciphertext rotation by one element of the list.
-// It is much faster than sequential calls to Rotate.
+// It is much faster than sequential calls to [Evaluator.Rotate].
 func (eval Evaluator) RotateHoisted(ctIn *rlwe.Ciphertext, rotations []int, opOut map[int]*rlwe.Ciphertext) (err error) {
 	levelQ := ctIn.Level()
 	eval.DecomposeNTT(levelQ, eval.GetParameters().MaxLevelP(), eval.GetParameters().PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)

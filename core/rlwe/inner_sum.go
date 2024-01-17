@@ -6,13 +6,13 @@ import (
 	"github.com/tuneinsight/lattigo/v5/utils"
 )
 
-// InnerSum applies an optimized inner sum on the Ciphertext (log2(n) + HW(n) rotations with double hoisting).
+// InnerSum applies an optimized inner sum on the [Ciphertext] (log2(n) + HW(n) rotations with double hoisting).
 // The operation assumes that `ctIn` encrypts Slots/`batchSize` sub-vectors of size `batchSize` and will add them together (in parallel) in groups of `n`.
-// It outputs in opOut a Ciphertext for which the "leftmost" sub-vector of each group is equal to the sum of the group.
+// It outputs in opOut a [Ciphertext] for which the "leftmost" sub-vector of each group is equal to the sum of the group.
 //
 // The inner sum is computed in a tree fashion. Example for batchSize=2 & n=4 (garbage slots are marked by 'x'):
 //
-// 1) [{a, b}, {c, d}, {e, f}, {g, h}, {a, b}, {c, d}, {e, f}, {g, h}]
+//  1. [{a, b}, {c, d}, {e, f}, {g, h}, {a, b}, {c, d}, {e, f}, {g, h}]
 //
 //  2. [{a, b}, {c, d}, {e, f}, {g, h}, {a, b}, {c, d}, {e, f}, {g, h}]
 //     +
@@ -163,16 +163,17 @@ func (eval Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, opOut *Cipher
 	return
 }
 
-// InnerFunction applies an user defined function on the Ciphertext with a tree-like combination requiring log2(n) + HW(n) rotations.
+// InnerFunction applies an user defined function on the [Ciphertext] with a tree-like combination requiring log2(n) + HW(n) rotations.
 //
-// InnerFunction with f = eval.Add(a, b, c) is equivalent to InnerSum (although slightly slower).
+// InnerFunction with f = eval.Add(a, b, c) is equivalent to [Evaluator.InnerSum] (although slightly slower).
 //
 // The operation assumes that `ctIn` encrypts Slots/`batchSize` sub-vectors of size `batchSize` and will add them together (in parallel) in groups of `n`.
-// It outputs in opOut a Ciphertext for which the "leftmost" sub-vector of each group is equal to the pair-wise recursive evaluation of function over the group.
+// It outputs in opOut a [Ciphertext] for which the "leftmost" sub-vector of each group is equal to the pair-wise recursive evaluation of
+// function over the group.
 //
 // The inner function is computed in a tree fashion. Example for batchSize=2 & n=4 (garbage slots are marked by 'x'):
 //
-// 1) [{a, b}, {c, d}, {e, f}, {g, h}, {a, b}, {c, d}, {e, f}, {g, h}]
+//  1. [{a, b}, {c, d}, {e, f}, {g, h}, {a, b}, {c, d}, {e, f}, {g, h}]
 //
 //  2. [{a, b}, {c, d}, {e, f}, {g, h}, {a, b}, {c, d}, {e, f}, {g, h}]
 //     f
@@ -312,7 +313,7 @@ func (eval Evaluator) InnerFunction(ctIn *Ciphertext, batchSize, n int, f func(a
 }
 
 // GaloisElementsForInnerSum returns the list of Galois elements necessary to apply the method
-// `InnerSum` operation with parameters `batch` and `n`.
+// [Evaluator.InnerSum] operation with parameters batch and n.
 func GaloisElementsForInnerSum(params ParameterProvider, batch, n int) (galEls []uint64) {
 
 	rotIndex := make(map[int]bool)
@@ -339,19 +340,19 @@ func GaloisElementsForInnerSum(params ParameterProvider, batch, n int) (galEls [
 	return params.GetRLWEParameters().GaloisElements(rotations)
 }
 
-// Replicate applies an optimized replication on the Ciphertext (log2(n) + HW(n) rotations with double hoisting).
+// Replicate applies an optimized replication on the [Ciphertext] (log2(n) + HW(n) rotations with double hoisting).
 // It acts as the inverse of a inner sum (summing elements from left to right).
-// The replication is parameterized by the size of the sub-vectors to replicate "batchSize" and
-// the number of times 'n' they need to be replicated.
+// The replication is parameterized by the size of the sub-vectors to replicate batchSize and
+// the number of times n they need to be replicated.
 // To ensure correctness, a gap of zero values of size batchSize * (n-1) must exist between
 // two consecutive sub-vectors to replicate.
-// This method is faster than Replicate when the number of rotations is large and it uses log2(n) + HW(n) instead of 'n'.
+// This method is faster than Replicate when the number of rotations is large and it uses log2(n) + HW(n) instead of n.
 func (eval Evaluator) Replicate(ctIn *Ciphertext, batchSize, n int, opOut *Ciphertext) (err error) {
 	return eval.InnerSum(ctIn, -batchSize, n, opOut)
 }
 
 // GaloisElementsForReplicate returns the list of Galois elements necessary to perform the
-// `Replicate` operation with parameters `batch` and `n`.
+// [Evaluator.Replicate] operation with parameters batch and n.
 func GaloisElementsForReplicate(params ParameterProvider, batch, n int) (galEls []uint64) {
 	return GaloisElementsForInnerSum(params, -batch, n)
 }

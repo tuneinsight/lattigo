@@ -11,7 +11,7 @@ import (
 	"github.com/tuneinsight/lattigo/v5/utils/sampling"
 )
 
-// MaskedTransformProtocol is a struct storing the parameters for the MaskedTransformProtocol protocol.
+// MaskedTransformProtocol is a struct storing the parameters for the [MaskedTransformProtocol] protocol.
 type MaskedTransformProtocol struct {
 	e2s EncToShareProtocol
 	s2e ShareToEncProtocol
@@ -21,9 +21,9 @@ type MaskedTransformProtocol struct {
 	tmpMaskPerm ring.Poly
 }
 
-// ShallowCopy creates a shallow copy of MaskedTransformProtocol in which all the read-only data-structures are
+// ShallowCopy creates a shallow copy of [MaskedTransformProtocol] in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// MaskedTransformProtocol can be used concurrently.
+// [MaskedTransformProtocol] can be used concurrently.
 func (rfp MaskedTransformProtocol) ShallowCopy() MaskedTransformProtocol {
 	params := rfp.e2s.params
 
@@ -38,12 +38,14 @@ func (rfp MaskedTransformProtocol) ShallowCopy() MaskedTransformProtocol {
 
 // MaskedTransformFunc is a struct containing a user-defined in-place function that can be applied to masked integer plaintexts, as a part of the
 // Masked Transform Protocol.
-// The function is called with a vector of integers modulo heint.Parameters.PlaintextModulus() of size heint.Parameters.N() as input, and must write
+// The function is called with a vector of integers modulo [heint.Parameters.PlaintextModulus]() of size [heint.Parameters.N]() as input, and must write
 // its output on the same buffer.
 // Transform can be the identity.
-// Decode: if true, then the masked BFV plaintext will be decoded before applying Transform.
-// Recode: if true, then the masked BFV plaintext will be recoded after applying Transform.
-// i.e. : Decode (true/false) -> Transform -> Recode (true/false).
+//
+//   - Decode: if true, then the masked BFV plaintext will be decoded before applying Transform.
+//   - Recode: if true, then the masked BFV plaintext will be recoded after applying Transform.
+//
+// Decode (true/false) -> Transform -> Recode (true/false).
 type MaskedTransformFunc struct {
 	Decode bool
 	Func   func(coeffs []uint64)
@@ -84,7 +86,7 @@ func (rfp MaskedTransformProtocol) AllocateShare(levelDecrypt, levelRecrypt int)
 }
 
 // GenShare generates the shares of the PermuteProtocol.
-// ct1 is the degree 1 element of a rlwe.Ciphertext, i.e. rlwe.Ciphertext.Value[1].
+// ct1 is the degree 1 element of a [rlwe.Ciphertext], i.e., [rlwe.Ciphertext.Value][1].
 func (rfp MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, ct *rlwe.Ciphertext, crs mhe.KeySwitchCRP, transform *MaskedTransformFunc, shareOut *mhe.RefreshShare) (err error) {
 
 	if ct.Level() < shareOut.EncToShareShare.Value.Level() {

@@ -31,9 +31,9 @@ type RelinearizationKeyGenCRP struct {
 	Value structs.Matrix[ringqp.Poly]
 }
 
-// ShallowCopy creates a shallow copy of RelinearizationKeyGenProtocol in which all the read-only data-structures are
+// ShallowCopy creates a shallow copy of [RelinearizationKeyGenProtocol] in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// RelinearizationKeyGenProtocol can be used concurrently.
+// [RelinearizationKeyGenProtocol] can be used concurrently.
 func (ekg *RelinearizationKeyGenProtocol) ShallowCopy() RelinearizationKeyGenProtocol {
 	var err error
 	prng, err := sampling.NewPRNG()
@@ -122,7 +122,7 @@ func (ekg RelinearizationKeyGenProtocol) SampleCRP(crs CRS, evkParams ...rlwe.Ev
 	return RelinearizationKeyGenCRP{Value: structs.Matrix[ringqp.Poly](m)}
 }
 
-// GenShareRoundOne is the first of three rounds of the RelinearizationKeyGenProtocol protocol. Each party generates a pseudo encryption of
+// GenShareRoundOne is the first of three rounds of the [RelinearizationKeyGenProtocol] protocol. Each party generates a pseudo encryption of
 // its secret share of the key s_i under its ephemeral key u_i : [-u_i*a + s_i*w + e_i] and broadcasts it to the other
 // j-1 parties.
 //
@@ -221,15 +221,11 @@ func (ekg RelinearizationKeyGenProtocol) GenShareRoundOne(sk *rlwe.SecretKey, cr
 	}
 }
 
-// GenShareRoundTwo is the second of three rounds of the RelinearizationKeyGenProtocol protocol. Upon receiving the j-1 shares, each party computes :
+// GenShareRoundTwo is the second of three rounds of the [RelinearizationKeyGenProtocol] protocol. Upon receiving the j-1 shares, each party computes :
 //
-// round1 = sum([-u_i * a + s_i * P + e_0i, s_i* a + e_i1])
+//   - round1 = sum([-u_i * a + s_i * P + e_0i, s_i* a + e_i1]) = [u * a + s * P + e0, s * a + e1]
 //
-//	= [u * a + s * P + e0, s * a + e1]
-//
-// round2 = [s_i * round1[0] + e_i2, (u_i - s_i) * round1[1] + e_i3]
-//
-//	= [s_i * {u * a + s * P + e0} + e_i2, (u_i - s_i) * {s * a + e1} + e_i3]
+//   - round2 = [s_i * round1[0] + e_i2, (u_i - s_i) * round1[1] + e_i3] = [s_i * {u * a + s * P + e0} + e_i2, (u_i - s_i) * {s * a + e1} + e_i3]
 //
 // and broadcasts both values to the other j-1 parties.
 func (ekg RelinearizationKeyGenProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 RelinearizationKeyGenShare, shareOut *RelinearizationKeyGenShare) {
@@ -300,15 +296,9 @@ func (ekg RelinearizationKeyGenProtocol) AggregateShares(share1, share2 Relinear
 
 // GenRelinearizationKey computes the generated RLK from the public shares and write the result in evalKeyOut.
 //
-// round1 = [u * a + s * P + e0, s * a + e1]
-//
-// round2 = sum([s_i * {u * a + s * P + e0} + e_i2, (u_i - s_i) * {s * a + e1} + e_i3])
-//
-//	= [-sua + P*s^2 + s*e0 + e2, sua + ue1 - s^2a -s*e1 + e3]
-//
-// [round2[0] + round2[1], round1[1]] = [- s^2a - s*e1 + P*s^2 + s*e0 + u*e1 + e2 + e3, s * a + e1]
-//
-//	= [s * b + P * s^2 + s*e0 + u*e1 + e2 + e3, b]
+//   - round1 = [u * a + s * P + e0, s * a + e1]
+//   - round2 = sum([s_i * {u * a + s * P + e0} + e_i2, (u_i - s_i) * {s * a + e1} + e_i3]) = [-sua + P*s^2 + s*e0 + e2, sua + ue1 - s^2a -s*e1 + e3]
+//   - [round2[0] + round2[1], round1[1]] = [- s^2a - s*e1 + P*s^2 + s*e0 + u*e1 + e2 + e3, s * a + e1] = [s * b + P * s^2 + s*e0 + u*e1 + e2 + e3, b]
 func (ekg RelinearizationKeyGenProtocol) GenRelinearizationKey(round1 RelinearizationKeyGenShare, round2 RelinearizationKeyGenShare, evalKeyOut *rlwe.RelinearizationKey) {
 
 	levelQ := round1.LevelQ()
@@ -346,30 +336,30 @@ func (share RelinearizationKeyGenShare) BinarySize() int {
 	return share.GadgetCiphertext.BinarySize()
 }
 
-// WriteTo writes the object on an io.Writer. It implements the io.WriterTo
+// WriteTo writes the object on an [io.Writer]. It implements the [io.WriterTo]
 // interface, and will write exactly object.BinarySize() bytes on w.
 //
-// Unless w implements the buffer.Writer interface (see lattigo/utils/buffer/writer.go),
-// it will be wrapped into a bufio.Writer. Since this requires allocations, it
-// is preferable to pass a buffer.Writer directly:
+// Unless w implements the [buffer.Writer] interface (see lattigo/utils/buffer/writer.go),
+// it will be wrapped into a [bufio.Writer]. Since this requires allocations, it
+// is preferable to pass a [buffer.Writer] directly:
 //
 //   - When writing multiple times to a io.Writer, it is preferable to first wrap the
-//     io.Writer in a pre-allocated bufio.Writer.
+//     io.Writer in a pre-allocated [bufio.Writer].
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
 func (share RelinearizationKeyGenShare) WriteTo(w io.Writer) (n int64, err error) {
 	return share.GadgetCiphertext.WriteTo(w)
 }
 
-// ReadFrom reads on the object from an io.Writer. It implements the
-// io.ReaderFrom interface.
+// ReadFrom reads on the object from an [io.Writer]. It implements the
+// [io.ReaderFrom] interface.
 //
-// Unless r implements the buffer.Reader interface (see see lattigo/utils/buffer/reader.go),
-// it will be wrapped into a bufio.Reader. Since this requires allocation, it
-// is preferable to pass a buffer.Reader directly:
+// Unless r implements the [buffer.Reader] interface (see see lattigo/utils/buffer/reader.go),
+// it will be wrapped into a [bufio.Reader]. Since this requires allocation, it
+// is preferable to pass a [buffer.Reader] directly:
 //
 //   - When reading multiple values from a io.Reader, it is preferable to first
-//     first wrap io.Reader in a pre-allocated bufio.Reader.
+//     first wrap [io.Reader] in a pre-allocated bufio.Reader.
 //   - When reading from a var b []byte, it is preferable to pass a buffer.NewBuffer(b)
 //     as w (see lattigo/utils/buffer/buffer.go).
 func (share *RelinearizationKeyGenShare) ReadFrom(r io.Reader) (n int64, err error) {
@@ -382,7 +372,7 @@ func (share RelinearizationKeyGenShare) MarshalBinary() (data []byte, err error)
 }
 
 // UnmarshalBinary decodes a slice of bytes generated by
-// MarshalBinary or WriteTo on the object.
+// [RelinearizationKeyGenShare.MarshalBinary] or [RelinearizationKeyGenShare.WriteTo] on the object.
 func (share *RelinearizationKeyGenShare) UnmarshalBinary(data []byte) (err error) {
 	return share.GadgetCiphertext.UnmarshalBinary(data)
 }

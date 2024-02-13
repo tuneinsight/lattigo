@@ -146,7 +146,9 @@ us before doing so to make sure that the proposed changes are aligned with our d
 
 External pull requests only proposing small or trivial changes will be converted to an issue and closed.
 
-External contributions will require to sign a Contribution License Agreement (CLA) based on the [Apache 2 CLA](https://www.apache.org/licenses/contributor-agreements.html).
+External contributions will require to sign an Apache 2 Contribution License Agreement (CLA).
+You can contact us using the following email to request a copy of the CLA: [lattigo@tuneinsight.com](mailto:lattigo@tuneinsight.com).
+
 
 ## License
 

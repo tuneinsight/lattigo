@@ -146,7 +146,7 @@ us before doing so to make sure that the proposed changes are aligned with our d
 
 External pull requests only proposing small or trivial changes will be converted to an issue and closed.
 
-External contributions will require to sign an Apache 2 Contribution License Agreement (CLA).
+External contributions will require the signature of a Contributor License Agreement (CLA).
 You can contact us using the following email to request a copy of the CLA: [lattigo@tuneinsight.com](mailto:lattigo@tuneinsight.com).
 
 
@@ -158,7 +158,7 @@ Lattigo is licensed under the Apache 2.0 License. See [LICENSE](https://github.c
 
 Before contacting us directly, please make sure that your request cannot be handled through an issue.
 
-If you want to contribute to Lattigo, have a feature proposal or request, to report a security issue or simply want to contact us directly, please do so using the following email: [lattigo@tuneinsight.com](mailto:lattigo@tuneinsight.com).
+If you want to contribute to Lattigo or report a security issue, you have a feature proposal or request, or you simply want to contact us directly, please do so using the following email: [lattigo@tuneinsight.com](mailto:lattigo@tuneinsight.com).
 
 ## Citing
 

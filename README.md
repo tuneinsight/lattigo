@@ -30,7 +30,7 @@ The library exposes the following packages:
 
   - `hefloat`: Homomorphic Encryption for fixed-point approximate arithmetic over the complex or real numbers.
 
-    - `bootstrapper`: Bootstrapping for fixed-point approximate arithmetic over the real
+    - `bootstrapping`: Bootstrapping for fixed-point approximate arithmetic over the real
       and complex numbers, with support for the Conjugate Invariant ring, batch bootstrapping with automatic
       packing/unpacking of sparsely packed/smaller ring degree ciphertexts, arbitrary precision bootstrapping,
       and advanced circuit customization/parameterization.
@@ -96,6 +96,7 @@ RLWE --> CKKS{{CKKS}}
 RGSW --> HEBin{HEBin}
 HE --> HEFloat{HEFloat}
 HE --> HEInt{HEInt}
+HE --> HEBin
 BFV/BGV --> HEInt
 CKKS --> HEFloat
 RLWE --> BFV/BGV{{BFV/BGV}}
@@ -124,7 +125,7 @@ on Lattigo:
   for example by changing the imports to `github.com/tuneinsight/lattigo/v[X]/[package]` and by
   running `go mod tidy`.
 
-The current version of Lattigo, (v4.x.x) is fast-evolving and in constant development. Consequently,
+The current version of Lattigo, (v5.x.x) is fast-evolving and in constant development. Consequently,
 there will still be backward-incompatible changes within this major version, in addition to many bug
 fixes and new features. Hence, we encourage all Lattigo users to update to the latest Lattigo version.
 
@@ -145,6 +146,10 @@ us before doing so to make sure that the proposed changes are aligned with our d
 
 External pull requests only proposing small or trivial changes will be converted to an issue and closed.
 
+External contributions will require the signature of a Contributor License Agreement (CLA).
+You can contact us using the following email to request a copy of the CLA: [lattigo@tuneinsight.com](mailto:lattigo@tuneinsight.com).
+
+
 ## License
 
 Lattigo is licensed under the Apache 2.0 License. See [LICENSE](https://github.com/tuneinsight/lattigo/blob/master/LICENSE).
@@ -153,7 +158,7 @@ Lattigo is licensed under the Apache 2.0 License. See [LICENSE](https://github.c
 
 Before contacting us directly, please make sure that your request cannot be handled through an issue.
 
-If you want to contribute to Lattigo, have a feature proposal or request, to report a security issue or simply want to contact us directly, please do so using the following email: [lattigo@tuneinsight.com](mailto:lattigo@tuneinsight.com).
+If you want to contribute to Lattigo or report a security issue, you have a feature proposal or request, or you simply want to contact us directly, please do so using the following email: [lattigo@tuneinsight.com](mailto:lattigo@tuneinsight.com).
 
 ## Citing
 

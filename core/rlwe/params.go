@@ -3,6 +3,7 @@ package rlwe
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"math/big"
 	"math/bits"
@@ -630,6 +631,47 @@ func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 	}
 	*p, err = NewParametersFromLiteral(params)
 	return
+}
+
+// WriteTo writes the object on an io.Writer. It implements the io.WriterTo
+// interface, and will write exactly object.BinarySize() bytes on w.
+func (p Parameters) WriteTo(w io.Writer) (int64, error) {
+	if b, err := p.MarshalBinary(); err != nil {
+		return 0, err
+	} else {
+		if n, err := w.Write(b); err != nil {
+			return int64(n), err
+		} else {
+			return int64(n), nil
+		}
+	}
+}
+
+// ReadFrom reads on the object from an io.Writer. It implements the
+// io.ReaderFrom interface.
+//
+// Unless r implements the buffer.Reader interface (see see lattigo/utils/buffer/reader.go),
+// it will be wrapped into a bufio.Reader. Since this requires allocation, it
+// is preferable to pass a buffer.Reader directly:
+//
+//   - When reading multiple values from a io.Reader, it is preferable to first
+//     first wrap io.Reader in a pre-allocated bufio.Reader.
+//   - When reading from a var b []byte, it is preferable to pass a buffer.NewBuffer(b)
+//     as w (see lattigo/utils/buffer/buffer.go).
+func (p *Parameters) ReadFrom(r io.Reader) (int64, error) {
+	b := make([]byte, p.BinarySize())
+	if n, err := r.Read(b); err != nil {
+		return int64(n), err
+	} else {
+		return int64(n), p.UnmarshalBinary(b)
+	}
+}
+
+// BinarySize returns size in bytes of the marshalled [Parameters] object.
+func (p Parameters) BinarySize() int {
+	// XXX: Byte size is hard to predict without marshalling.
+	b, _ := p.MarshalBinary()
+	return len(b)
 }
 
 // CheckModuli checks that the provided q and p correspond to a valid moduli chain.

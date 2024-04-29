@@ -183,6 +183,11 @@ func (s Scale) UnmarshalBinary(p []byte) (err error) {
 
 // MarshalJSON encodes the object into a binary form on a newly allocated slice of bytes.
 func (s Scale) MarshalJSON() (p []byte, err error) {
+	// reject values > 2^100
+	bound, _ := new(big.Int).SetString("10000000000000000000000000", 16)
+	if s.Value.Cmp(new(big.Float).SetInt(bound)) >= 0 {
+		return nil, fmt.Errorf("unable to marshal Scale.Value >= 2^100")
+	}
 
 	var mod string
 

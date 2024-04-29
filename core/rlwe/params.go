@@ -470,7 +470,7 @@ func (p Parameters) LogP() (logp float64) {
 
 // LogPi returns the round(log2) of each primes of the modulus P.
 func (p Parameters) LogPi() (logpi []int) {
-	pi := p.Q()
+	pi := p.P()
 	logpi = make([]int, len(pi))
 	for i := range pi {
 		logpi[i] = int(math.Round(math.Log2(float64(pi[i]))))

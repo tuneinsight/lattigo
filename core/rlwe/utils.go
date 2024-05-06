@@ -45,7 +45,7 @@ func NoiseGaloisKey(gk *GaloisKey, sk *SecretKey, params Parameters) float64 {
 	return NoiseEvaluationKey(&gk.EvaluationKey, skIn, skOut, params)
 }
 
-// NoiseGadgetCiphertext returns the log2 of the standard devaition of the noise of the input gadget ciphertext with respect to the given plaintext, secret-key and parameters.
+// NoiseGadgetCiphertext returns the log2 of the standard deviation of the noise of the input gadget ciphertext with respect to the given plaintext, secret-key and parameters.
 // The polynomial pt is expected to be in the NTT and Montgomery domain.
 func NoiseGadgetCiphertext(gct *GadgetCiphertext, pt ring.Poly, sk *SecretKey, params Parameters) float64 {
 

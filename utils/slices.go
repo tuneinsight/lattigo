@@ -20,25 +20,35 @@ func Alias2D[V any](x, y [][]V) bool {
 
 // EqualSlice checks the equality between two slices of comparables.
 func EqualSlice[V comparable](a, b []V) (v bool) {
-	v = true
-	for i := range a {
-		v = v && (a[i] == b[i])
+	if len(a) != len(b) {
+		return false
 	}
-	return
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // MaxSlice returns the maximum value in the slice.
 func MaxSlice[V constraints.Ordered](slice []V) (max V) {
-	for _, c := range slice {
-		max = Max(max, c)
+	if len(slice) != 0 {
+		max = slice[0]
+		for _, c := range slice {
+			max = Max(max, c)
+		}
 	}
 	return
 }
 
 // MinSlice returns the minimum value in the slice.
 func MinSlice[V constraints.Ordered](slice []V) (min V) {
-	for _, c := range slice {
-		min = Min(min, c)
+	if len(slice) != 0 {
+		min = slice[0]
+		for _, c := range slice {
+			min = Min(min, c)
+		}
 	}
 	return
 }
@@ -110,7 +120,7 @@ func RotateSlice[V any](s []V, k int) []V {
 func RotateSliceAllocFree[V any](s []V, k int, sout []V) {
 
 	if len(s) != len(sout) {
-		panic("cannot RotateUint64SliceAllocFree: s and sout of different lengths")
+		panic("cannot RotateSliceAllocFree: s and sout of different lengths")
 	}
 
 	if len(s) == 0 {

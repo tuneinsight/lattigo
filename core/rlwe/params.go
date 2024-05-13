@@ -183,10 +183,11 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (params Parameters, er
 		paramDef.DefaultScale = s
 	}
 
+	// only allow either (Q or P) or (logQ or logP), do not mix log with non-log
 	switch {
-	case paramDef.Q != nil && paramDef.LogQ == nil:
+	case paramDef.Q != nil && paramDef.LogQ == nil && paramDef.LogP == nil:
 		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Xs, paramDef.Xe, paramDef.RingType, paramDef.DefaultScale, paramDef.NTTFlag)
-	case paramDef.LogQ != nil && paramDef.Q == nil:
+	case paramDef.LogQ != nil && paramDef.Q == nil && paramDef.P == nil:
 		var q, p []uint64
 		switch paramDef.RingType {
 		case ring.Standard:

@@ -1,6 +1,7 @@
 package rlwe
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"github.com/tuneinsight/lattigo/v5/ring"
 	"github.com/tuneinsight/lattigo/v5/ring/ringqp"
 	"github.com/tuneinsight/lattigo/v5/utils"
+	"github.com/tuneinsight/lattigo/v5/utils/buffer"
 )
 
 // MaxLogN is the log2 of the largest supported polynomial modulus degree.
@@ -610,12 +612,15 @@ func (p Parameters) Equal(other *Parameters) (res bool) {
 // MarshalBinary returns a []byte representation of the parameter set.
 // This representation corresponds to the MarshalJSON representation.
 func (p Parameters) MarshalBinary() ([]byte, error) {
-	return p.MarshalJSON()
+	buf := buffer.NewBufferSize(p.BinarySize())
+	_, err := p.WriteTo(buf)
+	return buf.Bytes(), err
 }
 
 // UnmarshalBinary decodes a slice of bytes on the target Parameters.
 func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
-	return p.UnmarshalJSON(data)
+	_, err = p.ReadFrom(buffer.NewBuffer(data))
+	return
 }
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.
@@ -635,15 +640,29 @@ func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 
 // WriteTo writes the object on an io.Writer. It implements the io.WriterTo
 // interface, and will write exactly object.BinarySize() bytes on w.
-func (p Parameters) WriteTo(w io.Writer) (int64, error) {
-	if b, err := p.MarshalBinary(); err != nil {
-		return 0, err
-	} else {
-		if n, err := w.Write(b); err != nil {
-			return int64(n), err
-		} else {
-			return int64(n), nil
+func (p Parameters) WriteTo(w io.Writer) (n int64, err error) {
+	switch w := w.(type) {
+	case buffer.Writer:
+
+		bytes, err := p.MarshalJSON()
+		if err != nil {
+			return 0, err
 		}
+
+		if n, err = buffer.WriteAsUint32[int](w, len(bytes)); err != nil {
+			return n, fmt.Errorf("buffer.WriteAsUint32[int]: %w", err)
+		}
+
+		var inc int
+		if inc, err = w.Write(bytes); err != nil {
+			return int64(n), fmt.Errorf("io.Write.Write: %w", err)
+		}
+
+		n += int64(inc)
+
+		return n, w.Flush()
+	default:
+		return p.WriteTo(bufio.NewWriter(w))
 	}
 }
 
@@ -658,20 +677,34 @@ func (p Parameters) WriteTo(w io.Writer) (int64, error) {
 //     first wrap io.Reader in a pre-allocated bufio.Reader.
 //   - When reading from a var b []byte, it is preferable to pass a buffer.NewBuffer(b)
 //     as w (see lattigo/utils/buffer/buffer.go).
-func (p *Parameters) ReadFrom(r io.Reader) (int64, error) {
-	b := make([]byte, p.BinarySize())
-	if n, err := r.Read(b); err != nil {
-		return int64(n), err
-	} else {
-		return int64(n), p.UnmarshalBinary(b)
+func (p *Parameters) ReadFrom(r io.Reader) (n int64, err error) {
+
+	switch r := r.(type) {
+	case buffer.Reader:
+
+		var size int
+		if n, err = buffer.ReadAsUint32[int](r, &size); err != nil {
+			return int64(n), fmt.Errorf("buffer.ReadAsUint64[int]: %w", err)
+		}
+
+		bytes := make([]byte, size)
+
+		var inc int
+		if inc, err = r.Read(bytes); err != nil {
+			return n + int64(inc), fmt.Errorf("io.Reader.Read: %w", err)
+		}
+		return n + int64(inc), p.UnmarshalJSON(bytes)
+
+	default:
+		return p.ReadFrom(bufio.NewReader(r))
 	}
 }
 
 // BinarySize returns size in bytes of the marshalled [Parameters] object.
 func (p Parameters) BinarySize() int {
 	// XXX: Byte size is hard to predict without marshalling.
-	b, _ := p.MarshalBinary()
-	return len(b)
+	b, _ := p.MarshalJSON()
+	return 4 + len(b)
 }
 
 // CheckModuli checks that the provided q and p correspond to a valid moduli chain.

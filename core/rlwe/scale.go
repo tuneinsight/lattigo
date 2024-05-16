@@ -167,7 +167,7 @@ func (s Scale) Min(s1 Scale) (max Scale) {
 // BinarySize returns the serialized size of the object in bytes.
 // Each value is encoded with .Text('x', ceil(ScalePrecision / log2(10))).
 func (s Scale) BinarySize() int {
-	return 21 + (ScalePrecisionLog10+8)<<1 // 21 for JSON formatting and 2*(8 + ScalePrecisionLog10)
+	return 21 + (ScalePrecisionLog10+6)<<1 // 21 for JSON formatting and 2*(8 + ScalePrecisionLog10)
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.
@@ -183,16 +183,10 @@ func (s Scale) UnmarshalBinary(p []byte) (err error) {
 
 // MarshalJSON encodes the object into a binary form on a newly allocated slice of bytes.
 func (s Scale) MarshalJSON() (p []byte, err error) {
-	// reject values > 2^100
-	bound, _ := new(big.Int).SetString("10000000000000000000000000", 16)
-	if s.Value.Cmp(new(big.Float).SetInt(bound)) >= 0 {
-		return nil, fmt.Errorf("unable to marshal Scale.Value >= 2^100")
-	}
-
 	var mod string
 
 	if s.Mod != nil {
-		mod = new(big.Float).SetPrec(ScalePrecision).SetInt(s.Mod).Text('x', ScalePrecisionLog10)
+		mod = new(big.Float).SetPrec(ScalePrecision).SetInt(s.Mod).Text('e', ScalePrecisionLog10)
 	} else {
 
 		var m string
@@ -200,14 +194,14 @@ func (s Scale) MarshalJSON() (p []byte, err error) {
 			m += "0"
 		}
 
-		mod = "0x0." + m + "p+00"
+		mod = "0." + m + "e+00"
 	}
 
 	aux := &struct {
 		Value string
 		Mod   string
 	}{
-		Value: s.Value.Text('x', ScalePrecisionLog10),
+		Value: s.Value.Text('e', ScalePrecisionLog10),
 		Mod:   mod,
 	}
 

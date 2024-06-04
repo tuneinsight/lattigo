@@ -470,8 +470,8 @@ func (ecd Encoder) Decode(pt *rlwe.Plaintext, values IntegerSlice) (err error) {
 
 // ShallowCopy returns a lightweight copy of the target object
 // that can be used concurrently with the original object.
-func (ecd Encoder) ShallowCopy() *Encoder {
-	return &Encoder{
+func (ecd Encoder) ShallowCopy() (e *Encoder) {
+	e = &Encoder{
 		parameters:  ecd.parameters,
 		indexMatrix: ecd.indexMatrix,
 		bufQ:        ecd.parameters.RingQ().NewPoly(),
@@ -480,4 +480,9 @@ func (ecd Encoder) ShallowCopy() *Encoder {
 		qHalf:       ecd.qHalf,
 		tInvModQ:    ecd.tInvModQ,
 	}
+	for i := 0; ecd.parameters.LogMaxDimensions().Cols < ecd.parameters.LogN()-1 && i < ecd.parameters.MaxSlots(); i++ {
+		e.bufB = append(e.bufB, new(big.Int))
+	}
+
+	return
 }

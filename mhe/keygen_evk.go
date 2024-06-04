@@ -3,6 +3,7 @@ package mhe
 import (
 	"fmt"
 	"io"
+	"slices"
 
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 	"github.com/tuneinsight/lattigo/v5/ring"
@@ -128,7 +129,7 @@ func (evkg EvaluationKeyGenProtocol) GenShare(skIn, skOut *rlwe.SecretKey, crp E
 		return fmt.Errorf("cannot GenShare: crp.BaseRNSDecompositionVectorSize() != shareOut.BaseRNSDecompositionVectorSize()")
 	}
 
-	if !utils.EqualSlice(shareOut.BaseTwoDecompositionVectorSize(), crp.BaseTwoDecompositionVectorSize()) {
+	if !slices.Equal(shareOut.BaseTwoDecompositionVectorSize(), crp.BaseTwoDecompositionVectorSize()) {
 		return fmt.Errorf("cannot GenShare: crp.BaseTwoDecompositionVectorSize() != shareOut.BaseTwoDecompositionVectorSize()")
 	}
 
@@ -157,7 +158,7 @@ func (evkg EvaluationKeyGenProtocol) GenShare(skIn, skOut *rlwe.SecretKey, crp E
 
 	var index int
 
-	for j := 0; j < utils.MaxSlice(BaseTwoDecompositionVectorSize); j++ {
+	for j := 0; j < slices.Max(BaseTwoDecompositionVectorSize); j++ {
 
 		for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
 

@@ -3,6 +3,7 @@ package rlwe
 import (
 	"math"
 	"math/big"
+	"slices"
 
 	"github.com/tuneinsight/lattigo/v5/ring"
 	"github.com/tuneinsight/lattigo/v5/utils"
@@ -54,7 +55,7 @@ func NoiseGadgetCiphertext(gct *GadgetCiphertext, pt ring.Poly, sk *SecretKey, p
 	levelQ, levelP := gct.LevelQ(), gct.LevelP()
 	ringQP := params.RingQP().AtLevel(levelQ, levelP)
 	ringQ, ringP := ringQP.RingQ, ringQP.RingP
-	BaseTwoDecompositionVectorSize := utils.MinSlice(gct.BaseTwoDecompositionVectorSize()) // required else the check becomes very complicated
+	BaseTwoDecompositionVectorSize := slices.Min(gct.BaseTwoDecompositionVectorSize()) // required else the check becomes very complicated
 
 	// Decrypts
 	// [-asIn + w*P*sOut + e, a] + [asIn]

@@ -2,11 +2,11 @@ package mhe
 
 import (
 	"io"
+	"slices"
 
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 	"github.com/tuneinsight/lattigo/v5/ring"
 	"github.com/tuneinsight/lattigo/v5/ring/ringqp"
-	"github.com/tuneinsight/lattigo/v5/utils"
 	"github.com/tuneinsight/lattigo/v5/utils/sampling"
 	"github.com/tuneinsight/lattigo/v5/utils/structs"
 )
@@ -168,7 +168,7 @@ func (ekg RelinearizationKeyGenProtocol) GenShareRoundOne(sk *rlwe.SecretKey, cr
 	sampler := ekg.gaussianSamplerQ.AtLevel(levelQ)
 
 	var index int
-	for j := 0; j < utils.MaxSlice(BaseTwoDecompositionVectorSize); j++ {
+	for j := 0; j < slices.Max(BaseTwoDecompositionVectorSize); j++ {
 		for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
 
 			if j < BaseTwoDecompositionVectorSize[i] {

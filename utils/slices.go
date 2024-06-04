@@ -18,49 +18,6 @@ func Alias2D[V any](x, y [][]V) bool {
 	return cap(x) > 0 && cap(y) > 0 && &x[0:cap(x)][cap(x)-1] == &y[0:cap(y)][cap(y)-1]
 }
 
-// EqualSlice checks the equality between two slices of comparables.
-func EqualSlice[V comparable](a, b []V) (v bool) {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
-// MaxSlice returns the maximum value in the slice.
-func MaxSlice[V constraints.Ordered](slice []V) (max V) {
-	if len(slice) != 0 {
-		max = slice[0]
-		for _, c := range slice {
-			max = Max(max, c)
-		}
-	}
-	return
-}
-
-// MinSlice returns the minimum value in the slice.
-func MinSlice[V constraints.Ordered](slice []V) (min V) {
-	if len(slice) != 0 {
-		min = slice[0]
-		for _, c := range slice {
-			min = Min(min, c)
-		}
-	}
-	return
-}
-
-// IsInSlice checks if x is in slice.
-func IsInSlice[V comparable](x V, slice []V) (v bool) {
-	for i := range slice {
-		v = v || (slice[i] == x)
-	}
-	return
-}
-
 // GetKeys returns the keys of the input map.
 // Order is not guaranteed.
 func GetKeys[K constraints.Ordered, V any](m map[K]V) (keys []K) {

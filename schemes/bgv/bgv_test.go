@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"math"
 	"runtime"
+	"slices"
 	"testing"
 
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 	"github.com/tuneinsight/lattigo/v5/ring"
-	"github.com/tuneinsight/lattigo/v5/utils"
 
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v5/utils/sampling"
@@ -168,7 +168,7 @@ func verifyTestVectors(tc *testContext, decryptor *rlwe.Decryptor, coeffs ring.P
 		t.Error("invalid test object to verify")
 	}
 
-	require.True(t, utils.EqualSlice(coeffs.Coeffs[0], coeffsTest))
+	require.True(t, slices.Equal(coeffs.Coeffs[0], coeffsTest))
 }
 
 func testParameters(tc *testContext, t *testing.T) {
@@ -243,7 +243,7 @@ func testEncoder(tc *testContext, t *testing.T) {
 			tc.encoder.Encode(coeffs, plaintext)
 			have := make([]int64, tc.params.MaxSlots())
 			tc.encoder.Decode(plaintext, have)
-			require.True(t, utils.EqualSlice(coeffs, have))
+			require.True(t, slices.Equal(coeffs, have))
 		})
 	}
 
@@ -261,7 +261,7 @@ func testEncoder(tc *testContext, t *testing.T) {
 			require.NoError(t, tc.encoder.Encode(coeffs, plaintext))
 			have := make([]uint64, tc.params.MaxSlots())
 			require.NoError(t, tc.encoder.Decode(plaintext, have))
-			require.True(t, utils.EqualSlice(coeffs, have))
+			require.True(t, slices.Equal(coeffs, have))
 		})
 	}
 
@@ -286,7 +286,7 @@ func testEncoder(tc *testContext, t *testing.T) {
 			require.NoError(t, tc.encoder.Encode(coeffs, plaintext))
 			have := make([]int64, tc.params.MaxSlots())
 			require.NoError(t, tc.encoder.Decode(plaintext, have))
-			require.True(t, utils.EqualSlice(coeffs, have))
+			require.True(t, slices.Equal(coeffs, have))
 		})
 	}
 }

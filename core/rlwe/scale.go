@@ -165,9 +165,10 @@ func (s Scale) Min(s1 Scale) (max Scale) {
 }
 
 // BinarySize returns the serialized size of the object in bytes.
-// Each value is encoded with .Text('x', ceil(ScalePrecision / log2(10))).
+// Each value is encoded with .Text('e', ceil(ScalePrecision / log2(10))).
 func (s Scale) BinarySize() int {
-	return 21 + (ScalePrecisionLog10+6)<<1 // 21 for JSON formatting and 2*(8 + ScalePrecisionLog10)
+	// 21 for JSON formatting plus 2*(6 + ScalePrecisionLog10) for the scales encoding.
+	return 21 + (ScalePrecisionLog10+6)<<1
 }
 
 // MarshalBinary encodes the object into a binary form on a newly allocated slice of bytes.

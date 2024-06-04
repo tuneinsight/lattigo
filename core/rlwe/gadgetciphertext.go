@@ -4,11 +4,11 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"slices"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/tuneinsight/lattigo/v5/ring"
 	"github.com/tuneinsight/lattigo/v5/ring/ringqp"
-	"github.com/tuneinsight/lattigo/v5/utils"
 	"github.com/tuneinsight/lattigo/v5/utils/buffer"
 	"github.com/tuneinsight/lattigo/v5/utils/structs"
 )
@@ -191,7 +191,7 @@ func AddPolyTimesGadgetVectorToGadgetCiphertext(pt ring.Poly, cts []GadgetCipher
 	N := ringQ.N()
 
 	var index int
-	for j := 0; j < utils.MaxSlice(BaseTwoDecompositionVectorSize); j++ {
+	for j := 0; j < slices.Max(BaseTwoDecompositionVectorSize); j++ {
 
 		for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
 
@@ -245,7 +245,7 @@ func NewGadgetPlaintext(params Parameters, value interface{}, levelQ, levelP, ba
 
 	ringQ := params.RingQP().RingQ.AtLevel(levelQ)
 
-	BaseTwoDecompositionVectorSize := utils.MaxSlice(params.BaseTwoDecompositionVectorSize(levelQ, levelP, baseTwoDecomposition))
+	BaseTwoDecompositionVectorSize := slices.Max(params.BaseTwoDecompositionVectorSize(levelQ, levelP, baseTwoDecomposition))
 
 	pt = new(GadgetPlaintext)
 	pt.Value = make([]ring.Poly, BaseTwoDecompositionVectorSize)

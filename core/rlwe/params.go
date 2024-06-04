@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/big"
 	"math/bits"
+	"slices"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/tuneinsight/lattigo/v5/ring"
@@ -174,7 +175,7 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (params Parameters, er
 
 	if paramDef.Xe == nil {
 		// prevents the zero value of ParameterLiteral to result in a noise-less parameter instance.
-		// Users should use the NewParameters method to explicitely create noiseless instances.
+		// Users should use the NewParameters method to explicitly create noiseless instances.
 		paramDef.Xe = DefaultXe
 	}
 
@@ -183,29 +184,48 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (params Parameters, er
 		paramDef.DefaultScale = s
 	}
 
-	// only allow either (Q or P) or (logQ or logP), do not mix log with non-log
-	switch {
-	case paramDef.Q != nil && paramDef.LogQ == nil && paramDef.LogP == nil:
-		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Xs, paramDef.Xe, paramDef.RingType, paramDef.DefaultScale, paramDef.NTTFlag)
-	case paramDef.LogQ != nil && paramDef.Q == nil && paramDef.P == nil:
-		var q, p []uint64
+	// Invalid moduli configurations: do not allow empty Q and LogQ as well double-set log and non-log fields.
+	if paramDef.Q == nil && paramDef.LogQ == nil {
+		return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: both Q and LogQ fields are empty")
+	}
+	if paramDef.Q != nil && paramDef.LogQ != nil {
+		return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: both Q and LogQ fields are set")
+	}
+	if paramDef.P != nil && paramDef.LogP != nil {
+		return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: both P and LogP fields are set")
+	}
+
+	var (
+		q []uint64 = nil
+		p []uint64 = nil
+	)
+
+	// In case a log prime field is set for either Q or P, the corresponding primes need to be generated.
+	// Note that GenModuli returns nil for Q if logQ == nil, and nil for P if logP == nil.
+	if paramDef.LogQ != nil || paramDef.LogP != nil {
 		switch paramDef.RingType {
 		case ring.Standard:
 			LogNthRoot := utils.Max(paramDef.LogN+1, paramDef.LogNthRoot)
 			q, p, err = GenModuli(LogNthRoot, paramDef.LogQ, paramDef.LogP) //2NthRoot
+			if err != nil {
+				return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: unable to generate standard ring moduli: %w", err)
+			}
 		case ring.ConjugateInvariant:
 			LogNthRoot := utils.Max(paramDef.LogN+2, paramDef.LogNthRoot)
 			q, p, err = GenModuli(LogNthRoot, paramDef.LogQ, paramDef.LogP) //4NthRoot
-		default:
-			return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: invalid ring.Type, must be ring.ConjugateInvariant or ring.Standard")
+			if err != nil {
+				return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: unable to generate conjugate invariant ring moduli: %w", err)
+			}
 		}
-		if err != nil {
-			return Parameters{}, err
-		}
-		return NewParameters(paramDef.LogN, q, p, paramDef.Xs, paramDef.Xe, paramDef.RingType, paramDef.DefaultScale, paramDef.NTTFlag)
-	default:
-		return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: invalid parameter literal")
 	}
+	// Use the user-provided primes if specified.
+	if q == nil {
+		q = paramDef.Q
+	}
+	if p == nil {
+		p = paramDef.P
+	}
+	return NewParameters(paramDef.LogN, q, p, paramDef.Xs, paramDef.Xe, paramDef.RingType, paramDef.DefaultScale, paramDef.NTTFlag)
 }
 
 // StandardParameters returns a RLWE parameter set that corresponds to the
@@ -534,15 +554,21 @@ func (p Parameters) BaseRNSDecompositionVectorSize(levelQ, levelP int) int {
 }
 
 // QiOverflowMargin returns floor(2^64 / max(Qi)), i.e. the number of times elements of Z_max{Qi} can
-// be added together before overflowing 2^64.
+// be added together before overflowing 2^64. The function returns -1 if the moduli array is empty.
 func (p Parameters) QiOverflowMargin(level int) int {
-	return int(math.Exp2(64) / float64(utils.MaxSlice(p.qi[:level+1])))
+	if len(p.qi) == 0 {
+		return -1
+	}
+	return int(math.Exp2(64) / float64(slices.Max(p.qi[:level+1])))
 }
 
 // PiOverflowMargin returns floor(2^64 / max(Pi)), i.e. the number of times elements of Z_max{Pi} can
-// be added together before overflowing 2^64.
+// be added together before overflowing 2^64. The function returns -1 if the moduli array is empty.
 func (p Parameters) PiOverflowMargin(level int) int {
-	return int(math.Exp2(64) / float64(utils.MaxSlice(p.pi[:level+1])))
+	if len(p.pi) == 0 {
+		return -1
+	}
+	return int(math.Exp2(64) / float64(slices.Max(p.pi[:level+1])))
 }
 
 // GaloisElements takes a list of integers k and returns the list [GaloisGen^{k[i]} mod NthRoot, ...].

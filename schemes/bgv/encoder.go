@@ -32,6 +32,11 @@ type Encoder struct {
 
 	bufQ ring.Poly
 	bufT ring.Poly
+
+	// bufB is allocated in the case when the degree of RingT is smaller
+	// than the degree of RingQ (gap > 1), hence a more involved conversion
+	// between the two structures is necessary. The size of bufB is then
+	// MaxSlots() elements.
 	bufB []*big.Int
 
 	paramsQP []ring.ModUpConstants

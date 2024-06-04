@@ -224,12 +224,17 @@ func (eval Evaluator) gadgetProductSinglePAndBitDecompLazy(levelQ int, cx ring.P
 
 		for j := 0; j < BaseTwoDecompositionVectorSize[i]; j++ {
 
+			if mask != 0 {
+				ring.MaskVec(cxInvNTT.Coeffs[i], j*pw2, mask, cw)
+				ring.MaskVec(cxInvNTT.Coeffs[i], j*pw2, mask, cw)
+			}
+
 			if i == 0 && j == 0 {
+
 				for u, s := range ringQ.SubRings[:levelQ+1] {
 					if mask == 0 {
 						s.NTTLazy(c2QP.Q.Coeffs[u], cwNTT)
 					} else {
-						ring.MaskVec(cxInvNTT.Coeffs[i], j*pw2, mask, cw)
 						s.NTTLazy(cw, cwNTT)
 					}
 					s.MulCoeffsMontgomeryLazy(el[i][j][0].Q.Coeffs[u], cwNTT, ct.Value[0].Q.Coeffs[u])
@@ -241,7 +246,6 @@ func (eval Evaluator) gadgetProductSinglePAndBitDecompLazy(levelQ int, cx ring.P
 						if mask == 0 {
 							s.NTTLazy(c2QP.P.Coeffs[u], cwNTT)
 						} else {
-							ring.MaskVec(cxInvNTT.Coeffs[i], j*pw2, mask, cw)
 							s.NTTLazy(cw, cwNTT)
 						}
 						s.MulCoeffsMontgomeryLazy(el[i][j][0].P.Coeffs[u], cwNTT, ct.Value[0].P.Coeffs[u])
@@ -254,7 +258,6 @@ func (eval Evaluator) gadgetProductSinglePAndBitDecompLazy(levelQ int, cx ring.P
 					if mask == 0 {
 						s.NTTLazy(c2QP.Q.Coeffs[u], cwNTT)
 					} else {
-						ring.MaskVec(cxInvNTT.Coeffs[i], j*pw2, mask, cw)
 						s.NTTLazy(cw, cwNTT)
 					}
 					s.MulCoeffsMontgomeryLazyThenAddLazy(el[i][j][0].Q.Coeffs[u], cwNTT, ct.Value[0].Q.Coeffs[u])
@@ -266,7 +269,6 @@ func (eval Evaluator) gadgetProductSinglePAndBitDecompLazy(levelQ int, cx ring.P
 						if mask == 0 {
 							s.NTTLazy(c2QP.P.Coeffs[u], cwNTT)
 						} else {
-							ring.MaskVec(cxInvNTT.Coeffs[i], j*pw2, mask, cw)
 							s.NTTLazy(cw, cwNTT)
 						}
 						s.MulCoeffsMontgomeryLazyThenAddLazy(el[i][j][0].P.Coeffs[u], cwNTT, ct.Value[0].P.Coeffs[u])

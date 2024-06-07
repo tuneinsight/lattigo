@@ -18,39 +18,6 @@ func Alias2D[V any](x, y [][]V) bool {
 	return cap(x) > 0 && cap(y) > 0 && &x[0:cap(x)][cap(x)-1] == &y[0:cap(y)][cap(y)-1]
 }
 
-// EqualSlice checks the equality between two slices of comparables.
-func EqualSlice[V comparable](a, b []V) (v bool) {
-	v = true
-	for i := range a {
-		v = v && (a[i] == b[i])
-	}
-	return
-}
-
-// MaxSlice returns the maximum value in the slice.
-func MaxSlice[V constraints.Ordered](slice []V) (max V) {
-	for _, c := range slice {
-		max = Max(max, c)
-	}
-	return
-}
-
-// MinSlice returns the minimum value in the slice.
-func MinSlice[V constraints.Ordered](slice []V) (min V) {
-	for _, c := range slice {
-		min = Min(min, c)
-	}
-	return
-}
-
-// IsInSlice checks if x is in slice.
-func IsInSlice[V comparable](x V, slice []V) (v bool) {
-	for i := range slice {
-		v = v || (slice[i] == x)
-	}
-	return
-}
-
 // GetKeys returns the keys of the input map.
 // Order is not guaranteed.
 func GetKeys[K constraints.Ordered, V any](m map[K]V) (keys []K) {
@@ -110,7 +77,7 @@ func RotateSlice[V any](s []V, k int) []V {
 func RotateSliceAllocFree[V any](s []V, k int, sout []V) {
 
 	if len(s) != len(sout) {
-		panic("cannot RotateUint64SliceAllocFree: s and sout of different lengths")
+		panic("cannot RotateSliceAllocFree: s and sout of different lengths")
 	}
 
 	if len(s) == 0 {

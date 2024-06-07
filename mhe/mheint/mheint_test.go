@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"runtime"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,7 +15,6 @@ import (
 	"github.com/tuneinsight/lattigo/v5/he/heint"
 	"github.com/tuneinsight/lattigo/v5/mhe"
 	"github.com/tuneinsight/lattigo/v5/ring"
-	"github.com/tuneinsight/lattigo/v5/utils"
 	"github.com/tuneinsight/lattigo/v5/utils/sampling"
 )
 
@@ -215,7 +215,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 
 		tc.encoder.DecodeRingT(ptRt, ciphertext.Scale, values)
 
-		assert.True(t, utils.EqualSlice(coeffs, values))
+		assert.True(t, slices.Equal(coeffs, values))
 	})
 
 	crp := P[0].e2s.SampleCRP(params.MaxLevel(), tc.crs)
@@ -292,7 +292,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 		require.True(t, ciphertext.Level() == maxLevel)
 		have := make([]uint64, tc.params.MaxSlots())
 		encoder.Decode(decryptorSk0.DecryptNew(ciphertext), have)
-		require.True(t, utils.EqualSlice(coeffs, have))
+		require.True(t, slices.Equal(coeffs, have))
 	})
 }
 
@@ -380,7 +380,7 @@ func testRefreshAndPermutation(tc *testContext, t *testing.T) {
 
 		//Decrypts and compares
 		require.True(t, ciphertext.Level() == maxLevel)
-		require.True(t, utils.EqualSlice(coeffsPermute, coeffsHave))
+		require.True(t, slices.Equal(coeffsPermute, coeffsHave))
 	})
 }
 
@@ -480,7 +480,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 
 		//Decrypts and compares
 		require.True(t, ciphertext.Level() == maxLevel)
-		require.True(t, utils.EqualSlice(coeffs, coeffsHave))
+		require.True(t, slices.Equal(coeffs, coeffsHave))
 	})
 }
 
@@ -508,5 +508,5 @@ func newTestVectors(tc *testContext, encryptor *rlwe.Encryptor, t *testing.T) (c
 func verifyTestVectors(tc *testContext, decryptor *rlwe.Decryptor, coeffs []uint64, ciphertext *rlwe.Ciphertext, t *testing.T) {
 	have := make([]uint64, tc.params.MaxSlots())
 	tc.encoder.Decode(decryptor.DecryptNew(ciphertext), have)
-	require.True(t, utils.EqualSlice(coeffs, have))
+	require.True(t, slices.Equal(coeffs, have))
 }

@@ -35,7 +35,7 @@ func BitReverse64[V uint64 | uint32 | int | int64](index V, bitLen int) uint64 {
 	return bits.Reverse64(uint64(index)) >> (64 - bitLen)
 }
 
-// HammingWeight64 returns the hammingweight if the input value.
+// HammingWeight64 returns the hamming weight if the input value.
 func HammingWeight64[V uint64 | uint32 | int | int64](x V) V {
 	y := uint64(x)
 	y -= (y >> 1) & 0x5555555555555555

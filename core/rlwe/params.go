@@ -1,17 +1,20 @@
 package rlwe
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
 	"math"
 	"math/big"
 	"math/bits"
+	"slices"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/tuneinsight/lattigo/v5/ring"
 	"github.com/tuneinsight/lattigo/v5/ring/ringqp"
 	"github.com/tuneinsight/lattigo/v5/utils"
+	"github.com/tuneinsight/lattigo/v5/utils/buffer"
 )
 
 // MaxLogN is the log2 of the largest supported polynomial modulus degree.
@@ -172,7 +175,7 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (params Parameters, er
 
 	if paramDef.Xe == nil {
 		// prevents the zero value of ParameterLiteral to result in a noise-less parameter instance.
-		// Users should use the NewParameters method to explicitely create noiseless instances.
+		// Users should use the NewParameters method to explicitly create noiseless instances.
 		paramDef.Xe = DefaultXe
 	}
 
@@ -181,28 +184,48 @@ func NewParametersFromLiteral(paramDef ParametersLiteral) (params Parameters, er
 		paramDef.DefaultScale = s
 	}
 
-	switch {
-	case paramDef.Q != nil && paramDef.LogQ == nil:
-		return NewParameters(paramDef.LogN, paramDef.Q, paramDef.P, paramDef.Xs, paramDef.Xe, paramDef.RingType, paramDef.DefaultScale, paramDef.NTTFlag)
-	case paramDef.LogQ != nil && paramDef.Q == nil:
-		var q, p []uint64
+	// Invalid moduli configurations: do not allow empty Q and LogQ as well double-set log and non-log fields.
+	if paramDef.Q == nil && paramDef.LogQ == nil {
+		return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: both Q and LogQ fields are empty")
+	}
+	if paramDef.Q != nil && paramDef.LogQ != nil {
+		return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: both Q and LogQ fields are set")
+	}
+	if paramDef.P != nil && paramDef.LogP != nil {
+		return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: both P and LogP fields are set")
+	}
+
+	var (
+		q []uint64 = nil
+		p []uint64 = nil
+	)
+
+	// In case a log prime field is set for either Q or P, the corresponding primes need to be generated.
+	// Note that GenModuli returns nil for Q if logQ == nil, and nil for P if logP == nil.
+	if paramDef.LogQ != nil || paramDef.LogP != nil {
 		switch paramDef.RingType {
 		case ring.Standard:
 			LogNthRoot := utils.Max(paramDef.LogN+1, paramDef.LogNthRoot)
 			q, p, err = GenModuli(LogNthRoot, paramDef.LogQ, paramDef.LogP) //2NthRoot
+			if err != nil {
+				return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: unable to generate standard ring moduli: %w", err)
+			}
 		case ring.ConjugateInvariant:
 			LogNthRoot := utils.Max(paramDef.LogN+2, paramDef.LogNthRoot)
 			q, p, err = GenModuli(LogNthRoot, paramDef.LogQ, paramDef.LogP) //4NthRoot
-		default:
-			return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: invalid ring.Type, must be ring.ConjugateInvariant or ring.Standard")
+			if err != nil {
+				return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: unable to generate conjugate invariant ring moduli: %w", err)
+			}
 		}
-		if err != nil {
-			return Parameters{}, err
-		}
-		return NewParameters(paramDef.LogN, q, p, paramDef.Xs, paramDef.Xe, paramDef.RingType, paramDef.DefaultScale, paramDef.NTTFlag)
-	default:
-		return Parameters{}, fmt.Errorf("rlwe.NewParametersFromLiteral: invalid parameter literal")
 	}
+	// Use the user-provided primes if specified.
+	if q == nil {
+		q = paramDef.Q
+	}
+	if p == nil {
+		p = paramDef.P
+	}
+	return NewParameters(paramDef.LogN, q, p, paramDef.Xs, paramDef.Xe, paramDef.RingType, paramDef.DefaultScale, paramDef.NTTFlag)
 }
 
 // StandardParameters returns a RLWE parameter set that corresponds to the
@@ -531,15 +554,21 @@ func (p Parameters) BaseRNSDecompositionVectorSize(levelQ, levelP int) int {
 }
 
 // QiOverflowMargin returns floor(2^64 / max(Qi)), i.e. the number of times elements of Z_max{Qi} can
-// be added together before overflowing 2^64.
+// be added together before overflowing 2^64. The function returns -1 if the moduli array is empty.
 func (p Parameters) QiOverflowMargin(level int) int {
-	return int(math.Exp2(64) / float64(utils.MaxSlice(p.qi[:level+1])))
+	if len(p.qi) == 0 {
+		return -1
+	}
+	return int(math.Exp2(64) / float64(slices.Max(p.qi[:level+1])))
 }
 
 // PiOverflowMargin returns floor(2^64 / max(Pi)), i.e. the number of times elements of Z_max{Pi} can
-// be added together before overflowing 2^64.
+// be added together before overflowing 2^64. The function returns -1 if the moduli array is empty.
 func (p Parameters) PiOverflowMargin(level int) int {
-	return int(math.Exp2(64) / float64(utils.MaxSlice(p.pi[:level+1])))
+	if len(p.pi) == 0 {
+		return -1
+	}
+	return int(math.Exp2(64) / float64(slices.Max(p.pi[:level+1])))
 }
 
 // GaloisElements takes a list of integers k and returns the list [GaloisGen^{k[i]} mod NthRoot, ...].
@@ -610,12 +639,15 @@ func (p Parameters) Equal(other *Parameters) (res bool) {
 // MarshalBinary returns a []byte representation of the parameter set.
 // This representation corresponds to the MarshalJSON representation.
 func (p Parameters) MarshalBinary() ([]byte, error) {
-	return p.MarshalJSON()
+	buf := buffer.NewBufferSize(p.BinarySize())
+	_, err := p.WriteTo(buf)
+	return buf.Bytes(), err
 }
 
 // UnmarshalBinary decodes a slice of bytes on the target Parameters.
 func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
-	return p.UnmarshalJSON(data)
+	_, err = p.ReadFrom(buffer.NewBuffer(data))
+	return
 }
 
 // MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.
@@ -635,15 +667,29 @@ func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 
 // WriteTo writes the object on an io.Writer. It implements the io.WriterTo
 // interface, and will write exactly object.BinarySize() bytes on w.
-func (p Parameters) WriteTo(w io.Writer) (int64, error) {
-	if b, err := p.MarshalBinary(); err != nil {
-		return 0, err
-	} else {
-		if n, err := w.Write(b); err != nil {
-			return int64(n), err
-		} else {
-			return int64(n), nil
+func (p Parameters) WriteTo(w io.Writer) (n int64, err error) {
+	switch w := w.(type) {
+	case buffer.Writer:
+
+		bytes, err := p.MarshalJSON()
+		if err != nil {
+			return 0, err
 		}
+
+		if n, err = buffer.WriteAsUint32[int](w, len(bytes)); err != nil {
+			return n, fmt.Errorf("buffer.WriteAsUint32[int]: %w", err)
+		}
+
+		var inc int
+		if inc, err = w.Write(bytes); err != nil {
+			return int64(n), fmt.Errorf("io.Write.Write: %w", err)
+		}
+
+		n += int64(inc)
+
+		return n, w.Flush()
+	default:
+		return p.WriteTo(bufio.NewWriter(w))
 	}
 }
 
@@ -658,20 +704,34 @@ func (p Parameters) WriteTo(w io.Writer) (int64, error) {
 //     first wrap io.Reader in a pre-allocated bufio.Reader.
 //   - When reading from a var b []byte, it is preferable to pass a buffer.NewBuffer(b)
 //     as w (see lattigo/utils/buffer/buffer.go).
-func (p *Parameters) ReadFrom(r io.Reader) (int64, error) {
-	b := make([]byte, p.BinarySize())
-	if n, err := r.Read(b); err != nil {
-		return int64(n), err
-	} else {
-		return int64(n), p.UnmarshalBinary(b)
+func (p *Parameters) ReadFrom(r io.Reader) (n int64, err error) {
+
+	switch r := r.(type) {
+	case buffer.Reader:
+
+		var size int
+		if n, err = buffer.ReadAsUint32[int](r, &size); err != nil {
+			return int64(n), fmt.Errorf("buffer.ReadAsUint64[int]: %w", err)
+		}
+
+		bytes := make([]byte, size)
+
+		var inc int
+		if inc, err = r.Read(bytes); err != nil {
+			return n + int64(inc), fmt.Errorf("io.Reader.Read: %w", err)
+		}
+		return n + int64(inc), p.UnmarshalJSON(bytes)
+
+	default:
+		return p.ReadFrom(bufio.NewReader(r))
 	}
 }
 
 // BinarySize returns size in bytes of the marshalled [Parameters] object.
 func (p Parameters) BinarySize() int {
 	// XXX: Byte size is hard to predict without marshalling.
-	b, _ := p.MarshalBinary()
-	return len(b)
+	b, _ := p.MarshalJSON()
+	return 4 + len(b)
 }
 
 // CheckModuli checks that the provided q and p correspond to a valid moduli chain.

@@ -50,11 +50,12 @@ func main() {
 	//
 	// Both contain the `rlwe.MetaData` struct, which notably holds the following fields:
 	//    - `Scale`: the scaling factor. This field is updated dynamically during computations.
-	//    - `EncodingDomain`:
-	//        - `SlotsDomain`: the usual encoding that provides SIMD operations over the slots.
-	//        - `CoefficientDomain`: plain encoding in the RING. Addition behaves as usual, but multiplication will result in negacyclic convolution over the slots.
-	//    - `LogSlots`: the log2 of the number of slots. Note that if a ciphertext with n slots is multiplied with a ciphertext of 2n slots, the resulting ciphertext
-	//                  will have 2n slots. Because a message `m` of n slots is identical to the message `m|m` of 2n slots.
+	//    - `IsBatched`:
+	//        - `true (slot encoding)`: the usual encoding that provides SIMD operations over the slots.
+	//        - `false (coefficient encoding)`: plain encoding in the RING. Addition behaves as usual, but multiplication will result in negacyclic convolution over the slots.
+	//    - `LogDimensions`: the log2 of the plaintext/ciphertext matrix dimension (columns, rows) with the total number of available slots being columns*rows.
+	//        Note that if a ciphertext with n slots is multiplied with a ciphertext of 2n slots, the resulting ciphertext will have 2n slots.
+	//        Because a message `m` of n slots is identical to the message `m|m` of 2n slots.
 	//
 	// These are all public fields which can be manually edited by advanced users if needed.
 	//
@@ -188,8 +189,8 @@ func main() {
 	// We can allocate plaintexts at lower levels to optimize memory consumption for operations that we know will happen at a lower level.
 	// Plaintexts (and ciphertexts) are by default created with the following metadata:
 	//   - `Scale`: `params.DefaultScale()` (which is 2^{45} in this example)
-	//   - `EncodingDomain`: `rlwe.SlotsDomain` (this is the default value)
-	//   - `LogSlots`: `params.MaxLogSlots` (which is LogN-1=13 in this example)
+	//   - `IsBatched`: `true` (this is the default value)
+	//   - `LogDimensions`: `{0, params.MaxLogSlots}` (params.MaxLogSlots = LogN-1=13 in this example)
 	// We can check that the plaintext was created at the maximum level with pt1.Level().
 	pt1 := hefloat.NewPlaintext(params, params.MaxLevel())
 
@@ -202,7 +203,7 @@ func main() {
 
 	// And we encode our `values` on the plaintext.
 	// Note that the encoder will check the metadata of the plaintext and adapt the encoding accordingly.
-	// For example, one can modify the `Scale`, `EncodingDomain` or `LogSlots` fields change the way the encoding behaves.
+	// For example, one can modify the `Scale`, `IsBatched` or `LogDimensions` fields change the way the encoding behaves.
 	if err = ecd2.Encode(values1, pt1); err != nil {
 		panic(err)
 	}

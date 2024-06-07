@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/bits"
+	"slices"
 
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 	"github.com/tuneinsight/lattigo/v5/ring"
@@ -82,7 +83,7 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 		return Parameters{}, fmt.Errorf("invalid parameters: t = 0")
 	}
 
-	if utils.IsInSlice(t, rlweParams.Q()) {
+	if slices.Contains(rlweParams.Q(), t) {
 		return Parameters{}, fmt.Errorf("insecure parameters: t|Q")
 	}
 

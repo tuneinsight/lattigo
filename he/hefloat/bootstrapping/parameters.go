@@ -409,6 +409,7 @@ func (p Parameters) MarshalJSON() (data []byte, err error) {
 		CoeffsToSlotsParameters hefloat.DFTMatrixLiteral
 		IterationsParameters    *IterationsParameters
 		EphemeralSecretWeight   int
+		CircuitOrder            int
 	}{
 		ResidualParameters:      p.ResidualParameters,
 		BootstrappingParameters: p.BootstrappingParameters,
@@ -417,6 +418,7 @@ func (p Parameters) MarshalJSON() (data []byte, err error) {
 		CoeffsToSlotsParameters: p.CoeffsToSlotsParameters,
 		IterationsParameters:    p.IterationsParameters,
 		EphemeralSecretWeight:   p.EphemeralSecretWeight,
+		CircuitOrder:            int(p.CircuitOrder),
 	})
 }
 
@@ -429,6 +431,7 @@ func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 		CoeffsToSlotsParameters hefloat.DFTMatrixLiteral
 		IterationsParameters    *IterationsParameters
 		EphemeralSecretWeight   int
+		CircuitOrder            int
 	}
 
 	if err = json.Unmarshal(data, &params); err != nil {
@@ -442,6 +445,7 @@ func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 	p.CoeffsToSlotsParameters = params.CoeffsToSlotsParameters
 	p.IterationsParameters = params.IterationsParameters
 	p.EphemeralSecretWeight = params.EphemeralSecretWeight
+	p.CircuitOrder = CircuitOrder(params.CircuitOrder)
 
 	return
 }

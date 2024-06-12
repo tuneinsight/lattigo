@@ -315,6 +315,16 @@ func EvaluatePolynomialVectorFromPowerBasis[T any](eval Evaluator, targetLevel i
 		// Loops starting from the highest degree coefficient
 		for key := pol.Value[0].Degree(); key > 0; key-- {
 			if !(even || odd) || (key&1 == 0 && even) || (key&1 == 1 && odd) {
+				// prevent multiplication of operands with differing degrees
+				if res.Degree() > X[key].Degree() {
+					if err = eval.Relinearize(res, res); err != nil {
+						return nil, fmt.Errorf("unable to relinearize ciphertext: %w", err)
+					}
+				} else if X[key].Degree() > res.Degree() {
+					if err = eval.Relinearize(X[key], X[key]); err != nil {
+						return nil, fmt.Errorf("unable to relinearize ciphertext: %w", err)
+					}
+				}
 				if err = eval.MulThenAdd(X[key], cg.GetVectorCoefficient(pol, key), res); err != nil {
 					return
 				}
@@ -350,6 +360,16 @@ func EvaluatePolynomialVectorFromPowerBasis[T any](eval Evaluator, targetLevel i
 
 		for key := pol.Value[0].Degree(); key > 0; key-- {
 			if key != 0 && (!(even || odd) || (key&1 == 0 && even) || (key&1 == 1 && odd)) {
+				// prevent multiplication of operands with differing degrees
+				if res.Degree() > X[key].Degree() {
+					if err = eval.Relinearize(res, res); err != nil {
+						return nil, fmt.Errorf("unable to relinearize ciphertext: %w", err)
+					}
+				} else if X[key].Degree() > res.Degree() {
+					if err = eval.Relinearize(X[key], X[key]); err != nil {
+						return nil, fmt.Errorf("unable to relinearize ciphertext: %w", err)
+					}
+				}
 				// MulScalarAndAdd automatically scales c to match the scale of res.
 				if err = eval.MulThenAdd(X[key], cg.GetSingleCoefficient(pol.Value[0], key), res); err != nil {
 					return

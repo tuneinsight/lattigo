@@ -93,10 +93,10 @@ func testBlindRotation(t *testing.T) {
 		}
 
 		// RLWE secret for the samples
-		skLWE := rlwe.NewKeyGenerator(paramsLWE).GenSecretKeyNew()
+		skLWE, pk := rlwe.NewKeyGenerator(paramsLWE).GenKeyPairNew()
 
 		// RLWE encryptor for the samples
-		encryptorLWE := rlwe.NewEncryptor(paramsLWE, skLWE)
+		encryptorLWE := rlwe.NewEncryptor(paramsLWE, pk)
 
 		// Values to encrypt in the RLWE sample
 		values := make([]float64, slots)

@@ -312,7 +312,7 @@ func benchBRed(tc *testParams, b *testing.B) {
 
 	var q, x, y uint64 = 1033576114481528833, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF
 
-	brc := BRedConstant(q)
+	brc := GenBRedConstant(q)
 
 	b.ResetTimer()
 
@@ -327,9 +327,9 @@ func benchMRed(tc *testParams, b *testing.B) {
 
 	var q, x, y uint64 = 1033576114481528833, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF
 
-	y = MForm(y, q, BRedConstant(q))
+	y = MForm(y, q, GenBRedConstant(q))
 
-	mrc := MRedConstant(q)
+	mrc := GenMRedConstant(q)
 
 	b.ResetTimer()
 
@@ -344,7 +344,7 @@ func benchBRedAdd(tc *testParams, b *testing.B) {
 
 	var q, x uint64 = 1033576114481528833, 0xFFFFFFFFFFFFFFFF
 
-	brc := BRedConstant(q)
+	brc := GenBRedConstant(q)
 
 	b.ResetTimer()
 

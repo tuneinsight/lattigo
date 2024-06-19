@@ -28,8 +28,8 @@ type SubRing struct {
 	Mask uint64
 
 	// Fast reduction constants
-	BRedConstant []uint64 // Barrett Reduction
-	MRedConstant uint64   // Montgomery Reduction
+	BRedConstant [2]uint64 // Barrett Reduction
+	MRedConstant uint64    // Montgomery Reduction
 
 	*NTTTable // NTT related constants
 }
@@ -58,12 +58,12 @@ func NewSubRingWithCustomNTT(N int, Modulus uint64, ntt func(*SubRing, int) Numb
 	s.Mask = (1 << uint64(bits.Len64(Modulus-1))) - 1
 
 	// Computes the fast modular reduction constants for the Ring
-	s.BRedConstant = BRedConstant(Modulus)
+	s.BRedConstant = GenBRedConstant(Modulus)
 
 	// If qi is not a power of 2, we can compute the MRed (otherwise, it
 	// would return an error as there is no valid Montgomery form mod a power of 2)
 	if (Modulus&(Modulus-1)) != 0 && Modulus != 0 {
-		s.MRedConstant = MRedConstant(Modulus)
+		s.MRedConstant = GenMRedConstant(Modulus)
 	}
 
 	s.NTTTable = new(NTTTable)
@@ -275,12 +275,12 @@ func newSubRingFromParametersLiteral(p subRingParametersLiteral) (s *SubRing, er
 	s.Mask = (1 << uint64(bits.Len64(s.Modulus-1))) - 1
 
 	// Computes the fast modular reduction parameters for the Ring
-	s.BRedConstant = BRedConstant(s.Modulus)
+	s.BRedConstant = GenBRedConstant(s.Modulus)
 
 	// If qi is not a power of 2, we can compute the MRed (otherwise, it
 	// would return an error as there is no valid Montgomery form mod a power of 2)
 	if (s.Modulus&(s.Modulus-1)) != 0 && s.Modulus != 0 {
-		s.MRedConstant = MRedConstant(s.Modulus)
+		s.MRedConstant = GenMRedConstant(s.Modulus)
 	}
 
 	switch Type(p.Type) {

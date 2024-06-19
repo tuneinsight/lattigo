@@ -98,19 +98,21 @@ func main() {
 
 	// SlotsToCoeffsParameters homomorphic encoding parameters
 	var SlotsToCoeffsParameters = hefloat.DFTMatrixLiteral{
-		Type:       hefloat.HomomorphicDecode,
-		LogSlots:   LogSlots,
-		Scaling:    new(big.Float).SetFloat64(normalization * diffScale),
-		LevelStart: 1,        // starting level
-		Levels:     []int{1}, // Decomposition levels of the encoding matrix (this will use one one matrix in one level)
+		Type:     hefloat.HomomorphicDecode,
+		LogSlots: LogSlots,
+		Scaling:  new(big.Float).SetFloat64(normalization * diffScale),
+		LevelQ:   1, // starting level
+		LevelP:   0,
+		Levels:   []int{1}, // Decomposition levels of the encoding matrix (this will use one one matrix in one level)
 	}
 
 	// CoeffsToSlotsParameters homomorphic decoding parameters
 	var CoeffsToSlotsParameters = hefloat.DFTMatrixLiteral{
-		Type:       hefloat.HomomorphicEncode,
-		LogSlots:   LogSlots,
-		LevelStart: 1,        // starting level
-		Levels:     []int{1}, // Decomposition levels of the encoding matrix (this will use one one matrix in one level)
+		Type:     hefloat.HomomorphicEncode,
+		LogSlots: LogSlots,
+		LevelQ:   1, // starting level
+		LevelP:   0,
+		Levels:   []int{1}, // Decomposition levels of the encoding matrix (this will use one one matrix in one level)
 	}
 
 	fmt.Printf("Generating Test Poly... ")

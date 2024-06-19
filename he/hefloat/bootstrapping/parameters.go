@@ -127,7 +127,7 @@ func NewParametersFromLiteral(residualParameters hefloat.Parameters, btpLit Para
 		Type:         hefloat.HomomorphicDecode,
 		LogSlots:     LogSlots,
 		Format:       hefloat.RepackImagAsReal,
-		LevelStart:   residualParameters.MaxLevel() + len(SlotsToCoeffsFactorizationDepthAndLogScales) + hasReservedIterationPrime,
+		LevelQ:       residualParameters.MaxLevel() + len(SlotsToCoeffsFactorizationDepthAndLogScales) + hasReservedIterationPrime,
 		LogBSGSRatio: 1,
 		Levels:       SlotsToCoeffsLevels,
 	}
@@ -190,7 +190,7 @@ func NewParametersFromLiteral(residualParameters hefloat.Parameters, btpLit Para
 	}
 
 	// Coeffs To Slots params
-	Mod1ParametersLiteral.LevelStart = S2CParams.LevelStart + Mod1ParametersLiteral.Depth()
+	Mod1ParametersLiteral.LevelQ = S2CParams.LevelQ + Mod1ParametersLiteral.Depth()
 
 	CoeffsToSlotsLevels := make([]int, len(CoeffsToSlotsFactorizationDepthAndLogScales))
 	for i := range CoeffsToSlotsLevels {
@@ -202,7 +202,7 @@ func NewParametersFromLiteral(residualParameters hefloat.Parameters, btpLit Para
 		Type:         hefloat.HomomorphicEncode,
 		Format:       hefloat.RepackImagAsReal,
 		LogSlots:     LogSlots,
-		LevelStart:   Mod1ParametersLiteral.LevelStart + len(CoeffsToSlotsFactorizationDepthAndLogScales),
+		LevelQ:       Mod1ParametersLiteral.LevelQ + len(CoeffsToSlotsFactorizationDepthAndLogScales),
 		LogBSGSRatio: 1,
 		Levels:       CoeffsToSlotsLevels,
 	}
@@ -258,10 +258,13 @@ func NewParametersFromLiteral(residualParameters hefloat.Parameters, btpLit Para
 
 	// Retrieve the number of primes #Pi of the bootstrapping circuit
 	// and adds them to the list of bit-size
-	LogP := btpLit.GetLogP(C2SParams.LevelStart + 1)
+	LogP := btpLit.GetLogP(C2SParams.LevelQ + 1)
 	for _, logpi := range LogP {
 		primesBitLenNew[logpi]++
 	}
+
+	S2CParams.LevelP = len(LogP) - 1
+	C2SParams.LevelP = len(LogP) - 1
 
 	// Map to store [bit-size][]primes
 	primesNew := map[int][]uint64{}

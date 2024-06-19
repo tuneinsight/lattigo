@@ -18,16 +18,16 @@ type EvaluatorForLinearTransformation interface {
 	GetBuffDecompQP() []ringqp.Poly
 	DecomposeNTT(level, levelP, pCount int, c1 ring.Poly, isNTT bool, BuffDecompQP []ringqp.Poly)
 	CheckAndGetGaloisKey(galEl uint64) (evk *rlwe.GaloisKey, err error)
-	GadgetProductLazy(levelQ int, cx ring.Poly, gadgetCt *rlwe.GadgetCiphertext, ct *rlwe.Element[ringqp.Poly])
-	GadgetProductHoistedLazy(levelQ int, BuffQPDecompQP []ringqp.Poly, gadgetCt *rlwe.GadgetCiphertext, ct *rlwe.Element[ringqp.Poly])
+	GadgetProductLazy(levelQ int, cx ring.Poly, gadgetCt *rlwe.GadgetCiphertext, ct *rlwe.Element[ringqp.Poly]) (err error)
+	GadgetProductHoistedLazy(levelQ int, BuffQPDecompQP []ringqp.Poly, gadgetCt *rlwe.GadgetCiphertext, ct *rlwe.Element[ringqp.Poly]) (err error)
 	AutomorphismHoistedLazy(levelQ int, ctIn *rlwe.Ciphertext, c1DecompQP []ringqp.Poly, galEl uint64, ctQP *rlwe.Element[ringqp.Poly]) (err error)
 	ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q ring.Poly)
 	AutomorphismIndex(uint64) []uint64
 }
 
 type EvaluatorForDiagonalMatrix interface {
-	Decompose(levelQ int, ctIn *rlwe.Ciphertext, BuffDecompQP []ringqp.Poly)
-	GetPreRotatedCiphertextForDiagonalMatrixMultiplication(levelQ int, ctIn *rlwe.Ciphertext, BuffDecompQP []ringqp.Poly, rots []int, ctPreRot map[int]*rlwe.Element[ringqp.Poly]) (err error)
+	Decompose(levelQ, levelP int, ctIn *rlwe.Ciphertext, BuffDecompQP []ringqp.Poly)
+	GetPreRotatedCiphertextForDiagonalMatrixMultiplication(levelQ, levelP int, ctIn *rlwe.Ciphertext, BuffDecompQP []ringqp.Poly, rots []int, ctPreRot map[int]*rlwe.Element[ringqp.Poly]) (err error)
 	MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error)
 	MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix LinearTransformation, ctInPreRot map[int]*rlwe.Element[ringqp.Poly], opOut *rlwe.Ciphertext) (err error)
 }
@@ -45,15 +45,21 @@ func EvaluateLinearTransformationsMany(evalLT EvaluatorForLinearTransformation, 
 		}
 	}
 
-	var level int
+	var levelQ int
+	levelP := linearTransformations[0].LevelP
 	for _, lt := range linearTransformations {
-		level = utils.Max(level, lt.Level)
+		levelQ = utils.Max(levelQ, lt.LevelQ)
+
+		if levelP != lt.LevelP {
+			return fmt.Errorf("all linearTransformations must have the same levelP")
+		}
 	}
-	level = utils.Min(level, ctIn.Level())
+
+	levelQ = utils.Min(levelQ, ctIn.Level())
 
 	BuffDecompQP := evalLT.GetBuffDecompQP()
 
-	evalDiag.Decompose(level, ctIn, BuffDecompQP)
+	evalDiag.Decompose(levelQ, levelP, ctIn, BuffDecompQP)
 
 	ctPreRot := map[int]*rlwe.Element[ringqp.Poly]{}
 
@@ -67,7 +73,7 @@ func EvaluateLinearTransformationsMany(evalLT EvaluatorForLinearTransformation, 
 
 			_, _, rotN2 := lt.BSGSIndex()
 
-			if err = evalDiag.GetPreRotatedCiphertextForDiagonalMatrixMultiplication(level, ctIn, BuffDecompQP, rotN2, ctPreRot); err != nil {
+			if err = evalDiag.GetPreRotatedCiphertextForDiagonalMatrixMultiplication(levelQ, levelP, ctIn, BuffDecompQP, rotN2, ctPreRot); err != nil {
 				return
 			}
 
@@ -81,10 +87,9 @@ func EvaluateLinearTransformationsMany(evalLT EvaluatorForLinearTransformation, 
 }
 
 // GetPreRotatedCiphertextForDiagonalMatrixMultiplication populates ctPreRot with the pre-rotated ciphertext for the rotations rots and deletes rotated ciphertexts that are not in rots.
-func GetPreRotatedCiphertextForDiagonalMatrixMultiplication(levelQ int, eval EvaluatorForLinearTransformation, ctIn *rlwe.Ciphertext, BuffDecompQP []ringqp.Poly, rots []int, ctPreRot map[int]*rlwe.Element[ringqp.Poly]) (err error) {
+func GetPreRotatedCiphertextForDiagonalMatrixMultiplication(levelQ, levelP int, eval EvaluatorForLinearTransformation, ctIn *rlwe.Ciphertext, BuffDecompQP []ringqp.Poly, rots []int, ctPreRot map[int]*rlwe.Element[ringqp.Poly]) (err error) {
 
 	params := eval.GetRLWEParameters()
-	levelP := params.MaxLevelP()
 
 	rotsMap := map[int]bool{}
 
@@ -104,7 +109,7 @@ func GetPreRotatedCiphertextForDiagonalMatrixMultiplication(levelQ int, eval Eva
 		if _, ok := ctPreRot[i]; i != 0 && !ok {
 			ctPreRot[i] = rlwe.NewElementExtended(params, 1, levelQ, levelP)
 			if err = eval.AutomorphismHoistedLazy(levelQ, ctIn, BuffDecompQP, params.GaloisElement(i), ctPreRot[i]); err != nil {
-				return
+				return fmt.Errorf("eval.AutomorphismHoistedLazy: %w", err)
 			}
 		}
 	}
@@ -152,8 +157,8 @@ func MultiplyByDiagMatrix(eval EvaluatorForLinearTransformation, ctIn *rlwe.Ciph
 
 	params := eval.GetRLWEParameters()
 
-	levelQ := utils.Min(opOut.Level(), utils.Min(ctIn.Level(), matrix.Level))
-	levelP := params.RingP().MaxLevel()
+	levelQ := utils.Min(opOut.Level(), utils.Min(ctIn.Level(), matrix.LevelQ))
+	levelP := matrix.LevelP
 
 	ringQP := params.RingQP().AtLevel(levelQ, levelP)
 	ringQ := ringQP.RingQ
@@ -205,9 +210,16 @@ func MultiplyByDiagMatrix(eval EvaluatorForLinearTransformation, ctIn *rlwe.Ciph
 			return fmt.Errorf("cannot MultiplyByDiagMatrix: Automorphism: CheckAndGetGaloisKey: %w", err)
 		}
 
+		if evk.LevelP() != levelP {
+			return fmt.Errorf("LinearTransformation.LevelP = %d != GaloiKey[%d].LevelP() = %d: ensure that the levelP of the linear transformation is the same as the levelP of the GaloisKeys", levelP, galEl, evk.LevelP())
+		}
+
 		index := eval.AutomorphismIndex(galEl)
 
-		eval.GadgetProductHoistedLazy(levelQ, BuffDecompQP, &evk.GadgetCiphertext, cQP)
+		if err = eval.GadgetProductHoistedLazy(levelQ, BuffDecompQP, &evk.GadgetCiphertext, cQP); err != nil {
+			return fmt.Errorf("eval.GadgetProductHoistedLazy: %w", err)
+		}
+
 		ringQ.Add(cQP.Value[0].Q, ct0TimesP, cQP.Value[0].Q)
 		ringQP.AutomorphismNTTWithIndex(cQP.Value[0], index, tmp0QP)
 		ringQP.AutomorphismNTTWithIndex(cQP.Value[1], index, tmp1QP)
@@ -270,8 +282,8 @@ func MultiplyByDiagMatrixBSGS(eval EvaluatorForLinearTransformation, ctIn *rlwe.
 	*opOut.MetaData = *ctIn.MetaData
 	opOut.Scale = opOut.Scale.Mul(matrix.Scale)
 
-	levelQ := utils.Min(opOut.Level(), utils.Min(ctIn.Level(), matrix.Level))
-	levelP := params.MaxLevelP()
+	levelQ := utils.Min(opOut.Level(), utils.Min(ctIn.Level(), matrix.LevelQ))
+	levelP := matrix.LevelP
 
 	ringQP := params.RingQP().AtLevel(levelQ, levelP)
 	ringQ := ringQP.RingQ
@@ -374,12 +386,20 @@ func MultiplyByDiagMatrixBSGS(eval EvaluatorForLinearTransformation, ctIn *rlwe.
 			var evk *rlwe.GaloisKey
 			var err error
 			if evk, err = eval.CheckAndGetGaloisKey(galEl); err != nil {
-				return fmt.Errorf("cannot MultiplyByDiagMatrixBSGS: Automorphism: CheckAndGetGaloisKey: %w", err)
+				return fmt.Errorf("eval.CheckAndGetGaloisKey(%d): CheckAndGetGaloisKey: %w", galEl, err)
+			}
+
+			if evk.LevelP() != levelP {
+				return fmt.Errorf("LinearTransformation.LevelP = %d != GaloiKey[%d].LevelP() = %d: ensure that the levelP of the linear transformation is the same as the levelP of the GaloisKeys", levelP, galEl, evk.LevelP())
 			}
 
 			rotIndex := eval.AutomorphismIndex(galEl)
 
-			eval.GadgetProductLazy(levelQ, tmp1QP.Q, &evk.GadgetCiphertext, cQP) // EvaluationKey(P*phi(tmpRes_1)) = (d0, d1) in base QP
+			// EvaluationKey(P*phi(tmpRes_1)) = (d0, d1) in base QP
+			if err = eval.GadgetProductLazy(levelQ, tmp1QP.Q, &evk.GadgetCiphertext, cQP); err != nil {
+				return fmt.Errorf("eval.GadgetProductLazy: %w", err)
+			}
+
 			ringQP.Add(cQP.Value[0], tmp0QP, cQP.Value[0])
 
 			// Outer loop rotations

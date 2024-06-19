@@ -358,8 +358,8 @@ func (eval Evaluator) ModUp(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err 
 	Q := ringQ.ModuliChain()
 	P := ringP.ModuliChain()
 	q := Q[0]
-	BRCQ := ringQ.BRedConstants()
-	BRCP := ringP.BRedConstants()
+	BRCQ := ringQ.GetBRedConstants()
+	BRCP := ringP.GetBRedConstants()
 
 	var coeff, tmp, pos, neg uint64
 

@@ -8,9 +8,26 @@ import (
 
 // MForm switches a to the Montgomery domain by computing
 // a*2^64 mod q.
-func MForm(a, q uint64, u []uint64) (r uint64) {
-	mhi, _ := bits.Mul64(a, u[1])
-	r = -(a*u[0] + mhi) * q
+func MForm(a, q uint64, bredconstant [2]uint64) (r uint64) {
+	// R = 2^128/q
+	// b = a * 2^{64}
+	// mhi = (b * (R % 2^{64})) / 2^{64}
+	//
+	// r = b - ((b * (R/2^{64}) + mhi) * q
+	//   = b - (b * R)/2^{64} * q
+	//   = b - n * q
+	//
+	// Since r is in [0, 2q] and q is in [0, 2^{63}-1]
+	// we are ensured that r < 2^64, thus r = r mod 2^{64}
+	// So we can work mod 2^{64} (i.e. with uint64)
+	// and therfore:
+	//
+	// r = b - n * q mod 2^{64}
+	//   = a * 2^{64} - n * q mod 2^{64}
+	//   = - n * q mod 2^{64}
+	//
+	mhi, _ := bits.Mul64(a, bredconstant[1])
+	r = -(a*bredconstant[0] + mhi) * q
 	if r >= q {
 		r -= q
 	}
@@ -20,16 +37,17 @@ func MForm(a, q uint64, u []uint64) (r uint64) {
 // MFormLazy switches a to the Montgomery domain by computing
 // a*2^64 mod q in constant time.
 // The result is between 0 and 2*q-1.
-func MFormLazy(a, q uint64, u []uint64) (r uint64) {
-	mhi, _ := bits.Mul64(a, u[1])
-	r = -(a*u[0] + mhi) * q
+func MFormLazy(a, q uint64, bredconstant [2]uint64) (r uint64) {
+	// See MForm for the implementation trick.
+	mhi, _ := bits.Mul64(a, bredconstant[1])
+	r = -(a*bredconstant[0] + mhi) * q
 	return
 }
 
 // IMForm switches a from the Montgomery domain back to the
 // standard domain by computing a*(1/2^64) mod q.
-func IMForm(a, q, qInv uint64) (r uint64) {
-	r, _ = bits.Mul64(a*qInv, q)
+func IMForm(a, q, mredconstant uint64) (r uint64) {
+	r, _ = bits.Mul64(a*mredconstant, q)
 	r = q - r
 	if r >= q {
 		r -= q
@@ -40,26 +58,26 @@ func IMForm(a, q, qInv uint64) (r uint64) {
 // IMFormLazy switches a from the Montgomery domain back to the
 // standard domain by computing a*(1/2^64) mod q in constant time.
 // The result is between 0 and 2*q-1.
-func IMFormLazy(a, q, qInv uint64) (r uint64) {
-	r, _ = bits.Mul64(a*qInv, q)
+func IMFormLazy(a, q, mredconstant uint64) (r uint64) {
+	r, _ = bits.Mul64(a*mredconstant, q)
 	r = q - r
 	return
 }
 
-// MRedConstant computes the constant qInv = (q^-1) mod 2^64 required for MRed.
-func MRedConstant(q uint64) (qInv uint64) {
-	qInv = 1
+// GenMRedConstant computes the constant mredconstant = (q^-1) mod 2^64 required for MRed.
+func GenMRedConstant(q uint64) (mredconstant uint64) {
+	mredconstant = 1
 	for i := 0; i < 63; i++ {
-		qInv *= q
+		mredconstant *= q
 		q *= q
 	}
-	return
+	return mredconstant
 }
 
 // MRed computes x * y * (1/2^64) mod q.
-func MRed(x, y, q, qInv uint64) (r uint64) {
+func MRed(x, y, q, mredconstant uint64) (r uint64) {
 	mhi, mlo := bits.Mul64(x, y)
-	hhi, _ := bits.Mul64(mlo*qInv, q)
+	hhi, _ := bits.Mul64(mlo*mredconstant, q)
 	r = mhi - hhi + q
 	if r >= q {
 		r -= q
@@ -69,28 +87,28 @@ func MRed(x, y, q, qInv uint64) (r uint64) {
 
 // MRedLazy computes x * y * (1/2^64) mod q in constant time.
 // The result is between 0 and 2*q-1.
-func MRedLazy(x, y, q, qInv uint64) (r uint64) {
+func MRedLazy(x, y, q, mredconstant uint64) (r uint64) {
 	ahi, alo := bits.Mul64(x, y)
-	H, _ := bits.Mul64(alo*qInv, q)
+	H, _ := bits.Mul64(alo*mredconstant, q)
 	r = ahi - H + q
 	return
 }
 
-// BRedConstant computes the constant for the BRed algorithm.
+// GenBRedConstant computes the constant for the BRed algorithm.
 // Returns ((2^128)/q)/(2^64) and (2^128)/q mod 2^64.
-func BRedConstant(q uint64) (constant []uint64) {
+func GenBRedConstant(q uint64) [2]uint64 {
 	bigR := bignum.NewInt("0x100000000000000000000000000000000")
 	bigR.Quo(bigR, bignum.NewInt(q))
 
 	mlo := bigR.Uint64()
 	mhi := bigR.Rsh(bigR, 64).Uint64()
 
-	return []uint64{mhi, mlo}
+	return [2]uint64{mhi, mlo}
 }
 
 // BRedAdd computes a mod q.
-func BRedAdd(a, q uint64, u []uint64) (r uint64) {
-	mhi, _ := bits.Mul64(a, u[0])
+func BRedAdd(a, q uint64, bredconstant [2]uint64) (r uint64) {
+	mhi, _ := bits.Mul64(a, bredconstant[0])
 	r = a - mhi*q
 	if r >= q {
 		r -= q
@@ -100,13 +118,13 @@ func BRedAdd(a, q uint64, u []uint64) (r uint64) {
 
 // BRedAddLazy computes a mod q in constant time.
 // The result is between 0 and 2*q-1.
-func BRedAddLazy(x, q uint64, u []uint64) uint64 {
-	s0, _ := bits.Mul64(x, u[0])
+func BRedAddLazy(x, q uint64, bredconstant [2]uint64) uint64 {
+	s0, _ := bits.Mul64(x, bredconstant[0])
 	return x - s0*q
 }
 
 // BRed computes x*y mod q.
-func BRed(x, y, q uint64, u []uint64) (r uint64) {
+func BRed(x, y, q uint64, bredconstant [2]uint64) (r uint64) {
 
 	var mhi, mlo, lhi, hhi, hlo, s0, carry uint64
 
@@ -114,19 +132,19 @@ func BRed(x, y, q uint64, u []uint64) (r uint64) {
 
 	// computes r = mhi * uhi + (mlo * uhi + mhi * ulo)<<64 + (mlo * ulo)) >> 128
 
-	r = mhi * u[0] // r = mhi * uhi
+	r = mhi * bredconstant[0] // r = mhi * uhi
 
-	hhi, hlo = bits.Mul64(mlo, u[0]) // mlo * uhi
+	hhi, hlo = bits.Mul64(mlo, bredconstant[0]) // mlo * uhi
 
 	r += hhi
 
-	lhi, _ = bits.Mul64(mlo, u[1]) // mlo * ulo
+	lhi, _ = bits.Mul64(mlo, bredconstant[1]) // mlo * ulo
 
 	s0, carry = bits.Add64(hlo, lhi, 0)
 
 	r += carry
 
-	hhi, hlo = bits.Mul64(mhi, u[1]) // mhi * ulo
+	hhi, hlo = bits.Mul64(mhi, bredconstant[1]) // mhi * ulo
 
 	r += hhi
 
@@ -145,7 +163,7 @@ func BRed(x, y, q uint64, u []uint64) (r uint64) {
 
 // BRedLazy computes x*y mod q in constant time.
 // The result is between 0 and 2*q-1.
-func BRedLazy(x, y, q uint64, u []uint64) (r uint64) {
+func BRedLazy(x, y, q uint64, bredconstant [2]uint64) (r uint64) {
 
 	var mhi, mlo, lhi, hhi, hlo, s0, carry uint64
 
@@ -153,19 +171,19 @@ func BRedLazy(x, y, q uint64, u []uint64) (r uint64) {
 
 	// computes r = mhi * uhi + (mlo * uhi + mhi * ulo)<<64 + (mlo * ulo)) >> 128
 
-	r = mhi * u[0] // r = mhi * uhi
+	r = mhi * bredconstant[0] // r = mhi * uhi
 
-	hhi, hlo = bits.Mul64(mlo, u[0]) // mlo * uhi
+	hhi, hlo = bits.Mul64(mlo, bredconstant[0]) // mlo * uhi
 
 	r += hhi
 
-	lhi, _ = bits.Mul64(mlo, u[1]) // mlo * ulo
+	lhi, _ = bits.Mul64(mlo, bredconstant[1]) // mlo * ulo
 
 	s0, carry = bits.Add64(hlo, lhi, 0)
 
 	r += carry
 
-	hhi, hlo = bits.Mul64(mhi, u[1]) // mhi * ulo
+	hhi, hlo = bits.Mul64(mhi, bredconstant[1]) // mhi * ulo
 
 	r += hhi
 

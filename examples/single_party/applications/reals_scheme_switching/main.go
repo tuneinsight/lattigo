@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo/v5/he"
 	"github.com/tuneinsight/lattigo/v5/he/hebin"
 	"github.com/tuneinsight/lattigo/v5/he/hefloat"
 	"github.com/tuneinsight/lattigo/v5/ring"
@@ -211,12 +212,35 @@ func main() {
 
 	fmt.Printf("Evaluating BlindRotations... ")
 	now = time.Now()
-	// Extracts & EvalBR(LWEs, indexTestPoly) on the fly -> Repack(LWEs, indexRepack) -> RLWE
-	ctN12, err = evalBR.EvaluateAndRepack(ctN11, testPolyMap, repackIndex, blindRotateKey, evk)
-	if err != nil {
+	// Extracts & EvalBR(LWEs, indexTestPoly)
+	var ctsN12 = map[int]*rlwe.Ciphertext{}
+	if ctsN12, err = evalBR.Evaluate(ctN11, testPolyMap, blindRotateKey); err != nil {
 		panic(err)
 	}
 	fmt.Printf("Done (%s)\n", time.Since(now))
+
+	// Instantiate the repacking keys
+	evkRepacking := &he.RingPackingEvaluationKey{
+		Parameters: map[int]rlwe.ParameterProvider{paramsN12.LogN(): &paramsN12},
+		RepackKeys: map[int]rlwe.EvaluationKeySet{paramsN12.LogN(): evk},
+	}
+
+	// Instantiate the repacking evaluator from the repacking keys
+	evalRepack := he.NewRingPackingEvaluator(evkRepacking)
+
+	fmt.Printf("Evaluating Ring-Packing... ")
+	now = time.Now()
+	// Permutes the ciphertexts according to the repacking map
+	var ctsN12Permuted = map[int]*rlwe.Ciphertext{}
+	for i := range ctsN12 {
+		ctsN12Permuted[repackIndex[i]] = ctsN12[i]
+	}
+	// Repacks the ciphertexts
+	if ctN12, err = evalRepack.Repack(ctsN12Permuted); err != nil {
+		panic(err)
+	}
+	fmt.Printf("Done (%s)\n", time.Since(now))
+
 	ctN12.IsBatched = false
 	ctN12.LogDimensions = paramsN12.LogMaxDimensions()
 	ctN12.Scale = paramsN12.DefaultScale()

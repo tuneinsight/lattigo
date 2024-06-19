@@ -18,7 +18,7 @@ const (
 
 // ParametersLiteral is a literal representation of BGV parameters.  It has public
 // fields and is used to express unchecked user-defined parameters literally into
-// Go programs. The NewParametersFromLiteral function is used to generate the actual
+// Go programs. The [NewParametersFromLiteral] function is used to generate the actual
 // checked parameters from the literal representation.
 //
 // Users must set the polynomial degree (LogN) and the coefficient modulus, by either setting
@@ -44,8 +44,8 @@ type ParametersLiteral struct {
 	PlaintextModulus uint64 // Plaintext modulus
 }
 
-// GetRLWEParametersLiteral returns the rlwe.ParametersLiteral from the target bgv.ParametersLiteral.
-// See the ParametersLiteral type for details on the BGV parameters.
+// GetRLWEParametersLiteral returns the [rlwe.ParametersLiteral] from the target [bgv.ParametersLiteral].
+// See the [ParametersLiteral] type for details on the BGV parameters.
 func (p ParametersLiteral) GetRLWEParametersLiteral() rlwe.ParametersLiteral {
 	return rlwe.ParametersLiteral{
 		LogN:         p.LogN,
@@ -63,7 +63,7 @@ func (p ParametersLiteral) GetRLWEParametersLiteral() rlwe.ParametersLiteral {
 }
 
 // Parameters represents a parameter set for the BGV cryptosystem. Its fields are private and
-// immutable. See ParametersLiteral for user-specified parameters.
+// immutable. See [ParametersLiteral] for user-specified parameters.
 type Parameters struct {
 	rlwe.Parameters
 	ringQMul *ring.Ring
@@ -71,8 +71,8 @@ type Parameters struct {
 }
 
 // NewParameters instantiate a set of BGV parameters from the generic RLWE parameters and the BGV-specific ones.
-// It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
-// See the ParametersLiteral type for more details on the BGV parameters.
+// It returns the empty parameters [Parameters]{} and a non-nil error if the specified parameters are invalid.
+// See the [ParametersLiteral] type for more details on the BGV parameters.
 func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err error) {
 
 	if !rlweParams.NTTFlag() {
@@ -127,10 +127,10 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 	}, nil
 }
 
-// NewParametersFromLiteral instantiate a set of BGV parameters from a ParametersLiteral specification.
-// It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
+// NewParametersFromLiteral instantiate a set of BGV parameters from a [ParametersLiteral] specification.
+// It returns the empty parameters [Parameters]{} and a non-nil error if the specified parameters are invalid.
 //
-// See `rlwe.NewParametersFromLiteral` for default values of the optional fields and other details on the BGV
+// See [rlwe.NewParametersFromLiteral] for default values of the optional fields and other details on the BGV
 // parameters.
 func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 	rlweParams, err := rlwe.NewParametersFromLiteral(pl.GetRLWEParametersLiteral())
@@ -140,7 +140,7 @@ func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 	return NewParameters(rlweParams, pl.PlaintextModulus)
 }
 
-// ParametersLiteral returns the ParametersLiteral of the target Parameters.
+// ParametersLiteral returns the [ParametersLiteral] of the target Parameters.
 func (p Parameters) ParametersLiteral() ParametersLiteral {
 	return ParametersLiteral{
 		LogN:             p.LogN(),
@@ -182,14 +182,14 @@ func (p Parameters) LogMaxDimensions() ring.Dimensions {
 	}
 }
 
-// MaxSlots returns the total number of entries (`slots`) that a plaintext can store.
+// MaxSlots returns the total number of entries (slots) that a plaintext can store.
 // This value is obtained by multiplying all dimensions from MaxDimensions.
 func (p Parameters) MaxSlots() int {
 	dims := p.MaxDimensions()
 	return dims.Rows * dims.Cols
 }
 
-// LogMaxSlots returns the total number of entries (`slots`) that a plaintext can store.
+// LogMaxSlots returns the total number of entries (slots) that a plaintext can store.
 // This value is obtained by summing all log dimensions from LogDimensions.
 func (p Parameters) LogMaxSlots() int {
 	dims := p.LogMaxDimensions()
@@ -254,7 +254,7 @@ func (p Parameters) GaloisElementForRowRotation() uint64 {
 }
 
 // GaloisElementsForInnerSum returns the list of Galois elements necessary to apply the method
-// `InnerSum` operation with parameters `batch` and `n`.
+// InnerSum operation with parameters batch and n.
 func (p Parameters) GaloisElementsForInnerSum(batch, n int) (galEls []uint64) {
 	galEls = rlwe.GaloisElementsForInnerSum(p, batch, n)
 	if n > p.N()>>1 {
@@ -264,7 +264,7 @@ func (p Parameters) GaloisElementsForInnerSum(batch, n int) (galEls []uint64) {
 }
 
 // GaloisElementsForReplicate returns the list of Galois elements necessary to perform the
-// `Replicate` operation with parameters `batch` and `n`.
+// Replicate operation with parameters batch and n.
 func (p Parameters) GaloisElementsForReplicate(batch, n int) (galEls []uint64) {
 	galEls = rlwe.GaloisElementsForReplicate(p, batch, n)
 	if n > p.N()>>1 {
@@ -273,21 +273,10 @@ func (p Parameters) GaloisElementsForReplicate(batch, n int) (galEls []uint64) {
 	return
 }
 
-// GaloisElementsForTrace returns the list of Galois elements requored for the for the `Trace` operation.
+// GaloisElementsForTrace returns the list of Galois elements requored for the for the Trace operation.
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for 2^{LogN} <= i < N.
 func (p Parameters) GaloisElementsForTrace(logN int) []uint64 {
 	return rlwe.GaloisElementsForTrace(p, logN)
-}
-
-// GaloisElementsForExpand returns the list of Galois elements required
-// to perform the `Expand` operation with parameter `logN`.
-func (p Parameters) GaloisElementsForExpand(logN int) []uint64 {
-	return rlwe.GaloisElementsForExpand(p, logN)
-}
-
-// GaloisElementsForPack returns the list of Galois elements required to perform the `Pack` operation.
-func (p Parameters) GaloisElementsForPack(logN int) []uint64 {
-	return rlwe.GaloisElementsForPack(p, logN)
 }
 
 // Equal compares two sets of parameters for equality.
@@ -307,12 +296,12 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	return p.UnmarshalJSON(data)
 }
 
-// MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.
+// MarshalJSON returns a JSON representation of this parameter set. See Marshal from the [encoding/json] package.
 func (p Parameters) MarshalJSON() ([]byte, error) {
 	return json.Marshal(p.ParametersLiteral())
 }
 
-// UnmarshalJSON reads a JSON representation of a parameter set into the receiver Parameter. See `Unmarshal` from the `encoding/json` package.
+// UnmarshalJSON reads a JSON representation of a parameter set into the receiver Parameter. See Unmarshal from the [encoding/json] package.
 func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 	var params ParametersLiteral
 	if err = json.Unmarshal(data, &params); err != nil {

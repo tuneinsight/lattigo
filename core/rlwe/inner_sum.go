@@ -1,18 +1,156 @@
 package rlwe
 
 import (
+	"fmt"
+	"math/big"
+
 	"github.com/tuneinsight/lattigo/v5/ring"
 	"github.com/tuneinsight/lattigo/v5/ring/ringqp"
 	"github.com/tuneinsight/lattigo/v5/utils"
 )
 
+// Trace maps X -> sum((-1)^i * X^{i*n+1}) for n <= i < N
+// Monomial X^k vanishes if k is not divisible by (N/n), otherwise it is multiplied by (N/n).
+// Ciphertext is pre-multiplied by (N/n)^-1 to remove the (N/n) factor.
+// Examples of full Trace for [0 + 1X + 2X^2 + 3X^3 + 4X^4 + 5X^5 + 6X^6 + 7X^7]
+//
+// 1.
+//
+//	  [1 + 2X + 3X^2 + 4X^3 + 5X^4 + 6X^5 + 7X^6 + 8X^7]
+//	+ [1 - 6X - 3X^2 + 8X^3 + 5X^4 + 2X^5 - 7X^6 - 4X^7]  {X-> X^(i * 5^1)}
+//	= [2 - 4X + 0X^2 +12X^3 +10X^4 + 8X^5 - 0X^6 + 4X^7]
+//
+// 2.
+//
+//	  [2 - 4X + 0X^2 +12X^3 +10X^4 + 8X^5 - 0X^6 + 4X^7]
+//	+ [2 + 4X + 0X^2 -12X^3 +10X^4 - 8X^5 + 0X^6 - 4X^7]  {X-> X^(i * 5^2)}
+//	= [4 + 0X + 0X^2 - 0X^3 +20X^4 + 0X^5 + 0X^6 - 0X^7]
+//
+// 3.
+//
+//	  [4 + 0X + 0X^2 - 0X^3 +20X^4 + 0X^5 + 0X^6 - 0X^7]
+//	+ [4 + 0X + 0X^2 - 0X^3 -20X^4 + 0X^5 + 0X^6 - 0X^7]  {X-> X^(i * -1)}
+//	= [8 + 0X + 0X^2 - 0X^3 + 0X^4 + 0X^5 + 0X^6 - 0X^7]
+//
+// The method will return an error if the input and output ciphertexts degree is not one.
+func (eval Evaluator) Trace(ctIn *Ciphertext, logN int, opOut *Ciphertext) (err error) {
+
+	if ctIn.Degree() != 1 || opOut.Degree() != 1 {
+		return fmt.Errorf("ctIn.Degree() != 1 or opOut.Degree() != 1")
+	}
+
+	params := eval.GetRLWEParameters()
+
+	level := utils.Min(ctIn.Level(), opOut.Level())
+
+	opOut.Resize(opOut.Degree(), level)
+
+	*opOut.MetaData = *ctIn.MetaData
+
+	gap := 1 << (params.LogN() - logN - 1)
+
+	if logN == 0 {
+		gap <<= 1
+	}
+
+	if gap > 1 {
+
+		ringQ := params.RingQ().AtLevel(level)
+
+		if ringQ.Type() == ring.ConjugateInvariant {
+			gap >>= 1 // We skip the last step that applies phi(5^{-1})
+		}
+
+		NInv := new(big.Int).SetUint64(uint64(gap))
+		NInv.ModInverse(NInv, ringQ.ModulusAtLevel[level])
+
+		// pre-multiplication by (N/n)^-1
+		ringQ.MulScalarBigint(ctIn.Value[0], NInv, opOut.Value[0])
+		ringQ.MulScalarBigint(ctIn.Value[1], NInv, opOut.Value[1])
+
+		if !ctIn.IsNTT {
+			ringQ.NTT(opOut.Value[0], opOut.Value[0])
+			ringQ.NTT(opOut.Value[1], opOut.Value[1])
+			opOut.IsNTT = true
+		}
+
+		buff, err := NewCiphertextAtLevelFromPoly(level, []ring.Poly{eval.BuffQP[3].Q, eval.BuffQP[4].Q})
+
+		// Sanity check, this error should not happen unless the
+		// evaluator's buffer thave been improperly tempered with.
+		if err != nil {
+			panic(err)
+		}
+
+		buff.IsNTT = true
+
+		for i := logN; i < params.LogN()-1; i++ {
+
+			if err = eval.Automorphism(opOut, params.GaloisElement(1<<i), buff); err != nil {
+				return err
+			}
+
+			ringQ.Add(opOut.Value[0], buff.Value[0], opOut.Value[0])
+			ringQ.Add(opOut.Value[1], buff.Value[1], opOut.Value[1])
+		}
+
+		if logN == 0 && ringQ.Type() == ring.Standard {
+
+			if err = eval.Automorphism(opOut, ringQ.NthRoot()-1, buff); err != nil {
+				return err
+			}
+
+			ringQ.Add(opOut.Value[0], buff.Value[0], opOut.Value[0])
+			ringQ.Add(opOut.Value[1], buff.Value[1], opOut.Value[1])
+		}
+
+		if !ctIn.IsNTT {
+			ringQ.INTT(opOut.Value[0], opOut.Value[0])
+			ringQ.INTT(opOut.Value[1], opOut.Value[1])
+			opOut.IsNTT = false
+		}
+
+	} else {
+		if ctIn != opOut {
+			opOut.Copy(ctIn)
+		}
+	}
+
+	return
+}
+
+// GaloisElementsForTrace returns the list of Galois elements requored for the for the `Trace` operation.
+// Trace maps X -> sum((-1)^i * X^{i*n+1}) for 2^{LogN} <= i < N.
+func GaloisElementsForTrace(params ParameterProvider, logN int) (galEls []uint64) {
+
+	p := params.GetRLWEParameters()
+
+	galEls = []uint64{}
+	for i, j := logN, 0; i < p.LogN()-1; i, j = i+1, j+1 {
+		galEls = append(galEls, p.GaloisElement(1<<i))
+	}
+
+	if logN == 0 {
+		switch p.RingType() {
+		case ring.Standard:
+			galEls = append(galEls, p.GaloisElementOrderTwoOrthogonalSubgroup())
+		case ring.ConjugateInvariant:
+			panic("cannot GaloisElementsForTrace: Galois element GaloisGen^-1 is undefined in ConjugateInvariant Ring")
+		default:
+			panic("cannot GaloisElementsForTrace: invalid ring type")
+		}
+	}
+
+	return
+}
+
 // InnerSum applies an optimized inner sum on the Ciphertext (log2(n) + HW(n) rotations with double hoisting).
 // The operation assumes that `ctIn` encrypts Slots/`batchSize` sub-vectors of size `batchSize` and will add them together (in parallel) in groups of `n`.
-// It outputs in opOut a Ciphertext for which the "leftmost" sub-vector of each group is equal to the sum of the group.
+// It outputs in opOut a [Ciphertext] for which the "leftmost" sub-vector of each group is equal to the sum of the group.
 //
 // The inner sum is computed in a tree fashion. Example for batchSize=2 & n=4 (garbage slots are marked by 'x'):
 //
-// 1) [{a, b}, {c, d}, {e, f}, {g, h}, {a, b}, {c, d}, {e, f}, {g, h}]
+//  1. [{a, b}, {c, d}, {e, f}, {g, h}, {a, b}, {c, d}, {e, f}, {g, h}]
 //
 //  2. [{a, b}, {c, d}, {e, f}, {g, h}, {a, b}, {c, d}, {e, f}, {g, h}]
 //     +
@@ -163,16 +301,17 @@ func (eval Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, opOut *Cipher
 	return
 }
 
-// InnerFunction applies an user defined function on the Ciphertext with a tree-like combination requiring log2(n) + HW(n) rotations.
+// InnerFunction applies an user defined function on the [Ciphertext] with a tree-like combination requiring log2(n) + HW(n) rotations.
 //
-// InnerFunction with f = eval.Add(a, b, c) is equivalent to InnerSum (although slightly slower).
+// InnerFunction with f = eval.Add(a, b, c) is equivalent to [Evaluator.InnerSum] (although slightly slower).
 //
 // The operation assumes that `ctIn` encrypts Slots/`batchSize` sub-vectors of size `batchSize` and will add them together (in parallel) in groups of `n`.
-// It outputs in opOut a Ciphertext for which the "leftmost" sub-vector of each group is equal to the pair-wise recursive evaluation of function over the group.
+// It outputs in opOut a [Ciphertext] for which the "leftmost" sub-vector of each group is equal to the pair-wise recursive evaluation of
+// function over the group.
 //
 // The inner function is computed in a tree fashion. Example for batchSize=2 & n=4 (garbage slots are marked by 'x'):
 //
-// 1) [{a, b}, {c, d}, {e, f}, {g, h}, {a, b}, {c, d}, {e, f}, {g, h}]
+//  1. [{a, b}, {c, d}, {e, f}, {g, h}, {a, b}, {c, d}, {e, f}, {g, h}]
 //
 //  2. [{a, b}, {c, d}, {e, f}, {g, h}, {a, b}, {c, d}, {e, f}, {g, h}]
 //     f
@@ -312,7 +451,7 @@ func (eval Evaluator) InnerFunction(ctIn *Ciphertext, batchSize, n int, f func(a
 }
 
 // GaloisElementsForInnerSum returns the list of Galois elements necessary to apply the method
-// `InnerSum` operation with parameters `batch` and `n`.
+// [Evaluator.InnerSum] operation with parameters batch and n.
 func GaloisElementsForInnerSum(params ParameterProvider, batch, n int) (galEls []uint64) {
 
 	rotIndex := make(map[int]bool)
@@ -339,19 +478,19 @@ func GaloisElementsForInnerSum(params ParameterProvider, batch, n int) (galEls [
 	return params.GetRLWEParameters().GaloisElements(rotations)
 }
 
-// Replicate applies an optimized replication on the Ciphertext (log2(n) + HW(n) rotations with double hoisting).
+// Replicate applies an optimized replication on the [Ciphertext] (log2(n) + HW(n) rotations with double hoisting).
 // It acts as the inverse of a inner sum (summing elements from left to right).
-// The replication is parameterized by the size of the sub-vectors to replicate "batchSize" and
-// the number of times 'n' they need to be replicated.
+// The replication is parameterized by the size of the sub-vectors to replicate batchSize and
+// the number of times n they need to be replicated.
 // To ensure correctness, a gap of zero values of size batchSize * (n-1) must exist between
 // two consecutive sub-vectors to replicate.
-// This method is faster than Replicate when the number of rotations is large and it uses log2(n) + HW(n) instead of 'n'.
+// This method is faster than Replicate when the number of rotations is large and it uses log2(n) + HW(n) instead of n.
 func (eval Evaluator) Replicate(ctIn *Ciphertext, batchSize, n int, opOut *Ciphertext) (err error) {
 	return eval.InnerSum(ctIn, -batchSize, n, opOut)
 }
 
 // GaloisElementsForReplicate returns the list of Galois elements necessary to perform the
-// `Replicate` operation with parameters `batch` and `n`.
+// [Evaluator.Replicate] operation with parameters batch and n.
 func GaloisElementsForReplicate(params ParameterProvider, batch, n int) (galEls []uint64) {
 	return GaloisElementsForInnerSum(params, -batch, n)
 }

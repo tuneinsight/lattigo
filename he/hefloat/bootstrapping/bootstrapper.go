@@ -13,7 +13,7 @@ var _ he.Bootstrapper[rlwe.Ciphertext] = (*Evaluator)(nil)
 
 // Bootstrap bootstraps a single ciphertext and returns the bootstrapped ciphertext.
 func (eval Evaluator) Bootstrap(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, error) {
-	cts := []rlwe.Ciphertext{*ct}
+	cts := []rlwe.Ciphertext{*ct.CopyNew()}
 	cts, err := eval.BootstrapMany(cts)
 	if err != nil {
 		return nil, err

@@ -55,7 +55,18 @@ func EvaluateLinearTransformationsMany(evalLT EvaluatorForLinearTransformation, 
 
 	evalDiag.Decompose(level, ctIn, BuffDecompQP)
 
-	ctPreRot := map[int]*rlwe.Element[ringqp.Poly]{}
+	// precompute all rotated ciphertexts for each linear transform
+	ctPreRot := make([]map[int]*rlwe.Element[ringqp.Poly], len(linearTransformations))
+	for i, lt := range linearTransformations {
+		if lt.N1 == 0 {
+			continue
+		}
+		ctPreRot[i] = map[int]*rlwe.Element[ringqp.Poly]{}
+		_, _, rotN2 := lt.BSGSIndex()
+		if err = evalDiag.GetPreRotatedCiphertextForDiagonalMatrixMultiplication(level, ctIn, BuffDecompQP, rotN2, ctPreRot[i]); err != nil {
+			return
+		}
+	}
 
 	for i, lt := range linearTransformations {
 
@@ -64,14 +75,7 @@ func EvaluateLinearTransformationsMany(evalLT EvaluatorForLinearTransformation, 
 				return
 			}
 		} else {
-
-			_, _, rotN2 := lt.BSGSIndex()
-
-			if err = evalDiag.GetPreRotatedCiphertextForDiagonalMatrixMultiplication(level, ctIn, BuffDecompQP, rotN2, ctPreRot); err != nil {
-				return
-			}
-
-			if err = evalDiag.MultiplyByDiagMatrixBSGS(ctIn, lt, ctPreRot, opOut[i]); err != nil {
+			if err = evalDiag.MultiplyByDiagMatrixBSGS(ctIn, lt, ctPreRot[i], opOut[i]); err != nil {
 				return
 			}
 		}

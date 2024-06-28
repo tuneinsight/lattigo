@@ -90,7 +90,7 @@ func NewParameters(logn int, q, p []uint64, xs, xe DistributionLiteral, ringType
 		lenP = len(p)
 	}
 
-	if err = checkSizeParams(logn, len(q), lenP); err != nil {
+	if err = checkSizeParams(logn); err != nil {
 		return Parameters{}, err
 	}
 
@@ -125,18 +125,12 @@ func NewParameters(logn int, q, p []uint64, xs, xe DistributionLiteral, ringType
 	default:
 		return Parameters{}, fmt.Errorf("secret distribution type must be Ternary or DiscretGaussian but is %T", xs)
 	}
-	if err != nil {
-		return Parameters{}, err
-	}
 
 	switch xe := xe.(type) {
 	case ring.Ternary, ring.DiscreteGaussian:
 		params.xe = NewDistribution(xe.(ring.DistributionParameters), logn)
 	default:
 		return Parameters{}, fmt.Errorf("error distribution type must be Ternary or DiscretGaussian but is %T", xe)
-	}
-	if err != nil {
-		return Parameters{}, err
 	}
 
 	var warning error
@@ -780,7 +774,7 @@ func (p Parameters) UnpackLevelParams(args []int) (levelQ, levelP int) {
 	}
 }
 
-func checkSizeParams(logN int, lenQ, lenP int) error {
+func checkSizeParams(logN int) error {
 	if logN > MaxLogN {
 		return fmt.Errorf("logN=%d is larger than MaxLogN=%d", logN, MaxLogN)
 	}
@@ -810,7 +804,7 @@ func checkModuliLogSize(logQ, logP []int) error {
 // GenModuli generates a valid moduli chain from the provided moduli sizes.
 func GenModuli(LogNthRoot int, logQ, logP []int) (q, p []uint64, err error) {
 
-	if err = checkSizeParams(logN, len(logQ), len(logP)); err != nil {
+	if err = checkSizeParams(logN); err != nil {
 		return
 	}
 

@@ -99,7 +99,7 @@ func (ct GadgetCiphertext) WriteTo(w io.Writer) (n int64, err error) {
 
 		var inc int64
 
-		if inc, err = buffer.WriteAsUint64[int](w, ct.BaseTwoDecomposition); err != nil {
+		if inc, err = buffer.WriteAsUint64(w, ct.BaseTwoDecomposition); err != nil {
 			return n + inc, err
 		}
 
@@ -131,7 +131,7 @@ func (ct *GadgetCiphertext) ReadFrom(r io.Reader) (n int64, err error) {
 
 		var inc int64
 
-		if inc, err = buffer.ReadAsUint64[int](r, &ct.BaseTwoDecomposition); err != nil {
+		if inc, err = buffer.ReadAsUint64(r, &ct.BaseTwoDecomposition); err != nil {
 			return n + inc, err
 		}
 

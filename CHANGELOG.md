@@ -2,7 +2,10 @@
 # Changelog
 All notable changes to this library are documented in this file.
 
-## UNRELEASED [5.0.0] - 15.11.2023
+## UNRELEASED
+- Deprecated Go versions `1.18`, `1.19` and `1.20`. The minimum version is now `1.21`, due to the use of the slices of std library package.
+
+## [5.0.0] - 15.11.2023
 - Deprecated Go versions `1.14`, `1.15`, `1.16`, and `1.17`. The minimum version is now `1.18`, due to the required use of generics.
 - Golang Security Checker pass.
 - Dereferenced most inputs and pointers methods whenever possible. Pointers methods/inputs are now mostly used when the struct implementing the method and/or the input is intended to be modified.

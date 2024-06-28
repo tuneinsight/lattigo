@@ -3,6 +3,7 @@ package rlwe
 import (
 	"math"
 	"math/big"
+	"slices"
 
 	"github.com/tuneinsight/lattigo/v5/ring"
 	"github.com/tuneinsight/lattigo/v5/utils"
@@ -45,7 +46,7 @@ func NoiseGaloisKey(gk *GaloisKey, sk *SecretKey, params Parameters) float64 {
 	return NoiseEvaluationKey(&gk.EvaluationKey, skIn, skOut, params)
 }
 
-// NoiseGadgetCiphertext returns the log2 of the standard devaition of the noise of the input gadget ciphertext with respect to the given plaintext, secret-key and parameters.
+// NoiseGadgetCiphertext returns the log2 of the standard deviation of the noise of the input gadget ciphertext with respect to the given plaintext, secret-key and parameters.
 // The polynomial pt is expected to be in the NTT and Montgomery domain.
 func NoiseGadgetCiphertext(gct *GadgetCiphertext, pt ring.Poly, sk *SecretKey, params Parameters) float64 {
 
@@ -54,7 +55,7 @@ func NoiseGadgetCiphertext(gct *GadgetCiphertext, pt ring.Poly, sk *SecretKey, p
 	levelQ, levelP := gct.LevelQ(), gct.LevelP()
 	ringQP := params.RingQP().AtLevel(levelQ, levelP)
 	ringQ, ringP := ringQP.RingQ, ringQP.RingP
-	BaseTwoDecompositionVectorSize := utils.MinSlice(gct.BaseTwoDecompositionVectorSize()) // required else the check becomes very complicated
+	BaseTwoDecompositionVectorSize := slices.Min(gct.BaseTwoDecompositionVectorSize()) // required else the check becomes very complicated
 
 	// Decrypts
 	// [-asIn + w*P*sOut + e, a] + [asIn]

@@ -149,6 +149,73 @@ func testUserDefinedParameters(t *testing.T) {
 		require.Equal(t, paramsWithBadDist, Parameters{})
 	})
 
+	// test valid/invalid configurations of prime fields
+	t.Run("Parameters/NewParametersFromLiteral", func(t *testing.T) {
+		Q := []uint64{0x200000440001, 0x7fff80001, 0x800280001, 0x7ffd80001, 0x7ffc80001}
+		P := []uint64{0x3ffffffb80001, 0x4000000800001}
+		logQ := []int{55, 40, 40, 40, 40}
+		logP := []int{55, 55}
+
+		// both Q and P given (good)
+		params, err := NewParametersFromLiteral(ParametersLiteral{
+			LogN: logN, Q: Q, P: P, LogQ: nil, LogP: nil,
+		})
+		require.NoError(t, err)
+		require.Equal(t, params.qi, Q)
+		require.Equal(t, params.pi, P)
+
+		// only Q given (good)
+		params, err = NewParametersFromLiteral(ParametersLiteral{
+			LogN: logN, Q: Q, P: nil, LogQ: nil, LogP: nil,
+		})
+		require.NoError(t, err)
+		require.Equal(t, params.qi, Q)
+		require.Empty(t, params.pi)
+
+		// Q and logP given (good)
+		params, err = NewParametersFromLiteral(ParametersLiteral{
+			LogN: logN, Q: Q, P: nil, LogQ: nil, LogP: logP,
+		})
+		require.NoError(t, err)
+		require.Equal(t, params.qi, Q)
+		require.Equal(t, len(params.pi), len(logP))
+
+		// logQ and P given (good)
+		params, err = NewParametersFromLiteral(ParametersLiteral{
+			LogN: logN, Q: nil, P: P, LogQ: logQ, LogP: nil,
+		})
+		require.NoError(t, err)
+		require.Equal(t, len(params.qi), len(logQ))
+		require.Equal(t, params.pi, P)
+
+		// both LogQ and LogP given (good)
+		params, err = NewParametersFromLiteral(ParametersLiteral{
+			LogN: logN, Q: nil, P: nil, LogQ: logQ, LogP: logP,
+		})
+		require.NoError(t, err)
+		require.Equal(t, len(params.qi), len(logQ))
+		require.Equal(t, len(params.pi), len(logP))
+
+		// only LogQ given (good)
+		params, err = NewParametersFromLiteral(ParametersLiteral{
+			LogN: logN, Q: nil, P: nil, LogQ: logQ, LogP: nil,
+		})
+		require.NoError(t, err)
+		require.Equal(t, len(params.qi), len(logQ))
+		require.Empty(t, params.pi)
+
+		// empty primes (bad)
+		_, err = NewParametersFromLiteral(ParametersLiteral{
+			LogN: logN, Q: nil, P: nil, LogQ: nil, LogP: nil,
+		})
+		require.Error(t, err)
+
+		// double set log/non-prime (bad)
+		_, err = NewParametersFromLiteral(ParametersLiteral{
+			LogN: logN, Q: Q, P: nil, LogQ: logQ, LogP: nil,
+		})
+		require.Error(t, err)
+	})
 }
 
 func NewTestContext(params Parameters) (tc *TestContext, err error) {
@@ -1236,14 +1303,12 @@ func testWriteAndRead(tc *TestContext, bpw2 int, t *testing.T) {
 
 func testMarshaller(tc *TestContext, t *testing.T) {
 
-	params := tc.params
-
 	t.Run("Marshaller/Parameters", func(t *testing.T) {
-		bytes, err := params.MarshalBinary()
-		require.Nil(t, err)
-		var p Parameters
-		require.Nil(t, p.UnmarshalBinary(bytes))
-		require.Equal(t, params, p)
+		for _, p := range testInsecure {
+			params, err := NewParametersFromLiteral(p.ParametersLiteral)
+			require.NoError(t, err)
+			buffer.RequireSerializerCorrect(t, &params)
+		}
 	})
 
 	t.Run("Marshaller/MetaData", func(t *testing.T) {

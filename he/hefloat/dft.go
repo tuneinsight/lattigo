@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"slices"
 
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 	"github.com/tuneinsight/lattigo/v5/he"
@@ -501,7 +502,7 @@ func addMatrixRotToList(pVec map[int]bool, rotations []int, N1, slots int, repac
 
 	if len(pVec) < 3 {
 		for j := range pVec {
-			if !utils.IsInSlice(j, rotations) {
+			if !slices.Contains(rotations, j) {
 				rotations = append(rotations, j)
 			}
 		}
@@ -519,13 +520,13 @@ func addMatrixRotToList(pVec map[int]bool, rotations []int, N1, slots int, repac
 				index &= (slots - 1)
 			}
 
-			if index != 0 && !utils.IsInSlice(index, rotations) {
+			if index != 0 && !slices.Contains(rotations, index) {
 				rotations = append(rotations, index)
 			}
 
 			index = j & (N1 - 1)
 
-			if index != 0 && !utils.IsInSlice(index, rotations) {
+			if index != 0 && !slices.Contains(rotations, index) {
 				rotations = append(rotations, index)
 			}
 		}

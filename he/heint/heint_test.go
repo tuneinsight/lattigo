@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/big"
 	"runtime"
+	"slices"
 	"testing"
 
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
@@ -167,7 +168,7 @@ func verifyTestVectors(tc *testContext, decryptor *rlwe.Decryptor, coeffs ring.P
 		t.Error("invalid test object to verify")
 	}
 
-	require.True(t, utils.EqualSlice(coeffs.Coeffs[0], coeffsTest))
+	require.True(t, slices.Equal(coeffs.Coeffs[0], coeffsTest))
 }
 
 func testLinearTransformation(tc *testContext, t *testing.T) {

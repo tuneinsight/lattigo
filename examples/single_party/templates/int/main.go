@@ -4,10 +4,10 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	"slices"
 
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 	"github.com/tuneinsight/lattigo/v5/he/heint"
-	"github.com/tuneinsight/lattigo/v5/utils"
 )
 
 func main() {
@@ -105,7 +105,7 @@ func PrintPrecisionStats(params heint.Parameters, ct *rlwe.Ciphertext, want []ui
 	}
 	fmt.Printf("...\n")
 
-	if !utils.EqualSlice(want, have) {
+	if !slices.Equal(want, have) {
 		panic("wrong result: bad decryption or encrypted/plaintext circuits do not match")
 	}
 }

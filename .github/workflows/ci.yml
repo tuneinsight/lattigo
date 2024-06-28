@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: ['1.22.2', '1.21.9', '1.20.14', '1.19.13', '1.18.10']
+        go: ['1.22.2', '1.21.9']
 
     steps:
       - uses: actions/checkout@v3

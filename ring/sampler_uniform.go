@@ -11,7 +11,7 @@ import (
 type UniformSampler struct {
 	baseSampler
 	randomBufferN []byte
-	ptr           int
+	ptr           *int // cross-instance buffer pointer
 }
 
 // NewUniformSampler creates a new instance of UniformSampler from a PRNG and ring definition.
@@ -20,6 +20,7 @@ func NewUniformSampler(prng sampling.PRNG, baseRing *Ring) (u *UniformSampler) {
 	u.baseRing = baseRing
 	u.prng = prng
 	u.randomBufferN = make([]byte, utils.Max(1024, baseRing.N()))
+	u.ptr = utils.Pointy(0)
 	return
 }
 
@@ -55,7 +56,7 @@ func (u *UniformSampler) read(pol Poly, f func(a, b, c uint64) uint64) {
 	N := u.baseRing.N()
 
 	var ptr int
-	if ptr = u.ptr; ptr == 0 || ptr == N {
+	if ptr = *u.ptr; ptr == 0 || ptr == N {
 		if _, err := prng.Read(u.randomBufferN); err != nil {
 			// Sanity check, this error should not happen.
 			panic(err)
@@ -103,7 +104,7 @@ func (u *UniformSampler) read(pol Poly, f func(a, b, c uint64) uint64) {
 		}
 	}
 
-	u.ptr = ptr
+	*u.ptr = ptr
 }
 
 // ReadNew generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].

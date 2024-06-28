@@ -263,6 +263,8 @@ func (eval Evaluator) evaluateInPlace(level int, el0 *rlwe.Ciphertext, el1 *rlwe
 		evaluate(el0.Value[i], el1.Value[i], elOut.Value[i])
 	}
 
+	elOut.Scale = el0.Scale.Max(el1.Scale)
+
 	// If the inputs degrees differ, it copies the remaining degree on the receiver.
 	if largest != nil && largest != elOut.El() { // checks to avoid unnecessary work.
 		for i := smallest.Degree() + 1; i < largest.Degree()+1; i++ {

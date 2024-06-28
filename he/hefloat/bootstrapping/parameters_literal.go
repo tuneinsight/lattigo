@@ -531,3 +531,86 @@ func (p ParametersLiteral) BitConsumption(LogSlots int) (logQ int, err error) {
 
 	return
 }
+
+// MarshalJSON returns the JSON representation of the target ParametersLiteral struct.
+func (p ParametersLiteral) MarshalJSON() (data []byte, err error) {
+	return json.Marshal(struct {
+		LogN                                        *int
+		LogP                                        []int
+		Xs                                          ring.DistributionParameters
+		Xe                                          ring.DistributionParameters
+		LogSlots                                    *int
+		CoeffsToSlotsFactorizationDepthAndLogScales [][]int
+		SlotsToCoeffsFactorizationDepthAndLogScales [][]int
+		EvalModLogScale                             *int
+		EphemeralSecretWeight                       *int
+		IterationsParameters                        *IterationsParameters
+		Mod1Type                                    uint64
+		LogMessageRatio                             *int
+		K                                           *int
+		Mod1Degree                                  *int
+		DoubleAngle                                 *int
+		Mod1InvDegree                               *int
+	}{
+		LogN:     p.LogN,
+		LogP:     p.LogP,
+		Xs:       p.Xs,
+		Xe:       p.Xe,
+		LogSlots: p.LogSlots,
+		CoeffsToSlotsFactorizationDepthAndLogScales: p.CoeffsToSlotsFactorizationDepthAndLogScales,
+		SlotsToCoeffsFactorizationDepthAndLogScales: p.SlotsToCoeffsFactorizationDepthAndLogScales,
+		EvalModLogScale:       p.EvalModLogScale,
+		EphemeralSecretWeight: p.EphemeralSecretWeight,
+		IterationsParameters:  p.IterationsParameters,
+		Mod1Type:              uint64(p.Mod1Type),
+		LogMessageRatio:       p.LogMessageRatio,
+		K:                     p.K,
+		Mod1Degree:            p.Mod1Degree,
+		DoubleAngle:           p.DoubleAngle,
+		Mod1InvDegree:         p.Mod1InvDegree,
+	})
+}
+
+// UnmarshalJSON reads a JSON representation on the target ParametersLiteral struct.
+func (p *ParametersLiteral) UnmarshalJSON(data []byte) (err error) {
+	var params struct {
+		LogN                                        *int
+		LogP                                        []int
+		Xs                                          ring.DistributionParameters
+		Xe                                          ring.DistributionParameters
+		LogSlots                                    *int
+		CoeffsToSlotsFactorizationDepthAndLogScales [][]int
+		SlotsToCoeffsFactorizationDepthAndLogScales [][]int
+		EvalModLogScale                             *int
+		EphemeralSecretWeight                       *int
+		IterationsParameters                        *IterationsParameters
+		Mod1Type                                    uint64
+		LogMessageRatio                             *int
+		K                                           *int
+		Mod1Degree                                  *int
+		DoubleAngle                                 *int
+		Mod1InvDegree                               *int
+	}
+
+	if err = json.Unmarshal(data, &params); err != nil {
+		return fmt.Errorf("unable to unmarshal ParametersLiteral: %w", err)
+	}
+
+	p.LogN = params.LogN
+	p.LogP = params.LogP
+	p.Xs = params.Xs
+	p.Xe = params.Xe
+	p.LogSlots = params.LogSlots
+	p.CoeffsToSlotsFactorizationDepthAndLogScales = params.CoeffsToSlotsFactorizationDepthAndLogScales
+	p.SlotsToCoeffsFactorizationDepthAndLogScales = params.SlotsToCoeffsFactorizationDepthAndLogScales
+	p.EvalModLogScale = params.EvalModLogScale
+	p.EphemeralSecretWeight = params.EphemeralSecretWeight
+	p.IterationsParameters = params.IterationsParameters
+	p.Mod1Type = hefloat.Mod1Type(params.Mod1Type)
+	p.LogMessageRatio = params.LogMessageRatio
+	p.K = params.K
+	p.Mod1Degree = params.Mod1Degree
+	p.DoubleAngle = params.DoubleAngle
+	p.Mod1InvDegree = params.Mod1InvDegree
+	return
+}

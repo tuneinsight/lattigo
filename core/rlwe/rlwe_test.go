@@ -149,73 +149,6 @@ func testUserDefinedParameters(t *testing.T) {
 		require.Equal(t, paramsWithBadDist, Parameters{})
 	})
 
-	// test valid/invalid configurations of prime fields
-	t.Run("Parameters/NewParametersFromLiteral", func(t *testing.T) {
-		Q := []uint64{0x200000440001, 0x7fff80001, 0x800280001, 0x7ffd80001, 0x7ffc80001}
-		P := []uint64{0x3ffffffb80001, 0x4000000800001}
-		logQ := []int{55, 40, 40, 40, 40}
-		logP := []int{55, 55}
-
-		// both Q and P given (good)
-		params, err := NewParametersFromLiteral(ParametersLiteral{
-			LogN: logN, Q: Q, P: P, LogQ: nil, LogP: nil,
-		})
-		require.NoError(t, err)
-		require.Equal(t, params.qi, Q)
-		require.Equal(t, params.pi, P)
-
-		// only Q given (good)
-		params, err = NewParametersFromLiteral(ParametersLiteral{
-			LogN: logN, Q: Q, P: nil, LogQ: nil, LogP: nil,
-		})
-		require.NoError(t, err)
-		require.Equal(t, params.qi, Q)
-		require.Empty(t, params.pi)
-
-		// Q and logP given (good)
-		params, err = NewParametersFromLiteral(ParametersLiteral{
-			LogN: logN, Q: Q, P: nil, LogQ: nil, LogP: logP,
-		})
-		require.NoError(t, err)
-		require.Equal(t, params.qi, Q)
-		require.Equal(t, len(params.pi), len(logP))
-
-		// logQ and P given (good)
-		params, err = NewParametersFromLiteral(ParametersLiteral{
-			LogN: logN, Q: nil, P: P, LogQ: logQ, LogP: nil,
-		})
-		require.NoError(t, err)
-		require.Equal(t, len(params.qi), len(logQ))
-		require.Equal(t, params.pi, P)
-
-		// both LogQ and LogP given (good)
-		params, err = NewParametersFromLiteral(ParametersLiteral{
-			LogN: logN, Q: nil, P: nil, LogQ: logQ, LogP: logP,
-		})
-		require.NoError(t, err)
-		require.Equal(t, len(params.qi), len(logQ))
-		require.Equal(t, len(params.pi), len(logP))
-
-		// only LogQ given (good)
-		params, err = NewParametersFromLiteral(ParametersLiteral{
-			LogN: logN, Q: nil, P: nil, LogQ: logQ, LogP: nil,
-		})
-		require.NoError(t, err)
-		require.Equal(t, len(params.qi), len(logQ))
-		require.Empty(t, params.pi)
-
-		// empty primes (bad)
-		_, err = NewParametersFromLiteral(ParametersLiteral{
-			LogN: logN, Q: nil, P: nil, LogQ: nil, LogP: nil,
-		})
-		require.Error(t, err)
-
-		// double set log/non-prime (bad)
-		_, err = NewParametersFromLiteral(ParametersLiteral{
-			LogN: logN, Q: Q, P: nil, LogQ: logQ, LogP: nil,
-		})
-		require.Error(t, err)
-	})
 }
 
 func NewTestContext(params Parameters) (tc *TestContext, err error) {
@@ -256,6 +189,12 @@ func testParameters(tc *TestContext, t *testing.T) {
 			res := (inv * galEl) & mask
 			require.Equal(t, uint64(1), res)
 		}
+	})
+
+	t.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), 0, "Elements"), func(t *testing.T) {
+		ct := NewCiphertext(tc.params, 1, 0)
+		require.Equal(t, ct.N(), params.N())
+		require.Equal(t, ct.LogN(), params.LogN())
 	})
 }
 
@@ -928,204 +867,6 @@ func testSlotOperations(tc *TestContext, level, bpw2 int, t *testing.T) {
 	enc := tc.enc
 	dec := tc.dec
 
-	evkParams := EvaluationKeyParameters{LevelQ: utils.Pointy(level), BaseTwoDecomposition: utils.Pointy(bpw2)}
-
-	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/Expand"), func(t *testing.T) {
-
-		if params.RingType() != ring.Standard {
-			t.Skip("Expand not supported for ring.Type = ring.ConjugateInvariant")
-		}
-
-		pt := NewPlaintext(params, level)
-		ringQ := params.RingQ().AtLevel(level)
-
-		logN := 4
-		logGap := 0
-		gap := 1 << logGap
-
-		values := make([]uint64, params.N())
-
-		scale := 1 << 22
-
-		for i := 0; i < 1<<logN; i++ { // embeds even coefficients only
-			values[i] = uint64(i * scale)
-		}
-
-		for i := 0; i < pt.Level()+1; i++ {
-			copy(pt.Value.Coeffs[i], values)
-		}
-
-		if pt.IsNTT {
-			ringQ.NTT(pt.Value, pt.Value)
-		}
-
-		ctIn := NewCiphertext(params, 1, level)
-		enc.Encrypt(pt, ctIn)
-
-		// GaloisKeys
-		evk := NewMemEvaluationKeySet(nil, kgen.GenGaloisKeysNew(GaloisElementsForExpand(params, logN), sk, evkParams)...)
-
-		eval := NewEvaluator(params, evk)
-
-		ciphertexts, err := eval.WithKey(evk).Expand(ctIn, logN, logGap)
-		require.NoError(t, err)
-
-		Q := ringQ.ModuliChain()
-
-		NoiseBound := float64(params.LogN() - logN + bpw2)
-
-		if bpw2 != 0 {
-			NoiseBound += float64(level + 5)
-		}
-
-		for i := range ciphertexts {
-
-			dec.Decrypt(ciphertexts[i], pt)
-
-			if pt.IsNTT {
-				ringQ.INTT(pt.Value, pt.Value)
-			}
-
-			for j := 0; j < level+1; j++ {
-				pt.Value.Coeffs[j][0] = ring.CRed(pt.Value.Coeffs[j][0]+Q[j]-values[i*gap], Q[j])
-			}
-
-			// Logs the noise
-			require.GreaterOrEqual(t, NoiseBound, ringQ.Log2OfStandardDeviation(pt.Value))
-		}
-	})
-
-	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/Pack/LogGap=LogN"), func(t *testing.T) {
-
-		if params.RingType() != ring.Standard {
-			t.Skip("Pack not supported for ring.Type = ring.ConjugateInvariant")
-		}
-
-		pt := NewPlaintext(params, level)
-		N := params.N()
-		ringQ := tc.params.RingQ().AtLevel(level)
-		gap := params.N() / 16
-
-		ptPacked := NewPlaintext(params, level)
-		ciphertexts := make(map[int]*Ciphertext)
-		slotIndex := make(map[int]bool)
-		for i := 0; i < N; i += gap {
-
-			ciphertexts[i] = enc.EncryptZeroNew(level)
-
-			scalar := (1 << 30) + uint64(i)*(1<<20)
-
-			if ciphertexts[i].IsNTT {
-				ringQ.AddScalar(ciphertexts[i].Value[0], scalar, ciphertexts[i].Value[0])
-			} else {
-				for j := 0; j < level+1; j++ {
-					ciphertexts[i].Value[0].Coeffs[j][0] = ring.CRed(ciphertexts[i].Value[0].Coeffs[j][0]+scalar, ringQ.SubRings[j].Modulus)
-				}
-			}
-
-			slotIndex[i] = true
-
-			for j := 0; j < level+1; j++ {
-				ptPacked.Value.Coeffs[j][i] = scalar
-			}
-		}
-
-		// Galois Keys
-		evk := NewMemEvaluationKeySet(nil, kgen.GenGaloisKeysNew(GaloisElementsForPack(params, params.LogN()), sk, evkParams)...)
-
-		ct, err := eval.WithKey(evk).Pack(ciphertexts, params.LogN(), false)
-		require.NoError(t, err)
-
-		dec.Decrypt(ct, pt)
-
-		if pt.IsNTT {
-			ringQ.INTT(pt.Value, pt.Value)
-		}
-
-		ringQ.Sub(pt.Value, ptPacked.Value, pt.Value)
-
-		for i := 0; i < N; i++ {
-			if i%gap != 0 {
-				for j := 0; j < level+1; j++ {
-					pt.Value.Coeffs[j][i] = 0
-				}
-			}
-		}
-
-		NoiseBound := 15.0 + float64(bpw2)
-
-		if bpw2 != 0 {
-			NoiseBound += math.Log2(float64(level)+1.0) + 1.0
-		}
-
-		// Logs the noise
-		require.GreaterOrEqual(t, NoiseBound, ringQ.Log2OfStandardDeviation(pt.Value))
-	})
-
-	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/Pack/LogGap=LogN-1"), func(t *testing.T) {
-
-		if params.RingType() != ring.Standard {
-			t.Skip("Pack not supported for ring.Type = ring.ConjugateInvariant")
-		}
-
-		pt := NewPlaintext(params, level)
-		N := params.N()
-		ringQ := tc.params.RingQ().AtLevel(level)
-
-		ptPacked := NewPlaintext(params, level)
-		ciphertexts := make(map[int]*Ciphertext)
-		slotIndex := make(map[int]bool)
-		for i := 0; i < N/2; i += params.N() / 16 {
-
-			ciphertexts[i] = enc.EncryptZeroNew(level)
-
-			scalar := (1 << 30) + uint64(i)*(1<<20)
-
-			if ciphertexts[i].IsNTT {
-				ringQ.INTT(ciphertexts[i].Value[0], ciphertexts[i].Value[0])
-			}
-
-			for j := 0; j < level+1; j++ {
-				ciphertexts[i].Value[0].Coeffs[j][0] = ring.CRed(ciphertexts[i].Value[0].Coeffs[j][0]+scalar, ringQ.SubRings[j].Modulus)
-				ciphertexts[i].Value[0].Coeffs[j][N/2] = ring.CRed(ciphertexts[i].Value[0].Coeffs[j][N/2]+scalar, ringQ.SubRings[j].Modulus)
-			}
-
-			if ciphertexts[i].IsNTT {
-				ringQ.NTT(ciphertexts[i].Value[0], ciphertexts[i].Value[0])
-			}
-
-			slotIndex[i] = true
-
-			for j := 0; j < level+1; j++ {
-				ptPacked.Value.Coeffs[j][i] = scalar
-				ptPacked.Value.Coeffs[j][i+N/2] = scalar
-			}
-		}
-
-		// Galois Keys
-		evk := NewMemEvaluationKeySet(nil, kgen.GenGaloisKeysNew(GaloisElementsForPack(params, params.LogN()-1), sk, evkParams)...)
-
-		ct, err := eval.WithKey(evk).Pack(ciphertexts, params.LogN()-1, true)
-		require.NoError(t, err)
-
-		dec.Decrypt(ct, pt)
-
-		if pt.IsNTT {
-			ringQ.INTT(pt.Value, pt.Value)
-		}
-
-		ringQ.Sub(pt.Value, ptPacked.Value, pt.Value)
-
-		NoiseBound := 15.0 + float64(bpw2)
-
-		if bpw2 != 0 {
-			NoiseBound += math.Log2(float64(level)+1.0) + 1.0
-		}
-
-		// Logs the noise
-		require.GreaterOrEqual(t, NoiseBound, ringQ.Log2OfStandardDeviation(pt.Value))
-	})
-
 	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/InnerSum"), func(t *testing.T) {
 
 		if params.MaxLevelP() == -1 {
@@ -1303,12 +1044,14 @@ func testWriteAndRead(tc *TestContext, bpw2 int, t *testing.T) {
 
 func testMarshaller(tc *TestContext, t *testing.T) {
 
+	params := tc.params
+
 	t.Run("Marshaller/Parameters", func(t *testing.T) {
-		for _, p := range testInsecure {
-			params, err := NewParametersFromLiteral(p.ParametersLiteral)
-			require.NoError(t, err)
-			buffer.RequireSerializerCorrect(t, &params)
-		}
+		bytes, err := params.MarshalBinary()
+		require.Nil(t, err)
+		var p Parameters
+		require.Nil(t, p.UnmarshalBinary(bytes))
+		require.Equal(t, params, p)
 	})
 
 	t.Run("Marshaller/MetaData", func(t *testing.T) {

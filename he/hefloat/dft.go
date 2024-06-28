@@ -71,7 +71,9 @@ type DFTMatrix struct {
 // Mandatory:
 //   - Type: HomomorphicEncode (a.k.a. CoeffsToSlots) or HomomorphicDecode (a.k.a. SlotsToCoeffs)
 //   - LogSlots: log2(slots)
-//   - LevelStart: starting level of the linear transformation
+//   - LevelQ: starting level of the linear transformation
+//   - LevelP: number of auxiliary primes used during the automorphisms. User must ensure that this
+//     value is the same as the one used to generate the Galois keys.
 //   - Levels: depth of the linear transform (i.e. the degree of factorization of the encoding matrix)
 //
 // Optional:
@@ -81,10 +83,11 @@ type DFTMatrix struct {
 //   - LogBSGSRatio: log2 of the ratio between the inner and outer loop of the baby-step giant-step algorithm
 type DFTMatrixLiteral struct {
 	// Mandatory
-	Type       DFTType
-	LogSlots   int
-	LevelStart int
-	Levels     []int
+	Type     DFTType
+	LogSlots int
+	LevelQ   int
+	LevelP   int
+	Levels   []int
 	// Optional
 	Format       DFTFormat  // Default: standard.
 	Scaling      *big.Float // Default 1.0.
@@ -179,7 +182,7 @@ func NewDFTMatrixFromLiteral(params Parameters, d DFTMatrixLiteral, encoder *Enc
 
 	nbModuliPerRescale := params.LevelsConsumedPerRescaling()
 
-	level := d.LevelStart
+	level := d.LevelQ
 	var idx int
 	for i := range d.Levels {
 
@@ -200,7 +203,8 @@ func NewDFTMatrixFromLiteral(params Parameters, d DFTMatrixLiteral, encoder *Enc
 
 			ltparams := LinearTransformationParameters{
 				DiagonalsIndexList:       pVecDFT[idx].DiagonalsIndexList(),
-				Level:                    level,
+				LevelQ:                   d.LevelQ,
+				LevelP:                   d.LevelP,
 				Scale:                    scale,
 				LogDimensions:            ring.Dimensions{Rows: 0, Cols: logdSlots},
 				LogBabyStepGianStepRatio: d.LogBSGSRatio,
@@ -228,10 +232,10 @@ func NewDFTMatrixFromLiteral(params Parameters, d DFTMatrixLiteral, encoder *Enc
 // If the packing is sparse (n < N/2), then returns ctReal = Ecd(vReal || vImag) and ctImag = nil.
 // If the packing is dense (n == N/2), then returns ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
 func (eval *DFTEvaluator) CoeffsToSlotsNew(ctIn *rlwe.Ciphertext, ctsMatrices DFTMatrix) (ctReal, ctImag *rlwe.Ciphertext, err error) {
-	ctReal = NewCiphertext(eval.parameters, 1, ctsMatrices.LevelStart)
+	ctReal = NewCiphertext(eval.parameters, 1, ctsMatrices.LevelQ)
 
 	if ctsMatrices.LogSlots == eval.parameters.LogMaxSlots() {
-		ctImag = NewCiphertext(eval.parameters, 1, ctsMatrices.LevelStart)
+		ctImag = NewCiphertext(eval.parameters, 1, ctsMatrices.LevelQ)
 	}
 
 	return ctReal, ctImag, eval.CoeffsToSlots(ctIn, ctsMatrices, ctReal, ctImag)
@@ -313,13 +317,12 @@ func (eval *DFTEvaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices DFTMa
 // If the packing is dense (n == N/2), then ctReal = Ecd(vReal) and ctImag = Ecd(vImag).
 func (eval *DFTEvaluator) SlotsToCoeffsNew(ctReal, ctImag *rlwe.Ciphertext, stcMatrices DFTMatrix) (opOut *rlwe.Ciphertext, err error) {
 
-	if ctReal.Level() < stcMatrices.LevelStart || (ctImag != nil && ctImag.Level() < stcMatrices.LevelStart) {
-		return nil, fmt.Errorf("ctReal.Level() or ctImag.Level() < DFTMatrix.LevelStart")
+	if ctReal.Level() < stcMatrices.LevelQ || (ctImag != nil && ctImag.Level() < stcMatrices.LevelQ) {
+		return nil, fmt.Errorf("ctReal.Level() or ctImag.Level() < DFTMatrix.LevelQ")
 	}
 
-	opOut = NewCiphertext(eval.parameters, 1, stcMatrices.LevelStart)
+	opOut = NewCiphertext(eval.parameters, 1, stcMatrices.LevelQ)
 	return opOut, eval.SlotsToCoeffs(ctReal, ctImag, stcMatrices, opOut)
-
 }
 
 // SlotsToCoeffs applies the homomorphic decoding and returns the result on the provided ciphertext.

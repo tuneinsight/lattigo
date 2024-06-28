@@ -16,8 +16,8 @@ import (
 // This also sets how many primes are consumed per rescaling.
 //
 // There are currently two modes supported:
-// - PREC64 (one 64 bit word)
-// - PREC128 (two 64 bit words)
+//   - PREC64 (one 64-bit word)
+//   - PREC128 (two 64-bit words)
 //
 // PREC64 is the default mode and supports reference plaintext scaling
 // factors of up to 2^{64}, while PREC128 scaling factors of up to 2^{128}.
@@ -34,7 +34,7 @@ const (
 
 // ParametersLiteral is a literal representation of CKKS parameters.  It has public
 // fields and is used to express unchecked user-defined parameters literally into
-// Go programs. The NewParametersFromLiteral function is used to generate the actual
+// Go programs. The [NewParametersFromLiteral] function is used to generate the actual
 // checked parameters from the literal representation.
 //
 // Users must set the polynomial degree (in log_2, LogN) and the coefficient modulus, by either setting
@@ -57,7 +57,7 @@ type ParametersLiteral struct {
 	LogDefaultScale int
 }
 
-// GetRLWEParametersLiteral returns the rlwe.ParametersLiteral from the target ckks.ParameterLiteral.
+// GetRLWEParametersLiteral returns the [rlwe.ParametersLiteral] from the target [ckks.ParameterLiteral].
 func (p ParametersLiteral) GetRLWEParametersLiteral() rlwe.ParametersLiteral {
 	return rlwe.ParametersLiteral{
 		LogN:         p.LogN,
@@ -75,19 +75,19 @@ func (p ParametersLiteral) GetRLWEParametersLiteral() rlwe.ParametersLiteral {
 }
 
 // Parameters represents a parameter set for the CKKS cryptosystem. Its fields are private and
-// immutable. See ParametersLiteral for user-specified parameters.
+// immutable. See [ParametersLiteral] for user-specified parameters.
 type Parameters struct {
 	rlwe.Parameters
 	precisionMode PrecisionMode
 }
 
-// NewParametersFromLiteral instantiate a set of CKKS parameters from a ParametersLiteral specification.
-// It returns the empty parameters Parameters{} and a non-nil error if the specified parameters are invalid.
+// NewParametersFromLiteral instantiate a set of CKKS parameters from a [ParametersLiteral] specification.
+// It returns the empty parameters [Parameters]{} and a non-nil error if the specified parameters are invalid.
 //
-// If the `LogSlots` field is left unset, its value is set to `LogN-1` for the Standard ring and to `LogN` for
+// If the LogSlots field is left unset, its value is set to LogN-1 for the Standard ring and to LogN for
 // the conjugate-invariant ring.
 //
-// See `rlwe.NewParametersFromLiteral` for default values of the other optional fields.
+// See [rlwe.NewParametersFromLiteral] for default values of the other optional fields.
 func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 	rlweParams, err := rlwe.NewParametersFromLiteral(pl.GetRLWEParametersLiteral())
 	if err != nil {
@@ -119,7 +119,7 @@ func (p Parameters) StandardParameters() (pckks Parameters, err error) {
 	return
 }
 
-// ParametersLiteral returns the ParametersLiteral of the target Parameters.
+// ParametersLiteral returns the [ParametersLiteral] of the target [Parameters].
 func (p Parameters) ParametersLiteral() (pLit ParametersLiteral) {
 	return ParametersLiteral{
 		LogN:            p.LogN(),
@@ -169,14 +169,14 @@ func (p Parameters) LogMaxDimensions() ring.Dimensions {
 	}
 }
 
-// MaxSlots returns the total number of entries (`slots`) that a plaintext can store.
+// MaxSlots returns the total number of entries (slots) that a plaintext can store.
 // This value is obtained by multiplying all dimensions from MaxDimensions.
 func (p Parameters) MaxSlots() int {
 	dims := p.MaxDimensions()
 	return dims.Rows * dims.Cols
 }
 
-// LogMaxSlots returns the total number of entries (`slots`) that a plaintext can store.
+// LogMaxSlots returns the total number of entries (slots) that a plaintext can store.
 // This value is obtained by summing all log dimensions from LogDimensions.
 func (p Parameters) LogMaxSlots() int {
 	dims := p.LogMaxDimensions()
@@ -202,7 +202,7 @@ func (p Parameters) EncodingPrecision() (prec uint) {
 }
 
 // PrecisionMode returns the precision mode of the parameters.
-// This value can be ckks.PREC64 or ckks.PREC128.
+// This value can be [ckks.PREC64] or [ckks.PREC128].
 func (p Parameters) PrecisionMode() PrecisionMode {
 	return p.precisionMode
 }
@@ -219,6 +219,16 @@ func (p Parameters) LevelsConsumedPerRescaling() int {
 	}
 }
 
+// GetOptimalScalingFactor returns a scaling factor b such that Rescale(a * b) = c
+func (p Parameters) GetOptimalScalingFactor(a, c rlwe.Scale, level int) (b rlwe.Scale) {
+	b = rlwe.NewScale(1)
+	Q := p.Q()
+	for i := 0; i < p.LevelsConsumedPerRescaling(); i++ {
+		b = b.Mul(rlwe.NewScale(Q[level-i]))
+	}
+	return
+}
+
 // MaxDepth returns the maximum depth enabled by the parameters,
 // which is obtained as p.MaxLevel() / p.LevelsConsumedPerRescaling().
 func (p Parameters) MaxDepth() int {
@@ -231,7 +241,7 @@ func (p Parameters) LogQLvl(level int) int {
 	return tmp.BitLen()
 }
 
-// QLvl returns the product of the moduli at the given level as a big.Int
+// QLvl returns the product of the moduli at the given level as a [big.Int]
 func (p Parameters) QLvl(level int) *big.Int {
 	tmp := bignum.NewInt(1)
 	for _, qi := range p.Q()[:level+1] {
@@ -284,32 +294,21 @@ func (p Parameters) GaloisElementForComplexConjugation() uint64 {
 }
 
 // GaloisElementsForInnerSum returns the list of Galois elements necessary to apply the method
-// `InnerSum` operation with parameters `batch` and `n`.
+// `InnerSum` operation with parameters batch and n.
 func (p Parameters) GaloisElementsForInnerSum(batch, n int) []uint64 {
 	return rlwe.GaloisElementsForInnerSum(p, batch, n)
 }
 
 // GaloisElementsForReplicate returns the list of Galois elements necessary to perform the
-// `Replicate` operation with parameters `batch` and `n`.
+// `Replicate` operation with parameters batch and n.
 func (p Parameters) GaloisElementsForReplicate(batch, n int) []uint64 {
 	return rlwe.GaloisElementsForReplicate(p, batch, n)
 }
 
-// GaloisElementsForTrace returns the list of Galois elements requored for the for the `Trace` operation.
+// GaloisElementsForTrace returns the list of Galois elements requored for the for the Trace operation.
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for 2^{LogN} <= i < N.
 func (p Parameters) GaloisElementsForTrace(logN int) []uint64 {
 	return rlwe.GaloisElementsForTrace(p, logN)
-}
-
-// GaloisElementsForExpand returns the list of Galois elements required
-// to perform the `Expand` operation with parameter `logN`.
-func (p Parameters) GaloisElementsForExpand(logN int) []uint64 {
-	return rlwe.GaloisElementsForExpand(p, logN)
-}
-
-// GaloisElementsForPack returns the list of Galois elements required to perform the `Pack` operation.
-func (p Parameters) GaloisElementsForPack(logN int) []uint64 {
-	return rlwe.GaloisElementsForPack(p, logN)
 }
 
 // Equal compares two sets of parameters for equality.
@@ -328,12 +327,12 @@ func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	return p.UnmarshalJSON(data)
 }
 
-// MarshalJSON returns a JSON representation of this parameter set. See `Marshal` from the `encoding/json` package.
+// MarshalJSON returns a JSON representation of this parameter set. See Marshal from the [encoding/json] package.
 func (p Parameters) MarshalJSON() ([]byte, error) {
 	return json.Marshal(p.ParametersLiteral())
 }
 
-// UnmarshalJSON reads a JSON representation of a parameter set into the receiver Parameter. See `Unmarshal` from the `encoding/json` package.
+// UnmarshalJSON reads a JSON representation of a parameter set into the receiver Parameter. See Unmarshal from the [encoding/json] package.
 func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 	var params ParametersLiteral
 	if err = json.Unmarshal(data, &params); err != nil {

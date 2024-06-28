@@ -113,11 +113,17 @@ func (eval Evaluator) AutomorphismHoistedLazy(levelQ int, ctIn *Ciphertext, c1De
 
 	levelP := evk.LevelP()
 
+	if ctQP.LevelP() < levelP {
+		return fmt.Errorf("ctQP.LevelP()=%d < GaloisKey[%d].LevelP()=%d", ctQP.LevelP(), galEl, levelP)
+	}
+
 	ctTmp := &Element[ringqp.Poly]{}
 	ctTmp.Value = []ringqp.Poly{eval.BuffQP[0], eval.BuffQP[1]}
 	ctTmp.MetaData = ctIn.MetaData
 
-	eval.GadgetProductHoistedLazy(levelQ, c1DecompQP, &evk.GadgetCiphertext, ctTmp)
+	if err = eval.GadgetProductHoistedLazy(levelQ, c1DecompQP, &evk.GadgetCiphertext, ctTmp); err != nil {
+		panic(fmt.Errorf("eval.GadgetProductHoistedLazy: %w", err))
+	}
 
 	ringQP := eval.params.RingQP().AtLevel(levelQ, levelP)
 

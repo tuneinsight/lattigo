@@ -122,7 +122,7 @@ func negvec(p1, p2 []uint64, modulus uint64) {
 	}
 }
 
-func reducevec(p1, p2 []uint64, modulus uint64, brc []uint64) {
+func reducevec(p1, p2 []uint64, modulus uint64, bredconstant [2]uint64) {
 
 	N := len(p1)
 
@@ -133,18 +133,18 @@ func reducevec(p1, p2 []uint64, modulus uint64, brc []uint64) {
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
-		z[0] = BRedAdd(x[0], modulus, brc)
-		z[1] = BRedAdd(x[1], modulus, brc)
-		z[2] = BRedAdd(x[2], modulus, brc)
-		z[3] = BRedAdd(x[3], modulus, brc)
-		z[4] = BRedAdd(x[4], modulus, brc)
-		z[5] = BRedAdd(x[5], modulus, brc)
-		z[6] = BRedAdd(x[6], modulus, brc)
-		z[7] = BRedAdd(x[7], modulus, brc)
+		z[0] = BRedAdd(x[0], modulus, bredconstant)
+		z[1] = BRedAdd(x[1], modulus, bredconstant)
+		z[2] = BRedAdd(x[2], modulus, bredconstant)
+		z[3] = BRedAdd(x[3], modulus, bredconstant)
+		z[4] = BRedAdd(x[4], modulus, bredconstant)
+		z[5] = BRedAdd(x[5], modulus, bredconstant)
+		z[6] = BRedAdd(x[6], modulus, bredconstant)
+		z[7] = BRedAdd(x[7], modulus, bredconstant)
 	}
 }
 
-func reducelazyvec(p1, p2 []uint64, modulus uint64, brc []uint64) {
+func reducelazyvec(p1, p2 []uint64, modulus uint64, bredconstant [2]uint64) {
 
 	N := len(p1)
 
@@ -155,14 +155,14 @@ func reducelazyvec(p1, p2 []uint64, modulus uint64, brc []uint64) {
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
-		z[0] = BRedAddLazy(x[0], modulus, brc)
-		z[1] = BRedAddLazy(x[1], modulus, brc)
-		z[2] = BRedAddLazy(x[2], modulus, brc)
-		z[3] = BRedAddLazy(x[3], modulus, brc)
-		z[4] = BRedAddLazy(x[4], modulus, brc)
-		z[5] = BRedAddLazy(x[5], modulus, brc)
-		z[6] = BRedAddLazy(x[6], modulus, brc)
-		z[7] = BRedAddLazy(x[7], modulus, brc)
+		z[0] = BRedAddLazy(x[0], modulus, bredconstant)
+		z[1] = BRedAddLazy(x[1], modulus, bredconstant)
+		z[2] = BRedAddLazy(x[2], modulus, bredconstant)
+		z[3] = BRedAddLazy(x[3], modulus, bredconstant)
+		z[4] = BRedAddLazy(x[4], modulus, bredconstant)
+		z[5] = BRedAddLazy(x[5], modulus, bredconstant)
+		z[6] = BRedAddLazy(x[6], modulus, bredconstant)
+		z[7] = BRedAddLazy(x[7], modulus, bredconstant)
 	}
 }
 
@@ -214,7 +214,7 @@ func mulcoeffslazythenaddlazyvec(p1, p2, p3 []uint64) {
 	}
 }
 
-func mulcoeffsbarrettvec(p1, p2, p3 []uint64, modulus uint64, brc []uint64) {
+func mulcoeffsbarrettvec(p1, p2, p3 []uint64, modulus uint64, bredconstant [2]uint64) {
 
 	N := len(p1)
 
@@ -227,18 +227,18 @@ func mulcoeffsbarrettvec(p1, p2, p3 []uint64, modulus uint64, brc []uint64) {
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
-		z[0] = BRed(x[0], y[0], modulus, brc)
-		z[1] = BRed(x[1], y[1], modulus, brc)
-		z[2] = BRed(x[2], y[2], modulus, brc)
-		z[3] = BRed(x[3], y[3], modulus, brc)
-		z[4] = BRed(x[4], y[4], modulus, brc)
-		z[5] = BRed(x[5], y[5], modulus, brc)
-		z[6] = BRed(x[6], y[6], modulus, brc)
-		z[7] = BRed(x[7], y[7], modulus, brc)
+		z[0] = BRed(x[0], y[0], modulus, bredconstant)
+		z[1] = BRed(x[1], y[1], modulus, bredconstant)
+		z[2] = BRed(x[2], y[2], modulus, bredconstant)
+		z[3] = BRed(x[3], y[3], modulus, bredconstant)
+		z[4] = BRed(x[4], y[4], modulus, bredconstant)
+		z[5] = BRed(x[5], y[5], modulus, bredconstant)
+		z[6] = BRed(x[6], y[6], modulus, bredconstant)
+		z[7] = BRed(x[7], y[7], modulus, bredconstant)
 	}
 }
 
-func mulcoeffsbarrettlazyvec(p1, p2, p3 []uint64, modulus uint64, brc []uint64) {
+func mulcoeffsbarrettlazyvec(p1, p2, p3 []uint64, modulus uint64, bredconstant [2]uint64) {
 
 	N := len(p1)
 
@@ -251,18 +251,18 @@ func mulcoeffsbarrettlazyvec(p1, p2, p3 []uint64, modulus uint64, brc []uint64) 
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
-		z[0] = BRedLazy(x[0], y[0], modulus, brc)
-		z[1] = BRedLazy(x[1], y[1], modulus, brc)
-		z[2] = BRedLazy(x[2], y[2], modulus, brc)
-		z[3] = BRedLazy(x[3], y[3], modulus, brc)
-		z[4] = BRedLazy(x[4], y[4], modulus, brc)
-		z[5] = BRedLazy(x[5], y[5], modulus, brc)
-		z[6] = BRedLazy(x[6], y[6], modulus, brc)
-		z[7] = BRedLazy(x[7], y[7], modulus, brc)
+		z[0] = BRedLazy(x[0], y[0], modulus, bredconstant)
+		z[1] = BRedLazy(x[1], y[1], modulus, bredconstant)
+		z[2] = BRedLazy(x[2], y[2], modulus, bredconstant)
+		z[3] = BRedLazy(x[3], y[3], modulus, bredconstant)
+		z[4] = BRedLazy(x[4], y[4], modulus, bredconstant)
+		z[5] = BRedLazy(x[5], y[5], modulus, bredconstant)
+		z[6] = BRedLazy(x[6], y[6], modulus, bredconstant)
+		z[7] = BRedLazy(x[7], y[7], modulus, bredconstant)
 	}
 }
 
-func mulcoeffsthenaddvec(p1, p2, p3 []uint64, modulus uint64, brc []uint64) {
+func mulcoeffsthenaddvec(p1, p2, p3 []uint64, modulus uint64, bredconstant [2]uint64) {
 
 	N := len(p1)
 
@@ -275,18 +275,18 @@ func mulcoeffsthenaddvec(p1, p2, p3 []uint64, modulus uint64, brc []uint64) {
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
-		z[0] = CRed(z[0]+BRed(x[0], y[0], modulus, brc), modulus)
-		z[1] = CRed(z[1]+BRed(x[1], y[1], modulus, brc), modulus)
-		z[2] = CRed(z[2]+BRed(x[2], y[2], modulus, brc), modulus)
-		z[3] = CRed(z[3]+BRed(x[3], y[3], modulus, brc), modulus)
-		z[4] = CRed(z[4]+BRed(x[4], y[4], modulus, brc), modulus)
-		z[5] = CRed(z[5]+BRed(x[5], y[5], modulus, brc), modulus)
-		z[6] = CRed(z[6]+BRed(x[6], y[6], modulus, brc), modulus)
-		z[7] = CRed(z[7]+BRed(x[7], y[7], modulus, brc), modulus)
+		z[0] = CRed(z[0]+BRed(x[0], y[0], modulus, bredconstant), modulus)
+		z[1] = CRed(z[1]+BRed(x[1], y[1], modulus, bredconstant), modulus)
+		z[2] = CRed(z[2]+BRed(x[2], y[2], modulus, bredconstant), modulus)
+		z[3] = CRed(z[3]+BRed(x[3], y[3], modulus, bredconstant), modulus)
+		z[4] = CRed(z[4]+BRed(x[4], y[4], modulus, bredconstant), modulus)
+		z[5] = CRed(z[5]+BRed(x[5], y[5], modulus, bredconstant), modulus)
+		z[6] = CRed(z[6]+BRed(x[6], y[6], modulus, bredconstant), modulus)
+		z[7] = CRed(z[7]+BRed(x[7], y[7], modulus, bredconstant), modulus)
 	}
 }
 
-func mulcoeffsbarrettthenaddlazyvec(p1, p2, p3 []uint64, modulus uint64, brc []uint64) {
+func mulcoeffsbarrettthenaddlazyvec(p1, p2, p3 []uint64, modulus uint64, bredconstant [2]uint64) {
 
 	N := len(p1)
 
@@ -299,18 +299,18 @@ func mulcoeffsbarrettthenaddlazyvec(p1, p2, p3 []uint64, modulus uint64, brc []u
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
-		z[0] += BRed(x[0], y[0], modulus, brc)
-		z[1] += BRed(x[1], y[1], modulus, brc)
-		z[2] += BRed(x[2], y[2], modulus, brc)
-		z[3] += BRed(x[3], y[3], modulus, brc)
-		z[4] += BRed(x[4], y[4], modulus, brc)
-		z[5] += BRed(x[5], y[5], modulus, brc)
-		z[6] += BRed(x[6], y[6], modulus, brc)
-		z[7] += BRed(x[7], y[7], modulus, brc)
+		z[0] += BRed(x[0], y[0], modulus, bredconstant)
+		z[1] += BRed(x[1], y[1], modulus, bredconstant)
+		z[2] += BRed(x[2], y[2], modulus, bredconstant)
+		z[3] += BRed(x[3], y[3], modulus, bredconstant)
+		z[4] += BRed(x[4], y[4], modulus, bredconstant)
+		z[5] += BRed(x[5], y[5], modulus, bredconstant)
+		z[6] += BRed(x[6], y[6], modulus, bredconstant)
+		z[7] += BRed(x[7], y[7], modulus, bredconstant)
 	}
 }
 
-func mulcoeffsmontgomeryvec(p1, p2, p3 []uint64, modulus, mrc uint64) {
+func mulcoeffsmontgomeryvec(p1, p2, p3 []uint64, modulus, mredconstant uint64) {
 
 	N := len(p1)
 
@@ -322,65 +322,18 @@ func mulcoeffsmontgomeryvec(p1, p2, p3 []uint64, modulus, mrc uint64) {
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
-		z[0] = MRed(x[0], y[0], modulus, mrc)
-		z[1] = MRed(x[1], y[1], modulus, mrc)
-		z[2] = MRed(x[2], y[2], modulus, mrc)
-		z[3] = MRed(x[3], y[3], modulus, mrc)
-		z[4] = MRed(x[4], y[4], modulus, mrc)
-		z[5] = MRed(x[5], y[5], modulus, mrc)
-		z[6] = MRed(x[6], y[6], modulus, mrc)
-		z[7] = MRed(x[7], y[7], modulus, mrc)
+		z[0] = MRed(x[0], y[0], modulus, mredconstant)
+		z[1] = MRed(x[1], y[1], modulus, mredconstant)
+		z[2] = MRed(x[2], y[2], modulus, mredconstant)
+		z[3] = MRed(x[3], y[3], modulus, mredconstant)
+		z[4] = MRed(x[4], y[4], modulus, mredconstant)
+		z[5] = MRed(x[5], y[5], modulus, mredconstant)
+		z[6] = MRed(x[6], y[6], modulus, mredconstant)
+		z[7] = MRed(x[7], y[7], modulus, mredconstant)
 	}
 }
 
-func mulcoeffsmontgomerylazyvec(p1, p2, p3 []uint64, modulus, mrc uint64) {
-
-	N := len(p1)
-
-	for j := 0; j < N; j = j + 8 {
-
-		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
-		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
-		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
-		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
-
-		z[0] = MRedLazy(x[0], y[0], modulus, mrc)
-		z[1] = MRedLazy(x[1], y[1], modulus, mrc)
-		z[2] = MRedLazy(x[2], y[2], modulus, mrc)
-		z[3] = MRedLazy(x[3], y[3], modulus, mrc)
-		z[4] = MRedLazy(x[4], y[4], modulus, mrc)
-		z[5] = MRedLazy(x[5], y[5], modulus, mrc)
-		z[6] = MRedLazy(x[6], y[6], modulus, mrc)
-		z[7] = MRedLazy(x[7], y[7], modulus, mrc)
-	}
-}
-
-func mulcoeffsmontgomerythenaddvec(p1, p2, p3 []uint64, modulus, mrc uint64) {
-
-	N := len(p1)
-
-	for j := 0; j < N; j = j + 8 {
-		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
-		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
-		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
-		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
-		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
-		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
-
-		z[0] = CRed(z[0]+MRed(x[0], y[0], modulus, mrc), modulus)
-		z[1] = CRed(z[1]+MRed(x[1], y[1], modulus, mrc), modulus)
-		z[2] = CRed(z[2]+MRed(x[2], y[2], modulus, mrc), modulus)
-		z[3] = CRed(z[3]+MRed(x[3], y[3], modulus, mrc), modulus)
-		z[4] = CRed(z[4]+MRed(x[4], y[4], modulus, mrc), modulus)
-		z[5] = CRed(z[5]+MRed(x[5], y[5], modulus, mrc), modulus)
-		z[6] = CRed(z[6]+MRed(x[6], y[6], modulus, mrc), modulus)
-		z[7] = CRed(z[7]+MRed(x[7], y[7], modulus, mrc), modulus)
-	}
-}
-
-func mulcoeffsmontgomerythenaddlazyvec(p1, p2, p3 []uint64, modulus, mrc uint64) {
+func mulcoeffsmontgomerylazyvec(p1, p2, p3 []uint64, modulus, mredconstant uint64) {
 
 	N := len(p1)
 
@@ -393,18 +346,41 @@ func mulcoeffsmontgomerythenaddlazyvec(p1, p2, p3 []uint64, modulus, mrc uint64)
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
-		z[0] += MRed(x[0], y[0], modulus, mrc)
-		z[1] += MRed(x[1], y[1], modulus, mrc)
-		z[2] += MRed(x[2], y[2], modulus, mrc)
-		z[3] += MRed(x[3], y[3], modulus, mrc)
-		z[4] += MRed(x[4], y[4], modulus, mrc)
-		z[5] += MRed(x[5], y[5], modulus, mrc)
-		z[6] += MRed(x[6], y[6], modulus, mrc)
-		z[7] += MRed(x[7], y[7], modulus, mrc)
+		z[0] = MRedLazy(x[0], y[0], modulus, mredconstant)
+		z[1] = MRedLazy(x[1], y[1], modulus, mredconstant)
+		z[2] = MRedLazy(x[2], y[2], modulus, mredconstant)
+		z[3] = MRedLazy(x[3], y[3], modulus, mredconstant)
+		z[4] = MRedLazy(x[4], y[4], modulus, mredconstant)
+		z[5] = MRedLazy(x[5], y[5], modulus, mredconstant)
+		z[6] = MRedLazy(x[6], y[6], modulus, mredconstant)
+		z[7] = MRedLazy(x[7], y[7], modulus, mredconstant)
 	}
 }
 
-func mulcoeffsmontgomerylazythenaddlazyvec(p1, p2, p3 []uint64, modulus, mrc uint64) {
+func mulcoeffsmontgomerythenaddvec(p1, p2, p3 []uint64, modulus, mredconstant uint64) {
+
+	N := len(p1)
+
+	for j := 0; j < N; j = j + 8 {
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
+		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
+		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
+		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
+
+		z[0] = CRed(z[0]+MRed(x[0], y[0], modulus, mredconstant), modulus)
+		z[1] = CRed(z[1]+MRed(x[1], y[1], modulus, mredconstant), modulus)
+		z[2] = CRed(z[2]+MRed(x[2], y[2], modulus, mredconstant), modulus)
+		z[3] = CRed(z[3]+MRed(x[3], y[3], modulus, mredconstant), modulus)
+		z[4] = CRed(z[4]+MRed(x[4], y[4], modulus, mredconstant), modulus)
+		z[5] = CRed(z[5]+MRed(x[5], y[5], modulus, mredconstant), modulus)
+		z[6] = CRed(z[6]+MRed(x[6], y[6], modulus, mredconstant), modulus)
+		z[7] = CRed(z[7]+MRed(x[7], y[7], modulus, mredconstant), modulus)
+	}
+}
+
+func mulcoeffsmontgomerythenaddlazyvec(p1, p2, p3 []uint64, modulus, mredconstant uint64) {
 
 	N := len(p1)
 
@@ -417,18 +393,18 @@ func mulcoeffsmontgomerylazythenaddlazyvec(p1, p2, p3 []uint64, modulus, mrc uin
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
-		z[0] += MRedLazy(x[0], y[0], modulus, mrc)
-		z[1] += MRedLazy(x[1], y[1], modulus, mrc)
-		z[2] += MRedLazy(x[2], y[2], modulus, mrc)
-		z[3] += MRedLazy(x[3], y[3], modulus, mrc)
-		z[4] += MRedLazy(x[4], y[4], modulus, mrc)
-		z[5] += MRedLazy(x[5], y[5], modulus, mrc)
-		z[6] += MRedLazy(x[6], y[6], modulus, mrc)
-		z[7] += MRedLazy(x[7], y[7], modulus, mrc)
+		z[0] += MRed(x[0], y[0], modulus, mredconstant)
+		z[1] += MRed(x[1], y[1], modulus, mredconstant)
+		z[2] += MRed(x[2], y[2], modulus, mredconstant)
+		z[3] += MRed(x[3], y[3], modulus, mredconstant)
+		z[4] += MRed(x[4], y[4], modulus, mredconstant)
+		z[5] += MRed(x[5], y[5], modulus, mredconstant)
+		z[6] += MRed(x[6], y[6], modulus, mredconstant)
+		z[7] += MRed(x[7], y[7], modulus, mredconstant)
 	}
 }
 
-func mulcoeffsmontgomerythensubvec(p1, p2, p3 []uint64, modulus, mrc uint64) {
+func mulcoeffsmontgomerylazythenaddlazyvec(p1, p2, p3 []uint64, modulus, mredconstant uint64) {
 
 	N := len(p1)
 
@@ -441,18 +417,18 @@ func mulcoeffsmontgomerythensubvec(p1, p2, p3 []uint64, modulus, mrc uint64) {
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
-		z[0] = CRed(z[0]+(modulus-MRed(x[0], y[0], modulus, mrc)), modulus)
-		z[1] = CRed(z[1]+(modulus-MRed(x[1], y[1], modulus, mrc)), modulus)
-		z[2] = CRed(z[2]+(modulus-MRed(x[2], y[2], modulus, mrc)), modulus)
-		z[3] = CRed(z[3]+(modulus-MRed(x[3], y[3], modulus, mrc)), modulus)
-		z[4] = CRed(z[4]+(modulus-MRed(x[4], y[4], modulus, mrc)), modulus)
-		z[5] = CRed(z[5]+(modulus-MRed(x[5], y[5], modulus, mrc)), modulus)
-		z[6] = CRed(z[6]+(modulus-MRed(x[6], y[6], modulus, mrc)), modulus)
-		z[7] = CRed(z[7]+(modulus-MRed(x[7], y[7], modulus, mrc)), modulus)
+		z[0] += MRedLazy(x[0], y[0], modulus, mredconstant)
+		z[1] += MRedLazy(x[1], y[1], modulus, mredconstant)
+		z[2] += MRedLazy(x[2], y[2], modulus, mredconstant)
+		z[3] += MRedLazy(x[3], y[3], modulus, mredconstant)
+		z[4] += MRedLazy(x[4], y[4], modulus, mredconstant)
+		z[5] += MRedLazy(x[5], y[5], modulus, mredconstant)
+		z[6] += MRedLazy(x[6], y[6], modulus, mredconstant)
+		z[7] += MRedLazy(x[7], y[7], modulus, mredconstant)
 	}
 }
 
-func mulcoeffsmontgomerythensublazyvec(p1, p2, p3 []uint64, modulus, mrc uint64) {
+func mulcoeffsmontgomerythensubvec(p1, p2, p3 []uint64, modulus, mredconstant uint64) {
 
 	N := len(p1)
 
@@ -465,21 +441,20 @@ func mulcoeffsmontgomerythensublazyvec(p1, p2, p3 []uint64, modulus, mrc uint64)
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
-		z[0] += (modulus - MRed(x[0], y[0], modulus, mrc))
-		z[1] += (modulus - MRed(x[1], y[1], modulus, mrc))
-		z[2] += (modulus - MRed(x[2], y[2], modulus, mrc))
-		z[3] += (modulus - MRed(x[3], y[3], modulus, mrc))
-		z[4] += (modulus - MRed(x[4], y[4], modulus, mrc))
-		z[5] += (modulus - MRed(x[5], y[5], modulus, mrc))
-		z[6] += (modulus - MRed(x[6], y[6], modulus, mrc))
-		z[7] += (modulus - MRed(x[7], y[7], modulus, mrc))
+		z[0] = CRed(z[0]+(modulus-MRed(x[0], y[0], modulus, mredconstant)), modulus)
+		z[1] = CRed(z[1]+(modulus-MRed(x[1], y[1], modulus, mredconstant)), modulus)
+		z[2] = CRed(z[2]+(modulus-MRed(x[2], y[2], modulus, mredconstant)), modulus)
+		z[3] = CRed(z[3]+(modulus-MRed(x[3], y[3], modulus, mredconstant)), modulus)
+		z[4] = CRed(z[4]+(modulus-MRed(x[4], y[4], modulus, mredconstant)), modulus)
+		z[5] = CRed(z[5]+(modulus-MRed(x[5], y[5], modulus, mredconstant)), modulus)
+		z[6] = CRed(z[6]+(modulus-MRed(x[6], y[6], modulus, mredconstant)), modulus)
+		z[7] = CRed(z[7]+(modulus-MRed(x[7], y[7], modulus, mredconstant)), modulus)
 	}
 }
 
-func mulcoeffsmontgomerylazythensublazyvec(p1, p2, p3 []uint64, modulus, mrc uint64) {
+func mulcoeffsmontgomerythensublazyvec(p1, p2, p3 []uint64, modulus, mredconstant uint64) {
 
 	N := len(p1)
-	twomodulus := modulus << 1
 
 	for j := 0; j < N; j = j + 8 {
 
@@ -490,18 +465,18 @@ func mulcoeffsmontgomerylazythensublazyvec(p1, p2, p3 []uint64, modulus, mrc uin
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
-		z[0] += twomodulus - MRedLazy(x[0], y[0], modulus, mrc)
-		z[1] += twomodulus - MRedLazy(x[1], y[1], modulus, mrc)
-		z[2] += twomodulus - MRedLazy(x[2], y[2], modulus, mrc)
-		z[3] += twomodulus - MRedLazy(x[3], y[3], modulus, mrc)
-		z[4] += twomodulus - MRedLazy(x[4], y[4], modulus, mrc)
-		z[5] += twomodulus - MRedLazy(x[5], y[5], modulus, mrc)
-		z[6] += twomodulus - MRedLazy(x[6], y[6], modulus, mrc)
-		z[7] += twomodulus - MRedLazy(x[7], y[7], modulus, mrc)
+		z[0] += (modulus - MRed(x[0], y[0], modulus, mredconstant))
+		z[1] += (modulus - MRed(x[1], y[1], modulus, mredconstant))
+		z[2] += (modulus - MRed(x[2], y[2], modulus, mredconstant))
+		z[3] += (modulus - MRed(x[3], y[3], modulus, mredconstant))
+		z[4] += (modulus - MRed(x[4], y[4], modulus, mredconstant))
+		z[5] += (modulus - MRed(x[5], y[5], modulus, mredconstant))
+		z[6] += (modulus - MRed(x[6], y[6], modulus, mredconstant))
+		z[7] += (modulus - MRed(x[7], y[7], modulus, mredconstant))
 	}
 }
 
-func mulcoeffsmontgomerylazythenNegvec(p1, p2, p3 []uint64, modulus, mrc uint64) {
+func mulcoeffsmontgomerylazythensublazyvec(p1, p2, p3 []uint64, modulus, mredconstant uint64) {
 
 	N := len(p1)
 	twomodulus := modulus << 1
@@ -515,18 +490,43 @@ func mulcoeffsmontgomerylazythenNegvec(p1, p2, p3 []uint64, modulus, mrc uint64)
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
-		z[0] = twomodulus - MRedLazy(x[0], y[0], modulus, mrc)
-		z[1] = twomodulus - MRedLazy(x[1], y[1], modulus, mrc)
-		z[2] = twomodulus - MRedLazy(x[2], y[2], modulus, mrc)
-		z[3] = twomodulus - MRedLazy(x[3], y[3], modulus, mrc)
-		z[4] = twomodulus - MRedLazy(x[4], y[4], modulus, mrc)
-		z[5] = twomodulus - MRedLazy(x[5], y[5], modulus, mrc)
-		z[6] = twomodulus - MRedLazy(x[6], y[6], modulus, mrc)
-		z[7] = twomodulus - MRedLazy(x[7], y[7], modulus, mrc)
+		z[0] += twomodulus - MRedLazy(x[0], y[0], modulus, mredconstant)
+		z[1] += twomodulus - MRedLazy(x[1], y[1], modulus, mredconstant)
+		z[2] += twomodulus - MRedLazy(x[2], y[2], modulus, mredconstant)
+		z[3] += twomodulus - MRedLazy(x[3], y[3], modulus, mredconstant)
+		z[4] += twomodulus - MRedLazy(x[4], y[4], modulus, mredconstant)
+		z[5] += twomodulus - MRedLazy(x[5], y[5], modulus, mredconstant)
+		z[6] += twomodulus - MRedLazy(x[6], y[6], modulus, mredconstant)
+		z[7] += twomodulus - MRedLazy(x[7], y[7], modulus, mredconstant)
 	}
 }
 
-func addlazythenmulscalarmontgomeryvec(p1, p2 []uint64, scalarMont uint64, p3 []uint64, modulus, mrc uint64) {
+func mulcoeffsmontgomerylazythenNegvec(p1, p2, p3 []uint64, modulus, mredconstant uint64) {
+
+	N := len(p1)
+	twomodulus := modulus << 1
+
+	for j := 0; j < N; j = j + 8 {
+
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1)%8 */
+		x := (*[8]uint64)(unsafe.Pointer(&p1[j]))
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
+		y := (*[8]uint64)(unsafe.Pointer(&p2[j]))
+		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
+		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
+
+		z[0] = twomodulus - MRedLazy(x[0], y[0], modulus, mredconstant)
+		z[1] = twomodulus - MRedLazy(x[1], y[1], modulus, mredconstant)
+		z[2] = twomodulus - MRedLazy(x[2], y[2], modulus, mredconstant)
+		z[3] = twomodulus - MRedLazy(x[3], y[3], modulus, mredconstant)
+		z[4] = twomodulus - MRedLazy(x[4], y[4], modulus, mredconstant)
+		z[5] = twomodulus - MRedLazy(x[5], y[5], modulus, mredconstant)
+		z[6] = twomodulus - MRedLazy(x[6], y[6], modulus, mredconstant)
+		z[7] = twomodulus - MRedLazy(x[7], y[7], modulus, mredconstant)
+	}
+}
+
+func addlazythenmulscalarmontgomeryvec(p1, p2 []uint64, scalarMont uint64, p3 []uint64, modulus, mredconstant uint64) {
 
 	N := len(p1)
 
@@ -539,18 +539,18 @@ func addlazythenmulscalarmontgomeryvec(p1, p2 []uint64, scalarMont uint64, p3 []
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
-		z[0] = MRed(x[0]+y[0], scalarMont, modulus, mrc)
-		z[1] = MRed(x[1]+y[1], scalarMont, modulus, mrc)
-		z[2] = MRed(x[2]+y[2], scalarMont, modulus, mrc)
-		z[3] = MRed(x[3]+y[3], scalarMont, modulus, mrc)
-		z[4] = MRed(x[4]+y[4], scalarMont, modulus, mrc)
-		z[5] = MRed(x[5]+y[5], scalarMont, modulus, mrc)
-		z[6] = MRed(x[6]+y[6], scalarMont, modulus, mrc)
-		z[7] = MRed(x[7]+y[7], scalarMont, modulus, mrc)
+		z[0] = MRed(x[0]+y[0], scalarMont, modulus, mredconstant)
+		z[1] = MRed(x[1]+y[1], scalarMont, modulus, mredconstant)
+		z[2] = MRed(x[2]+y[2], scalarMont, modulus, mredconstant)
+		z[3] = MRed(x[3]+y[3], scalarMont, modulus, mredconstant)
+		z[4] = MRed(x[4]+y[4], scalarMont, modulus, mredconstant)
+		z[5] = MRed(x[5]+y[5], scalarMont, modulus, mredconstant)
+		z[6] = MRed(x[6]+y[6], scalarMont, modulus, mredconstant)
+		z[7] = MRed(x[7]+y[7], scalarMont, modulus, mredconstant)
 	}
 }
 
-func addscalarlazythenmulscalarmontgomeryvec(p1 []uint64, scalar0, scalarMont1 uint64, p2 []uint64, modulus, mrc uint64) {
+func addscalarlazythenmulscalarmontgomeryvec(p1 []uint64, scalar0, scalarMont1 uint64, p2 []uint64, modulus, mredconstant uint64) {
 
 	N := len(p1)
 
@@ -561,14 +561,14 @@ func addscalarlazythenmulscalarmontgomeryvec(p1 []uint64, scalar0, scalarMont1 u
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
-		z[0] = MRed(x[0]+scalar0, scalarMont1, modulus, mrc)
-		z[1] = MRed(x[1]+scalar0, scalarMont1, modulus, mrc)
-		z[2] = MRed(x[2]+scalar0, scalarMont1, modulus, mrc)
-		z[3] = MRed(x[3]+scalar0, scalarMont1, modulus, mrc)
-		z[4] = MRed(x[4]+scalar0, scalarMont1, modulus, mrc)
-		z[5] = MRed(x[5]+scalar0, scalarMont1, modulus, mrc)
-		z[6] = MRed(x[6]+scalar0, scalarMont1, modulus, mrc)
-		z[7] = MRed(x[7]+scalar0, scalarMont1, modulus, mrc)
+		z[0] = MRed(x[0]+scalar0, scalarMont1, modulus, mredconstant)
+		z[1] = MRed(x[1]+scalar0, scalarMont1, modulus, mredconstant)
+		z[2] = MRed(x[2]+scalar0, scalarMont1, modulus, mredconstant)
+		z[3] = MRed(x[3]+scalar0, scalarMont1, modulus, mredconstant)
+		z[4] = MRed(x[4]+scalar0, scalarMont1, modulus, mredconstant)
+		z[5] = MRed(x[5]+scalar0, scalarMont1, modulus, mredconstant)
+		z[6] = MRed(x[6]+scalar0, scalarMont1, modulus, mredconstant)
+		z[7] = MRed(x[7]+scalar0, scalarMont1, modulus, mredconstant)
 	}
 }
 
@@ -661,7 +661,7 @@ func subscalarvec(p1 []uint64, scalar uint64, p2 []uint64, modulus uint64) {
 	}
 }
 
-func mulscalarmontgomeryvec(p1 []uint64, scalarMont uint64, p2 []uint64, modulus, mrc uint64) {
+func mulscalarmontgomeryvec(p1 []uint64, scalarMont uint64, p2 []uint64, modulus, mredconstant uint64) {
 
 	N := len(p1)
 
@@ -672,18 +672,18 @@ func mulscalarmontgomeryvec(p1 []uint64, scalarMont uint64, p2 []uint64, modulus
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
-		z[0] = MRed(x[0], scalarMont, modulus, mrc)
-		z[1] = MRed(x[1], scalarMont, modulus, mrc)
-		z[2] = MRed(x[2], scalarMont, modulus, mrc)
-		z[3] = MRed(x[3], scalarMont, modulus, mrc)
-		z[4] = MRed(x[4], scalarMont, modulus, mrc)
-		z[5] = MRed(x[5], scalarMont, modulus, mrc)
-		z[6] = MRed(x[6], scalarMont, modulus, mrc)
-		z[7] = MRed(x[7], scalarMont, modulus, mrc)
+		z[0] = MRed(x[0], scalarMont, modulus, mredconstant)
+		z[1] = MRed(x[1], scalarMont, modulus, mredconstant)
+		z[2] = MRed(x[2], scalarMont, modulus, mredconstant)
+		z[3] = MRed(x[3], scalarMont, modulus, mredconstant)
+		z[4] = MRed(x[4], scalarMont, modulus, mredconstant)
+		z[5] = MRed(x[5], scalarMont, modulus, mredconstant)
+		z[6] = MRed(x[6], scalarMont, modulus, mredconstant)
+		z[7] = MRed(x[7], scalarMont, modulus, mredconstant)
 	}
 }
 
-func mulscalarmontgomerylazyvec(p1 []uint64, scalarMont uint64, p2 []uint64, modulus, mrc uint64) {
+func mulscalarmontgomerylazyvec(p1 []uint64, scalarMont uint64, p2 []uint64, modulus, mredconstant uint64) {
 
 	N := len(p1)
 
@@ -694,18 +694,18 @@ func mulscalarmontgomerylazyvec(p1 []uint64, scalarMont uint64, p2 []uint64, mod
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
-		z[0] = MRedLazy(x[0], scalarMont, modulus, mrc)
-		z[1] = MRedLazy(x[1], scalarMont, modulus, mrc)
-		z[2] = MRedLazy(x[2], scalarMont, modulus, mrc)
-		z[3] = MRedLazy(x[3], scalarMont, modulus, mrc)
-		z[4] = MRedLazy(x[4], scalarMont, modulus, mrc)
-		z[5] = MRedLazy(x[5], scalarMont, modulus, mrc)
-		z[6] = MRedLazy(x[6], scalarMont, modulus, mrc)
-		z[7] = MRedLazy(x[7], scalarMont, modulus, mrc)
+		z[0] = MRedLazy(x[0], scalarMont, modulus, mredconstant)
+		z[1] = MRedLazy(x[1], scalarMont, modulus, mredconstant)
+		z[2] = MRedLazy(x[2], scalarMont, modulus, mredconstant)
+		z[3] = MRedLazy(x[3], scalarMont, modulus, mredconstant)
+		z[4] = MRedLazy(x[4], scalarMont, modulus, mredconstant)
+		z[5] = MRedLazy(x[5], scalarMont, modulus, mredconstant)
+		z[6] = MRedLazy(x[6], scalarMont, modulus, mredconstant)
+		z[7] = MRedLazy(x[7], scalarMont, modulus, mredconstant)
 	}
 }
 
-func mulscalarmontgomerythenaddvec(p1 []uint64, scalarMont uint64, p2 []uint64, modulus, mrc uint64) {
+func mulscalarmontgomerythenaddvec(p1 []uint64, scalarMont uint64, p2 []uint64, modulus, mredconstant uint64) {
 
 	N := len(p1)
 
@@ -716,18 +716,18 @@ func mulscalarmontgomerythenaddvec(p1 []uint64, scalarMont uint64, p2 []uint64, 
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
-		z[0] = CRed(z[0]+MRed(x[0], scalarMont, modulus, mrc), modulus)
-		z[1] = CRed(z[1]+MRed(x[1], scalarMont, modulus, mrc), modulus)
-		z[2] = CRed(z[2]+MRed(x[2], scalarMont, modulus, mrc), modulus)
-		z[3] = CRed(z[3]+MRed(x[3], scalarMont, modulus, mrc), modulus)
-		z[4] = CRed(z[4]+MRed(x[4], scalarMont, modulus, mrc), modulus)
-		z[5] = CRed(z[5]+MRed(x[5], scalarMont, modulus, mrc), modulus)
-		z[6] = CRed(z[6]+MRed(x[6], scalarMont, modulus, mrc), modulus)
-		z[7] = CRed(z[7]+MRed(x[7], scalarMont, modulus, mrc), modulus)
+		z[0] = CRed(z[0]+MRed(x[0], scalarMont, modulus, mredconstant), modulus)
+		z[1] = CRed(z[1]+MRed(x[1], scalarMont, modulus, mredconstant), modulus)
+		z[2] = CRed(z[2]+MRed(x[2], scalarMont, modulus, mredconstant), modulus)
+		z[3] = CRed(z[3]+MRed(x[3], scalarMont, modulus, mredconstant), modulus)
+		z[4] = CRed(z[4]+MRed(x[4], scalarMont, modulus, mredconstant), modulus)
+		z[5] = CRed(z[5]+MRed(x[5], scalarMont, modulus, mredconstant), modulus)
+		z[6] = CRed(z[6]+MRed(x[6], scalarMont, modulus, mredconstant), modulus)
+		z[7] = CRed(z[7]+MRed(x[7], scalarMont, modulus, mredconstant), modulus)
 	}
 }
 
-func mulscalarmontgomerythenaddscalarvec(p1 []uint64, scalar0, scalarMont1 uint64, p2 []uint64, modulus, mrc uint64) {
+func mulscalarmontgomerythenaddscalarvec(p1 []uint64, scalar0, scalarMont1 uint64, p2 []uint64, modulus, mredconstant uint64) {
 
 	N := len(p1)
 
@@ -738,18 +738,18 @@ func mulscalarmontgomerythenaddscalarvec(p1 []uint64, scalar0, scalarMont1 uint6
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
-		z[0] = CRed(MRed(x[0], scalarMont1, modulus, mrc)+scalar0, modulus)
-		z[1] = CRed(MRed(x[1], scalarMont1, modulus, mrc)+scalar0, modulus)
-		z[2] = CRed(MRed(x[2], scalarMont1, modulus, mrc)+scalar0, modulus)
-		z[3] = CRed(MRed(x[3], scalarMont1, modulus, mrc)+scalar0, modulus)
-		z[4] = CRed(MRed(x[4], scalarMont1, modulus, mrc)+scalar0, modulus)
-		z[5] = CRed(MRed(x[5], scalarMont1, modulus, mrc)+scalar0, modulus)
-		z[6] = CRed(MRed(x[6], scalarMont1, modulus, mrc)+scalar0, modulus)
-		z[7] = CRed(MRed(x[7], scalarMont1, modulus, mrc)+scalar0, modulus)
+		z[0] = CRed(MRed(x[0], scalarMont1, modulus, mredconstant)+scalar0, modulus)
+		z[1] = CRed(MRed(x[1], scalarMont1, modulus, mredconstant)+scalar0, modulus)
+		z[2] = CRed(MRed(x[2], scalarMont1, modulus, mredconstant)+scalar0, modulus)
+		z[3] = CRed(MRed(x[3], scalarMont1, modulus, mredconstant)+scalar0, modulus)
+		z[4] = CRed(MRed(x[4], scalarMont1, modulus, mredconstant)+scalar0, modulus)
+		z[5] = CRed(MRed(x[5], scalarMont1, modulus, mredconstant)+scalar0, modulus)
+		z[6] = CRed(MRed(x[6], scalarMont1, modulus, mredconstant)+scalar0, modulus)
+		z[7] = CRed(MRed(x[7], scalarMont1, modulus, mredconstant)+scalar0, modulus)
 	}
 }
 
-func subthenmulscalarmontgomeryTwoModulusvec(p1, p2 []uint64, scalarMont uint64, p3 []uint64, modulus, mrc uint64) {
+func subthenmulscalarmontgomeryTwoModulusvec(p1, p2 []uint64, scalarMont uint64, p3 []uint64, modulus, mredconstant uint64) {
 
 	N := len(p1)
 	twomodulus := modulus << 1
@@ -763,19 +763,19 @@ func subthenmulscalarmontgomeryTwoModulusvec(p1, p2 []uint64, scalarMont uint64,
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p3)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p3[j]))
 
-		z[0] = MRed(twomodulus-y[0]+x[0], scalarMont, modulus, mrc)
-		z[1] = MRed(twomodulus-y[1]+x[1], scalarMont, modulus, mrc)
-		z[2] = MRed(twomodulus-y[2]+x[2], scalarMont, modulus, mrc)
-		z[3] = MRed(twomodulus-y[3]+x[3], scalarMont, modulus, mrc)
-		z[4] = MRed(twomodulus-y[4]+x[4], scalarMont, modulus, mrc)
-		z[5] = MRed(twomodulus-y[5]+x[5], scalarMont, modulus, mrc)
-		z[6] = MRed(twomodulus-y[6]+x[6], scalarMont, modulus, mrc)
-		z[7] = MRed(twomodulus-y[7]+x[7], scalarMont, modulus, mrc)
+		z[0] = MRed(twomodulus-y[0]+x[0], scalarMont, modulus, mredconstant)
+		z[1] = MRed(twomodulus-y[1]+x[1], scalarMont, modulus, mredconstant)
+		z[2] = MRed(twomodulus-y[2]+x[2], scalarMont, modulus, mredconstant)
+		z[3] = MRed(twomodulus-y[3]+x[3], scalarMont, modulus, mredconstant)
+		z[4] = MRed(twomodulus-y[4]+x[4], scalarMont, modulus, mredconstant)
+		z[5] = MRed(twomodulus-y[5]+x[5], scalarMont, modulus, mredconstant)
+		z[6] = MRed(twomodulus-y[6]+x[6], scalarMont, modulus, mredconstant)
+		z[7] = MRed(twomodulus-y[7]+x[7], scalarMont, modulus, mredconstant)
 
 	}
 }
 
-func mformvec(p1, p2 []uint64, modulus uint64, brc []uint64) {
+func mformvec(p1, p2 []uint64, modulus uint64, bredconstant [2]uint64) {
 
 	N := len(p1)
 
@@ -786,18 +786,18 @@ func mformvec(p1, p2 []uint64, modulus uint64, brc []uint64) {
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
-		z[0] = MForm(x[0], modulus, brc)
-		z[1] = MForm(x[1], modulus, brc)
-		z[2] = MForm(x[2], modulus, brc)
-		z[3] = MForm(x[3], modulus, brc)
-		z[4] = MForm(x[4], modulus, brc)
-		z[5] = MForm(x[5], modulus, brc)
-		z[6] = MForm(x[6], modulus, brc)
-		z[7] = MForm(x[7], modulus, brc)
+		z[0] = MForm(x[0], modulus, bredconstant)
+		z[1] = MForm(x[1], modulus, bredconstant)
+		z[2] = MForm(x[2], modulus, bredconstant)
+		z[3] = MForm(x[3], modulus, bredconstant)
+		z[4] = MForm(x[4], modulus, bredconstant)
+		z[5] = MForm(x[5], modulus, bredconstant)
+		z[6] = MForm(x[6], modulus, bredconstant)
+		z[7] = MForm(x[7], modulus, bredconstant)
 	}
 }
 
-func mformlazyvec(p1, p2 []uint64, modulus uint64, brc []uint64) {
+func mformlazyvec(p1, p2 []uint64, modulus uint64, bredconstant [2]uint64) {
 
 	N := len(p1)
 
@@ -808,18 +808,18 @@ func mformlazyvec(p1, p2 []uint64, modulus uint64, brc []uint64) {
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
-		z[0] = MFormLazy(x[0], modulus, brc)
-		z[1] = MFormLazy(x[1], modulus, brc)
-		z[2] = MFormLazy(x[2], modulus, brc)
-		z[3] = MFormLazy(x[3], modulus, brc)
-		z[4] = MFormLazy(x[4], modulus, brc)
-		z[5] = MFormLazy(x[5], modulus, brc)
-		z[6] = MFormLazy(x[6], modulus, brc)
-		z[7] = MFormLazy(x[7], modulus, brc)
+		z[0] = MFormLazy(x[0], modulus, bredconstant)
+		z[1] = MFormLazy(x[1], modulus, bredconstant)
+		z[2] = MFormLazy(x[2], modulus, bredconstant)
+		z[3] = MFormLazy(x[3], modulus, bredconstant)
+		z[4] = MFormLazy(x[4], modulus, bredconstant)
+		z[5] = MFormLazy(x[5], modulus, bredconstant)
+		z[6] = MFormLazy(x[6], modulus, bredconstant)
+		z[7] = MFormLazy(x[7], modulus, bredconstant)
 	}
 }
 
-func imformvec(p1, p2 []uint64, modulus, mrc uint64) {
+func imformvec(p1, p2 []uint64, modulus, mredconstant uint64) {
 
 	N := len(p1)
 
@@ -830,14 +830,14 @@ func imformvec(p1, p2 []uint64, modulus, mrc uint64) {
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2)%8 */
 		z := (*[8]uint64)(unsafe.Pointer(&p2[j]))
 
-		z[0] = IMForm(x[0], modulus, mrc)
-		z[1] = IMForm(x[1], modulus, mrc)
-		z[2] = IMForm(x[2], modulus, mrc)
-		z[3] = IMForm(x[3], modulus, mrc)
-		z[4] = IMForm(x[4], modulus, mrc)
-		z[5] = IMForm(x[5], modulus, mrc)
-		z[6] = IMForm(x[6], modulus, mrc)
-		z[7] = IMForm(x[7], modulus, mrc)
+		z[0] = IMForm(x[0], modulus, mredconstant)
+		z[1] = IMForm(x[1], modulus, mredconstant)
+		z[2] = IMForm(x[2], modulus, mredconstant)
+		z[3] = IMForm(x[3], modulus, mredconstant)
+		z[4] = IMForm(x[4], modulus, mredconstant)
+		z[5] = IMForm(x[5], modulus, mredconstant)
+		z[6] = IMForm(x[6], modulus, mredconstant)
+		z[7] = IMForm(x[7], modulus, mredconstant)
 	}
 }
 

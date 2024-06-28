@@ -52,12 +52,12 @@ func (eval Mod1Evaluator) EvaluateNew(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, er
 
 	evm := eval.Mod1Parameters
 
-	if ct.Level() < evm.LevelStart() {
-		return nil, fmt.Errorf("cannot Evaluate: ct.Level() < Mod1Parameters.LevelStart")
+	if ct.Level() < evm.LevelQ {
+		return nil, fmt.Errorf("cannot Evaluate: ct.Level() < Mod1Parameters.LevelQ")
 	}
 
-	if ct.Level() > evm.LevelStart() {
-		eval.DropLevel(ct, ct.Level()-evm.LevelStart())
+	if ct.Level() > evm.LevelQ {
+		eval.DropLevel(ct, ct.Level()-evm.LevelQ)
 	}
 
 	// Stores default scales
@@ -74,7 +74,7 @@ func (eval Mod1Evaluator) EvaluateNew(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, er
 
 	targetScale := ct.Scale
 	for i := 0; i < evm.doubleAngle; i++ {
-		targetScale = targetScale.Mul(rlwe.NewScale(Qi[evm.levelStart-evm.mod1Poly.Depth()-evm.doubleAngle+i+1]))
+		targetScale = targetScale.Mul(rlwe.NewScale(Qi[ct.Level()-evm.mod1Poly.Depth()-evm.doubleAngle+i+1]))
 		targetScale.Value.Sqrt(&targetScale.Value)
 	}
 

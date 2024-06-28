@@ -92,19 +92,19 @@ type ModUpConstants struct {
 // GenModUpConstants generates the ModUpConstants for basis extension from Q to P and P to Q.
 func GenModUpConstants(Q, P []uint64) ModUpConstants {
 
-	bredQ := make([][]uint64, len(Q))
+	bredQ := make([][2]uint64, len(Q))
 	mredQ := make([]uint64, len(Q))
-	bredP := make([][]uint64, len(P))
+	bredP := make([][2]uint64, len(P))
 	mredP := make([]uint64, len(P))
 
 	for i := range Q {
-		bredQ[i] = BRedConstant(Q[i])
-		mredQ[i] = MRedConstant(Q[i])
+		bredQ[i] = GenBRedConstant(Q[i])
+		mredQ[i] = GenMRedConstant(Q[i])
 	}
 
 	for i := range P {
-		bredP[i] = BRedConstant(P[i])
-		mredP[i] = MRedConstant(P[i])
+		bredP[i] = GenBRedConstant(P[i])
+		mredP[i] = GenMRedConstant(P[i])
 	}
 
 	qoverqiinvqi := make([]uint64, len(Q))
@@ -287,10 +287,10 @@ func ModUpExact(p1, p2 [][]uint64, ringQ, ringP *Ring, MUC ModUpConstants) {
 	levelP := len(p2) - 1
 
 	Q := ringQ.ModuliChain()
-	mredQ := ringQ.MRedConstants()
+	mredQ := ringQ.GetMRedConstants()
 
 	P := ringP.ModuliChain()
-	mredP := ringP.MRedConstants()
+	mredP := ringP.GetMRedConstants()
 
 	vtimesqmodp := MUC.vtimesqmodp
 	qoverqiinvqi := MUC.qoverqiinvqi
@@ -403,14 +403,14 @@ func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, BaseRNSDec
 		var pos, neg, coeff, tmp uint64
 
 		Q := ringQ.ModuliChain()
-		BRCQ := ringQ.BRedConstants()
+		BRCQ := ringQ.GetBRedConstants()
 
 		var P []uint64
-		var BRCP [][]uint64
+		var BRCP [][2]uint64
 
 		if ringP != nil {
 			P = ringP.ModuliChain()
-			BRCP = ringP.BRedConstants()
+			BRCP = ringP.GetBRedConstants()
 		}
 
 		for j := 0; j < N; j++ {
@@ -452,8 +452,8 @@ func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, BaseRNSDec
 
 		Q := ringQ.ModuliChain()
 		P := ringP.ModuliChain()
-		mredQ := ringQ.MRedConstants()
-		mredP := ringP.MRedConstants()
+		mredQ := ringQ.GetMRedConstants()
+		mredP := ringP.GetMRedConstants()
 		qoverqiinvqi := MUC.qoverqiinvqi
 		vtimesqmodp := MUC.vtimesqmodp
 		qoverqimodp := MUC.qoverqimodp
@@ -509,20 +509,20 @@ func reconstructRNSCentered(start, end, x int, p [][]uint64, v *[8]uint64, vi *[
 		qqiinv := qoverqiinvqi[i]
 		qi := Q[j]
 		qHalf := QHalfModqi[i]
-		mredConstant := mredQ[j]
+		GenMRedConstant := mredQ[j]
 		qif := float64(qi)
 
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p[j])%8 != 0 */
 		px := (*[8]uint64)(unsafe.Pointer(&p[j][x]))
 
-		y0[i] = MRed(px[0]+qHalf, qqiinv, qi, mredConstant)
-		y1[i] = MRed(px[1]+qHalf, qqiinv, qi, mredConstant)
-		y2[i] = MRed(px[2]+qHalf, qqiinv, qi, mredConstant)
-		y3[i] = MRed(px[3]+qHalf, qqiinv, qi, mredConstant)
-		y4[i] = MRed(px[4]+qHalf, qqiinv, qi, mredConstant)
-		y5[i] = MRed(px[5]+qHalf, qqiinv, qi, mredConstant)
-		y6[i] = MRed(px[6]+qHalf, qqiinv, qi, mredConstant)
-		y7[i] = MRed(px[7]+qHalf, qqiinv, qi, mredConstant)
+		y0[i] = MRed(px[0]+qHalf, qqiinv, qi, GenMRedConstant)
+		y1[i] = MRed(px[1]+qHalf, qqiinv, qi, GenMRedConstant)
+		y2[i] = MRed(px[2]+qHalf, qqiinv, qi, GenMRedConstant)
+		y3[i] = MRed(px[3]+qHalf, qqiinv, qi, GenMRedConstant)
+		y4[i] = MRed(px[4]+qHalf, qqiinv, qi, GenMRedConstant)
+		y5[i] = MRed(px[5]+qHalf, qqiinv, qi, GenMRedConstant)
+		y6[i] = MRed(px[6]+qHalf, qqiinv, qi, GenMRedConstant)
+		y7[i] = MRed(px[7]+qHalf, qqiinv, qi, GenMRedConstant)
 
 		// Computation of the correction term v * Q%pi
 		vi[0] += float64(y0[i]) / qif

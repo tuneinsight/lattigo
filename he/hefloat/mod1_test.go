@@ -47,7 +47,7 @@ func testMod1Marhsalling(t *testing.T) {
 	t.Run("Marshalling", func(t *testing.T) {
 
 		evm := hefloat.Mod1ParametersLiteral{
-			LevelStart:      12,
+			LevelQ:          12,
 			Mod1Type:        hefloat.SinContinuous,
 			LogMessageRatio: 8,
 			K:               14,
@@ -79,7 +79,7 @@ func testMod1(params hefloat.Parameters, t *testing.T) {
 	t.Run("SineContinuousWithArcSine", func(t *testing.T) {
 
 		evm := hefloat.Mod1ParametersLiteral{
-			LevelStart:      12,
+			LevelQ:          12,
 			Mod1Type:        hefloat.SinContinuous,
 			LogMessageRatio: 8,
 			K:               14,
@@ -96,7 +96,7 @@ func testMod1(params hefloat.Parameters, t *testing.T) {
 	t.Run("CosDiscrete", func(t *testing.T) {
 
 		evm := hefloat.Mod1ParametersLiteral{
-			LevelStart:      12,
+			LevelQ:          12,
 			Mod1Type:        hefloat.CosDiscrete,
 			LogMessageRatio: 8,
 			K:               12,
@@ -113,7 +113,7 @@ func testMod1(params hefloat.Parameters, t *testing.T) {
 	t.Run("CosContinuous", func(t *testing.T) {
 
 		evm := hefloat.Mod1ParametersLiteral{
-			LevelStart:      12,
+			LevelQ:          12,
 			Mod1Type:        hefloat.CosContinuous,
 			LogMessageRatio: 4,
 			K:               325,

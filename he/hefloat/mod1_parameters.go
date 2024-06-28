@@ -16,7 +16,7 @@ import (
 // Mod1Type is the type of function/approximation used to evaluate x mod 1.
 type Mod1Type uint64
 
-// Sin and Cos are the two proposed functions for Mod1Type.
+// Sin and Cos are the two proposed functions for [Mod1Type].
 // These trigonometric functions offer a good approximation of the function x mod 1 when the values are close to the origin.
 const (
 	CosDiscrete   = Mod1Type(0) // Special approximation (Han and Ki) of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r); this method requires a minimum degree of 2*(K-1).
@@ -26,10 +26,10 @@ const (
 
 // Mod1ParametersLiteral a struct for the parameters of the mod 1 procedure.
 // The x mod 1 procedure goal is to homomorphically evaluate a modular reduction by Q[0] (the first prime of the moduli chain) on the encrypted plaintext.
-// This struct is consumed by `NewMod1ParametersLiteralFromLiteral` to generate the `Mod1ParametersLiteral` struct, which notably stores
+// This struct is consumed by [NewMod1ParametersFromLiteral] to generate the [Mod1ParametersLiteral] struct, which notably stores
 // the coefficient of the polynomial approximating the function x mod Q[0].
 type Mod1ParametersLiteral struct {
-	LevelStart      int      // Starting level of x mod 1
+	LevelQ          int      // Starting level of x mod 1
 	LogScale        int      // Log2 of the scaling factor used during x mod 1
 	Mod1Type        Mod1Type // Chose between [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
 	Scaling         float64  // Value by which the output is scaled by
@@ -41,13 +41,13 @@ type Mod1ParametersLiteral struct {
 }
 
 // MarshalBinary returns a JSON representation of the the target Mod1ParametersLiteral struct on a slice of bytes.
-// See `Marshal` from the `encoding/json` package.
+// See Marshal from the [encoding/json] package.
 func (evm Mod1ParametersLiteral) MarshalBinary() (data []byte, err error) {
 	return json.Marshal(evm)
 }
 
 // UnmarshalBinary reads a JSON representation on the target Mod1ParametersLiteral struct.
-// See `Unmarshal` from the `encoding/json` package.
+// See Unmarshal from the [encoding/json] package.
 func (evm *Mod1ParametersLiteral) UnmarshalBinary(data []byte) (err error) {
 	return json.Unmarshal(data, evm)
 }
@@ -71,7 +71,7 @@ func (evm Mod1ParametersLiteral) Depth() (depth int) {
 
 // Mod1Parameters is a struct storing the parameters and polynomials approximating the function x mod Q[0] (the first prime of the moduli chain).
 type Mod1Parameters struct {
-	levelStart      int                // starting level of the operation
+	LevelQ          int                // starting level of the operation
 	LogDefaultScale int                // log2 of the default scaling factor
 	Mod1Type        Mod1Type           // type of approximation for the f: x mod 1 function
 	LogMessageRatio int                // Log2 of the ratio between Q0 and m, i.e. Q[0]/|m|
@@ -82,11 +82,6 @@ type Mod1Parameters struct {
 	mod1Poly        bignum.Polynomial  // Polynomial for f: x mod 1
 	mod1InvPoly     *bignum.Polynomial // Polynomial for f^-1: (x mod 1)^-1
 	k               float64            // interval [-k, k]
-}
-
-// LevelStart returns the starting level of the x mod 1.
-func (evp Mod1Parameters) LevelStart() int {
-	return evp.levelStart
 }
 
 // ScalingFactor returns scaling factor used during the x mod 1.
@@ -115,8 +110,8 @@ func (evp Mod1Parameters) QDiff() float64 {
 	return evp.qDiff
 }
 
-// NewMod1ParametersFromLiteral generates an Mod1Parameters struct from the Mod1ParametersLiteral struct.
-// The Mod1Parameters struct is to instantiates a Mod1Evaluator, which homomorphically evaluates x mod 1.
+// NewMod1ParametersFromLiteral generates an [Mod1Parameters] struct from the [Mod1ParametersLiteral] struct.
+// The [Mod1Parameters] struct is to instantiates a [Mod1Evaluator], which homomorphically evaluates x mod 1.
 func NewMod1ParametersFromLiteral(params Parameters, evm Mod1ParametersLiteral) (Mod1Parameters, error) {
 
 	var mod1InvPoly *bignum.Polynomial
@@ -220,7 +215,7 @@ func NewMod1ParametersFromLiteral(params Parameters, evm Mod1ParametersLiteral) 
 	}
 
 	return Mod1Parameters{
-		levelStart:      evm.LevelStart,
+		LevelQ:          evm.LevelQ,
 		LogDefaultScale: evm.LogScale,
 		Mod1Type:        evm.Mod1Type,
 		LogMessageRatio: evm.LogMessageRatio,

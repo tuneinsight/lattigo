@@ -199,7 +199,7 @@ func NTTSparseAndMontgomery(r *ring.Ring, metadata *MetaData, pol ring.Poly) {
 	} else {
 
 		var n int
-		var NTT func(p1, p2 []uint64, N int, Q, QInv uint64, BRedConstant, nttPsi []uint64)
+		var NTT func(p1, p2 []uint64, N int, Q, QInv uint64, BRedConstant [2]uint64, nttPsi []uint64)
 		switch r.Type() {
 		case ring.Standard:
 			n = 2 << metadata.LogDimensions.Cols

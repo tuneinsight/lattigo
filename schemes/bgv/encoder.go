@@ -129,7 +129,7 @@ func (ecd Encoder) GetRLWEParameters() *rlwe.Parameters {
 func (ecd Encoder) Encode(values IntegerSlice, pt *rlwe.Plaintext) (err error) {
 
 	if pt.IsBatched {
-		return ecd.Embed(values, true, pt.MetaData, pt.Value)
+		return ecd.EmbedScale(values, true, pt.MetaData, pt.Value)
 	} else {
 
 		ringT := ecd.parameters.RingT()
@@ -243,8 +243,8 @@ func (ecd Encoder) EncodeRingT(values IntegerSlice, scale rlwe.Scale, pT ring.Po
 // Embed is a generic method to encode an IntegerSlice on [ringqp.Poly] or *[ring.Poly].
 // If scaleUp is true, then the values will to be multiplied by PlaintextModulus^{-1} mod Q after being encoded on the polynomial.
 // Encoding is done according to the metadata.
-// Accepted polyOut.(type) are a [ringqp.Poly] and *[ring.Poly]
-func (ecd Encoder) Embed(values IntegerSlice, scaleUp bool, metadata *rlwe.MetaData, polyOut interface{}) (err error) {
+// Accepted polyOut.(type) are a ringqp.Poly and *ring.Poly
+func (ecd Encoder) EmbedScale(values IntegerSlice, scaleUp bool, metadata *rlwe.MetaData, polyOut interface{}) (err error) {
 
 	pT := ecd.bufT
 
@@ -310,7 +310,11 @@ func (ecd Encoder) Embed(values IntegerSlice, scaleUp bool, metadata *rlwe.MetaD
 	return
 }
 
-// DecodeRingT decodes a polynomial pT with coefficients modulo the plaintext modulu PlaintextModulus on an [InterSlice] at the given scale.
+func (ecd Encoder) Embed(values IntegerSlice, metadata *rlwe.MetaData, polyOut interface{}) (err error) {
+	return ecd.EmbedScale(values, false, metadata, polyOut)
+}
+
+// DecodeRingT decodes a polynomial pT with coefficients modulo the plaintext modulu PlaintextModulus on an InterSlice at the given scale.
 func (ecd Encoder) DecodeRingT(pT ring.Poly, scale rlwe.Scale, values IntegerSlice) (err error) {
 	ringT := ecd.parameters.RingT()
 	ringT.MulScalar(pT, ring.ModExp(scale.Uint64(), ringT.SubRings[0].Modulus-2, ringT.SubRings[0].Modulus), ecd.bufT)

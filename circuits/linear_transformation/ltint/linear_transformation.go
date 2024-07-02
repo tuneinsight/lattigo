@@ -1,29 +1,21 @@
-package heint
+package ltint
 
 import (
+	"github.com/tuneinsight/lattigo/v5/circuits/linear_transformation"
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/he"
-	"github.com/tuneinsight/lattigo/v5/ring"
-	"github.com/tuneinsight/lattigo/v5/ring/ringqp"
+	"github.com/tuneinsight/lattigo/v5/schemes"
+	"github.com/tuneinsight/lattigo/v5/schemes/bgv"
 	"github.com/tuneinsight/lattigo/v5/utils"
 )
 
-type intEncoder[T Integer, U ring.Poly | ringqp.Poly | *rlwe.Plaintext] struct {
-	*Encoder
-}
-
-func (e intEncoder[T, U]) Encode(values []T, metadata *rlwe.MetaData, output U) (err error) {
-	return e.Embed(values, metadata, output)
-}
-
 // Diagonals is a wrapper of [he.Diagonals].
 // See [he.Diagonals] for the documentation.
-type Diagonals[T Integer] he.Diagonals[T]
+type Diagonals[T bgv.Integer] linear_transformation.Diagonals[T]
 
 // DiagonalsIndexList returns the list of the non-zero diagonals of the square matrix.
 // A non zero diagonals is a diagonal with a least one non-zero element.
 func (m Diagonals[T]) DiagonalsIndexList() (indexes []int) {
-	return he.Diagonals[T](m).DiagonalsIndexList()
+	return linear_transformation.Diagonals[T](m).DiagonalsIndexList()
 }
 
 // Evaluate evaluates the linear transformation on the provided vector.
@@ -35,9 +27,9 @@ func (m Diagonals[T]) Evaluate(vector []T, newVec func(size int) []T, add func(a
 
 	keys := utils.GetKeys(m)
 
-	N1 := he.FindBestBSGSRatio(keys, slots, 1)
+	N1 := linear_transformation.FindBestBSGSRatio(keys, slots, 1)
 
-	index, _, _ := he.BSGSIndex(keys, slots, N1)
+	index, _, _ := linear_transformation.BSGSIndex(keys, slots, N1)
 
 	res = newVec(2 * slots)
 
@@ -67,7 +59,7 @@ func (m Diagonals[T]) Evaluate(vector []T, newVec func(size int) []T, add func(a
 
 // PermutationMapping is a struct storing
 // a mapping: From -> To and a scaling value.
-type PermutationMapping[T Integer] struct {
+type PermutationMapping[T bgv.Integer] struct {
 	From    int
 	To      int
 	Scaling T
@@ -80,7 +72,7 @@ type PermutationMapping[T Integer] struct {
 // be mapped to [[1b, 2a] [3c, 4d]] then the Permutation would
 // contain the following map:
 // {{0:{1, 2}, 1:{0: 1}}, {0:{0, 3}: 1:{1, 4}}}
-type Permutation[T Integer] [2][]PermutationMapping[T]
+type Permutation[T bgv.Integer] [2][]PermutationMapping[T]
 
 // GetDiagonals returns the non-zero diagonals of the matrix
 // representation of the permutation, which can be used to
@@ -114,52 +106,54 @@ func (p Permutation[T]) GetDiagonals(logSlots int) Diagonals[T] {
 	return Diagonals[T](diagonals)
 }
 
-// LinearTransformationParameters is a wrapper of [he.LinearTransformationParameters].
-// See [he.LinearTransformationParameters] for the documentation.
-type LinearTransformationParameters he.LinearTransformationParameters
+// LinearTransformationParameters is a wrapper of he.LinearTransformationParameters.
+// See he.LinearTransformationParameters for the documentation.
+type LinearTransformationParameters linear_transformation.LinearTransformationParameters
 
 // LinearTransformation is a wrapper of [he.LinearTransformation].
 // See [he.LinearTransformation] for the documentation.
-type LinearTransformation he.LinearTransformation
+type LinearTransformation linear_transformation.LinearTransformation
 
 // GaloisElements returns the list of Galois elements required to evaluate the linear transformation.
 func (lt LinearTransformation) GaloisElements(params rlwe.ParameterProvider) []uint64 {
-	return he.LinearTransformation(lt).GaloisElements(params)
+	return linear_transformation.LinearTransformation(lt).GaloisElements(params)
 }
 
 // NewLinearTransformation instantiates a new [LinearTransformation] and is a wrapper of [he.LinearTransformation].
 // See he.LinearTransformation for the documentation.
 func NewLinearTransformation(params rlwe.ParameterProvider, lt LinearTransformationParameters) LinearTransformation {
-	return LinearTransformation(he.NewLinearTransformation(params, he.LinearTransformationParameters(lt)))
+	return LinearTransformation(linear_transformation.NewLinearTransformation(params, linear_transformation.LinearTransformationParameters(lt)))
 }
 
 // EncodeLinearTransformation is a method used to encode EncodeLinearTransformation and a wrapper of [he.EncodeLinearTransformation].
 // See [he.EncodeLinearTransformation] for the documentation.
-func EncodeLinearTransformation[T Integer](ecd *Encoder, diagonals Diagonals[T], allocated LinearTransformation) (err error) {
-	return he.EncodeLinearTransformation[T](
-		&intEncoder[T, ringqp.Poly]{ecd},
-		he.Diagonals[T](diagonals),
-		he.LinearTransformation(allocated))
+func EncodeLinearTransformation[T bgv.Integer](ecd schemes.Encoder, diagonals Diagonals[T], allocated LinearTransformation) (err error) {
+	return linear_transformation.EncodeLinearTransformation(
+		ecd,
+		linear_transformation.Diagonals[T](diagonals),
+		linear_transformation.LinearTransformation(allocated))
 }
 
-// GaloisElementsForLinearTransformation returns the list of Galois elements required to evaluate the linear transformation.
-func GaloisElementsForLinearTransformation(params rlwe.ParameterProvider, lt LinearTransformationParameters) (galEls []uint64) {
-	return he.GaloisElementsForLinearTransformation(params, lt.DiagonalsIndexList, 1<<lt.LogDimensions.Cols, lt.LogBabyStepGianStepRatio)
-}
+// // GaloisElementsForLinearTransformation returns the list of Galois elements required to evaluate the linear transformation.
+// func GaloisElementsForLinearTransformation(params rlwe.ParameterProvider, lt LinearTransformationParameters) (galEls []uint64) {
+// 	return linear_transformation.GaloisElementsForLinearTransformation(params, lt.DiagonalsIndexList, 1<<lt.LogDimensions.Cols, lt.LogBabyStepGianStepRatio)
+// }
 
 // LinearTransformationEvaluator is a struct for evaluating linear transformations on [rlwe.Ciphertexts].
 // All fields of this struct are public, enabling custom instantiations.
 type LinearTransformationEvaluator struct {
-	he.EvaluatorForLinearTransformation
-	he.EvaluatorForDiagonalMatrix
+	linear_transformation.LinearTransformationEvaluator
+	//he.EvaluatorForLinearTransformation
+	// he.EvaluatorForDiagonalMatrix
 }
 
 // NewLinearTransformationEvaluator instantiates a new [LinearTransformationEvaluator] from a circuit.EvaluatorForLinearTransformation.
 // The default [heint.Evaluator] is compliant to the circuit.EvaluatorForLinearTransformation interface.
-func NewLinearTransformationEvaluator(eval he.EvaluatorForLinearTransformation) (linTransEval *LinearTransformationEvaluator) {
+func NewLinearTransformationEvaluator(eval schemes.Evaluator) (linTransEval *LinearTransformationEvaluator) {
 	return &LinearTransformationEvaluator{
-		EvaluatorForLinearTransformation: eval,
-		EvaluatorForDiagonalMatrix:       &defaultDiagonalMatrixEvaluator{eval},
+		linear_transformation.LinearTransformationEvaluator{
+			Evaluator: eval,
+		},
 	}
 }
 
@@ -174,7 +168,7 @@ func (eval LinearTransformationEvaluator) EvaluateNew(ctIn *rlwe.Ciphertext, lin
 
 // Evaluate takes as input a ciphertext ctIn, a linear transformation M and evaluates opOut: M(ctIn).
 func (eval LinearTransformationEvaluator) Evaluate(ctIn *rlwe.Ciphertext, linearTransformation LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
-	return he.EvaluateLinearTransformationsMany(eval.EvaluatorForLinearTransformation, eval.EvaluatorForDiagonalMatrix, ctIn, []he.LinearTransformation{he.LinearTransformation(linearTransformation)}, []*rlwe.Ciphertext{opOut})
+	return eval.EvaluateLinearTransformationsMany(ctIn, []linear_transformation.LinearTransformation{linear_transformation.LinearTransformation(linearTransformation)}, []*rlwe.Ciphertext{opOut})
 }
 
 // EvaluateManyNew takes as input a ciphertext ctIn and a list of linear transformations [M0, M1, M2, ...] and returns opOut:[M0(ctIn), M1(ctIn), M2(ctInt), ...].
@@ -190,11 +184,11 @@ func (eval LinearTransformationEvaluator) EvaluateManyNew(ctIn *rlwe.Ciphertext,
 // EvaluateMany takes as input a ciphertext ctIn, a list of linear transformations [M0, M1, M2, ...] and a list of pre-allocated receiver opOut
 // and evaluates opOut: [M0(ctIn), M1(ctIn), M2(ctIn), ...]
 func (eval LinearTransformationEvaluator) EvaluateMany(ctIn *rlwe.Ciphertext, linearTransformations []LinearTransformation, opOut []*rlwe.Ciphertext) (err error) {
-	circuitLTs := make([]he.LinearTransformation, len(linearTransformations))
+	circuitLTs := make([]linear_transformation.LinearTransformation, len(linearTransformations))
 	for i := range circuitLTs {
-		circuitLTs[i] = he.LinearTransformation(linearTransformations[i])
+		circuitLTs[i] = linear_transformation.LinearTransformation(linearTransformations[i])
 	}
-	return he.EvaluateLinearTransformationsMany(eval.EvaluatorForLinearTransformation, eval.EvaluatorForDiagonalMatrix, ctIn, circuitLTs, opOut)
+	return eval.EvaluateLinearTransformationsMany(ctIn, circuitLTs, opOut)
 }
 
 // EvaluateSequentialNew takes as input a ciphertext ctIn and a list of linear transformations [M0, M1, M2, ...] and returns opOut:...M2(M1(M0(ctIn))
@@ -205,41 +199,41 @@ func (eval LinearTransformationEvaluator) EvaluateSequentialNew(ctIn *rlwe.Ciphe
 
 // EvaluateSequential takes as input a ciphertext ctIn and a list of linear transformations [M0, M1, M2, ...] and returns opOut:...M2(M1(M0(ctIn))
 func (eval LinearTransformationEvaluator) EvaluateSequential(ctIn *rlwe.Ciphertext, linearTransformations []LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
-	circuitLTs := make([]he.LinearTransformation, len(linearTransformations))
+	circuitLTs := make([]linear_transformation.LinearTransformation, len(linearTransformations))
 	for i := range circuitLTs {
-		circuitLTs[i] = he.LinearTransformation(linearTransformations[i])
+		circuitLTs[i] = linear_transformation.LinearTransformation(linearTransformations[i])
 	}
-	return he.EvaluateLinearTransformationSequential(eval.EvaluatorForLinearTransformation, eval.EvaluatorForDiagonalMatrix, ctIn, circuitLTs, opOut)
+	return eval.EvaluateLinearTranformationSequential(ctIn, circuitLTs, opOut)
 }
 
-// defaultDiagonalMatrixEvaluator is a struct implementing the interface [he.EvaluatorForDiagonalMatrix].
-type defaultDiagonalMatrixEvaluator struct {
-	he.EvaluatorForLinearTransformation
-}
+// // defaultDiagonalMatrixEvaluator is a struct implementing the interface [he.EvaluatorForDiagonalMatrix].
+// type defaultDiagonalMatrixEvaluator struct {
+// 	he.EvaluatorForLinearTransformation
+// }
 
-// Decompose applies the RNS decomposition on ct[1] at the given level and stores the result in BuffDecompQP.
-func (eval defaultDiagonalMatrixEvaluator) Decompose(levelQ, levelP int, ct *rlwe.Ciphertext, BuffDecompQP []ringqp.Poly) {
-	eval.DecomposeNTT(levelQ, levelP, levelP+1, ct.Value[1], ct.IsNTT, BuffDecompQP)
-}
+// // Decompose applies the RNS decomposition on ct[1] at the given level and stores the result in BuffDecompQP.
+// func (eval defaultDiagonalMatrixEvaluator) Decompose(levelQ, levelP int, ct *rlwe.Ciphertext, BuffDecompQP []ringqp.Poly) {
+// 	eval.DecomposeNTT(levelQ, levelP, levelP+1, ct.Value[1], ct.IsNTT, BuffDecompQP)
+// }
 
-// GetPreRotatedCiphertextForDiagonalMatrixMultiplication populates ctPreRot with the pre-rotated ciphertext for the rotations rots and deletes rotated ciphertexts that are not in rots.
-func (eval defaultDiagonalMatrixEvaluator) GetPreRotatedCiphertextForDiagonalMatrixMultiplication(levelQ, levelP int, ctIn *rlwe.Ciphertext, BuffDecompQP []ringqp.Poly, rots []int, ctPreRot map[int]*rlwe.Element[ringqp.Poly]) (err error) {
-	return he.GetPreRotatedCiphertextForDiagonalMatrixMultiplication(levelQ, levelP, eval, ctIn, BuffDecompQP, rots, ctPreRot)
-}
+// // GetPreRotatedCiphertextForDiagonalMatrixMultiplication populates ctPreRot with the pre-rotated ciphertext for the rotations rots and deletes rotated ciphertexts that are not in rots.
+// func (eval defaultDiagonalMatrixEvaluator) GetPreRotatedCiphertextForDiagonalMatrixMultiplication(levelQ, levelP int, ctIn *rlwe.Ciphertext, BuffDecompQP []ringqp.Poly, rots []int, ctPreRot map[int]*rlwe.Element[ringqp.Poly]) (err error) {
+// 	return he.GetPreRotatedCiphertextForDiagonalMatrixMultiplication(levelQ, levelP, eval, ctIn, BuffDecompQP, rots, ctPreRot)
+// }
 
-// MultiplyByDiagMatrix multiplies the Ciphertext ctIn by the plaintext matrix and returns the result on the Ciphertext
-// opOut. Memory buffers for the decomposed ciphertext BuffDecompQP, BuffDecompQP must be provided, those are list of poly of ringQ and ringP
-// respectively, each of size params.Beta().
-// The naive approach is used (single hoisting and no baby-step giant-step), which is faster than MultiplyByDiagMatrixBSGS
-// for matrix of only a few non-zero diagonals but uses more keys.
-func (eval defaultDiagonalMatrixEvaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix he.LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error) {
-	return he.MultiplyByDiagMatrix(eval.EvaluatorForLinearTransformation, ctIn, matrix, BuffDecompQP, opOut)
-}
+// // MultiplyByDiagMatrix multiplies the Ciphertext ctIn by the plaintext matrix and returns the result on the Ciphertext
+// // opOut. Memory buffers for the decomposed ciphertext BuffDecompQP, BuffDecompQP must be provided, those are list of poly of ringQ and ringP
+// // respectively, each of size params.Beta().
+// // The naive approach is used (single hoisting and no baby-step giant-step), which is faster than MultiplyByDiagMatrixBSGS
+// // for matrix of only a few non-zero diagonals but uses more keys.
+// func (eval defaultDiagonalMatrixEvaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix he.LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error) {
+// 	return he.MultiplyByDiagMatrix(eval.EvaluatorForLinearTransformation, ctIn, matrix, BuffDecompQP, opOut)
+// }
 
-// MultiplyByDiagMatrixBSGS multiplies the Ciphertext ctIn by the plaintext matrix and returns the result on the Ciphertext opOut.
-// ctInPreRotated can be obtained with GetPreRotatedCiphertextForDiagonalMatrixMultiplication.
-// The BSGS approach is used (double hoisting with baby-step giant-step), which is faster than MultiplyByDiagMatrix
-// for matrix with more than a few non-zero diagonals and uses significantly less keys.
-func (eval defaultDiagonalMatrixEvaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix he.LinearTransformation, ctPreRot map[int]*rlwe.Element[ringqp.Poly], opOut *rlwe.Ciphertext) (err error) {
-	return he.MultiplyByDiagMatrixBSGS(eval.EvaluatorForLinearTransformation, ctIn, matrix, ctPreRot, opOut)
-}
+// // MultiplyByDiagMatrixBSGS multiplies the Ciphertext ctIn by the plaintext matrix and returns the result on the Ciphertext opOut.
+// // ctInPreRotated can be obtained with GetPreRotatedCiphertextForDiagonalMatrixMultiplication.
+// // The BSGS approach is used (double hoisting with baby-step giant-step), which is faster than MultiplyByDiagMatrix
+// // for matrix with more than a few non-zero diagonals and uses significantly less keys.
+// func (eval defaultDiagonalMatrixEvaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix he.LinearTransformation, ctPreRot map[int]*rlwe.Element[ringqp.Poly], opOut *rlwe.Ciphertext) (err error) {
+// 	return he.MultiplyByDiagMatrixBSGS(eval.EvaluatorForLinearTransformation, ctIn, matrix, ctPreRot, opOut)
+// }

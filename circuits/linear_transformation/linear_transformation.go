@@ -76,7 +76,7 @@ type LinearTransformationParameters struct {
 	// can be reduced by increasing the ratio (at the expanse of increasing the number of keys required).
 	// If the value returned is negative, then the baby-step giant-step algorithm is not used
 	// and the evaluation complexity (as well as the number of keys) becomes O(n) instead of O(sqrt(n)).
-	LogBabyStepGianStepRatio int
+	LogBabyStepGiantStepRatio int
 }
 
 type Diagonals[T any] map[int][]T
@@ -125,16 +125,16 @@ func (m Diagonals[T]) At(i, slots int) ([]T, error) {
 // ciphertext using a LinearTransformationEvaluator.
 type LinearTransformation struct {
 	*rlwe.MetaData
-	LogBabyStepGianStepRatio int
-	N1                       int
-	LevelQ                   int
-	LevelP                   int
-	Vec                      map[int]ringqp.Poly
+	LogBabyStepGiantStepRatio int
+	N1                        int
+	LevelQ                    int
+	LevelP                    int
+	Vec                       map[int]ringqp.Poly
 }
 
 // GaloisElements returns the list of Galois elements needed for the evaluation of the linear transformation.
 func (lt LinearTransformation) GaloisElements(params rlwe.ParameterProvider) (galEls []uint64) {
-	return GaloisElementsForLinearTransformation(params, utils.GetKeys(lt.Vec), 1<<lt.LogDimensions.Cols, lt.LogBabyStepGianStepRatio)
+	return GaloisElementsForLinearTransformation(params, utils.GetKeys(lt.Vec), 1<<lt.LogDimensions.Cols, lt.LogBabyStepGiantStepRatio)
 }
 
 // BSGSIndex returns the BSGSIndex of the target linear transformation.
@@ -149,7 +149,7 @@ func NewLinearTransformation(params rlwe.ParameterProvider, ltparams LinearTrans
 
 	vec := make(map[int]ringqp.Poly)
 	cols := 1 << ltparams.LogDimensions.Cols
-	logBabyStepGianStepRatio := ltparams.LogBabyStepGianStepRatio
+	logBabyStepGiantStepRatio := ltparams.LogBabyStepGiantStepRatio
 	levelQ := ltparams.LevelQ
 	levelP := ltparams.LevelP
 	ringQP := p.RingQP().AtLevel(levelQ, levelP)
@@ -157,7 +157,7 @@ func NewLinearTransformation(params rlwe.ParameterProvider, ltparams LinearTrans
 	diagslislt := ltparams.DiagonalsIndexList
 
 	var N1 int
-	if logBabyStepGianStepRatio < 0 {
+	if logBabyStepGiantStepRatio < 0 {
 		N1 = 0
 		for _, i := range diagslislt {
 			idx := i
@@ -167,7 +167,7 @@ func NewLinearTransformation(params rlwe.ParameterProvider, ltparams LinearTrans
 			vec[idx] = ringQP.NewPoly()
 		}
 	} else {
-		N1 = FindBestBSGSRatio(diagslislt, cols, logBabyStepGianStepRatio)
+		N1 = FindBestBSGSRatio(diagslislt, cols, logBabyStepGiantStepRatio)
 		index, _, _ := BSGSIndex(diagslislt, cols, N1)
 		for j := range index {
 			for _, i := range index[j] {
@@ -189,12 +189,12 @@ func NewLinearTransformation(params rlwe.ParameterProvider, ltparams LinearTrans
 	}
 
 	return LinearTransformation{
-		MetaData:                 metadata,
-		LogBabyStepGianStepRatio: logBabyStepGianStepRatio,
-		N1:                       N1,
-		LevelQ:                   levelQ,
-		LevelP:                   levelP,
-		Vec:                      vec,
+		MetaData:                  metadata,
+		LogBabyStepGiantStepRatio: logBabyStepGiantStepRatio,
+		N1:                        N1,
+		LevelQ:                    levelQ,
+		LevelP:                    levelP,
+		Vec:                       vec,
 	}
 }
 

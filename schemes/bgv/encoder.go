@@ -126,7 +126,7 @@ func (ecd Encoder) GetRLWEParameters() *rlwe.Parameters {
 
 // Encode encodes an [IntegerSlice] of size at most N, where N is the smallest value satisfying PlaintextModulus = 1 mod 2N,
 // on a pre-allocated plaintext.
-func (ecd Encoder) Encode(values IntegerSlice, pt *rlwe.Plaintext) (err error) {
+func (ecd Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 
 	if pt.IsBatched {
 		return ecd.EmbedScale(values, true, pt.MetaData, pt.Value)
@@ -310,7 +310,7 @@ func (ecd Encoder) EmbedScale(values IntegerSlice, scaleUp bool, metadata *rlwe.
 	return
 }
 
-func (ecd Encoder) Embed(values IntegerSlice, metadata *rlwe.MetaData, polyOut interface{}) (err error) {
+func (ecd Encoder) Embed(values interface{}, metadata *rlwe.MetaData, polyOut interface{}) (err error) {
 	return ecd.EmbedScale(values, false, metadata, polyOut)
 }
 
@@ -432,7 +432,7 @@ func (ecd Encoder) RingQ2T(level int, scaleDown bool, pQ, pT ring.Poly) {
 }
 
 // Decode decodes a plaintext on an IntegerSlice mod PlaintextModulus of size at most N, where N is the smallest value satisfying PlaintextModulus = 1 mod 2N.
-func (ecd Encoder) Decode(pt *rlwe.Plaintext, values IntegerSlice) (err error) {
+func (ecd Encoder) Decode(pt *rlwe.Plaintext, values interface{}) (err error) {
 
 	bufT := ecd.bufT
 

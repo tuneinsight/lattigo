@@ -130,7 +130,7 @@ func EncodeLinearTransformation[T ckks.Float](ecd schemes.Encoder, diagonals Dia
 
 // // GaloisElementsForLinearTransformation returns the list of Galois elements required to evaluate the linear transformation.
 func GaloisElementsForLinearTransformation(params rlwe.ParameterProvider, lt LinearTransformationParameters) (galEls []uint64) {
-	return linear_transformation.GaloisElementsForLinearTransformation(params, lt.DiagonalsIndexList, 1<<lt.LogDimensions.Cols, lt.LogBabyStepGianStepRatio)
+	return linear_transformation.GaloisElementsForLinearTransformation(params, lt.DiagonalsIndexList, 1<<lt.LogDimensions.Cols, lt.LogBabyStepGiantStepRatio)
 }
 
 // LinearTransformationEvaluator is an evaluator providing an API to evaluate linear transformations on [rlwe.Ciphertexts].

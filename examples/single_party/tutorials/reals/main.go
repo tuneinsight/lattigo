@@ -6,6 +6,7 @@ import (
 	"math/rand"
 
 	"github.com/tuneinsight/lattigo/v5/circuits/linear_transformation/ltfloat"
+	"github.com/tuneinsight/lattigo/v5/circuits/polynomial/polyfloat"
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 	"github.com/tuneinsight/lattigo/v5/he/hefloat"
 	"github.com/tuneinsight/lattigo/v5/utils"
@@ -562,7 +563,7 @@ func main() {
 		panic(err)
 	}
 
-	polyEval := hefloat.NewPolynomialEvaluator(params, eval)
+	polyEval := polyfloat.NewPolynomialEvaluator(params.Parameters, eval)
 
 	// And we evaluate this polynomial on the ciphertext
 	// The last argument, `params.DefaultScale()` is the scale that we want the ciphertext
@@ -673,12 +674,12 @@ func main() {
 	// But a user is free to use any struct compliant to this interface.
 	// See the definition of the interface for more information about the parameters.
 	ltparams := ltfloat.LinearTransformationParameters{
-		DiagonalsIndexList:       diagonals.DiagonalsIndexList(),
-		LevelQ:                   ct1.Level(),
-		LevelP:                   params.MaxLevelP(),
-		Scale:                    rlwe.NewScale(params.Q()[ct1.Level()]),
-		LogDimensions:            ct1.LogDimensions,
-		LogBabyStepGianStepRatio: 1,
+		DiagonalsIndexList:        diagonals.DiagonalsIndexList(),
+		LevelQ:                    ct1.Level(),
+		LevelP:                    params.MaxLevelP(),
+		Scale:                     rlwe.NewScale(params.Q()[ct1.Level()]),
+		LogDimensions:             ct1.LogDimensions,
+		LogBabyStepGiantStepRatio: 1,
 	}
 
 	// We allocated the rlwe.LinearTransformation.

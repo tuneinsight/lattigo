@@ -162,7 +162,7 @@ func (m PlaintextMetaData) BinarySize() int {
 	return 61 + m.Scale.BinarySize()
 }
 
-// [WriteTo] writes the object on an [io.Writer]. It implements the [io.WriterTo]
+// WriteTo writes the object on an [io.Writer]. It implements the [io.WriterTo]
 // interface, and will write exactly object.BinarySize() bytes on w.
 //
 // Unless w implements the [buffer.Writer] interface (see lattigo/utils/buffer/writer.go),
@@ -282,7 +282,7 @@ func (m *CiphertextMetaData) BinarySize() int {
 	return 38
 }
 
-// [WriteTo] writes the object on an [io.Writer]. It implements the [io.WriterTo]
+// WriteTo writes the object on an [io.Writer]. It implements the [io.WriterTo]
 // interface, and will write exactly object.BinarySize() bytes on w.
 //
 // Unless w implements the [buffer.Writer] interface (see lattigo/utils/buffer/writer.go),

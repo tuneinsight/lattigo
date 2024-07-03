@@ -3,86 +3,23 @@ package ltint
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
-	"math"
 	"math/rand"
 	"runtime"
-	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/ring"
-	"github.com/tuneinsight/lattigo/v5/schemes"
 	"github.com/tuneinsight/lattigo/v5/schemes/bgv"
 	"github.com/tuneinsight/lattigo/v5/utils/sampling"
 )
 
-type testContext struct {
-	params      bgv.Parameters
-	ringQ       *ring.Ring
-	ringT       *ring.Ring
-	prng        sampling.PRNG
-	uSampler    *ring.UniformSampler
-	encoder     schemes.Encoder
-	kgen        *rlwe.KeyGenerator
-	sk          *rlwe.SecretKey
-	pk          *rlwe.PublicKey
-	encryptorPk *rlwe.Encryptor
-	encryptorSk *rlwe.Encryptor
-	decryptor   *rlwe.Decryptor
-	evaluator   *bgv.Evaluator
-	testLevel   []int
-}
-
-func genTestParams(params bgv.Parameters) (tc *testContext, err error) {
-
-	tc = new(testContext)
-	tc.params = params
-
-	if tc.prng, err = sampling.NewPRNG(); err != nil {
-		return nil, err
-	}
-
-	tc.ringQ = params.RingQ()
-	tc.ringT = params.RingT()
-
-	tc.uSampler = ring.NewUniformSampler(tc.prng, tc.ringT)
-	tc.kgen = rlwe.NewKeyGenerator(tc.params)
-	tc.sk, tc.pk = tc.kgen.GenKeyPairNew()
-	tc.encoder = bgv.NewEncoder(tc.params)
-
-	tc.encryptorPk = rlwe.NewEncryptor(tc.params, tc.pk)
-	tc.encryptorSk = rlwe.NewEncryptor(tc.params, tc.sk)
-	tc.decryptor = rlwe.NewDecryptor(tc.params, tc.sk)
-	tc.evaluator = bgv.NewEvaluator(tc.params, rlwe.NewMemEvaluationKeySet(tc.kgen.GenRelinearizationKeyNew(tc.sk)))
-
-	tc.testLevel = []int{0, params.MaxLevel()}
-
-	return
-}
-
-var flagPrintNoise = flag.Bool("print-noise", false, "print the residual noise")
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short.")
 
-func GetTestName(opname string, p bgv.Parameters, lvl int) string {
-	return fmt.Sprintf("%s/LogN=%d/logQ=%d/logP=%d/LogSlots=%dx%d/logT=%d/Qi=%d/Pi=%d/lvl=%d",
-		opname,
-		p.LogN(),
-		int(math.Round(p.LogQ())),
-		int(math.Round(p.LogP())),
-		p.LogMaxDimensions().Rows,
-		p.LogMaxDimensions().Cols,
-		int(math.Round(p.LogT())),
-		p.QCount(),
-		p.PCount(),
-		lvl)
-}
-
-func TestPolynomialEvaluator(t *testing.T) {
+func TestLinearTransformation(t *testing.T) {
 	var err error
 
-	paramsLiterals := schemes.BgvTestParams
+	paramsLiterals := bgv.TestParams
 
 	if *flagParamString != "" {
 		var jsonParams bgv.ParametersLiteral
@@ -94,23 +31,12 @@ func TestPolynomialEvaluator(t *testing.T) {
 
 	for _, p := range paramsLiterals[:] {
 
-		for _, plaintextModulus := range schemes.BgvTestPlaintextModulus[:] {
-
+		for _, plaintextModulus := range bgv.TestPlaintextModulus[:] {
 			p.PlaintextModulus = plaintextModulus
 
-			var params bgv.Parameters
-			if params, err = bgv.NewParametersFromLiteral(p); err != nil {
-				t.Error(err)
-				t.Fail()
-			}
+			tc := bgv.NewTestContext(p)
 
-			var tc *testContext
-			if tc, err = genTestParams(params); err != nil {
-				t.Error(err)
-				t.Fail()
-			}
-
-			for _, testSet := range []func(tc *testContext, t *testing.T){
+			for _, testSet := range []func(tc *bgv.TestContext, t *testing.T){
 				run,
 			} {
 				testSet(tc, t)
@@ -120,30 +46,26 @@ func TestPolynomialEvaluator(t *testing.T) {
 	}
 }
 
-func run(tc *testContext, t *testing.T) {
-	rT := tc.params.RingT().SubRings[0]
+func run(tc *bgv.TestContext, t *testing.T) {
+	rT := tc.Params.RingT().SubRings[0]
 
 	add := func(a, b, c []uint64) {
 		rT.Add(a, b, c)
 	}
-
 	muladd := func(a, b, c []uint64) {
 		rT.MulCoeffsBarrettThenAdd(a, b, c)
 	}
-
 	newVec := func(size int) (vec []uint64) {
 		return make([]uint64, size)
 	}
 
-	params := tc.params
+	params := tc.Params
 
 	T := params.PlaintextModulus()
 
-	level := tc.params.MaxLevel()
+	t.Run("Evaluator/LinearTransformationBSGS=true/"+tc.String(), func(t *testing.T) {
 
-	t.Run(GetTestName("Evaluator/LinearTransformationBSGS=true", params, level), func(t *testing.T) {
-
-		values, _, ciphertext := newTestVectorsLvl(level, params.DefaultScale(), tc, tc.encryptorSk)
+		values, _, ciphertext := bgv.NewTestVector(params, tc.Ecd, tc.Enc, params.MaxLevel(), params.DefaultScale())
 
 		slots := ciphertext.Slots()
 
@@ -161,7 +83,7 @@ func run(tc *testContext, t *testing.T) {
 			DiagonalsIndexList:        diagonals.DiagonalsIndexList(),
 			LevelQ:                    ciphertext.Level(),
 			LevelP:                    params.MaxLevelP(),
-			Scale:                     tc.params.DefaultScale(),
+			Scale:                     tc.Params.DefaultScale(),
 			LogDimensions:             ciphertext.LogDimensions,
 			LogBabyStepGiantStepRatio: 1,
 		}
@@ -170,23 +92,23 @@ func run(tc *testContext, t *testing.T) {
 		linTransf := NewLinearTransformation(params, ltparams)
 
 		// Encode on the linear transformation
-		require.NoError(t, EncodeLinearTransformation(tc.encoder, diagonals, linTransf))
+		require.NoError(t, EncodeLinearTransformation(tc.Ecd, diagonals, linTransf))
 
 		galEls := linTransf.GaloisElements(params)
 
-		eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...))
+		eval := tc.Evl.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.Kgen.GenGaloisKeysNew(galEls, tc.Sk)...))
 		ltEval := NewLinearTransformationEvaluator(eval)
 
 		require.NoError(t, ltEval.Evaluate(ciphertext, linTransf, ciphertext))
 
-		values.Coeffs[0] = diagonals.Evaluate(values.Coeffs[0], newVec, add, muladd)
+		values = diagonals.Evaluate(values, newVec, add, muladd)
 
-		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
+		bgv.VerifyTestVectors(params, tc.Ecd, tc.Dec, ciphertext, values, t)
 	})
 
-	t.Run(GetTestName("Evaluator/LinearTransformationBSGS=false", params, level), func(t *testing.T) {
+	t.Run("Evaluator/LinearTransformationBSGS=false"+tc.String(), func(t *testing.T) {
 
-		values, _, ciphertext := newTestVectorsLvl(level, params.DefaultScale(), tc, tc.encryptorSk)
+		values, _, ciphertext := bgv.NewTestVector(params, tc.Ecd, tc.Enc, params.MaxLevel(), params.DefaultScale())
 
 		slots := ciphertext.Slots()
 
@@ -213,21 +135,21 @@ func run(tc *testContext, t *testing.T) {
 		linTransf := NewLinearTransformation(params, ltparams)
 
 		// Encode on the linear transformation
-		require.NoError(t, EncodeLinearTransformation(tc.encoder, diagonals, linTransf))
+		require.NoError(t, EncodeLinearTransformation(tc.Ecd, diagonals, linTransf))
 
 		galEls := linTransf.GaloisElements(params)
 
-		eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...))
+		eval := tc.Evl.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.Kgen.GenGaloisKeysNew(galEls, tc.Sk)...))
 		ltEval := NewLinearTransformationEvaluator(eval)
 
 		require.NoError(t, ltEval.Evaluate(ciphertext, linTransf, ciphertext))
 
-		values.Coeffs[0] = diagonals.Evaluate(values.Coeffs[0], newVec, add, muladd)
+		values = diagonals.Evaluate(values, newVec, add, muladd)
 
-		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
+		bgv.VerifyTestVectors(params, tc.Ecd, tc.Dec, ciphertext, values, t)
 	})
 
-	t.Run(GetTestName("Evaluator/LinearTransformation/Permutation", params, level), func(t *testing.T) {
+	t.Run("Evaluator/LinearTransformation/Permutation"+tc.String(), func(t *testing.T) {
 
 		idx := [2][]int{
 			make([]int, params.MaxSlots()>>1),
@@ -272,7 +194,7 @@ func run(tc *testContext, t *testing.T) {
 
 		diagonals := Permutation[uint64](permutation).GetDiagonals(params.LogMaxSlots())
 
-		values, _, ciphertext := newTestVectorsLvl(level, tc.params.NewScale(1), tc, tc.encryptorSk)
+		values, _, ciphertext := bgv.NewTestVector(params, tc.Ecd, tc.Enc, params.MaxLevel(), params.DefaultScale())
 
 		ltparams := LinearTransformationParameters{
 			DiagonalsIndexList:        diagonals.DiagonalsIndexList(),
@@ -287,66 +209,18 @@ func run(tc *testContext, t *testing.T) {
 		linTransf := NewLinearTransformation(params, ltparams)
 
 		// Encode on the linear transformation
-		require.NoError(t, EncodeLinearTransformation(tc.encoder, diagonals, linTransf))
+		require.NoError(t, EncodeLinearTransformation(tc.Ecd, diagonals, linTransf))
 
 		galEls := linTransf.GaloisElements(params)
 
-		evk := rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)
+		evk := rlwe.NewMemEvaluationKeySet(nil, tc.Kgen.GenGaloisKeysNew(galEls, tc.Sk)...)
 
-		ltEval := NewLinearTransformationEvaluator(tc.evaluator.WithKey(evk))
+		ltEval := NewLinearTransformationEvaluator(tc.Evl.WithKey(evk))
 
 		require.NoError(t, ltEval.Evaluate(ciphertext, linTransf, ciphertext))
 
-		values.Coeffs[0] = diagonals.Evaluate(values.Coeffs[0], newVec, add, muladd)
+		values = diagonals.Evaluate(values, newVec, add, muladd)
 
-		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
+		bgv.VerifyTestVectors(params, tc.Ecd, tc.Dec, ciphertext, values, t)
 	})
-}
-
-func newTestVectorsLvl(level int, scale rlwe.Scale, tc *testContext, encryptor *rlwe.Encryptor) (coeffs ring.Poly, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
-	coeffs = tc.uSampler.ReadNew()
-	for i := range coeffs.Coeffs[0] {
-		coeffs.Coeffs[0][i] = uint64(i)
-	}
-
-	plaintext = bgv.NewPlaintext(tc.params, level)
-	plaintext.Scale = scale
-	tc.encoder.Encode(coeffs.Coeffs[0], plaintext)
-	if encryptor != nil {
-		var err error
-		ciphertext, err = encryptor.EncryptNew(plaintext)
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	return coeffs, plaintext, ciphertext
-}
-
-func verifyTestVectors(tc *testContext, decryptor *rlwe.Decryptor, coeffs ring.Poly, element rlwe.ElementInterface[ring.Poly], t *testing.T) {
-
-	coeffsTest := make([]uint64, tc.params.MaxSlots())
-
-	switch el := element.(type) {
-	case *rlwe.Plaintext:
-		require.NoError(t, tc.encoder.Decode(el, coeffsTest))
-	case *rlwe.Ciphertext:
-
-		pt := decryptor.DecryptNew(el)
-
-		require.NoError(t, tc.encoder.Decode(pt, coeffsTest))
-
-		if *flagPrintNoise {
-			require.NoError(t, tc.encoder.Encode(coeffsTest, pt))
-			ct, err := tc.evaluator.SubNew(el, pt)
-			require.NoError(t, err)
-			vartmp, _, _ := rlwe.Norm(ct, decryptor)
-			t.Logf("STD(noise): %f\n", vartmp)
-		}
-
-	default:
-		t.Error("invalid test object to verify")
-	}
-
-	require.True(t, slices.Equal(coeffs.Coeffs[0], coeffsTest))
 }

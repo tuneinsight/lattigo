@@ -14,7 +14,6 @@ import (
 
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 	"github.com/tuneinsight/lattigo/v5/ring"
-	"github.com/tuneinsight/lattigo/v5/schemes"
 	"github.com/tuneinsight/lattigo/v5/schemes/ckks"
 	"github.com/tuneinsight/lattigo/v5/utils"
 	"github.com/tuneinsight/lattigo/v5/utils/bignum"
@@ -24,34 +23,18 @@ import (
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short.")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 
-func GetTestName(params ckks.Parameters, opname string) string {
+func name(opname string, tc *ckks.TestContext) string {
 	return fmt.Sprintf("%s/RingType=%s/logN=%d/logQP=%d/Qi=%d/Pi=%d/LogScale=%d",
 		opname,
-		params.RingType(),
-		params.LogN(),
-		int(math.Round(params.LogQP())),
-		params.QCount(),
-		params.PCount(),
-		int(math.Log2(params.DefaultScale().Float64())))
-}
-
-type testContext struct {
-	params      ckks.Parameters
-	ringQ       *ring.Ring
-	ringP       *ring.Ring
-	prng        sampling.PRNG
-	encoder     ckks.Encoder
-	kgen        *rlwe.KeyGenerator
-	sk          *rlwe.SecretKey
-	pk          *rlwe.PublicKey
-	encryptorPk *rlwe.Encryptor
-	encryptorSk *rlwe.Encryptor
-	decryptor   *rlwe.Decryptor
-	evaluator   ckks.Evaluator
+		tc.Params.RingType(),
+		tc.Params.LogN(),
+		int(math.Round(tc.Params.LogQP())),
+		tc.Params.QCount(),
+		tc.Params.PCount(),
+		int(math.Log2(tc.Params.DefaultScale().Float64())))
 }
 
 func TestPolynomialEvaluator(t *testing.T) {
-
 	var err error
 
 	var testParams []ckks.ParametersLiteral
@@ -62,7 +45,7 @@ func TestPolynomialEvaluator(t *testing.T) {
 			t.Fatal(err)
 		}
 	default:
-		testParams = schemes.CkksTestParametersLiteral
+		testParams = ckks.TestParametersLiteral
 	}
 
 	for _, ringType := range []ring.Type{ring.Standard, ring.ConjugateInvariant} {
@@ -75,17 +58,9 @@ func TestPolynomialEvaluator(t *testing.T) {
 				paramsLiteral.LogN = 10
 			}
 
-			var params ckks.Parameters
-			if params, err = ckks.NewParametersFromLiteral(paramsLiteral); err != nil {
-				t.Fatal(err)
-			}
+			tc := ckks.NewTestContext(paramsLiteral)
 
-			var tc *testContext
-			if tc, err = genTestParams(params); err != nil {
-				t.Fatal(err)
-			}
-
-			for _, testSet := range []func(tc *testContext, t *testing.T){
+			for _, testSet := range []func(tc *ckks.TestContext, t *testing.T){
 				run,
 			} {
 				testSet(tc, t)
@@ -95,9 +70,8 @@ func TestPolynomialEvaluator(t *testing.T) {
 	}
 }
 
-func run(tc *testContext, t *testing.T) {
-
-	params := tc.params
+func run(tc *ckks.TestContext, t *testing.T) {
+	params := tc.Params
 
 	mulCmplx := bignum.NewComplexMultiplier().Mul
 
@@ -119,7 +93,7 @@ func run(tc *testContext, t *testing.T) {
 		}
 	}
 
-	prec := tc.encoder.Prec()
+	prec := tc.Ecd.Prec()
 
 	newVec := func(size int) (vec []*bignum.Complex) {
 		vec = make([]*bignum.Complex, size)
@@ -129,9 +103,9 @@ func run(tc *testContext, t *testing.T) {
 		return
 	}
 
-	t.Run(GetTestName(params, "Average"), func(t *testing.T) {
+	t.Run(name("Average", tc), func(t *testing.T) {
 
-		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
+		values, _, ciphertext := tc.NewTestVector(-1-1i, 1+1i)
 
 		slots := ciphertext.Slots()
 
@@ -139,7 +113,7 @@ func run(tc *testContext, t *testing.T) {
 		batch := 1 << logBatch
 		n := slots / batch
 
-		eval := tc.evaluator.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(rlwe.GaloisElementsForInnerSum(params, batch, n), tc.sk)...))
+		eval := tc.Evl.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.Kgen.GenGaloisKeysNew(rlwe.GaloisElementsForInnerSum(params, batch, n), tc.Sk)...))
 
 		require.NoError(t, eval.Average(ciphertext, logBatch, ciphertext))
 
@@ -164,12 +138,12 @@ func run(tc *testContext, t *testing.T) {
 			values[i][1].Quo(values[i][1], nB)
 		}
 
-		ckks.VerifyTestVectors(params, &tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, tc.Ecd, tc.Dec, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
-	t.Run(GetTestName(params, "LinearTransform/BSGS=True"), func(t *testing.T) {
+	t.Run(name("LinearTransform/BSGS=True", tc), func(t *testing.T) {
 
-		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
+		values, _, ciphertext := tc.NewTestVector(-1-1i, 1+1i)
 
 		slots := ciphertext.Slots()
 
@@ -199,24 +173,24 @@ func run(tc *testContext, t *testing.T) {
 		linTransf := NewLinearTransformation(params, ltparams)
 
 		// Encode on the linear transformation
-		require.NoError(t, EncodeLinearTransformation(tc.encoder, diagonals, linTransf))
+		require.NoError(t, EncodeLinearTransformation(tc.Ecd, diagonals, linTransf))
 
 		galEls := linTransf.GaloisElements(params)
 
-		evk := rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)
+		evk := rlwe.NewMemEvaluationKeySet(nil, tc.Kgen.GenGaloisKeysNew(galEls, tc.Sk)...)
 
-		ltEval := NewLinearTransformationEvaluator(tc.evaluator.WithKey(evk))
+		ltEval := NewLinearTransformationEvaluator(tc.Evl.WithKey(evk))
 
 		require.NoError(t, ltEval.Evaluate(ciphertext, linTransf, ciphertext))
 
 		values = diagonals.Evaluate(values, newVec, add, muladd)
 
-		ckks.VerifyTestVectors(params, &tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, tc.Ecd, tc.Dec, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
-	t.Run(GetTestName(params, "LinearTransform/BSGS=False"), func(t *testing.T) {
+	t.Run(name("LinearTransform/BSGS=False", tc), func(t *testing.T) {
 
-		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
+		values, _, ciphertext := tc.NewTestVector(-1-1i, 1+1i)
 
 		slots := ciphertext.Slots()
 
@@ -247,22 +221,22 @@ func run(tc *testContext, t *testing.T) {
 		linTransf := NewLinearTransformation(params, ltparams)
 
 		// Encode on the linear transformation
-		require.NoError(t, EncodeLinearTransformation(tc.encoder, diagonals, linTransf))
+		require.NoError(t, EncodeLinearTransformation(tc.Ecd, diagonals, linTransf))
 
 		galEls := linTransf.GaloisElements(params)
 
-		evk := rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)
+		evk := rlwe.NewMemEvaluationKeySet(nil, tc.Kgen.GenGaloisKeysNew(galEls, tc.Sk)...)
 
-		ltEval := NewLinearTransformationEvaluator(tc.evaluator.WithKey(evk))
+		ltEval := NewLinearTransformationEvaluator(tc.Evl.WithKey(evk))
 
 		require.NoError(t, ltEval.Evaluate(ciphertext, linTransf, ciphertext))
 
 		values = diagonals.Evaluate(values, newVec, add, muladd)
 
-		ckks.VerifyTestVectors(params, &tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, tc.Ecd, tc.Dec, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
-	t.Run(GetTestName(params, "LinearTransform/Permutation"), func(t *testing.T) {
+	t.Run(name("LinearTransform/Permutation", tc), func(t *testing.T) {
 		idx := make([]int, params.MaxSlots())
 		for i := range idx {
 			idx[i] = i
@@ -289,7 +263,7 @@ func run(tc *testContext, t *testing.T) {
 
 		diagonals := Permutation[*bignum.Complex](permutation).GetDiagonals(params.LogMaxSlots())
 
-		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
+		values, _, ciphertext := tc.NewTestVector(-1-1i, 1+1i)
 
 		ltparams := LinearTransformationParameters{
 			DiagonalsIndexList:        diagonals.DiagonalsIndexList(),
@@ -304,87 +278,18 @@ func run(tc *testContext, t *testing.T) {
 		linTransf := NewLinearTransformation(params, ltparams)
 
 		// Encode on the linear transformation
-		require.NoError(t, EncodeLinearTransformation(tc.encoder, diagonals, linTransf))
+		require.NoError(t, EncodeLinearTransformation(tc.Ecd, diagonals, linTransf))
 
 		galEls := linTransf.GaloisElements(params)
 
-		evk := rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)
+		evk := rlwe.NewMemEvaluationKeySet(nil, tc.Kgen.GenGaloisKeysNew(galEls, tc.Sk)...)
 
-		ltEval := NewLinearTransformationEvaluator(tc.evaluator.WithKey(evk))
+		ltEval := NewLinearTransformationEvaluator(tc.Evl.WithKey(evk))
 
 		require.NoError(t, ltEval.Evaluate(ciphertext, linTransf, ciphertext))
 
 		values = diagonals.Evaluate(values, newVec, add, muladd)
 
-		ckks.VerifyTestVectors(params, &tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, tc.Ecd, tc.Dec, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
-}
-
-func genTestParams(defaultParam ckks.Parameters) (tc *testContext, err error) {
-
-	tc = new(testContext)
-
-	tc.params = defaultParam
-
-	tc.kgen = rlwe.NewKeyGenerator(tc.params)
-
-	tc.sk, tc.pk = tc.kgen.GenKeyPairNew()
-
-	tc.ringQ = defaultParam.RingQ()
-	if tc.params.PCount() != 0 {
-		tc.ringP = defaultParam.RingP()
-	}
-
-	if tc.prng, err = sampling.NewPRNG(); err != nil {
-		return nil, err
-	}
-
-	tc.encoder = *ckks.NewEncoder(tc.params)
-
-	tc.encryptorPk = rlwe.NewEncryptor(tc.params, tc.pk)
-	tc.encryptorSk = rlwe.NewEncryptor(tc.params, tc.sk)
-	tc.decryptor = rlwe.NewDecryptor(tc.params, tc.sk)
-	tc.evaluator = *ckks.NewEvaluator(tc.params, rlwe.NewMemEvaluationKeySet(tc.kgen.GenRelinearizationKeyNew(tc.sk)))
-
-	return tc, nil
-
-}
-
-func newTestVectors(tc *testContext, encryptor *rlwe.Encryptor, a, b complex128, t *testing.T) (values []*bignum.Complex, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
-
-	var err error
-
-	prec := tc.params.EncodingPrecision()
-
-	pt = ckks.NewPlaintext(tc.params, tc.params.MaxLevel())
-
-	values = make([]*bignum.Complex, pt.Slots())
-
-	switch tc.params.RingType() {
-	case ring.Standard:
-		for i := range values {
-			values[i] = &bignum.Complex{
-				bignum.NewFloat(sampling.RandFloat64(real(a), real(b)), prec),
-				bignum.NewFloat(sampling.RandFloat64(imag(a), imag(b)), prec),
-			}
-		}
-	case ring.ConjugateInvariant:
-		for i := range values {
-			values[i] = &bignum.Complex{
-				bignum.NewFloat(sampling.RandFloat64(real(a), real(b)), prec),
-				new(big.Float),
-			}
-		}
-	default:
-		t.Fatal("invalid ring type")
-	}
-
-	tc.encoder.Encode(values, pt)
-
-	if encryptor != nil {
-		ct, err = encryptor.EncryptNew(pt)
-		require.NoError(t, err)
-	}
-
-	return values, pt, ct
 }

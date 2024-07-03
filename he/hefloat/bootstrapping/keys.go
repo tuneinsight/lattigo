@@ -75,15 +75,15 @@ func (b EvaluationKeys) BinarySize() (dLen int) {
 
 // GenEvaluationKeys generates the bootstrapping evaluation keys, which include:
 //
-// - If the bootstrapping parameters' ring degree > residual parameters' ring degree:
+// If the bootstrapping parameters' ring degree > residual parameters' ring degree:
 //   - An evaluation key to switch from the residual parameters' ring to the bootstrapping parameters' ring
 //   - An evaluation key to switch from the bootstrapping parameters' ring to the residual parameters' ring
 //
-// - If the residual parameters use the Conjugate Invariant ring:
+// If the residual parameters use the Conjugate Invariant ring:
 //   - An evaluation key to switch from the conjugate invariant ring to the standard ring
 //   - An evaluation key to switch from the standard ring to the conjugate invariant ring
 //
-// - The core bootstrapping circuit evaluation keys:
+// The core bootstrapping circuit evaluation keys:
 //   - Relinearization key
 //   - Galois keys
 //   - The encapsulation evaluation keys (https://eprint.iacr.org/2022/024)

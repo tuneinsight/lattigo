@@ -20,9 +20,9 @@ type GadgetCiphertext struct {
 	Value                structs.Matrix[VectorQP]
 }
 
-// NewGadgetCiphertext returns a new Ciphertext key with pre-allocated zero-value.
-// Ciphertext is always in the NTT domain.
-// A GadgetCiphertext is created by default at degree 1 with the the maximum levelQ and levelP and with no base 2 decomposition.
+// NewGadgetCiphertext returns a new [GadgetCiphertext] key with pre-allocated zero-value.
+// [GadgetCiphertext] is always in the NTT domain.
+// A [GadgetCiphertext] is created by default at degree 1 with the the maximum levelQ and levelP and with no base 2 decomposition.
 // Give the optional GadgetCiphertextParameters struct to create a GadgetCiphertext with at a specific degree, levelQ, levelP and/or base 2 decomposition.
 func NewGadgetCiphertext(params ParameterProvider, Degree, LevelQ, LevelP, BaseTwoDecomposition int) *GadgetCiphertext {
 
@@ -42,12 +42,12 @@ func NewGadgetCiphertext(params ParameterProvider, Degree, LevelQ, LevelP, BaseT
 	return &GadgetCiphertext{BaseTwoDecomposition: BaseTwoDecomposition, Value: m}
 }
 
-// LevelQ returns the level of the modulus Q of the target Ciphertext.
+// LevelQ returns the level of the modulus Q of the target ciphertext.
 func (ct GadgetCiphertext) LevelQ() int {
 	return ct.Value[0][0][0].LevelQ()
 }
 
-// LevelP returns the level of the modulus P of the target Ciphertext.
+// LevelP returns the level of the modulus P of the target ciphertext.
 func (ct GadgetCiphertext) LevelP() int {
 	return ct.Value[0][0][0].LevelP()
 }
@@ -57,7 +57,7 @@ func (ct GadgetCiphertext) BaseRNSDecompositionVectorSize() int {
 	return len(ct.Value)
 }
 
-// BaseTwoDecompositionVectorSize returns the number of element in the Power of two decomposition basis for each prime of Q.
+// BaseTwoDecompositionVectorSize returns the number of element in the power of two decomposition basis for each prime of Q.
 func (ct GadgetCiphertext) BaseTwoDecompositionVectorSize() (base []int) {
 	base = make([]int, len(ct.Value))
 	for i := range ct.Value {
@@ -66,12 +66,12 @@ func (ct GadgetCiphertext) BaseTwoDecompositionVectorSize() (base []int) {
 	return
 }
 
-// Equal checks two Ciphertexts for equality.
+// Equal checks two ciphertexts for equality.
 func (ct GadgetCiphertext) Equal(other *GadgetCiphertext) bool {
 	return (ct.BaseTwoDecomposition == other.BaseTwoDecomposition) && cmp.Equal(ct.Value, other.Value)
 }
 
-// CopyNew creates a deep copy of the receiver Ciphertext and returns it.
+// CopyNew creates a deep copy of the receiver ciphertext and returns it.
 func (ct GadgetCiphertext) CopyNew() (ctCopy *GadgetCiphertext) {
 	return &GadgetCiphertext{BaseTwoDecomposition: ct.BaseTwoDecomposition, Value: ct.Value.CopyNew()}
 }
@@ -81,15 +81,15 @@ func (ct GadgetCiphertext) BinarySize() (dataLen int) {
 	return 8 + ct.Value.BinarySize()
 }
 
-// WriteTo writes the object on an io.Writer. It implements the io.WriterTo
+// WriteTo writes the object on an [io.Writer]. It implements the [io.WriterTo]
 // interface, and will write exactly object.BinarySize() bytes on w.
 //
-// Unless w implements the buffer.Writer interface (see lattigo/utils/buffer/writer.go),
-// it will be wrapped into a bufio.Writer. Since this requires allocations, it
-// is preferable to pass a buffer.Writer directly:
+// Unless w implements the [buffer.Writer] interface (see lattigo/utils/buffer/writer.go),
+// it will be wrapped into a [bufio.Writer]. Since this requires allocations, it
+// is preferable to pass a [buffer.Writer] directly:
 //
-//   - When writing multiple times to a io.Writer, it is preferable to first wrap the
-//     io.Writer in a pre-allocated bufio.Writer.
+//   - When writing multiple times to a [io.Writer], it is preferable to first wrap the
+//     io.Writer in a pre-allocated [bufio.Writer].
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
 func (ct GadgetCiphertext) WriteTo(w io.Writer) (n int64, err error) {
@@ -114,15 +114,15 @@ func (ct GadgetCiphertext) WriteTo(w io.Writer) (n int64, err error) {
 	}
 }
 
-// ReadFrom reads on the object from an io.Writer. It implements the
-// io.ReaderFrom interface.
+// ReadFrom reads on the object from an [io.Writer]. It implements the
+// [io.ReaderFrom] interface.
 //
-// Unless r implements the buffer.Reader interface (see see lattigo/utils/buffer/reader.go),
-// it will be wrapped into a bufio.Reader. Since this requires allocation, it
-// is preferable to pass a buffer.Reader directly:
+// Unless r implements the [buffer.Reader] interface (see see lattigo/utils/buffer/reader.go),
+// it will be wrapped into a [bufio.Reader]. Since this requires allocation, it
+// is preferable to pass a [buffer.Reader] directly:
 //
-//   - When reading multiple values from a io.Reader, it is preferable to first
-//     first wrap io.Reader in a pre-allocated bufio.Reader.
+//   - When reading multiple values from a [io.Reader], it is preferable to first
+//     first wrap [io.Reader] in a pre-allocated [bufio.Reader].
 //   - When reading from a var b []byte, it is preferable to pass a buffer.NewBuffer(b)
 //     as w (see lattigo/utils/buffer/buffer.go).
 func (ct *GadgetCiphertext) ReadFrom(r io.Reader) (n int64, err error) {
@@ -154,14 +154,14 @@ func (ct GadgetCiphertext) MarshalBinary() (data []byte, err error) {
 }
 
 // UnmarshalBinary decodes a slice of bytes generated by
-// MarshalBinary or WriteTo on the object.
+// [GadgetCiphertext.MarshalBinary] or [GadgetCiphertext.WriteTo] on the object.
 func (ct *GadgetCiphertext) UnmarshalBinary(p []byte) (err error) {
 	_, err = ct.ReadFrom(buffer.NewBuffer(p))
 	return
 }
 
-// AddPolyTimesGadgetVectorToGadgetCiphertext takes a plaintext polynomial and a list of Ciphertexts and adds the
-// plaintext times the RNS and BIT decomposition to the i-th element of the i-th Ciphertexts. This method return
+// AddPolyTimesGadgetVectorToGadgetCiphertext takes a plaintext polynomial and a list of [GadgetCiphertext] and adds the
+// plaintext times the RNS and BIT decomposition to the i-th element of the i-th ciphertexts. This method return
 // an error if len(cts) > 2.
 func AddPolyTimesGadgetVectorToGadgetCiphertext(pt ring.Poly, cts []GadgetCiphertext, ringQP ringqp.Ring, buff ring.Poly) (err error) {
 
@@ -239,7 +239,7 @@ type GadgetPlaintext struct {
 	Value structs.Vector[ring.Poly]
 }
 
-// NewGadgetPlaintext creates a new gadget plaintext from value, which can be either uint64, int64 or *ring.Poly.
+// NewGadgetPlaintext creates a new [GadgetPlaintext] from value, which can be either uint64, int64 or *[ring.Poly].
 // Plaintext is returned in the NTT and Montgomery domain.
 func NewGadgetPlaintext(params Parameters, value interface{}, levelQ, levelP, baseTwoDecomposition int) (pt *GadgetPlaintext, err error) {
 

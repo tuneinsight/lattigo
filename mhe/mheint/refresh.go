@@ -13,9 +13,9 @@ type RefreshProtocol struct {
 	MaskedTransformProtocol
 }
 
-// ShallowCopy creates a shallow copy of RefreshProtocol in which all the read-only data-structures are
+// ShallowCopy creates a shallow copy of [RefreshProtocol] in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// RefreshProtocol can be used concurrently.
+// [RefreshProtocol] can be used concurrently.
 func (rfp *RefreshProtocol) ShallowCopy() RefreshProtocol {
 	return RefreshProtocol{rfp.MaskedTransformProtocol.ShallowCopy()}
 }
@@ -34,7 +34,7 @@ func (rfp RefreshProtocol) AllocateShare(inputLevel, outputLevel int) mhe.Refres
 }
 
 // GenShare generates a share for the Refresh protocol.
-// ct1 is degree 1 element of a rlwe.Ciphertext, i.e. rlwe.Ciphertext.Value[1].
+// ct1 is degree 1 element of a [rlwe.Ciphertext], i.e., [rlwe.Ciphertext.Value][1].
 func (rfp RefreshProtocol) GenShare(sk *rlwe.SecretKey, ct *rlwe.Ciphertext, crp mhe.KeySwitchCRP, shareOut *mhe.RefreshShare) (err error) {
 	return rfp.MaskedTransformProtocol.GenShare(sk, sk, ct, crp, nil, shareOut)
 }

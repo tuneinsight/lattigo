@@ -7,12 +7,12 @@ import (
 	"github.com/tuneinsight/lattigo/v5/utils"
 )
 
-// ApplyEvaluationKey is a generic method to apply an EvaluationKey on a ciphertext.
+// ApplyEvaluationKey is a generic method to apply an [EvaluationKey] on a ciphertext.
 // An EvaluationKey is a type of public key that is be used during the evaluation of
 // a homomorphic circuit to provide additional functionalities, like relinearization
 // or rotations.
 //
-// In a nutshell, an Evaluationkey encrypts a secret skIn under a secret skOut and
+// In a nutshell, an [EvaluationKey] encrypts a secret skIn under a secret skOut and
 // enables the public and non interactive re-encryption of any ciphertext encrypted
 // under skIn to a new ciphertext encrypted under skOut.
 //
@@ -22,7 +22,7 @@ import (
 // Note that the parameters of the smaller ring degree must be the same or a subset of the
 // moduli Q and P of the one for the larger ring degree.
 //
-// To do so, it must be provided with the appropriate EvaluationKey, and have the operands
+// To do so, it must be provided with the appropriate [EvaluationKey], and have the operands
 // matching the target ring degrees.
 //
 // To switch a ciphertext to a smaller ring degree:

@@ -16,7 +16,7 @@ import (
 // Mod1Type is the type of function/approximation used to evaluate x mod 1.
 type Mod1Type uint64
 
-// Sin and Cos are the two proposed functions for Mod1Type.
+// Sin and Cos are the two proposed functions for [Mod1Type].
 // These trigonometric functions offer a good approximation of the function x mod 1 when the values are close to the origin.
 const (
 	CosDiscrete   = Mod1Type(0) // Special approximation (Han and Ki) of pow((1/2pi), 1/2^r) * cos(2pi(x-0.25)/2^r); this method requires a minimum degree of 2*(K-1).
@@ -26,7 +26,7 @@ const (
 
 // Mod1ParametersLiteral a struct for the parameters of the mod 1 procedure.
 // The x mod 1 procedure goal is to homomorphically evaluate a modular reduction by Q[0] (the first prime of the moduli chain) on the encrypted plaintext.
-// This struct is consumed by `NewMod1ParametersLiteralFromLiteral` to generate the `Mod1ParametersLiteral` struct, which notably stores
+// This struct is consumed by [NewMod1ParametersFromLiteral] to generate the [Mod1ParametersLiteral] struct, which notably stores
 // the coefficient of the polynomial approximating the function x mod Q[0].
 type Mod1ParametersLiteral struct {
 	LevelStart      int      // Starting level of x mod 1
@@ -41,13 +41,13 @@ type Mod1ParametersLiteral struct {
 }
 
 // MarshalBinary returns a JSON representation of the the target Mod1ParametersLiteral struct on a slice of bytes.
-// See `Marshal` from the `encoding/json` package.
+// See Marshal from the [encoding/json] package.
 func (evm Mod1ParametersLiteral) MarshalBinary() (data []byte, err error) {
 	return json.Marshal(evm)
 }
 
 // UnmarshalBinary reads a JSON representation on the target Mod1ParametersLiteral struct.
-// See `Unmarshal` from the `encoding/json` package.
+// See Unmarshal from the [encoding/json] package.
 func (evm *Mod1ParametersLiteral) UnmarshalBinary(data []byte) (err error) {
 	return json.Unmarshal(data, evm)
 }
@@ -115,8 +115,8 @@ func (evp Mod1Parameters) QDiff() float64 {
 	return evp.qDiff
 }
 
-// NewMod1ParametersFromLiteral generates an Mod1Parameters struct from the Mod1ParametersLiteral struct.
-// The Mod1Parameters struct is to instantiates a Mod1Evaluator, which homomorphically evaluates x mod 1.
+// NewMod1ParametersFromLiteral generates an [Mod1Parameters] struct from the [Mod1ParametersLiteral] struct.
+// The [Mod1Parameters] struct is to instantiates a [Mod1Evaluator], which homomorphically evaluates x mod 1.
 func NewMod1ParametersFromLiteral(params Parameters, evm Mod1ParametersLiteral) (Mod1Parameters, error) {
 
 	var mod1InvPoly *bignum.Polynomial

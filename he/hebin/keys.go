@@ -16,7 +16,7 @@ const (
 
 // BlindRotationEvaluationKeySet is a interface implementing methods
 // to load the blind rotation keys (RGSW) and automorphism keys
-// (via the rlwe.EvaluationKeySet interface).
+// (via the [rlwe.EvaluationKeySet] interface).
 // Implementation of this interface must be safe for concurrent use.
 type BlindRotationEvaluationKeySet interface {
 
@@ -28,7 +28,7 @@ type BlindRotationEvaluationKeySet interface {
 	GetEvaluationKeySet() (evk rlwe.EvaluationKeySet, err error)
 }
 
-// MemBlindRotationEvaluationKeySet is a basic in-memory implementation of the BlindRotationEvaluationKeySet interface.
+// MemBlindRotationEvaluationKeySet is a basic in-memory implementation of the [BlindRotationEvaluationKeySet] interface.
 type MemBlindRotationEvaluationKeySet struct {
 	BlindRotationKeys []*rgsw.Ciphertext
 	AutomorphismKeys  []*rlwe.GaloisKey

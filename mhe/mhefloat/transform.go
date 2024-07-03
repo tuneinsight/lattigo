@@ -13,7 +13,7 @@ import (
 	"github.com/tuneinsight/lattigo/v5/utils/sampling"
 )
 
-// MaskedLinearTransformationProtocol is a struct storing the parameters for the MaskedLinearTransformationProtocol protocol.
+// MaskedLinearTransformationProtocol is a struct storing the parameters for the [MaskedLinearTransformationProtocol] protocol.
 type MaskedLinearTransformationProtocol struct {
 	e2s EncToShareProtocol
 	s2e ShareToEncProtocol
@@ -27,9 +27,9 @@ type MaskedLinearTransformationProtocol struct {
 	encoder *hefloat.Encoder
 }
 
-// ShallowCopy creates a shallow copy of MaskedLinearTransformationProtocol in which all the read-only data-structures are
+// ShallowCopy creates a shallow copy of [MaskedLinearTransformationProtocol] in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// MaskedLinearTransformationProtocol can be used concurrently.
+// [MaskedLinearTransformationProtocol] can be used concurrently.
 func (mltp MaskedLinearTransformationProtocol) ShallowCopy() MaskedLinearTransformationProtocol {
 
 	mask := make([]*big.Int, mltp.e2s.params.N())
@@ -47,7 +47,7 @@ func (mltp MaskedLinearTransformationProtocol) ShallowCopy() MaskedLinearTransfo
 	}
 }
 
-// WithParams creates a shallow copy of the target MaskedLinearTransformationProtocol but with new output parameters.
+// WithParams creates a shallow copy of the target [MaskedLinearTransformationProtocol] but with new output parameters.
 // The expected input parameters remain unchanged.
 func (mltp MaskedLinearTransformationProtocol) WithParams(paramsOut hefloat.Parameters) MaskedLinearTransformationProtocol {
 
@@ -79,12 +79,14 @@ func (mltp MaskedLinearTransformationProtocol) WithParams(paramsOut hefloat.Para
 
 // MaskedLinearTransformationFunc represents a user-defined in-place function that can be evaluated on masked float plaintexts, as a part of the
 // Masked Transform Protocol.
-// The function is called with a vector of *Complex modulo hefloat.Parameters.Slots() as input, and must write
+// The function is called with a vector of *[bignum.Complex] modulo [hefloat.Parameters.Slots]() as input, and must write
 // its output on the same buffer.
 // Transform can be the identity.
-// Decode: if true, then the masked float plaintext will be decoded before applying Transform.
-// Recode: if true, then the masked float plaintext will be recoded after applying Transform.
-// i.e. : Decode (true/false) -> Transform -> Recode (true/false).
+//
+//   - Decode: if true, then the masked float plaintext will be decoded before applying Transform.
+//   - Recode: if true, then the masked float plaintext will be recoded after applying Transform.
+//
+// Decode (true/false) -> Transform -> Recode (true/false).
 type MaskedLinearTransformationFunc struct {
 	Decode bool
 	Func   func(coeffs []*bignum.Complex)
@@ -92,9 +94,11 @@ type MaskedLinearTransformationFunc struct {
 }
 
 // NewMaskedLinearTransformationProtocol creates a new instance of the PermuteProtocol.
-// paramsIn: the hefloat.Parameters of the ciphertext before the protocol.
-// paramsOut: the hefloat.Parameters of the ciphertext after the protocol.
-// prec : the log2 of decimal precision of the internal encoder.
+//
+//   - paramsIn: the [hefloat.Parameters] of the ciphertext before the protocol.
+//   - paramsOut: the [hefloat.Parameters] of the ciphertext after the protocol.
+//   - prec : the log2 of decimal precision of the internal encoder.
+//
 // The method will return an error if the maximum number of slots of the output parameters is smaller than the number of slots of the input ciphertext.
 func NewMaskedLinearTransformationProtocol(paramsIn, paramsOut hefloat.Parameters, prec uint, noise ring.DistributionParameters) (mltp MaskedLinearTransformationProtocol, err error) {
 
@@ -138,13 +142,15 @@ func (mltp MaskedLinearTransformationProtocol) SampleCRP(level int, crs sampling
 }
 
 // GenShare generates the shares of the PermuteProtocol
-// This protocol requires additional inputs which are :
-// skIn     : the secret-key if the input ciphertext.
-// skOut    : the secret-key of the output ciphertext.
-// logBound : the bit length of the masks.
-// ct1      : the degree 1 element the ciphertext to refresh, i.e. ct1 = ckk.Ciphetext.Value[1].
-// scale    : the scale of the ciphertext when entering the refresh.
-// The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which the masked transform can be called while still ensure 128-bits of security, as well as the
+// This protocol requires additional inputs which are:
+//
+//   - skIn     : the secret-key if the input ciphertext.
+//   - skOut    : the secret-key of the output ciphertext.
+//   - logBound : the bit length of the masks.
+//   - ct1      : the degree 1 element the ciphertext to refresh, i.e. ct1 = ckk.Ciphetext.Value[1].
+//   - scale    : the scale of the ciphertext when entering the refresh.
+//
+// The method [GetMinimumLevelForRefresh] should be used to get the minimum level at which the masked transform can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
 func (mltp MaskedLinearTransformationProtocol) GenShare(skIn, skOut *rlwe.SecretKey, logBound uint, ct *rlwe.Ciphertext, crs mhe.KeySwitchCRP, transform *MaskedLinearTransformationFunc, shareOut *mhe.RefreshShare) (err error) {
 

@@ -8,7 +8,7 @@ import (
 	"github.com/tuneinsight/lattigo/v5/ring"
 )
 
-// EvaluatorForMinimaxCompositePolynomial defines a set of common and scheme agnostic method that are necessary to instantiate a MinimaxCompositePolynomialEvaluator.
+// EvaluatorForMinimaxCompositePolynomial defines a set of common and scheme agnostic method that are necessary to instantiate a [MinimaxCompositePolynomialEvaluator].
 type EvaluatorForMinimaxCompositePolynomial interface {
 	he.Evaluator
 	ConjugateNew(ct *rlwe.Ciphertext) (ctConj *rlwe.Ciphertext, err error)
@@ -23,14 +23,14 @@ type MinimaxCompositePolynomialEvaluator struct {
 	Parameters Parameters
 }
 
-// NewMinimaxCompositePolynomialEvaluator instantiates a new MinimaxCompositePolynomialEvaluator.
-// The default hefloat.Evaluator is compliant to the EvaluatorForMinimaxCompositePolynomial interface.
+// NewMinimaxCompositePolynomialEvaluator instantiates a new [MinimaxCompositePolynomialEvaluator].
+// The default [hefloat.Evaluator] is compliant to the [EvaluatorForMinimaxCompositePolynomial] interface.
 // This method is allocation free.
 func NewMinimaxCompositePolynomialEvaluator(params Parameters, eval EvaluatorForMinimaxCompositePolynomial, bootstrapper he.Bootstrapper[rlwe.Ciphertext]) *MinimaxCompositePolynomialEvaluator {
 	return &MinimaxCompositePolynomialEvaluator{eval, *NewPolynomialEvaluator(params, eval), bootstrapper, params}
 }
 
-// Evaluate evaluates the provided MinimaxCompositePolynomial on the input ciphertext.
+// Evaluate evaluates the provided [MinimaxCompositePolynomial] on the input ciphertext.
 func (eval MinimaxCompositePolynomialEvaluator) Evaluate(ct *rlwe.Ciphertext, mcp MinimaxCompositePolynomial) (res *rlwe.Ciphertext, err error) {
 
 	params := eval.Parameters

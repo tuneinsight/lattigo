@@ -1,10 +1,9 @@
-package he
+package rlwe
 
 import (
 	"fmt"
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 	"github.com/tuneinsight/lattigo/v5/ring"
 	"github.com/tuneinsight/lattigo/v5/utils"
 )
@@ -14,7 +13,7 @@ import (
 type RingPackingEvaluator struct {
 	*RingPackingEvaluationKey
 
-	Evaluators map[int]*rlwe.Evaluator
+	Evaluators map[int]*Evaluator
 
 	//XPow2NTT: [1, x, x^2, x^4, ..., x^2^s] / (X^2^s +1)
 	XPow2NTT map[int][]ring.Poly
@@ -26,7 +25,7 @@ type RingPackingEvaluator struct {
 // NewRingPackingEvaluator instantiates a new RingPackingEvaluator from a RingPackingEvaluationKey.
 func NewRingPackingEvaluator(evk *RingPackingEvaluationKey) *RingPackingEvaluator {
 
-	Evaluators := map[int]*rlwe.Evaluator{}
+	Evaluators := map[int]*Evaluator{}
 	XPow2NTT := map[int][]ring.Poly{}
 	XInvPow2NTT := map[int][]ring.Poly{}
 
@@ -37,7 +36,7 @@ func NewRingPackingEvaluator(evk *RingPackingEvaluationKey) *RingPackingEvaluato
 
 	for i := minLogN; i < maxLogN+1; i++ {
 		pi := evk.Parameters[i].GetRLWEParameters()
-		Evaluators[i] = rlwe.NewEvaluator(pi, nil)
+		Evaluators[i] = NewEvaluator(pi, nil)
 		XPow2NTT[i] = GenXPow2NTT(pi.RingQ().AtLevel(levelQ), pi.LogN(), false)
 		XInvPow2NTT[i] = GenXPow2NTT(pi.RingQ().AtLevel(levelQ), pi.LogN(), true)
 	}
@@ -55,7 +54,7 @@ func NewRingPackingEvaluator(evk *RingPackingEvaluationKey) *RingPackingEvaluato
 // Evaluators can be used concurrently.
 func (eval RingPackingEvaluator) ShallowCopy() *RingPackingEvaluator {
 
-	Evaluators := map[int]*rlwe.Evaluator{}
+	Evaluators := map[int]*Evaluator{}
 	for i := range eval.Evaluators {
 		Evaluators[i] = eval.Evaluators[i].ShallowCopy()
 	}
@@ -72,7 +71,7 @@ func (eval RingPackingEvaluator) ShallowCopy() *RingPackingEvaluator {
 // ciphertexts of degree eval.MinLogN(), each encrypting P(X) = c[i] * X^{0} for i in idx.
 // All non-constant coefficients are zeroed and thus correctness is ensured if this method
 // is composed with either Repack or RepackNaive.
-func (eval RingPackingEvaluator) Extract(ct *rlwe.Ciphertext, idx map[int]bool) (cts map[int]*rlwe.Ciphertext, err error) {
+func (eval RingPackingEvaluator) Extract(ct *Ciphertext, idx map[int]bool) (cts map[int]*Ciphertext, err error) {
 	return eval.extract(ct, idx, false)
 }
 
@@ -83,12 +82,12 @@ func (eval RingPackingEvaluator) Extract(ct *rlwe.Ciphertext, idx map[int]bool) 
 //
 // If eval.MinLogN() = eval.MaxLogN(), no evaluation keys are required for this method.
 // If eval.MinLogN() < eval.MaxLogN(), only RingSwitchingKeys are required for this method.
-func (eval RingPackingEvaluator) ExtractNaive(ct *rlwe.Ciphertext, idx map[int]bool) (cts map[int]*rlwe.Ciphertext, err error) {
+func (eval RingPackingEvaluator) ExtractNaive(ct *Ciphertext, idx map[int]bool) (cts map[int]*Ciphertext, err error) {
 	return eval.extract(ct, idx, true)
 }
 
 // If naive = false, then all non-constant coefficients are zeroed.
-func (eval RingPackingEvaluator) extract(ct *rlwe.Ciphertext, idx map[int]bool, naive bool) (cts map[int]*rlwe.Ciphertext, err error) {
+func (eval RingPackingEvaluator) extract(ct *Ciphertext, idx map[int]bool, naive bool) (cts map[int]*Ciphertext, err error) {
 
 	logNMax := ct.LogN()
 	logNMin := eval.MinLogN()
@@ -106,8 +105,8 @@ func (eval RingPackingEvaluator) extract(ct *rlwe.Ciphertext, idx map[int]bool, 
 	}
 
 	// First recursively splits the ciphertexts into smaller ciphertexts of half the ring
-	// degree until the minimum ring degree is reached
-	tmpCts := make(map[int]*rlwe.Ciphertext)
+	// degree until the minimum ring degre is reached
+	tmpCts := make(map[int]*Ciphertext)
 	tmpCts[0] = ct.CopyNew()
 	for i := 0; i < logNFactor; i++ {
 		t := 1 << i
@@ -119,8 +118,8 @@ func (eval RingPackingEvaluator) extract(ct *rlwe.Ciphertext, idx map[int]bool, 
 
 			if tmpCts[j] != nil {
 
-				ctEvenNHalf := rlwe.NewCiphertext(eval.Parameters[logNMax-i-1], 1, level)
-				ctOddNHalf := rlwe.NewCiphertext(eval.Parameters[logNMax-i-1], 1, level)
+				ctEvenNHalf := NewCiphertext(eval.Parameters[logNMax-i-1], 1, level)
+				ctOddNHalf := NewCiphertext(eval.Parameters[logNMax-i-1], 1, level)
 
 				if err = eval.Split(tmpCts[j], ctEvenNHalf, ctOddNHalf); err != nil {
 					return nil, fmt.Errorf("eval.split(cts[%d]): %w", j, err)
@@ -143,13 +142,13 @@ func (eval RingPackingEvaluator) extract(ct *rlwe.Ciphertext, idx map[int]bool, 
 	}
 
 	// For each small ciphertext, extracts the relevant values
-	cts = make(map[int]*rlwe.Ciphertext)
+	cts = make(map[int]*Ciphertext)
 	for i := range buckets {
-		var ciphertexts map[int]*rlwe.Ciphertext
+		var ciphertexts map[int]*Ciphertext
 
 		if naive {
 
-			ciphertexts = map[int]*rlwe.Ciphertext{}
+			ciphertexts = map[int]*Ciphertext{}
 			for _, j := range buckets[i] {
 				ciphertexts[j] = tmpCts[i].CopyNew()
 			}
@@ -159,7 +158,7 @@ func (eval RingPackingEvaluator) extract(ct *rlwe.Ciphertext, idx map[int]bool, 
 			ringQ := eval.Parameters[logNMin].GetRLWEParameters().RingQ().AtLevel(level)
 
 			// Rotates ciphertexts to move c[i] * X^{i} -> c[i] * X^{0}
-			// by sequentially multiplying with the appropriate X^{-2^{i}}.
+			// by sequentially multplying with the appropriate X^{-2^{i}}.
 			for i := 0; i < logNMin; i++ {
 				for j := range ciphertexts {
 					if (j>>i)&1 == 1 {
@@ -191,7 +190,7 @@ func (eval RingPackingEvaluator) extract(ct *rlwe.Ciphertext, idx map[int]bool, 
 
 // Split splits a ciphertext of degree N into two ciphertexts of degree N/2:
 // ctN[X] = ctEvenNHalf[Y] + X * ctOddNHalf[Y] where Y = X^2.
-func (eval RingPackingEvaluator) Split(ctN, ctEvenNHalf, ctOddNHalf *rlwe.Ciphertext) (err error) {
+func (eval RingPackingEvaluator) Split(ctN, ctEvenNHalf, ctOddNHalf *Ciphertext) (err error) {
 
 	if eval.MinLogN() == eval.MaxLogN() {
 		return fmt.Errorf("method is not supported when eval.MinLogN() == eval.MaxLogN()")
@@ -214,7 +213,7 @@ func (eval RingPackingEvaluator) Split(ctN, ctEvenNHalf, ctOddNHalf *rlwe.Cipher
 	evalN := eval.Evaluators[LogN]
 	evkNToNHalf := eval.RingSwitchingKeys[LogN][LogN-1]
 
-	ctTmp := rlwe.NewCiphertext(eval.Parameters[LogN], 1, ctN.Level())
+	ctTmp := NewCiphertext(eval.Parameters[LogN], 1, ctN.Level())
 
 	// SkN -> SkNHalf
 	if err = evalN.ApplyEvaluationKey(ctN, evkNToNHalf, ctTmp); err != nil {
@@ -226,7 +225,7 @@ func (eval RingPackingEvaluator) Split(ctN, ctEvenNHalf, ctOddNHalf *rlwe.Cipher
 	// Maps to smaller ring degree X -> Y = X^{2}
 
 	*ctEvenNHalf.MetaData = *ctN.MetaData
-	rlwe.SwitchCiphertextRingDegreeNTT(ctTmp.El(), r, ctEvenNHalf.El())
+	SwitchCiphertextRingDegreeNTT(ctTmp.El(), r, ctEvenNHalf.El())
 	ctEvenNHalf.LogDimensions.Cols--
 
 	// Maps to smaller ring degree X -> Y = X^{2}
@@ -239,7 +238,7 @@ func (eval RingPackingEvaluator) Split(ctN, ctEvenNHalf, ctOddNHalf *rlwe.Cipher
 		*ctOddNHalf.MetaData = *ctN.MetaData
 		r.MulCoeffsMontgomery(ctTmp.Value[0], eval.XInvPow2NTT[LogN][0], ctTmp.Value[0])
 		r.MulCoeffsMontgomery(ctTmp.Value[1], eval.XInvPow2NTT[LogN][0], ctTmp.Value[1])
-		rlwe.SwitchCiphertextRingDegreeNTT(ctTmp.El(), r, ctOddNHalf.El())
+		SwitchCiphertextRingDegreeNTT(ctTmp.El(), r, ctOddNHalf.El())
 		ctOddNHalf.LogDimensions.Cols--
 	}
 
@@ -248,34 +247,34 @@ func (eval RingPackingEvaluator) Split(ctN, ctEvenNHalf, ctOddNHalf *rlwe.Cipher
 
 // SplitNew splits a ciphertext of degree N into two ciphertexts of degree N/2:
 // ctN[X] = ctEvenNHalf[Y] + X * ctOddNHalf[Y] where Y = X^2.
-func (eval RingPackingEvaluator) SplitNew(ctN *rlwe.Ciphertext) (ctEvenNHalf, ctOddNHalf *rlwe.Ciphertext, err error) {
+func (eval RingPackingEvaluator) SplitNew(ctN *Ciphertext) (ctEvenNHalf, ctOddNHalf *Ciphertext, err error) {
 	if eval.MinLogN() == eval.MaxLogN() {
 		return nil, nil, fmt.Errorf("method is not supported when eval.MinLogN() == eval.MaxLogN()")
 	}
 	LogN := ctN.LogN()
-	ctEvenNHalf = rlwe.NewCiphertext(eval.Parameters[LogN-1], 1, ctN.Level())
-	ctOddNHalf = rlwe.NewCiphertext(eval.Parameters[LogN-1], 1, ctN.Level())
+	ctEvenNHalf = NewCiphertext(eval.Parameters[LogN-1], 1, ctN.Level())
+	ctOddNHalf = NewCiphertext(eval.Parameters[LogN-1], 1, ctN.Level())
 	return ctEvenNHalf, ctOddNHalf, eval.Split(ctN, ctEvenNHalf, ctOddNHalf)
 }
 
 // Repack takes as input a map of ciphertext and repacks the constant coefficient each ciphertext
 // into a single ciphertext of degree eval.MaxLogN() following the indexing of the map.
 //
-// For example, if cts = map[int]*rlwe.Ciphertext{0:ct0, 1:ct1, 4:ct2}, then the method will return
+// For example, if cts = map[int]*Ciphertext{0:ct0, 1:ct1, 4:ct2}, then the method will return
 // a ciphertext encrypting P(X) = ct0[0] + ct1[0] * X + ct2[0] * X^4.
 //
 // The method accepts ciphertexts of a ring degree between eval.MinLogN() and eval.MaxLogN().
 //
 // All non-constant coefficient are zeroed during the repacking, thus correctness is ensured if this
 // method can be composed with either Extract or ExtractNaive.
-func (eval RingPackingEvaluator) Repack(cts map[int]*rlwe.Ciphertext) (ct *rlwe.Ciphertext, err error) {
+func (eval RingPackingEvaluator) Repack(cts map[int]*Ciphertext) (ct *Ciphertext, err error) {
 	return eval.repack(cts, false)
 }
 
 // RepackNaive takes as input a map of ciphertext and repacks the constant coefficient each ciphertext
 // into a single ciphertext of degree eval.MaxLogN() following the indexing of the map.
 //
-// For example, if cts = map[int]*rlwe.Ciphertext{0:ct0, 1:ct1, 4:ct2}, then the method will return
+// For example, if cts = map[int]*Ciphertext{0:ct0, 1:ct1, 4:ct2}, then the method will return
 // a ciphertext encrypting P(X) = ct0[0] + ct1[0] * X + ct2[0] * X^4.
 //
 // The method accepts ciphertexts of a ring degree between eval.MinLogN() and eval.MaxLogN().
@@ -285,11 +284,11 @@ func (eval RingPackingEvaluator) Repack(cts map[int]*rlwe.Ciphertext) (ct *rlwe.
 //
 // Unlike Repack, non-constant coefficient are NOT zeroed during the repacking, thus correctness is only
 // ensured if this method is composed with either Extract.
-func (eval RingPackingEvaluator) RepackNaive(cts map[int]*rlwe.Ciphertext) (ct *rlwe.Ciphertext, err error) {
+func (eval RingPackingEvaluator) RepackNaive(cts map[int]*Ciphertext) (ct *Ciphertext, err error) {
 	return eval.repack(cts, true)
 }
 
-func (eval RingPackingEvaluator) repack(cts map[int]*rlwe.Ciphertext, naive bool) (ct *rlwe.Ciphertext, err error) {
+func (eval RingPackingEvaluator) repack(cts map[int]*Ciphertext, naive bool) (ct *Ciphertext, err error) {
 
 	keys := utils.GetSortedKeys(cts)
 
@@ -301,9 +300,9 @@ func (eval RingPackingEvaluator) repack(cts map[int]*rlwe.Ciphertext, naive bool
 	NFactor := 1 << logNFactor
 
 	// List of map containing the repacking of cts
-	ctsSmallN := make([]map[int]*rlwe.Ciphertext, NFactor)
+	ctsSmallN := make([]map[int]*Ciphertext, NFactor)
 	for i := range ctsSmallN {
-		ctsSmallN[i] = map[int]*rlwe.Ciphertext{}
+		ctsSmallN[i] = map[int]*Ciphertext{}
 	}
 
 	// Assigns to each map the corresponding ciphertext.
@@ -317,7 +316,7 @@ func (eval RingPackingEvaluator) repack(cts map[int]*rlwe.Ciphertext, naive bool
 	// Map of repacked ciphertext that will then be merged together.
 	// Each merging takes two ciphertexts, doubles their ring degree
 	// and adds them together.
-	ctsLargeN := map[int]*rlwe.Ciphertext{}
+	ctsLargeN := map[int]*Ciphertext{}
 	for i := 0; i < NFactor; i++ {
 
 		if naive {
@@ -369,7 +368,7 @@ func (eval RingPackingEvaluator) repack(cts map[int]*rlwe.Ciphertext, naive bool
 		}
 	}
 
-	// Merges the ciphertexts in a base-2 tree like fashion.
+	// Merges the cipehrtexts in a base-2 tree like fashion.
 	for i := logNFactor - 1; i >= 0; i-- {
 		t := 1 << i
 
@@ -377,7 +376,7 @@ func (eval RingPackingEvaluator) repack(cts map[int]*rlwe.Ciphertext, naive bool
 
 			if ctsLargeN[j] != nil || ctsLargeN[j+1] != nil {
 
-				ctN := rlwe.NewCiphertext(eval.Parameters[logNMax-i], 1, level)
+				ctN := NewCiphertext(eval.Parameters[logNMax-i], 1, level)
 
 				if err = eval.Merge(ctsLargeN[j], ctsLargeN[j+t], ctN); err != nil {
 					return nil, fmt.Errorf("eval.split(cts[%d]): %w", j, err)
@@ -392,9 +391,9 @@ func (eval RingPackingEvaluator) repack(cts map[int]*rlwe.Ciphertext, naive bool
 	return ctsLargeN[0], nil
 }
 
-// Merge merges two ciphertexts of degree N/2 into a ciphertext of degree N:
+// Merge merges two ciphertexts of degree N/2 into a ciphertext of degre N:
 // ctN[X] = ctEvenNHalf[Y] + X * ctOddNHalf[Y] where Y = X^2.
-func (eval RingPackingEvaluator) Merge(ctEvenNHalf, ctOddNHalf, ctN *rlwe.Ciphertext) (err error) {
+func (eval RingPackingEvaluator) Merge(ctEvenNHalf, ctOddNHalf, ctN *Ciphertext) (err error) {
 
 	if eval.MinLogN() == eval.MaxLogN() {
 		return fmt.Errorf("method is not supported when eval.MinLogN() == eval.MaxLogN()")
@@ -424,13 +423,13 @@ func (eval RingPackingEvaluator) Merge(ctEvenNHalf, ctOddNHalf, ctN *rlwe.Cipher
 	evkNHalfToN := eval.RingSwitchingKeys[LogN-1][LogN]
 	r := eval.Parameters[LogN].GetRLWEParameters().RingQ().AtLevel(ctN.Level())
 
-	ctTmp := rlwe.NewCiphertext(eval.Parameters[LogN], 1, ctN.Level())
+	ctTmp := NewCiphertext(eval.Parameters[LogN], 1, ctN.Level())
 
 	*ctN.MetaData = *ctEvenNHalf.MetaData
-	rlwe.SwitchCiphertextRingDegreeNTT(ctEvenNHalf.El(), r, ctN.El())
+	SwitchCiphertextRingDegreeNTT(ctEvenNHalf.El(), r, ctN.El())
 
 	if ctOddNHalf != nil {
-		rlwe.SwitchCiphertextRingDegreeNTT(ctOddNHalf.El(), r, ctTmp.El())
+		SwitchCiphertextRingDegreeNTT(ctOddNHalf.El(), r, ctTmp.El())
 		r.MulCoeffsMontgomeryThenAdd(ctTmp.Value[0], eval.XPow2NTT[LogN][0], ctN.Value[0])
 		r.MulCoeffsMontgomeryThenAdd(ctTmp.Value[1], eval.XPow2NTT[LogN][0], ctN.Value[1])
 	}
@@ -444,9 +443,9 @@ func (eval RingPackingEvaluator) Merge(ctEvenNHalf, ctOddNHalf, ctN *rlwe.Cipher
 	return
 }
 
-// MergeNew merges two ciphertexts of degree N/2 into a ciphertext of degree N:
+// MergeNew merges two ciphertexts of degree N/2 into a ciphertext of degre N:
 // ctN[X] = ctEvenNHalf[Y] + X * ctOddNHalf[Y] where Y = X^2.
-func (eval RingPackingEvaluator) MergeNew(ctEvenNHalf, ctOddNHalf *rlwe.Ciphertext) (ctN *rlwe.Ciphertext, err error) {
+func (eval RingPackingEvaluator) MergeNew(ctEvenNHalf, ctOddNHalf *Ciphertext) (ctN *Ciphertext, err error) {
 
 	if eval.MinLogN() == eval.MaxLogN() {
 		return nil, fmt.Errorf("method is not supported when eval.MinLogN() == eval.MaxLogN()")
@@ -460,7 +459,7 @@ func (eval RingPackingEvaluator) MergeNew(ctEvenNHalf, ctOddNHalf *rlwe.Cipherte
 		return nil, fmt.Errorf("ctEvenNHalf.LogN() must be smaller than eval.MaxLogN()")
 	}
 
-	ctN = rlwe.NewCiphertext(eval.Parameters[ctEvenNHalf.LogN()+1], 1, ctEvenNHalf.Level())
+	ctN = NewCiphertext(eval.Parameters[ctEvenNHalf.LogN()+1], 1, ctEvenNHalf.Level())
 	return ctN, eval.Merge(ctEvenNHalf, ctOddNHalf, ctN)
 }
 
@@ -473,7 +472,7 @@ func (eval RingPackingEvaluator) MergeNew(ctEvenNHalf, ctOddNHalf *rlwe.Cipherte
 // The method will return an error if:
 //   - The input ciphertext degree is not one
 //   - The ring type is not ring.Standard
-func (eval RingPackingEvaluator) Expand(ct *rlwe.Ciphertext, logGap int) (cts map[int]*rlwe.Ciphertext, err error) {
+func (eval RingPackingEvaluator) Expand(ct *Ciphertext, logGap int) (cts map[int]*Ciphertext, err error) {
 
 	if ct.Degree() != 1 {
 		return nil, fmt.Errorf("ct.Degree() != 1")
@@ -481,7 +480,7 @@ func (eval RingPackingEvaluator) Expand(ct *rlwe.Ciphertext, logGap int) (cts ma
 
 	logN := ct.LogN()
 
-	var params rlwe.Parameters
+	var params Parameters
 
 	if p, ok := eval.Parameters[logN]; !ok {
 		return nil, fmt.Errorf("eval.Parameters[%d] is nil", logN)
@@ -493,7 +492,7 @@ func (eval RingPackingEvaluator) Expand(ct *rlwe.Ciphertext, logGap int) (cts ma
 		return nil, fmt.Errorf("eval.ExtractKeys is nil")
 	}
 
-	var evk rlwe.EvaluationKeySet
+	var evk EvaluationKeySet
 	if p, ok := eval.ExtractKeys[params.LogN()]; !ok {
 		return nil, fmt.Errorf("eval.ExtractKeys[%d] is nil", params.LogN())
 	} else {
@@ -511,7 +510,7 @@ func (eval RingPackingEvaluator) Expand(ct *rlwe.Ciphertext, logGap int) (cts ma
 		return nil, fmt.Errorf("method is only supported for ring.Type = ring.Standard (X^{-2^{i}} does not exist in the sub-ring Z[X + X^{-1}])")
 	}
 
-	cts = map[int]*rlwe.Ciphertext{}
+	cts = map[int]*Ciphertext{}
 	cts[0] = ct.CopyNew()
 	cts[0].LogDimensions = ring.Dimensions{Rows: 0, Cols: 0}
 
@@ -530,10 +529,10 @@ func (eval RingPackingEvaluator) Expand(ct *rlwe.Ciphertext, logGap int) (cts ma
 
 	gap := 1 << logGap
 
-	tmp, err := rlwe.NewCiphertextAtLevelFromPoly(level, []ring.Poly{evalN.BuffCt.Value[0], evalN.BuffCt.Value[1]})
+	tmp, err := NewCiphertextAtLevelFromPoly(level, []ring.Poly{evalN.BuffCt.Value[0], evalN.BuffCt.Value[1]})
 
 	// Sanity check, this error should not happen unless the
-	// evaluator's buffer has been improperly tempered with.
+	// evaluator's buffer thave been improperly tempered with.
 	if err != nil {
 		panic(err)
 	}
@@ -620,7 +619,7 @@ func (eval RingPackingEvaluator) Expand(ct *rlwe.Ciphertext, logGap int) (cts ma
 //	         map[1]: 2^{-1} * (map[1] + X^2 * map[3] + phi_{5^2}(map[1] - X^2 * map[3]) = [x10, X, x30, X, x11, X, x31, X]
 //	 Step 2:
 //	         map[0]: 2^{-1} * (map[0] + X^1 * map[1] + phi_{5^4}(map[0] - X^1 * map[1]) = [x00, x10, x20, x30, x01, x11, x21, x22]
-func (eval RingPackingEvaluator) Pack(cts map[int]*rlwe.Ciphertext, inputLogGap int, zeroGarbageSlots bool) (ct *rlwe.Ciphertext, err error) {
+func (eval RingPackingEvaluator) Pack(cts map[int]*Ciphertext, inputLogGap int, zeroGarbageSlots bool) (ct *Ciphertext, err error) {
 
 	if len(cts) == 0 {
 		return nil, fmt.Errorf("len(cts) = 0")
@@ -630,7 +629,7 @@ func (eval RingPackingEvaluator) Pack(cts map[int]*rlwe.Ciphertext, inputLogGap 
 
 	logN := cts[keys[0]].LogN()
 
-	var params rlwe.Parameters
+	var params Parameters
 
 	if p, ok := eval.Parameters[logN]; !ok {
 		return nil, fmt.Errorf("eval.Parameters[%d] is nil", logN)
@@ -642,7 +641,7 @@ func (eval RingPackingEvaluator) Pack(cts map[int]*rlwe.Ciphertext, inputLogGap 
 		return nil, fmt.Errorf("eval.RepackKeys is nil")
 	}
 
-	var evk rlwe.EvaluationKeySet
+	var evk EvaluationKeySet
 	if p, ok := eval.RepackKeys[params.LogN()]; !ok {
 		return nil, fmt.Errorf("eval.RepackKeys[%d] is nil", params.LogN())
 	} else {
@@ -706,9 +705,9 @@ func (eval RingPackingEvaluator) Pack(cts map[int]*rlwe.Ciphertext, inputLogGap 
 		ringQ.MulScalarBigint(ct.Value[1], NInv, ct.Value[1])
 	}
 
-	tmpa := &rlwe.Ciphertext{}
+	tmpa := &Ciphertext{}
 	tmpa.Value = []ring.Poly{ringQ.NewPoly(), ringQ.NewPoly()}
-	tmpa.MetaData = &rlwe.MetaData{}
+	tmpa.MetaData = &MetaData{}
 	tmpa.MetaData.IsNTT = true
 
 	for i := logStart; i < logEnd; i++ {
@@ -856,7 +855,7 @@ func getMinimumGap(list []int) (gap, logGap int, err error) {
 	}
 
 	// Sets gap to the largest power-of-two that divides it.
-	// We will then discard all coefficients that are not a
+	// We will then discart all coefficients that are not a
 	// multiple of this gap (and thus possibly entire ciph-
 	// ertexts).
 	for gap&1 == 0 {

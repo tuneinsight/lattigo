@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/he"
 	"github.com/tuneinsight/lattigo/v5/he/hebin"
 	"github.com/tuneinsight/lattigo/v5/he/hefloat"
 	"github.com/tuneinsight/lattigo/v5/ring"
@@ -222,13 +221,13 @@ func main() {
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	// Instantiate the repacking keys
-	evkRepacking := &he.RingPackingEvaluationKey{
+	evkRepacking := &rlwe.RingPackingEvaluationKey{
 		Parameters: map[int]rlwe.ParameterProvider{paramsN12.LogN(): &paramsN12},
 		RepackKeys: map[int]rlwe.EvaluationKeySet{paramsN12.LogN(): evk},
 	}
 
 	// Instantiate the repacking evaluator from the repacking keys
-	evalRepack := he.NewRingPackingEvaluator(evkRepacking)
+	evalRepack := rlwe.NewRingPackingEvaluator(evkRepacking)
 
 	fmt.Printf("Evaluating Ring-Packing... ")
 	now = time.Now()

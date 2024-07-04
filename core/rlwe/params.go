@@ -670,7 +670,7 @@ func (p Parameters) WriteTo(w io.Writer) (n int64, err error) {
 			return 0, err
 		}
 
-		if n, err = buffer.WriteAsUint32[int](w, len(bytes)); err != nil {
+		if n, err = buffer.WriteAsUint32(w, len(bytes)); err != nil {
 			return n, fmt.Errorf("buffer.WriteAsUint32[int]: %w", err)
 		}
 
@@ -704,7 +704,7 @@ func (p *Parameters) ReadFrom(r io.Reader) (n int64, err error) {
 	case buffer.Reader:
 
 		var size int
-		if n, err = buffer.ReadAsUint32[int](r, &size); err != nil {
+		if n, err = buffer.ReadAsUint32(r, &size); err != nil {
 			return int64(n), fmt.Errorf("buffer.ReadAsUint64[int]: %w", err)
 		}
 

@@ -13,10 +13,11 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/tuneinsight/lattigo/v5/circuits/blind_rotation"
+	"github.com/tuneinsight/lattigo/v5/circuits/dft"
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/he/hebin"
-	"github.com/tuneinsight/lattigo/v5/he/hefloat"
 	"github.com/tuneinsight/lattigo/v5/ring"
+	"github.com/tuneinsight/lattigo/v5/schemes/ckks"
 	"github.com/tuneinsight/lattigo/v5/utils"
 )
 
@@ -60,8 +61,8 @@ func main() {
 	// determine the complexity of the BlindRotation:
 	// each BlindRotation takes ~N RGSW ciphertext-ciphertext mul.
 	// LogN = 12 & LogQP = ~103 -> >128-bit secure.
-	var paramsN12 hefloat.Parameters
-	if paramsN12, err = hefloat.NewParametersFromLiteral(hefloat.ParametersLiteral{
+	var paramsN12 ckks.Parameters
+	if paramsN12, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
 		LogN:            LogN,
 		Q:               Q,
 		P:               P,
@@ -73,8 +74,8 @@ func main() {
 	// BlindRotation RLWE params, N of these params determine
 	// the test poly degree and therefore precision.
 	// LogN = 11 & LogQP = ~54 -> 128-bit secure.
-	var paramsN11 hefloat.Parameters
-	if paramsN11, err = hefloat.NewParametersFromLiteral(hefloat.ParametersLiteral{
+	var paramsN11 ckks.Parameters
+	if paramsN11, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
 		LogN: LogN - 1,
 		Q:    Q[:1],
 		P:    []uint64{0x42001},
@@ -96,8 +97,8 @@ func main() {
 	normalization := 2.0 / (b - a) // all inputs are normalized before the BlindRotation evaluation.
 
 	// SlotsToCoeffsParameters homomorphic encoding parameters
-	var SlotsToCoeffsParameters = hefloat.DFTMatrixLiteral{
-		Type:     hefloat.HomomorphicDecode,
+	var SlotsToCoeffsParameters = dft.DFTMatrixLiteral{
+		Type:     dft.HomomorphicDecode,
 		LogSlots: LogSlots,
 		Scaling:  new(big.Float).SetFloat64(normalization * diffScale),
 		LevelQ:   1, // starting level
@@ -106,8 +107,8 @@ func main() {
 	}
 
 	// CoeffsToSlotsParameters homomorphic decoding parameters
-	var CoeffsToSlotsParameters = hefloat.DFTMatrixLiteral{
-		Type:     hefloat.HomomorphicEncode,
+	var CoeffsToSlotsParameters = dft.DFTMatrixLiteral{
+		Type:     dft.HomomorphicEncode,
 		LogSlots: LogSlots,
 		LevelQ:   1, // starting level
 		LevelP:   0,
@@ -117,7 +118,7 @@ func main() {
 	fmt.Printf("Generating Test Poly... ")
 	now := time.Now()
 	// Generate test polynomial, provide function, outputscale, ring and interval.
-	testPoly := hebin.InitTestPolynomial(sign, paramsN12.DefaultScale(), paramsN12.RingQ(), a, b)
+	testPoly := blind_rotation.InitTestPolynomial(sign, paramsN12.DefaultScale(), paramsN12.RingQ(), a, b)
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	// Index of the test poly and repacking after evaluating the BlindRotation.
@@ -133,7 +134,7 @@ func main() {
 
 	kgenN12 := rlwe.NewKeyGenerator(paramsN12)
 	skN12 := kgenN12.GenSecretKeyNew()
-	encoderN12 := hefloat.NewEncoder(paramsN12)
+	encoderN12 := ckks.NewEncoder(paramsN12)
 	encryptorN12 := rlwe.NewEncryptor(paramsN12, skN12)
 	decryptorN12 := rlwe.NewDecryptor(paramsN12, skN12)
 
@@ -145,11 +146,11 @@ func main() {
 
 	fmt.Printf("Gen SlotsToCoeffs Matrices... ")
 	now = time.Now()
-	SlotsToCoeffsMatrix, err := hefloat.NewDFTMatrixFromLiteral(paramsN12, SlotsToCoeffsParameters, encoderN12)
+	SlotsToCoeffsMatrix, err := dft.NewDFTMatrixFromLiteral(paramsN12, SlotsToCoeffsParameters, encoderN12)
 	if err != nil {
 		panic(err)
 	}
-	CoeffsToSlotsMatrix, err := hefloat.NewDFTMatrixFromLiteral(paramsN12, CoeffsToSlotsParameters, encoderN12)
+	CoeffsToSlotsMatrix, err := dft.NewDFTMatrixFromLiteral(paramsN12, CoeffsToSlotsParameters, encoderN12)
 	if err != nil {
 		panic(err)
 	}
@@ -164,15 +165,15 @@ func main() {
 	evk := rlwe.NewMemEvaluationKeySet(nil, kgenN12.GenGaloisKeysNew(galEls, skN12)...)
 
 	// BlindRotation Evaluator
-	evalBR := hebin.NewEvaluator(paramsN12, paramsN11)
+	evalBR := blind_rotation.NewEvaluator(paramsN12, paramsN11)
 
 	// Evaluator
-	eval := hefloat.NewEvaluator(paramsN12, evk)
-	evalHDFT := hefloat.NewDFTEvaluator(paramsN12, eval)
+	eval := ckks.NewEvaluator(paramsN12, evk)
+	evalHDFT := dft.NewDFTEvaluator(paramsN12, eval)
 
 	fmt.Printf("Encrypting bits of skLWE in RGSW... ")
 	now = time.Now()
-	blindRotateKey := hebin.GenEvaluationKeyNew(paramsN12, skN12, paramsN11, skN11, evkParams) // Generate RGSW(sk_i) for all coefficients of sk
+	blindRotateKey := blind_rotation.GenEvaluationKeyNew(paramsN12, skN12, paramsN11, skN11, evkParams) // Generate RGSW(sk_i) for all coefficients of sk
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	// Generates the starting plaintext values.
@@ -182,7 +183,7 @@ func main() {
 		values[i] = a + float64(i)*interval
 	}
 
-	pt := hefloat.NewPlaintext(paramsN12, paramsN12.MaxLevel())
+	pt := ckks.NewPlaintext(paramsN12, paramsN12.MaxLevel())
 	pt.LogDimensions.Cols = LogSlots
 	if err := encoderN12.Encode(values, pt); err != nil {
 		panic(err)
@@ -204,7 +205,7 @@ func main() {
 	ctN12.IsBatched = false
 
 	// Key-Switch from LogN = 12 to LogN = 11
-	ctN11 := hefloat.NewCiphertext(paramsN11, 1, paramsN11.MaxLevel())
+	ctN11 := ckks.NewCiphertext(paramsN11, 1, paramsN11.MaxLevel())
 	// key-switch to LWE degree
 	if err := eval.ApplyEvaluationKey(ctN12, evkN12ToN11, ctN11); err != nil {
 		panic(err)

@@ -37,10 +37,12 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/tuneinsight/lattigo/v5/circuits/bootstrapping"
+	"github.com/tuneinsight/lattigo/v5/circuits/dft"
+	"github.com/tuneinsight/lattigo/v5/circuits/mod1"
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/he/hefloat"
-	"github.com/tuneinsight/lattigo/v5/he/hefloat/bootstrapping"
 	"github.com/tuneinsight/lattigo/v5/ring"
+	"github.com/tuneinsight/lattigo/v5/schemes/ckks"
 	"github.com/tuneinsight/lattigo/v5/utils"
 	"github.com/tuneinsight/lattigo/v5/utils/sampling"
 )
@@ -83,7 +85,7 @@ func main() {
 	LogQ = append(LogQ, qiEvalMod...)
 	LogQ = append(LogQ, qiCoeffsToSlots...)
 
-	params, err := hefloat.NewParametersFromLiteral(hefloat.ParametersLiteral{
+	params, err := ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
 		LogN:            LogN,                      // Log2 of the ring degree
 		LogQ:            LogQ,                      // Log2 of the ciphertext modulus
 		LogP:            []int{61, 61, 61, 61, 61}, // Log2 of the key-switch auxiliary prime moduli
@@ -100,9 +102,9 @@ func main() {
 	//====================================
 
 	// CoeffsToSlots parameters (homomorphic encoding)
-	CoeffsToSlotsParameters := hefloat.DFTMatrixLiteral{
-		Type:         hefloat.HomomorphicEncode,
-		Format:       hefloat.RepackImagAsReal, // Returns the real and imaginary part into separate ciphertexts
+	CoeffsToSlotsParameters := dft.DFTMatrixLiteral{
+		Type:         dft.HomomorphicEncode,
+		Format:       dft.RepackImagAsReal, // Returns the real and imaginary part into separate ciphertexts
 		LogSlots:     params.LogMaxSlots(),
 		LevelQ:       params.MaxLevelQ(),
 		LevelP:       params.MaxLevelP(),
@@ -111,20 +113,20 @@ func main() {
 	}
 
 	// Parameters of the homomorphic modular reduction x mod 1
-	Mod1ParametersLiteral := hefloat.Mod1ParametersLiteral{
+	Mod1ParametersLiteral := mod1.Mod1ParametersLiteral{
 		LevelQ:          params.MaxLevel() - CoeffsToSlotsParameters.Depth(true),
-		LogScale:        60,                  // Matches qiEvalMod
-		Mod1Type:        hefloat.CosDiscrete, // Multi-interval Chebyshev interpolation
-		Mod1Degree:      30,                  // Depth 5
-		DoubleAngle:     3,                   // Depth 3
-		K:               16,                  // With EphemeralSecretWeight = 32 and 2^{15} slots, ensures < 2^{-138.7} failure probability
-		LogMessageRatio: 10,                  // q/|m| = 2^10
-		Mod1InvDegree:   0,                   // Depth 0
+		LogScale:        60,               // Matches qiEvalMod
+		Mod1Type:        mod1.CosDiscrete, // Multi-interval Chebyshev interpolation
+		Mod1Degree:      30,               // Depth 5
+		DoubleAngle:     3,                // Depth 3
+		K:               16,               // With EphemeralSecretWeight = 32 and 2^{15} slots, ensures < 2^{-138.7} failure probability
+		LogMessageRatio: 10,               // q/|m| = 2^10
+		Mod1InvDegree:   0,                // Depth 0
 	}
 
 	// SlotsToCoeffs parameters (homomorphic decoding)
-	SlotsToCoeffsParameters := hefloat.DFTMatrixLiteral{
-		Type:         hefloat.HomomorphicDecode,
+	SlotsToCoeffsParameters := dft.DFTMatrixLiteral{
+		Type:         dft.HomomorphicDecode,
 		LogSlots:     params.LogMaxSlots(),
 		LogBSGSRatio: 1,
 		LevelP:       params.MaxLevelP(),
@@ -170,7 +172,7 @@ func main() {
 
 	sk, pk := kgen.GenKeyPairNew()
 
-	encoder := hefloat.NewEncoder(params)
+	encoder := ckks.NewEncoder(params)
 	decryptor := rlwe.NewDecryptor(params, sk)
 	encryptor := rlwe.NewEncryptor(params, pk)
 
@@ -199,7 +201,7 @@ func main() {
 	}
 
 	// We encrypt at level 0
-	plaintext := hefloat.NewPlaintext(params, SlotsToCoeffsParameters.LevelQ)
+	plaintext := ckks.NewPlaintext(params, SlotsToCoeffsParameters.LevelQ)
 	if err := encoder.Encode(valuesWant, plaintext); err != nil {
 		panic(err)
 	}
@@ -306,7 +308,7 @@ func main() {
 	printDebug(params, ciphertext, valuesTest, decryptor, encoder)
 }
 
-func printDebug(params hefloat.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []complex128, decryptor *rlwe.Decryptor, encoder *hefloat.Encoder) (valuesTest []complex128) {
+func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []complex128, decryptor *rlwe.Decryptor, encoder *ckks.Encoder) (valuesTest []complex128) {
 
 	slots := ciphertext.Slots()
 
@@ -327,7 +329,7 @@ func printDebug(params hefloat.Parameters, ciphertext *rlwe.Ciphertext, valuesWa
 	fmt.Printf("ValuesTest: %10.14f %10.14f %10.14f %10.14f...\n", valuesTest[0], valuesTest[1], valuesTest[2], valuesTest[3])
 	fmt.Printf("ValuesWant: %10.14f %10.14f %10.14f %10.14f...\n", valuesWant[0], valuesWant[1], valuesWant[2], valuesWant[3])
 
-	precStats := hefloat.GetPrecisionStats(params, encoder, nil, valuesWant, valuesTest, 0, false)
+	precStats := ckks.GetPrecisionStats(params, encoder, nil, valuesWant, valuesTest, 0, false)
 
 	fmt.Println(precStats.String())
 	fmt.Println()

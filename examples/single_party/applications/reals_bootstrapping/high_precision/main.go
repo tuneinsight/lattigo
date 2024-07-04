@@ -24,10 +24,10 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/tuneinsight/lattigo/v5/circuits/bootstrapping"
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/he/hefloat"
-	"github.com/tuneinsight/lattigo/v5/he/hefloat/bootstrapping"
 	"github.com/tuneinsight/lattigo/v5/ring"
+	"github.com/tuneinsight/lattigo/v5/schemes/ckks"
 	"github.com/tuneinsight/lattigo/v5/utils"
 	"github.com/tuneinsight/lattigo/v5/utils/bignum"
 	"github.com/tuneinsight/lattigo/v5/utils/sampling"
@@ -55,7 +55,7 @@ func main() {
 	// The residual parameters are the parameters used outside of the bootstrapping circuit.
 	// For this example, we have a LogN=16, logQ = (55+45) + 5*(45+45) and logP = 3*61, so LogQP = 638.
 	// With LogN=16, LogQP=638 and H=192, these parameters achieve well over 128-bit of security.
-	params, err := hefloat.NewParametersFromLiteral(hefloat.ParametersLiteral{
+	params, err := ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
 		LogN:            LogN,              // Log2 of the ring degree
 		LogQ:            []int{60, 45},     // Log2 of the ciphertext prime moduli
 		LogP:            []int{61, 61, 61}, // Log2 of the key-switch auxiliary prime moduli
@@ -168,7 +168,7 @@ func main() {
 
 	sk, pk := kgen.GenKeyPairNew()
 
-	encoder := hefloat.NewEncoder(params)
+	encoder := ckks.NewEncoder(params)
 	decryptor := rlwe.NewDecryptor(params, sk)
 	encryptor := rlwe.NewEncryptor(params, pk)
 
@@ -200,7 +200,7 @@ func main() {
 	}
 
 	// We encrypt at level=LevelsConsumedPerRescaling-1
-	plaintext := hefloat.NewPlaintext(params, params.LevelsConsumedPerRescaling()-1)
+	plaintext := ckks.NewPlaintext(params, params.LevelsConsumedPerRescaling()-1)
 	if err := encoder.Encode(valuesWant, plaintext); err != nil {
 		panic(err)
 	}
@@ -240,7 +240,7 @@ func main() {
 	printDebug(params, ciphertext2, valuesTest1, decryptor, encoder)
 }
 
-func printDebug(params hefloat.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []*bignum.Complex, decryptor *rlwe.Decryptor, encoder *hefloat.Encoder) (valuesTest []*bignum.Complex) {
+func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []*bignum.Complex, decryptor *rlwe.Decryptor, encoder *ckks.Encoder) (valuesTest []*bignum.Complex) {
 
 	valuesTest = make([]*bignum.Complex, ciphertext.Slots())
 
@@ -255,7 +255,7 @@ func printDebug(params hefloat.Parameters, ciphertext *rlwe.Ciphertext, valuesWa
 	fmt.Printf("ValuesTest: %6.27f %6.27f...\n", valuesTest[0], valuesTest[1])
 	fmt.Printf("ValuesWant: %6.27f %6.27f...\n", valuesWant[0], valuesWant[1])
 
-	precStats := hefloat.GetPrecisionStats(params, encoder, nil, valuesWant, valuesTest, 0, false)
+	precStats := ckks.GetPrecisionStats(params, encoder, nil, valuesWant, valuesTest, 0, false)
 
 	fmt.Println(precStats.String())
 	fmt.Println()

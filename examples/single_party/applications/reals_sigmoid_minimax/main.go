@@ -6,21 +6,22 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/tuneinsight/lattigo/v5/circuits/polynomial/polyfloat"
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/he/hefloat"
 	"github.com/tuneinsight/lattigo/v5/ring"
+	"github.com/tuneinsight/lattigo/v5/schemes/ckks"
 	"github.com/tuneinsight/lattigo/v5/utils/bignum"
 	"github.com/tuneinsight/lattigo/v5/utils/sampling"
 )
 
 func main() {
 	var err error
-	var params hefloat.Parameters
+	var params ckks.Parameters
 
 	// 128-bit secure parameters enabling depth-7 circuits.
 	// LogN:14, LogQP: 431.
-	if params, err = hefloat.NewParametersFromLiteral(
-		hefloat.ParametersLiteral{
+	if params, err = ckks.NewParametersFromLiteral(
+		ckks.ParametersLiteral{
 			LogN:            14,                                    // log2(ring degree)
 			LogQ:            []int{55, 45, 45, 45, 45, 45, 45, 45}, // log2(primes Q) (ciphertext modulus)
 			LogP:            []int{61},                             // log2(primes P) (auxiliary modulus)
@@ -37,7 +38,7 @@ func main() {
 	sk := kgen.GenSecretKeyNew()
 
 	// Encoder
-	ecd := hefloat.NewEncoder(params)
+	ecd := ckks.NewEncoder(params)
 
 	// Encryptor
 	enc := rlwe.NewEncryptor(params, sk)
@@ -52,13 +53,13 @@ func main() {
 	evk := rlwe.NewMemEvaluationKeySet(rlk)
 
 	// Evaluator
-	eval := hefloat.NewEvaluator(params, evk)
+	eval := ckks.NewEvaluator(params, evk)
 
 	// Samples values in [-K, K]
 	K := 25.0
 
 	// Allocates a plaintext at the max level.
-	pt := hefloat.NewPlaintext(params, params.MaxLevel())
+	pt := ckks.NewPlaintext(params, params.MaxLevel())
 
 	// Vector of plaintext values
 	values := make([]float64, pt.Slots())
@@ -84,10 +85,10 @@ func main() {
 	}
 
 	// Minimax approximation of the sigmoid in the domain [-K, K] of degree 63.
-	poly := hefloat.NewPolynomial(GetMinimaxPoly(K, 63, sigmoid))
+	poly := polyfloat.NewPolynomial(GetMinimaxPoly(K, 63, sigmoid))
 
 	// Instantiates the polynomial evaluator
-	polyEval := hefloat.NewPolynomialEvaluator(params, eval)
+	polyEval := polyfloat.NewPolynomialEvaluator(params, eval)
 
 	// Retrieves the change of basis y = scalar * x + constant
 	scalar, constant := poly.ChangeOfBasis()
@@ -180,7 +181,7 @@ func GetMinimaxPoly(K float64, degree int, f64 func(x float64) (y float64)) bign
 }
 
 // PrintPrecisionStats decrypts, decodes and prints the precision stats of a ciphertext.
-func PrintPrecisionStats(params hefloat.Parameters, ct *rlwe.Ciphertext, want []float64, ecd *hefloat.Encoder, dec *rlwe.Decryptor) {
+func PrintPrecisionStats(params ckks.Parameters, ct *rlwe.Ciphertext, want []float64, ecd *ckks.Encoder, dec *rlwe.Decryptor) {
 
 	var err error
 
@@ -207,5 +208,5 @@ func PrintPrecisionStats(params hefloat.Parameters, ct *rlwe.Ciphertext, want []
 	fmt.Printf("...\n")
 
 	// Pretty prints the precision stats
-	fmt.Println(hefloat.GetPrecisionStats(params, ecd, dec, have, want, 0, false).String())
+	fmt.Println(ckks.GetPrecisionStats(params, ecd, dec, have, want, 0, false).String())
 }

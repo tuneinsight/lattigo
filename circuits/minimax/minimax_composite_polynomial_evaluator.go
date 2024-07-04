@@ -15,14 +15,14 @@ import (
 type MinimaxCompositePolynomialEvaluator struct {
 	*ckks.Evaluator
 	*polyfloat.PolynomialEvaluator
-	BtsEval    *bootstrapping.Evaluator
+	BtsEval    bootstrapping.Bootstrapper
 	Parameters ckks.Parameters
 }
 
 // NewMinimaxCompositePolynomialEvaluator instantiates a new MinimaxCompositePolynomialEvaluator.
 // The default hefloat.Evaluator is compliant to the EvaluatorForMinimaxCompositePolynomial interface.
 // This method is allocation free.
-func NewMinimaxCompositePolynomialEvaluator(params ckks.Parameters, eval *ckks.Evaluator, btsEval *bootstrapping.Evaluator) *MinimaxCompositePolynomialEvaluator {
+func NewMinimaxCompositePolynomialEvaluator(params ckks.Parameters, eval *ckks.Evaluator, btsEval bootstrapping.Bootstrapper) *MinimaxCompositePolynomialEvaluator {
 	return &MinimaxCompositePolynomialEvaluator{eval, polyfloat.NewPolynomialEvaluator(params, eval), btsEval, params}
 }
 

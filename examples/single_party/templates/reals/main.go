@@ -6,17 +6,17 @@ import (
 	"math/rand"
 
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/he/hefloat"
+	"github.com/tuneinsight/lattigo/v5/schemes/ckks"
 )
 
 func main() {
 	var err error
-	var params hefloat.Parameters
+	var params ckks.Parameters
 
 	// 128-bit secure parameters enabling depth-7 circuits.
 	// LogN:14, LogQP: 431.
-	if params, err = hefloat.NewParametersFromLiteral(
-		hefloat.ParametersLiteral{
+	if params, err = ckks.NewParametersFromLiteral(
+		ckks.ParametersLiteral{
 			LogN:            14,                                    // log2(ring degree)
 			LogQ:            []int{55, 45, 45, 45, 45, 45, 45, 45}, // log2(primes Q) (ciphertext modulus)
 			LogP:            []int{61},                             // log2(primes P) (auxiliary modulus)
@@ -32,7 +32,7 @@ func main() {
 	sk := kgen.GenSecretKeyNew()
 
 	// Encoder
-	ecd := hefloat.NewEncoder(params)
+	ecd := ckks.NewEncoder(params)
 
 	// Encryptor
 	enc := rlwe.NewEncryptor(params, sk)
@@ -56,7 +56,7 @@ func main() {
 	// Default rlwe.MetaData:
 	// - IsBatched = true (slots encoding)
 	// - Scale = params.DefaultScale()
-	pt := hefloat.NewPlaintext(params, params.MaxLevel())
+	pt := ckks.NewPlaintext(params, params.MaxLevel())
 
 	// Encodes the vector of plaintext values
 	if err = ecd.Encode(values, pt); err != nil {
@@ -77,7 +77,7 @@ func main() {
 }
 
 // PrintPrecisionStats decrypts, decodes and prints the precision stats of a ciphertext.
-func PrintPrecisionStats(params hefloat.Parameters, ct *rlwe.Ciphertext, want []float64, ecd *hefloat.Encoder, dec *rlwe.Decryptor) {
+func PrintPrecisionStats(params ckks.Parameters, ct *rlwe.Ciphertext, want []float64, ecd *ckks.Encoder, dec *rlwe.Decryptor) {
 
 	var err error
 
@@ -104,5 +104,5 @@ func PrintPrecisionStats(params hefloat.Parameters, ct *rlwe.Ciphertext, want []
 	fmt.Printf("...\n")
 
 	// Pretty prints the precision stats
-	fmt.Println(hefloat.GetPrecisionStats(params, ecd, dec, have, want, 0, false).String())
+	fmt.Println(ckks.GetPrecisionStats(params, ecd, dec, have, want, 0, false).String())
 }

@@ -1,13 +1,11 @@
 package mhefloat
 
-import (
-	"github.com/tuneinsight/lattigo/v5/he/hefloat"
-)
+import "github.com/tuneinsight/lattigo/v5/schemes/ckks"
 
 var (
 
 	// testInsecurePrec45 are insecure parameters used for the sole purpose of fast testing.
-	testInsecurePrec45 = hefloat.ParametersLiteral{
+	testInsecurePrec45 = ckks.ParametersLiteral{
 		LogN: 10,
 		Q: []uint64{
 			0x80000000080001,
@@ -26,7 +24,7 @@ var (
 	}
 
 	// testInsecurePrec90 are insecure parameters used for the sole purpose of fast testing.
-	testInsecurePrec90 = hefloat.ParametersLiteral{
+	testInsecurePrec90 = ckks.ParametersLiteral{
 		LogN: 10,
 		Q: []uint64{
 			0x80000000080001,
@@ -49,5 +47,5 @@ var (
 		LogDefaultScale: 90,
 	}
 
-	testParamsLiteral = []hefloat.ParametersLiteral{testInsecurePrec45, testInsecurePrec90}
+	testParamsLiteral = []ckks.ParametersLiteral{testInsecurePrec45, testInsecurePrec90}
 )

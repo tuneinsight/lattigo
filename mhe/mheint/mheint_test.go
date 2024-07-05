@@ -11,16 +11,17 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/he/heint"
 	"github.com/tuneinsight/lattigo/v5/mhe"
 	"github.com/tuneinsight/lattigo/v5/ring"
+	"github.com/tuneinsight/lattigo/v5/schemes/bgv"
 	"github.com/tuneinsight/lattigo/v5/utils/sampling"
 )
 
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 
-func GetTestName(opname string, p heint.Parameters, parties int) string {
+func GetTestName(opname string, p bgv.Parameters, parties int) string {
 	return fmt.Sprintf("%s/LogN=%d/logQ=%d/logP=%d/LogSlots=%dx%d/logT=%d/Qi=%d/Pi=%d/parties=%d",
 		opname,
 		p.LogN(),
@@ -35,7 +36,7 @@ func GetTestName(opname string, p heint.Parameters, parties int) string {
 }
 
 type testContext struct {
-	params heint.Parameters
+	params bgv.Parameters
 
 	// Number of parties
 	NParties int
@@ -48,7 +49,7 @@ type testContext struct {
 	ringQ *ring.Ring
 	ringP *ring.Ring
 
-	encoder *heint.Encoder
+	encoder *bgv.Encoder
 
 	sk0Shards []*rlwe.SecretKey
 	sk0       *rlwe.SecretKey
@@ -62,7 +63,7 @@ type testContext struct {
 	encryptorPk0 *rlwe.Encryptor
 	decryptorSk0 *rlwe.Decryptor
 	decryptorSk1 *rlwe.Decryptor
-	evaluator    *heint.Evaluator
+	evaluator    *bgv.Evaluator
 
 	crs            mhe.CRS
 	uniformSampler *ring.UniformSampler
@@ -75,11 +76,11 @@ func TestInteger(t *testing.T) {
 	paramsLiterals := testParams
 
 	if *flagParamString != "" {
-		var jsonParams heint.ParametersLiteral
+		var jsonParams bgv.ParametersLiteral
 		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
 			t.Fatal(err)
 		}
-		paramsLiterals = []heint.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
+		paramsLiterals = []bgv.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, p := range paramsLiterals {
@@ -88,8 +89,8 @@ func TestInteger(t *testing.T) {
 
 			p.PlaintextModulus = plaintextModulus
 
-			var params heint.Parameters
-			if params, err = heint.NewParametersFromLiteral(p); err != nil {
+			var params bgv.Parameters
+			if params, err = bgv.NewParametersFromLiteral(p); err != nil {
 				t.Fatal(err)
 			}
 
@@ -112,7 +113,7 @@ func TestInteger(t *testing.T) {
 	}
 }
 
-func gentestContext(nParties int, params heint.Parameters) (tc *testContext, err error) {
+func gentestContext(nParties int, params bgv.Parameters) (tc *testContext, err error) {
 
 	tc = new(testContext)
 
@@ -130,8 +131,8 @@ func gentestContext(nParties int, params heint.Parameters) (tc *testContext, err
 	tc.crs = prng
 	tc.uniformSampler = ring.NewUniformSampler(prng, params.RingQ())
 
-	tc.encoder = heint.NewEncoder(tc.params)
-	tc.evaluator = heint.NewEvaluator(tc.params, nil)
+	tc.encoder = bgv.NewEncoder(tc.params)
+	tc.evaluator = bgv.NewEvaluator(tc.params, nil)
 
 	kgen := rlwe.NewKeyGenerator(tc.params)
 
@@ -229,7 +230,7 @@ func testEncToShares(tc *testContext, t *testing.T) {
 			}
 		}
 
-		ctRec := heint.NewCiphertext(tc.params, 1, tc.params.MaxLevel())
+		ctRec := bgv.NewCiphertext(tc.params, 1, tc.params.MaxLevel())
 		*ctRec.MetaData = *ciphertext.MetaData
 		P[0].s2e.GetEncryption(P[0].publicShare, crp, ctRec)
 
@@ -392,9 +393,9 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName("RefreshAndTransformSwitchparams", tc.params, tc.NParties), func(t *testing.T) {
 
-		var paramsOut heint.Parameters
+		var paramsOut bgv.Parameters
 		var err error
-		paramsOut, err = heint.NewParametersFromLiteral(heint.ParametersLiteral{
+		paramsOut, err = bgv.NewParametersFromLiteral(bgv.ParametersLiteral{
 			LogN:             paramsIn.LogN(),
 			LogQ:             []int{54, 49, 49, 49},
 			LogP:             []int{52, 52},
@@ -476,7 +477,7 @@ func testRefreshAndTransformSwitchParams(tc *testContext, t *testing.T) {
 
 		coeffsHave := make([]uint64, tc.params.MaxSlots())
 		dec := rlwe.NewDecryptor(paramsOut.Parameters, skIdealOut)
-		heint.NewEncoder(paramsOut).Decode(dec.DecryptNew(ciphertext), coeffsHave)
+		bgv.NewEncoder(paramsOut).Decode(dec.DecryptNew(ciphertext), coeffsHave)
 
 		//Decrypts and compares
 		require.True(t, ciphertext.Level() == maxLevel)
@@ -495,7 +496,7 @@ func newTestVectors(tc *testContext, encryptor *rlwe.Encryptor, t *testing.T) (c
 		coeffsPol.Coeffs[0][i] = uint64(1)
 	}
 
-	plaintext = heint.NewPlaintext(tc.params, tc.params.MaxLevel())
+	plaintext = bgv.NewPlaintext(tc.params, tc.params.MaxLevel())
 	plaintext.Scale = tc.params.NewScale(2)
 	require.NoError(t, tc.encoder.Encode(coeffsPol.Coeffs[0], plaintext))
 	ciphertext, err = encryptor.EncryptNew(plaintext)

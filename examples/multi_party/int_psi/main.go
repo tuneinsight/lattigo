@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/he/heint"
 	"github.com/tuneinsight/lattigo/v5/mhe"
 	"github.com/tuneinsight/lattigo/v5/ring"
+	"github.com/tuneinsight/lattigo/v5/schemes/bgv"
 	"github.com/tuneinsight/lattigo/v5/utils/sampling"
 )
 
@@ -88,7 +88,7 @@ func main() {
 	}
 
 	// Creating encryption parameters from a default params with logN=14, logQP=438 with a plaintext modulus T=65537
-	params, err := heint.NewParametersFromLiteral(heint.ParametersLiteral{
+	params, err := bgv.NewParametersFromLiteral(bgv.ParametersLiteral{
 		LogN:             14,
 		LogQ:             []int{56, 55, 55, 54, 54, 54},
 		LogP:             []int{55, 55},
@@ -103,7 +103,7 @@ func main() {
 		panic(err)
 	}
 
-	encoder := heint.NewEncoder(params)
+	encoder := bgv.NewEncoder(params)
 
 	// Target private and public keys
 	tsk, tpk := rlwe.NewKeyGenerator(params).GenKeyPairNew()
@@ -136,7 +136,7 @@ func main() {
 	// Decrypt the result with the target secret key
 	l.Println("> ResulPlaintextModulus:")
 	decryptor := rlwe.NewDecryptor(params, tsk)
-	ptres := heint.NewPlaintext(params, params.MaxLevel())
+	ptres := bgv.NewPlaintext(params, params.MaxLevel())
 	elapsedDecParty := runTimed(func() {
 		decryptor.Decrypt(encOut, ptres)
 	})
@@ -161,20 +161,20 @@ func main() {
 
 }
 
-func encPhase(params heint.Parameters, P []*party, pk *rlwe.PublicKey, encoder *heint.Encoder) (encInputs []*rlwe.Ciphertext) {
+func encPhase(params bgv.Parameters, P []*party, pk *rlwe.PublicKey, encoder *bgv.Encoder) (encInputs []*rlwe.Ciphertext) {
 
 	l := log.New(os.Stderr, "", 0)
 
 	encInputs = make([]*rlwe.Ciphertext, len(P))
 	for i := range encInputs {
-		encInputs[i] = heint.NewCiphertext(params, 1, params.MaxLevel())
+		encInputs[i] = bgv.NewCiphertext(params, 1, params.MaxLevel())
 	}
 
 	// Each party encrypts its input vector
 	l.Println("> Encrypt Phase")
 	encryptor := rlwe.NewEncryptor(params, pk)
 
-	pt := heint.NewPlaintext(params, params.MaxLevel())
+	pt := bgv.NewPlaintext(params, params.MaxLevel())
 	elapsedEncryptParty = runTimedParty(func() {
 		for i, pi := range P {
 			if err := encoder.Encode(pi.input, pt); err != nil {
@@ -192,7 +192,7 @@ func encPhase(params heint.Parameters, P []*party, pk *rlwe.PublicKey, encoder *
 	return
 }
 
-func evalPhase(params heint.Parameters, NGoRoutine int, encInputs []*rlwe.Ciphertext, evk rlwe.EvaluationKeySet) (encRes *rlwe.Ciphertext) {
+func evalPhase(params bgv.Parameters, NGoRoutine int, encInputs []*rlwe.Ciphertext, evk rlwe.EvaluationKeySet) (encRes *rlwe.Ciphertext) {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -201,13 +201,13 @@ func evalPhase(params heint.Parameters, NGoRoutine int, encInputs []*rlwe.Cipher
 	for nLvl := len(encInputs) / 2; nLvl > 0; nLvl = nLvl >> 1 {
 		encLvl := make([]*rlwe.Ciphertext, nLvl)
 		for i := range encLvl {
-			encLvl[i] = heint.NewCiphertext(params, 2, params.MaxLevel())
+			encLvl[i] = bgv.NewCiphertext(params, 2, params.MaxLevel())
 		}
 		encLvls = append(encLvls, encLvl)
 	}
 	encRes = encLvls[len(encLvls)-1][0]
 
-	evaluator := heint.NewEvaluator(params, evk)
+	evaluator := bgv.NewEvaluator(params, evk)
 	// Split the task among the Go routines
 	tasks := make(chan *multTask)
 	workers := &sync.WaitGroup{}
@@ -267,7 +267,7 @@ func evalPhase(params heint.Parameters, NGoRoutine int, encInputs []*rlwe.Cipher
 	return
 }
 
-func genparties(params heint.Parameters, N int) []*party {
+func genparties(params bgv.Parameters, N int) []*party {
 
 	// Create each party, and allocate the memory for all the shares that the protocols will need
 	P := make([]*party, N)
@@ -281,7 +281,7 @@ func genparties(params heint.Parameters, N int) []*party {
 	return P
 }
 
-func genInputs(params heint.Parameters, P []*party) (expRes []uint64) {
+func genInputs(params bgv.Parameters, P []*party) (expRes []uint64) {
 
 	expRes = make([]uint64, params.N())
 	for i := range expRes {
@@ -303,7 +303,7 @@ func genInputs(params heint.Parameters, P []*party) (expRes []uint64) {
 	return
 }
 
-func pcksPhase(params heint.Parameters, tpk *rlwe.PublicKey, encRes *rlwe.Ciphertext, P []*party) (encOut *rlwe.Ciphertext) {
+func pcksPhase(params bgv.Parameters, tpk *rlwe.PublicKey, encRes *rlwe.Ciphertext, P []*party) (encOut *rlwe.Ciphertext) {
 
 	l := log.New(os.Stderr, "", 0)
 
@@ -328,7 +328,7 @@ func pcksPhase(params heint.Parameters, tpk *rlwe.PublicKey, encRes *rlwe.Cipher
 	}, len(P))
 
 	pcksCombined := pcks.AllocateShare(params.MaxLevel())
-	encOut = heint.NewCiphertext(params, 1, params.MaxLevel())
+	encOut = bgv.NewCiphertext(params, 1, params.MaxLevel())
 	elapsedPCKSCloud = runTimed(func() {
 		for _, pi := range P {
 			if err = pcks.AggregateShares(pi.pcksShare, pcksCombined, &pcksCombined); err != nil {
@@ -343,7 +343,7 @@ func pcksPhase(params heint.Parameters, tpk *rlwe.PublicKey, encRes *rlwe.Cipher
 	return
 }
 
-func rkgphase(params heint.Parameters, crs sampling.PRNG, P []*party) *rlwe.RelinearizationKey {
+func rkgphase(params bgv.Parameters, crs sampling.PRNG, P []*party) *rlwe.RelinearizationKey {
 	l := log.New(os.Stderr, "", 0)
 
 	l.Println("> RelinearizationKeyGen Phase")
@@ -392,7 +392,7 @@ func rkgphase(params heint.Parameters, crs sampling.PRNG, P []*party) *rlwe.Reli
 	return rlk
 }
 
-func ckgphase(params heint.Parameters, crs sampling.PRNG, P []*party) *rlwe.PublicKey {
+func ckgphase(params bgv.Parameters, crs sampling.PRNG, P []*party) *rlwe.PublicKey {
 
 	l := log.New(os.Stderr, "", 0)
 

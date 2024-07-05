@@ -7,10 +7,9 @@ import (
 	"math/bits"
 
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/utils/sampling"
-
-	"github.com/tuneinsight/lattigo/v5/he/heint"
 	"github.com/tuneinsight/lattigo/v5/ring"
+	"github.com/tuneinsight/lattigo/v5/schemes/bgv"
+	"github.com/tuneinsight/lattigo/v5/utils/sampling"
 )
 
 var flagShort = flag.Bool("short", false, "run the example with a smaller and insecure ring degree.")
@@ -58,7 +57,7 @@ func obliviousRiding() {
 
 	// Parameters (128 bit security) with plaintext modulus 65929217
 	// Creating encryption parameters from a default params with logN=14, logQP=438 with a plaintext modulus T=65929217
-	params, err := heint.NewParametersFromLiteral(heint.ParametersLiteral{
+	params, err := bgv.NewParametersFromLiteral(bgv.ParametersLiteral{
 		LogN:             14,
 		LogQ:             []int{56, 55, 55, 54, 54, 54},
 		LogP:             []int{55, 55},
@@ -68,7 +67,7 @@ func obliviousRiding() {
 		panic(err)
 	}
 
-	encoder := heint.NewEncoder(params)
+	encoder := bgv.NewEncoder(params)
 
 	// Rider's keygen
 	kgen := rlwe.NewKeyGenerator(params)
@@ -79,7 +78,7 @@ func obliviousRiding() {
 	encryptorRiderPk := rlwe.NewEncryptor(params, riderPk)
 	encryptorRiderSk := rlwe.NewEncryptor(params, riderSk)
 
-	evaluator := heint.NewEvaluator(params, nil)
+	evaluator := bgv.NewEvaluator(params, nil)
 
 	fmt.Println("============================================")
 	fmt.Println("Homomorphic computations on batched integers")
@@ -109,7 +108,7 @@ func obliviousRiding() {
 		Rider[(i<<1)+1] = riderPosY
 	}
 
-	riderPlaintext := heint.NewPlaintext(params, params.MaxLevel())
+	riderPlaintext := bgv.NewPlaintext(params, params.MaxLevel())
 	if err := encoder.Encode(Rider, riderPlaintext); err != nil {
 		panic(err)
 	}
@@ -122,7 +121,7 @@ func obliviousRiding() {
 		driversData[i] = make([]uint64, 1<<params.LogN())
 		driversData[i][(i << 1)] = ring.RandUniform(prng, maxvalue, mask)
 		driversData[i][(i<<1)+1] = ring.RandUniform(prng, maxvalue, mask)
-		driversPlaintexts[i] = heint.NewPlaintext(params, params.MaxLevel())
+		driversPlaintexts[i] = bgv.NewPlaintext(params, params.MaxLevel())
 		if err := encoder.Encode(driversData[i], driversPlaintexts[i]); err != nil {
 			panic(err)
 		}

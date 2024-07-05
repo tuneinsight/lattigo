@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/he/heint"
 	"github.com/tuneinsight/lattigo/v5/mhe"
 	"github.com/tuneinsight/lattigo/v5/ring"
+	"github.com/tuneinsight/lattigo/v5/schemes/bgv"
 	"github.com/tuneinsight/lattigo/v5/utils"
 	"github.com/tuneinsight/lattigo/v5/utils/sampling"
 )
@@ -15,17 +15,17 @@ import (
 // required by the encryption-to-shares protocol.
 type EncToShareProtocol struct {
 	mhe.KeySwitchProtocol
-	params heint.Parameters
+	params bgv.Parameters
 
 	maskSampler *ring.UniformSampler
-	encoder     *heint.Encoder
+	encoder     *bgv.Encoder
 
 	zero              *rlwe.SecretKey
 	tmpPlaintextRingT ring.Poly
 	tmpPlaintextRingQ ring.Poly
 }
 
-func NewAdditiveShare(params heint.Parameters) mhe.AdditiveShare {
+func NewAdditiveShare(params bgv.Parameters) mhe.AdditiveShare {
 	return mhe.NewAdditiveShare(params.RingT())
 }
 
@@ -54,8 +54,8 @@ func (e2s EncToShareProtocol) ShallowCopy() EncToShareProtocol {
 	}
 }
 
-// NewEncToShareProtocol creates a new [EncToShareProtocol] struct from the passed [heint.Parameters].
-func NewEncToShareProtocol(params heint.Parameters, noiseFlooding ring.DistributionParameters) (EncToShareProtocol, error) {
+// NewEncToShareProtocol creates a new EncToShareProtocol struct from the passed bgv.Parameters.
+func NewEncToShareProtocol(params bgv.Parameters, noiseFlooding ring.DistributionParameters) (EncToShareProtocol, error) {
 	e2s := EncToShareProtocol{}
 
 	var err error
@@ -64,7 +64,7 @@ func NewEncToShareProtocol(params heint.Parameters, noiseFlooding ring.Distribut
 	}
 
 	e2s.params = params
-	e2s.encoder = heint.NewEncoder(params)
+	e2s.encoder = bgv.NewEncoder(params)
 	prng, err := sampling.NewPRNG()
 
 	// Sanity check, this error should not happen.
@@ -120,16 +120,16 @@ func (e2s EncToShareProtocol) GetShare(secretShare *mhe.AdditiveShare, aggregate
 // required by the shares-to-encryption protocol.
 type ShareToEncProtocol struct {
 	mhe.KeySwitchProtocol
-	params heint.Parameters
+	params bgv.Parameters
 
-	encoder *heint.Encoder
+	encoder *bgv.Encoder
 
 	zero              *rlwe.SecretKey
 	tmpPlaintextRingQ ring.Poly
 }
 
 // NewShareToEncProtocol creates a new ShareToEncProtocol struct from the passed integer parameters.
-func NewShareToEncProtocol(params heint.Parameters, noiseFlooding ring.DistributionParameters) (ShareToEncProtocol, error) {
+func NewShareToEncProtocol(params bgv.Parameters, noiseFlooding ring.DistributionParameters) (ShareToEncProtocol, error) {
 	s2e := ShareToEncProtocol{}
 
 	var err error
@@ -138,7 +138,7 @@ func NewShareToEncProtocol(params heint.Parameters, noiseFlooding ring.Distribut
 	}
 
 	s2e.params = params
-	s2e.encoder = heint.NewEncoder(params)
+	s2e.encoder = bgv.NewEncoder(params)
 	s2e.zero = rlwe.NewSecretKey(params.Parameters)
 	s2e.tmpPlaintextRingQ = params.RingQ().NewPoly()
 	return s2e, nil

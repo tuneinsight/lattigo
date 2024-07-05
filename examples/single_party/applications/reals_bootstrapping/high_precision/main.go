@@ -14,7 +14,7 @@
 // The method is described in details by Bae et al. in META-BTS: Bootstrapping Precision Beyond the Limit (https://eprint.iacr.org/2022/1167).
 //
 // This example assumes that the user is already familiar with the bootstrapping and its different steps.
-// See the basic example `lattigo/examples/he/hefloat/bootstrapping/basic` for an introduction into the
+// See the basic example `lattigo/single_party/applications/reals_bootstrapping/basics` for an introduction into the
 // bootstrapping.
 // Use the flag -short to run the examples fast but with insecure parameters.
 package main
@@ -85,7 +85,7 @@ func main() {
 	// For this first example, we do not specify any circuit specific optional field in the bootstrapping parameters literal.
 	// Thus we expect the bootstrapping to give a precision of 27.25 bits with H=192 (and 23.8 with H=N/2)
 	// if the plaintext values are uniformly distributed in [-1, 1] for both the real and imaginary part.
-	// See `he/float/bootstrapping/parameters_literal.go` for detailed information about the optional fields.
+	// See `circuits/bootstrapping/parameters_literal.go` for detailed information about the optional fields.
 	btpParametersLit := bootstrapping.ParametersLiteral{
 		// We specify LogN to ensure that both the residual parameters and the bootstrapping parameters
 		// have the same LogN. This is not required, but we want it for this example.
@@ -120,10 +120,10 @@ func main() {
 
 	// Now that the residual parameters and the bootstrapping parameters literals are defined, we can instantiate
 	// the bootstrapping parameters.
-	// The instantiated bootstrapping parameters store their own hefloat.Parameter, which are the parameters of the
+	// The instantiated bootstrapping parameters store their own ckks.Parameter, which are the parameters of the
 	// ring used by the bootstrapping circuit.
-	// The bootstrapping parameters are a wrapper of hefloat.Parameters, with additional information.
-	// They therefore has the same API as the hefloat.Parameters and we can use this API to print some information.
+	// The bootstrapping parameters are a wrapper of ckks.Parameters, with additional information.
+	// They therefore has the same API as the ckks.Parameters and we can use this API to print some information.
 	btpParams, err := bootstrapping.NewParametersFromLiteral(params, btpParametersLit)
 	if err != nil {
 		panic(err)

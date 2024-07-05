@@ -7,17 +7,17 @@ import (
 	"slices"
 
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/he/heint"
+	"github.com/tuneinsight/lattigo/v5/schemes/bgv"
 )
 
 func main() {
 	var err error
-	var params heint.Parameters
+	var params bgv.Parameters
 
 	// 128-bit secure parameters enabling depth-7 circuits.
 	// LogN:14, LogQP: 431.
-	if params, err = heint.NewParametersFromLiteral(
-		heint.ParametersLiteral{
+	if params, err = bgv.NewParametersFromLiteral(
+		bgv.ParametersLiteral{
 			LogN:             14,                                    // log2(ring degree)
 			LogQ:             []int{55, 45, 45, 45, 45, 45, 45, 45}, // log2(primes Q) (ciphertext modulus)
 			LogP:             []int{61},                             // log2(primes P) (auxiliary modulus)
@@ -33,7 +33,7 @@ func main() {
 	sk := kgen.GenSecretKeyNew()
 
 	// Encoder
-	ecd := heint.NewEncoder(params)
+	ecd := bgv.NewEncoder(params)
 
 	// Encryptor
 	enc := rlwe.NewEncryptor(params, sk)
@@ -58,7 +58,7 @@ func main() {
 	// Default rlwe.MetaData:
 	// - IsBatched = true (slots encoding)
 	// - Scale = params.DefaultScale()
-	pt := heint.NewPlaintext(params, params.MaxLevel())
+	pt := bgv.NewPlaintext(params, params.MaxLevel())
 
 	// Encodes the vector of plaintext values
 	if err = ecd.Encode(values, pt); err != nil {
@@ -79,7 +79,7 @@ func main() {
 }
 
 // PrintPrecisionStats decrypts, decodes and prints the precision stats of a ciphertext.
-func PrintPrecisionStats(params heint.Parameters, ct *rlwe.Ciphertext, want []uint64, ecd *heint.Encoder, dec *rlwe.Decryptor) {
+func PrintPrecisionStats(params bgv.Parameters, ct *rlwe.Ciphertext, want []uint64, ecd *bgv.Encoder, dec *rlwe.Decryptor) {
 
 	var err error
 

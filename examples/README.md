@@ -20,7 +20,7 @@ Application examples are examples showcasing specific capabilities of the librar
   - `high_precision`: an example showcasing high-precision bootstrapping.
   - `slim`: an example showcasing slim bootstrapping, i.e. re-ordering the steps of the bootstrapping.
 
-- `reals_scheme_switching`: an example showcasing scheme switching between `hefloat` and `hebin` to complement fixed-point arithmetic with lookup tables.
+- `reals_scheme_switching`: an example showcasing scheme switching between `ckks` and `rgsw` to complement fixed-point arithmetic with lookup tables.
 - `reals_sigmoid_chebyshev`: an example showcasing polynomial evaluation of a Chebyshev approximation of the sigmoid.
 - `reals_sigmoid_minimax`: an example showcasing polynomial evaluation of a minimax approximation of the sigmoid.
 - `reals_vectorized_polynomial_evaluation`: an example showcasing vectorized polynomial evaluation, i.e. evaluating different polynomials in parallel on specific slots.
@@ -29,14 +29,14 @@ Application examples are examples showcasing specific capabilities of the librar
 
 Templates are files containing the basic instantiation, i.e. parameters, key-generation, encoding, encryption and decryption.
 
-- `reals`: a template for `hefloat`.
-- `int`: a template for `heint`.
+- `reals`: a template for `ckks`.
+- `int`: a template for `bgv`.
 
 ## Tutorials
 
 Tutorials are examples showcasing the basic capabilities of the library.
 
-- `reals`: a tutorial on all the basic capabilities of the package `hefloat`.
+- `reals`: a tutorial on all the basic capabilities of the package `ckks`.
 
 # Multi Party Examples
 
@@ -46,7 +46,7 @@ Tutorials are examples showcasing the basic capabilities of the library.
 
 ## Parameters
 
-The `params.go` file contains several sets of example parameters for both `heint` and `hefloat`.
+The `params.go` file contains several sets of example parameters for both `bgv` and `ckks`.
 These parameter are chosen to represent several degrees of homomorphic capacity for a fixed 128-bit security
 (according to the standard estimates at the time of writing). They do not represent a set of default parameters 
 to be used in real HE applications. Rather, they are meant to facilitate quick tests and experimentation 

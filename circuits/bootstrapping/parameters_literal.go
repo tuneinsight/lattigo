@@ -8,7 +8,6 @@ import (
 
 	"github.com/tuneinsight/lattigo/v5/circuits/mod1"
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/he/hefloat"
 	"github.com/tuneinsight/lattigo/v5/ring"
 	"github.com/tuneinsight/lattigo/v5/utils"
 )
@@ -112,7 +111,7 @@ import (
 //		When using a small ratio (i.e. 2^4), for example if ct.PlaintextScale is close to Q[0] is small or if |m| is large, the Mod1InvDegree can be set to
 //	 a non zero value (i.e. 5 or 7). This will greatly improve the precision of the bootstrapping, at the expense of slightly increasing its depth.
 //
-// Mod1Type: the type of approximation for the modular reduction polynomial. By default set to hefloat.CosDiscrete.
+// Mod1Type: the type of approximation for the modular reduction polynomial. By default set to mod1.CosDiscrete.
 //
 // K: the range of the approximation interval, by default set to 16.
 //
@@ -132,7 +131,7 @@ type ParametersLiteral struct {
 	EvalModLogScale                             *int                        // Default: 60
 	EphemeralSecretWeight                       *int                        // Default: 32
 	IterationsParameters                        *IterationsParameters       // Default: nil (default starting level of 0 and 1 iteration)
-	Mod1Type                                    mod1.Mod1Type               // Default: hefloat.CosDiscrete
+	Mod1Type                                    mod1.Mod1Type               // Default: mod1.CosDiscrete
 	LogMessageRatio                             *int                        // Default: 8
 	K                                           *int                        // Default: 16
 	Mod1Degree                                  *int                        // Default: 30
@@ -166,7 +165,7 @@ const (
 	// DefaultIterations is the default number of bootstrapping iterations.
 	DefaultIterations = 1
 	// DefaultMod1Type is the default function and approximation technique for the homomorphic modular reduction polynomial.
-	DefaultMod1Type = hefloat.CosDiscrete
+	DefaultMod1Type = mod1.CosDiscrete
 	// DefaultLogMessageRatio is the default ratio between Q[0] and |m|.
 	DefaultLogMessageRatio = 8
 	// DefaultK is the default interval [-K+1, K-1] for the polynomial approximation of the homomorphic modular reduction.

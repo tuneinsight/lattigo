@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v5/he/hefloat"
 	"github.com/tuneinsight/lattigo/v5/mhe"
 	"github.com/tuneinsight/lattigo/v5/ring"
+	"github.com/tuneinsight/lattigo/v5/schemes/ckks"
 
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 	"github.com/tuneinsight/lattigo/v5/utils/bignum"
@@ -24,7 +24,7 @@ type MaskedLinearTransformationProtocol struct {
 	prec         uint
 
 	mask    []*big.Int
-	encoder *hefloat.Encoder
+	encoder *ckks.Encoder
 }
 
 // ShallowCopy creates a shallow copy of [MaskedLinearTransformationProtocol] in which all the read-only data-structures are
@@ -49,7 +49,7 @@ func (mltp MaskedLinearTransformationProtocol) ShallowCopy() MaskedLinearTransfo
 
 // WithParams creates a shallow copy of the target [MaskedLinearTransformationProtocol] but with new output parameters.
 // The expected input parameters remain unchanged.
-func (mltp MaskedLinearTransformationProtocol) WithParams(paramsOut hefloat.Parameters) MaskedLinearTransformationProtocol {
+func (mltp MaskedLinearTransformationProtocol) WithParams(paramsOut ckks.Parameters) MaskedLinearTransformationProtocol {
 
 	s2e, err := NewShareToEncProtocol(paramsOut, mltp.noise)
 
@@ -73,13 +73,13 @@ func (mltp MaskedLinearTransformationProtocol) WithParams(paramsOut hefloat.Para
 		prec:         mltp.prec,
 		defaultScale: defaultScale,
 		mask:         mask,
-		encoder:      hefloat.NewEncoder(paramsOut, mltp.prec),
+		encoder:      ckks.NewEncoder(paramsOut, mltp.prec),
 	}
 }
 
 // MaskedLinearTransformationFunc represents a user-defined in-place function that can be evaluated on masked float plaintexts, as a part of the
 // Masked Transform Protocol.
-// The function is called with a vector of *[bignum.Complex] modulo [hefloat.Parameters.Slots]() as input, and must write
+// The function is called with a vector of *Complex modulo ckks.Parameters.Slots() as input, and must write
 // its output on the same buffer.
 // Transform can be the identity.
 //
@@ -94,13 +94,11 @@ type MaskedLinearTransformationFunc struct {
 }
 
 // NewMaskedLinearTransformationProtocol creates a new instance of the PermuteProtocol.
-//
-//   - paramsIn: the [hefloat.Parameters] of the ciphertext before the protocol.
-//   - paramsOut: the [hefloat.Parameters] of the ciphertext after the protocol.
-//   - prec : the log2 of decimal precision of the internal encoder.
-//
+// paramsIn: the ckks.Parameters of the ciphertext before the protocol.
+// paramsOut: the ckks.Parameters of the ciphertext after the protocol.
+// prec : the log2 of decimal precision of the internal encoder.
 // The method will return an error if the maximum number of slots of the output parameters is smaller than the number of slots of the input ciphertext.
-func NewMaskedLinearTransformationProtocol(paramsIn, paramsOut hefloat.Parameters, prec uint, noise ring.DistributionParameters) (mltp MaskedLinearTransformationProtocol, err error) {
+func NewMaskedLinearTransformationProtocol(paramsIn, paramsOut ckks.Parameters, prec uint, noise ring.DistributionParameters) (mltp MaskedLinearTransformationProtocol, err error) {
 
 	mltp = MaskedLinearTransformationProtocol{}
 
@@ -125,7 +123,7 @@ func NewMaskedLinearTransformationProtocol(paramsIn, paramsOut hefloat.Parameter
 		mltp.mask[i] = new(big.Int)
 	}
 
-	mltp.encoder = hefloat.NewEncoder(paramsOut, prec)
+	mltp.encoder = ckks.NewEncoder(paramsOut, prec)
 
 	return
 }

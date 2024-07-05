@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/tuneinsight/lattigo/v5/circuits/bootstrapping"
 	"github.com/tuneinsight/lattigo/v5/circuits/comparison"
 	"github.com/tuneinsight/lattigo/v5/circuits/minimax"
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/he"
 	"github.com/tuneinsight/lattigo/v5/schemes/ckks"
 	"github.com/tuneinsight/lattigo/v5/utils"
 )
@@ -310,7 +310,7 @@ func (eval InverseEvaluator) GoldschmidtDivisionNew(ct *rlwe.Ciphertext, log2min
 // The normalization factor is independant to each slot:
 //   - values smaller than 1 will have a normalization factor that tends to 1
 //   - values greater than 1 will have a normalization factor that tends to 1/x
-func (eval InverseEvaluator) IntervalNormalization(ct *rlwe.Ciphertext, log2Max float64, btp he.Bootstrapper[rlwe.Ciphertext]) (ctNorm, ctNormFac *rlwe.Ciphertext, err error) {
+func (eval InverseEvaluator) IntervalNormalization(ct *rlwe.Ciphertext, log2Max float64, btp bootstrapping.Bootstrapper) (ctNorm, ctNormFac *rlwe.Ciphertext, err error) {
 
 	ctNorm = ct.CopyNew()
 

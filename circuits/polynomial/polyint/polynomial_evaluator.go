@@ -5,7 +5,6 @@ import (
 
 	"github.com/tuneinsight/lattigo/v5/circuits/polynomial"
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/he"
 	"github.com/tuneinsight/lattigo/v5/schemes"
 	"github.com/tuneinsight/lattigo/v5/schemes/bfv"
 	"github.com/tuneinsight/lattigo/v5/schemes/bgv"
@@ -78,7 +77,7 @@ func (eval PolynomialEvaluator) Evaluate(ct *rlwe.Ciphertext, p interface{}, tar
 // EvaluateFromPowerBasis evaluates a polynomial using the provided PowerBasis, holding pre-computed powers of X.
 // This method is the same as Evaluate except that the encrypted input is a PowerBasis.
 // See Evaluate for additional information.
-func (eval PolynomialEvaluator) EvaluateFromPowerBasis(pb he.PowerBasis, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
+func (eval PolynomialEvaluator) EvaluateFromPowerBasis(pb polynomial.PowerBasis, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 
 	var phe interface{}
 	switch p := p.(type) {

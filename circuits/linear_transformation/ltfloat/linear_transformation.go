@@ -3,7 +3,6 @@ package ltfloat
 import (
 	"github.com/tuneinsight/lattigo/v5/circuits/linear_transformation"
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/he"
 	"github.com/tuneinsight/lattigo/v5/schemes"
 	"github.com/tuneinsight/lattigo/v5/schemes/ckks"
 	"github.com/tuneinsight/lattigo/v5/utils"
@@ -11,12 +10,12 @@ import (
 
 // Diagonals is a wrapper of [he.Diagonals].
 // See [he.Diagonals] for the documentation.
-type Diagonals[T ckks.Float] he.Diagonals[T]
+type Diagonals[T ckks.Float] linear_transformation.Diagonals[T]
 
 // DiagonalsIndexList returns the list of the non-zero diagonals of the square matrix.
 // A non zero diagonals is a diagonal with a least one non-zero element.
 func (m Diagonals[T]) DiagonalsIndexList() (indexes []int) {
-	return he.Diagonals[T](m).DiagonalsIndexList()
+	return linear_transformation.Diagonals[T](m).DiagonalsIndexList()
 }
 
 // Evaluate evaluates the linear transformation on the provided vector.
@@ -28,9 +27,9 @@ func (m Diagonals[T]) Evaluate(vector []T, newVec func(size int) []T, add func(a
 
 	keys := utils.GetKeys(m)
 
-	N1 := he.FindBestBSGSRatio(keys, slots, 1)
+	N1 := linear_transformation.FindBestBSGSRatio(keys, slots, 1)
 
-	index, _, _ := he.BSGSIndex(keys, slots, N1)
+	index, _, _ := linear_transformation.BSGSIndex(keys, slots, N1)
 
 	res = newVec(slots)
 

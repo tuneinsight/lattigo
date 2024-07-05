@@ -89,10 +89,10 @@ func main() {
 
 	// Now that the residual parameters and the bootstrapping parameters literals are defined, we can instantiate
 	// the bootstrapping parameters.
-	// The instantiated bootstrapping parameters store their own hefloat.Parameter, which are the parameters of the
+	// The instantiated bootstrapping parameters store their own ckks.Parameter, which are the parameters of the
 	// ring used by the bootstrapping circuit.
-	// The bootstrapping parameters are a wrapper of hefloat.Parameters, with additional information.
-	// They therefore has the same API as the hefloat.Parameters and we can use this API to print some information.
+	// The bootstrapping parameters are a wrapper of ckks.Parameters, with additional information.
+	// They therefore has the same API as the ckks.Parameters and we can use this API to print some information.
 	btpParams, err := bootstrapping.NewParametersFromLiteral(params, btpParametersLit)
 	if err != nil {
 		panic(err)

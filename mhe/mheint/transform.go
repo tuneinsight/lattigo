@@ -3,11 +3,10 @@ package mheint
 import (
 	"fmt"
 
-	"github.com/tuneinsight/lattigo/v5/he/heint"
+	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 	"github.com/tuneinsight/lattigo/v5/mhe"
 	"github.com/tuneinsight/lattigo/v5/ring"
-
-	"github.com/tuneinsight/lattigo/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo/v5/schemes/bgv"
 	"github.com/tuneinsight/lattigo/v5/utils/sampling"
 )
 
@@ -38,7 +37,7 @@ func (rfp MaskedTransformProtocol) ShallowCopy() MaskedTransformProtocol {
 
 // MaskedTransformFunc is a struct containing a user-defined in-place function that can be applied to masked integer plaintexts, as a part of the
 // Masked Transform Protocol.
-// The function is called with a vector of integers modulo [heint.Parameters.PlaintextModulus]() of size [heint.Parameters.N]() as input, and must write
+// The function is called with a vector of integers modulo bgv.Parameters.PlaintextModulus() of size bgv.Parameters.N() as input, and must write
 // its output on the same buffer.
 // Transform can be the identity.
 //
@@ -53,7 +52,7 @@ type MaskedTransformFunc struct {
 }
 
 // NewMaskedTransformProtocol creates a new instance of the PermuteProtocol.
-func NewMaskedTransformProtocol(paramsIn, paramsOut heint.Parameters, noiseFlooding ring.DistributionParameters) (rfp MaskedTransformProtocol, err error) {
+func NewMaskedTransformProtocol(paramsIn, paramsOut bgv.Parameters, noiseFlooding ring.DistributionParameters) (rfp MaskedTransformProtocol, err error) {
 
 	if paramsIn.N() > paramsOut.N() {
 		return MaskedTransformProtocol{}, fmt.Errorf("newMaskedTransformProtocol: paramsIn.N() != paramsOut.N()")

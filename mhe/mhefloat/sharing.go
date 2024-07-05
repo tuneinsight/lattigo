@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v5/he/hefloat"
+	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 	"github.com/tuneinsight/lattigo/v5/mhe"
 	"github.com/tuneinsight/lattigo/v5/ring"
-
-	"github.com/tuneinsight/lattigo/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo/v5/schemes/ckks"
 	"github.com/tuneinsight/lattigo/v5/utils"
 	"github.com/tuneinsight/lattigo/v5/utils/bignum"
 	"github.com/tuneinsight/lattigo/v5/utils/sampling"
@@ -19,13 +18,13 @@ import (
 type EncToShareProtocol struct {
 	mhe.KeySwitchProtocol
 
-	params     hefloat.Parameters
+	params     ckks.Parameters
 	zero       *rlwe.SecretKey
 	maskBigint []*big.Int
 	buff       ring.Poly
 }
 
-func NewAdditiveShare(params hefloat.Parameters, logSlots int) mhe.AdditiveShareBigint {
+func NewAdditiveShare(params ckks.Parameters, logSlots int) mhe.AdditiveShareBigint {
 
 	nValues := 1 << logSlots
 	if params.RingType() == ring.Standard {
@@ -54,8 +53,8 @@ func (e2s EncToShareProtocol) ShallowCopy() EncToShareProtocol {
 	}
 }
 
-// NewEncToShareProtocol creates a new [EncToShareProtocol] struct from the passed parameters.
-func NewEncToShareProtocol(params hefloat.Parameters, noise ring.DistributionParameters) (EncToShareProtocol, error) {
+// NewEncToShareProtocol creates a new EncToShareProtocol struct from the passed parameters.
+func NewEncToShareProtocol(params ckks.Parameters, noise ring.DistributionParameters) (EncToShareProtocol, error) {
 	e2s := EncToShareProtocol{}
 
 	var err error
@@ -190,7 +189,7 @@ func (e2s EncToShareProtocol) GetShare(secretShare *mhe.AdditiveShareBigint, agg
 // required by the shares-to-encryption protocol.
 type ShareToEncProtocol struct {
 	mhe.KeySwitchProtocol
-	params   hefloat.Parameters
+	params   ckks.Parameters
 	tmp      ring.Poly
 	ssBigint []*big.Int
 	zero     *rlwe.SecretKey
@@ -209,8 +208,8 @@ func (s2e ShareToEncProtocol) ShallowCopy() ShareToEncProtocol {
 	}
 }
 
-// NewShareToEncProtocol creates a new [ShareToEncProtocol] struct from the passed parameters.
-func NewShareToEncProtocol(params hefloat.Parameters, noise ring.DistributionParameters) (ShareToEncProtocol, error) {
+// NewShareToEncProtocol creates a new ShareToEncProtocol struct from the passed parameters.
+func NewShareToEncProtocol(params ckks.Parameters, noise ring.DistributionParameters) (ShareToEncProtocol, error) {
 	s2e := ShareToEncProtocol{}
 
 	var err error

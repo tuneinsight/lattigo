@@ -1,7 +1,7 @@
 # MHE
 The MHE package implements several Multiparty Homomorphic Encryption (MHE) primitives based on Ring-Learning-with-Errors (RLWE).
 It provides generic interfaces for the local steps of the MHE-based Secure Multiparty Computation (MHE-MPC) protocol that are common across all the RLWE distributed schemes implemented in Lattigo (e.g., collective key generation).
-The `mhe/heinteger` and `mhe/hefloat` packages import `mhe` and provide scheme-specific functionalities (e.g., interactive bootstrapping).
+The `mhe/mheint` and `mhe/mhefloat` packages import `mhe` and provide scheme-specific functionalities (e.g., interactive bootstrapping).
 
 This package implements local operations only, hence does not assume or provide any network-layer protocol implementation.
 However, it provides serialization methods for all relevant structures that implement the standard `encoding.BinaryMarshaller` and `encoding.BinaryUnmarshaller` interfaces (see [https://pkg.go.dev/encoding](https://pkg.go.dev/encoding)) as well as the `io.WriterTo` and `io.ReaderFrom` interfaces (see [https://pkg.go.dev/encoding](https://pkg.go.dev/io)).
@@ -138,12 +138,12 @@ The protocol is implemented by the  `mhe.EvaluationKeyGenProtocol` type and its 
 The parties provide their inputs for the computation during the Input Phase.
 They use the collective encryption-key generated during the Setup Phase to encrypt their inputs, and send them through the public channel.
 Since the collective encryption-key is a valid RLWE public encryption-key, it can be used directly with the single-party scheme.
-Hence, the parties can use the `Encoder` and `Encryptor` interfaces of the desired encryption scheme (see [heint.Encoder](../he/heint/heint.go), [hefloat.Encoder](../he/hefloat/hefloat.go) and [rlwe.Encryptor](../core/rlwe/encryptor.go)).
+Hence, the parties can use the `Encoder` and `Encryptor` interfaces of the desired encryption scheme (see [bgv.Encoder](../schemes/bgv/encoder.go), [ckks.Encoder](../schemes/ckks/encoder.go) and [rlwe.Encryptor](../core/rlwe/encryptor.go)).
 
 #### 2.ii Circuit Evaluation step
 The computation of the desired function is performed homomorphically during the Evaluation Phase.
 The step can be performed by the parties themselves or can be outsourced to a cloud-server. 
-Since the ciphertexts in the multiparty schemes are valid ciphertexts for the single-party ones, the homomorphic operation of the latter can be used directly (see [heint.Evaluator](../he/heint/heint.go) and [hefloat.Evaluator](../he/hefloat/hefloat.go)).
+Since the ciphertexts in the multiparty schemes are valid ciphertexts for the single-party ones, the homomorphic operation of the latter can be used directly (see [bgv.Evaluator](../schemes/bgv/evaluator.go) and [ckks.Evaluator](../schemes/ckks/evaluator.go)).
 
 #### 2.iii Output step
 The receiver(s) obtain their outputs through the final Output Phase, whose aim is to decrypt the ciphertexts resulting from the Evaluation Phase.

@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/he/hefloat"
 	"github.com/tuneinsight/lattigo/v5/mhe"
 	"github.com/tuneinsight/lattigo/v5/ring"
+	"github.com/tuneinsight/lattigo/v5/schemes/ckks"
 	"github.com/tuneinsight/lattigo/v5/utils"
 	"github.com/tuneinsight/lattigo/v5/utils/bignum"
 	"github.com/tuneinsight/lattigo/v5/utils/sampling"
@@ -23,7 +23,7 @@ import (
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 
-func GetTestName(opname string, parties int, params hefloat.Parameters) string {
+func GetTestName(opname string, parties int, params ckks.Parameters) string {
 	return fmt.Sprintf("%s/RingType=%s/logN=%d/logQP=%d/Qi=%d/Pi=%d/LogDefaultScale=%d/Parties=%d",
 		opname,
 		params.RingType(),
@@ -36,14 +36,14 @@ func GetTestName(opname string, parties int, params hefloat.Parameters) string {
 }
 
 type testContext struct {
-	params   hefloat.Parameters
+	params   ckks.Parameters
 	NParties int
 
 	ringQ *ring.Ring
 	ringP *ring.Ring
 
-	encoder   *hefloat.Encoder
-	evaluator *hefloat.Evaluator
+	encoder   *ckks.Encoder
+	evaluator *ckks.Evaluator
 
 	encryptorPk0 *rlwe.Encryptor
 	decryptorSk0 *rlwe.Decryptor
@@ -66,10 +66,10 @@ func TestMHEFloat(t *testing.T) {
 
 	var err error
 
-	var testParams []hefloat.ParametersLiteral
+	var testParams []ckks.ParametersLiteral
 	switch {
 	case *flagParamString != "": // the custom test suite reads the parameters from the -params flag
-		testParams = append(testParams, hefloat.ParametersLiteral{})
+		testParams = append(testParams, ckks.ParametersLiteral{})
 		if err = json.Unmarshal([]byte(*flagParamString), &testParams[0]); err != nil {
 			t.Fatal(err)
 		}
@@ -83,8 +83,8 @@ func TestMHEFloat(t *testing.T) {
 
 			paramsLiteral.RingType = ringType
 
-			var params hefloat.Parameters
-			if params, err = hefloat.NewParametersFromLiteral(paramsLiteral); err != nil {
+			var params ckks.Parameters
+			if params, err = ckks.NewParametersFromLiteral(paramsLiteral); err != nil {
 				t.Fatal(err)
 			}
 			N := 3
@@ -104,7 +104,7 @@ func TestMHEFloat(t *testing.T) {
 	}
 }
 
-func genTestParams(params hefloat.Parameters, NParties int) (tc *testContext, err error) {
+func genTestParams(params ckks.Parameters, NParties int) (tc *testContext, err error) {
 
 	tc = new(testContext)
 
@@ -119,8 +119,8 @@ func genTestParams(params hefloat.Parameters, NParties int) (tc *testContext, er
 	tc.crs = prng
 	tc.uniformSampler = ring.NewUniformSampler(prng, params.RingQ())
 
-	tc.encoder = hefloat.NewEncoder(tc.params)
-	tc.evaluator = hefloat.NewEvaluator(tc.params, nil)
+	tc.encoder = ckks.NewEncoder(tc.params)
+	tc.evaluator = ckks.NewEvaluator(tc.params, nil)
 
 	kgen := rlwe.NewKeyGenerator(tc.params)
 
@@ -216,12 +216,12 @@ func testEncToShareProtocol(tc *testContext, t *testing.T) {
 			}
 		}
 
-		pt := hefloat.NewPlaintext(params, ciphertext.Level())
+		pt := ckks.NewPlaintext(params, ciphertext.Level())
 		pt.IsNTT = false
 		pt.Scale = ciphertext.Scale
 		tc.ringQ.AtLevel(pt.Level()).SetCoefficientsBigint(rec.Value, pt.Value)
 
-		hefloat.VerifyTestVectors(params, tc.encoder, nil, coeffs, pt, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, tc.encoder, nil, coeffs, pt, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 
 		crp := P[0].s2e.SampleCRP(params.MaxLevel(), tc.crs)
 
@@ -232,11 +232,11 @@ func testEncToShareProtocol(tc *testContext, t *testing.T) {
 			}
 		}
 
-		ctRec := hefloat.NewCiphertext(params, 1, params.MaxLevel())
+		ctRec := ckks.NewCiphertext(params, 1, params.MaxLevel())
 		ctRec.Scale = params.DefaultScale()
 		P[0].s2e.GetEncryption(P[0].publicShareS2E, crp, ctRec)
 
-		hefloat.VerifyTestVectors(params, tc.encoder, tc.decryptorSk0, coeffs, ctRec, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+		ckks.VerifyTestVectors(params, tc.encoder, tc.decryptorSk0, coeffs, ctRec, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 }
 
@@ -253,9 +253,9 @@ func testRefresh(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName("N->2N/Transform=nil", tc.NParties, paramsIn), func(t *testing.T) {
 
-		var paramsOut hefloat.Parameters
+		var paramsOut ckks.Parameters
 		var err error
-		paramsOut, err = hefloat.NewParametersFromLiteral(hefloat.ParametersLiteral{
+		paramsOut, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
 			LogN:            paramsIn.LogN() + 1,
 			LogQ:            []int{54, 54, 54, 49, 49, 49, 49, 49, 49},
 			LogP:            []int{52, 52},
@@ -277,9 +277,9 @@ func testRefresh(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName("2N->N/Transform=nil", tc.NParties, tc.params), func(t *testing.T) {
 
-		var paramsOut hefloat.Parameters
+		var paramsOut ckks.Parameters
 		var err error
-		paramsOut, err = hefloat.NewParametersFromLiteral(hefloat.ParametersLiteral{
+		paramsOut, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
 			LogN:            paramsIn.LogN() - 1,
 			LogQ:            []int{54, 54, 54, 49, 49, 49, 49, 49, 49},
 			LogP:            []int{52, 52},
@@ -317,9 +317,9 @@ func testRefresh(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName("N->2N/Transform=true", tc.NParties, paramsIn), func(t *testing.T) {
 
-		var paramsOut hefloat.Parameters
+		var paramsOut ckks.Parameters
 		var err error
-		paramsOut, err = hefloat.NewParametersFromLiteral(hefloat.ParametersLiteral{
+		paramsOut, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
 			LogN:            paramsIn.LogN() + 1,
 			LogQ:            []int{54, 54, 54, 49, 49, 49, 49, 49, 49},
 			LogP:            []int{52, 52},
@@ -352,9 +352,9 @@ func testRefresh(tc *testContext, t *testing.T) {
 
 	t.Run(GetTestName("2N->N/Transform=true", tc.NParties, tc.params), func(t *testing.T) {
 
-		var paramsOut hefloat.Parameters
+		var paramsOut ckks.Parameters
 		var err error
-		paramsOut, err = hefloat.NewParametersFromLiteral(hefloat.ParametersLiteral{
+		paramsOut, err = ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
 			LogN:            paramsIn.LogN() - 1,
 			LogQ:            []int{54, 54, 54, 49, 49, 49, 49, 49, 49},
 			LogP:            []int{52, 52},
@@ -386,7 +386,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 	})
 }
 
-func testRefreshParameterized(tc *testContext, paramsOut hefloat.Parameters, skOut []*rlwe.SecretKey, transform *MaskedLinearTransformationFunc, t *testing.T) {
+func testRefreshParameterized(tc *testContext, paramsOut ckks.Parameters, skOut []*rlwe.SecretKey, transform *MaskedLinearTransformationFunc, t *testing.T) {
 
 	var err error
 
@@ -464,7 +464,7 @@ func testRefreshParameterized(tc *testContext, paramsOut hefloat.Parameters, skO
 		transform.Func(coeffs)
 	}
 
-	hefloat.VerifyTestVectors(paramsOut, hefloat.NewEncoder(paramsOut), rlwe.NewDecryptor(paramsOut, skIdealOut), coeffs, ciphertext, paramsOut.LogDefaultScale(), 0, *printPrecisionStats, t)
+	ckks.VerifyTestVectors(paramsOut, ckks.NewEncoder(paramsOut), rlwe.NewDecryptor(paramsOut, skIdealOut), coeffs, ciphertext, paramsOut.LogDefaultScale(), 0, *printPrecisionStats, t)
 }
 
 func newTestVectors(tc *testContext, encryptor *rlwe.Encryptor, a, b complex128, logSlots int) (values []*bignum.Complex, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
@@ -475,7 +475,7 @@ func newTestVectorsAtScale(tc *testContext, encryptor *rlwe.Encryptor, a, b comp
 
 	prec := tc.encoder.Prec()
 
-	pt = hefloat.NewPlaintext(tc.params, tc.params.MaxLevel())
+	pt = ckks.NewPlaintext(tc.params, tc.params.MaxLevel())
 	pt.Scale = scale
 	pt.LogDimensions.Cols = logSlots
 

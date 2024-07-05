@@ -7,7 +7,7 @@
 // the coefficient domain.
 //
 // This example assumes that the user is already familiar with the bootstrapping and its different steps.
-// See the basic example `lattigo/examples/he/hefloat/bootstrapping/basic` for an introduction into the
+// See the basic example `lattigo/single_party/applications/reals_bootstrapping/basics` for an introduction into the
 // bootstrapping.
 //
 // The usual order of the bootstrapping operations is:

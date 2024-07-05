@@ -7,9 +7,9 @@ import (
 	"math/big"
 	"slices"
 
+	"github.com/tuneinsight/lattigo/v5/circuits/linear_transformation"
 	"github.com/tuneinsight/lattigo/v5/circuits/linear_transformation/ltfloat"
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/he"
 	"github.com/tuneinsight/lattigo/v5/ring"
 	"github.com/tuneinsight/lattigo/v5/schemes/ckks"
 	"github.com/tuneinsight/lattigo/v5/utils"
@@ -118,7 +118,7 @@ func (d DFTMatrixLiteral) GaloisElements(params ckks.Parameters) (galEls []uint6
 
 	// Coeffs to Slots rotations
 	for i, pVec := range indexCtS {
-		N1 := he.FindBestBSGSRatio(utils.GetKeys(pVec), dslots, d.LogBSGSRatio)
+		N1 := linear_transformation.FindBestBSGSRatio(utils.GetKeys(pVec), dslots, d.LogBSGSRatio)
 		rotations = addMatrixRotToList(pVec, rotations, N1, slots, d.Type == HomomorphicDecode && logSlots < logN-1 && i == 0 && imgRepack)
 	}
 
@@ -200,7 +200,7 @@ func NewDFTMatrixFromLiteral(params ckks.Parameters, d DFTMatrixLiteral, encoder
 
 			mat := ltfloat.NewLinearTransformation(params, ltparams)
 
-			if err := ltfloat.EncodeLinearTransformation[*bignum.Complex](encoder, pVecDFT[idx], mat); err != nil {
+			if err := ltfloat.EncodeLinearTransformation(encoder, pVecDFT[idx], mat); err != nil {
 				return DFTMatrix{}, fmt.Errorf("cannot NewDFTMatrixFromLiteral: %w", err)
 			}
 

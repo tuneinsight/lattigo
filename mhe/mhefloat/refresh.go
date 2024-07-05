@@ -1,9 +1,9 @@
 package mhefloat
 
 import (
-	"github.com/tuneinsight/lattigo/v5/he/hefloat"
 	"github.com/tuneinsight/lattigo/v5/mhe"
 	"github.com/tuneinsight/lattigo/v5/ring"
+	"github.com/tuneinsight/lattigo/v5/schemes/ckks"
 
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 )
@@ -15,7 +15,7 @@ type RefreshProtocol struct {
 
 // NewRefreshProtocol creates a new [RefreshProtocol] instance.
 // prec : the log2 of decimal precision of the internal encoder.
-func NewRefreshProtocol(params hefloat.Parameters, prec uint, noise ring.DistributionParameters) (rfp RefreshProtocol, err error) {
+func NewRefreshProtocol(params ckks.Parameters, prec uint, noise ring.DistributionParameters) (rfp RefreshProtocol, err error) {
 	rfp = RefreshProtocol{}
 	mt, err := NewMaskedLinearTransformationProtocol(params, params, prec, noise)
 	rfp.MaskedLinearTransformationProtocol = mt

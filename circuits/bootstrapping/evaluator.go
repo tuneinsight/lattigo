@@ -10,7 +10,6 @@ import (
 	"github.com/tuneinsight/lattigo/v5/circuits/mod1"
 	"github.com/tuneinsight/lattigo/v5/circuits/polynomial/polyfloat"
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/he"
 	"github.com/tuneinsight/lattigo/v5/ring"
 	"github.com/tuneinsight/lattigo/v5/schemes/ckks"
 	"github.com/tuneinsight/lattigo/v5/utils"
@@ -73,9 +72,9 @@ func NewEvaluator(btpParams Parameters, evk *EvaluationKeys) (eval *Evaluator, e
 	eval.Parameters = btpParams
 
 	if paramsN1.N() != paramsN2.N() {
-		eval.xPow2N1 = he.GenXPow2NTT(paramsN1.RingQ().AtLevel(0), paramsN2.LogN(), false)
-		eval.xPow2N2 = he.GenXPow2NTT(paramsN2.RingQ().AtLevel(0), paramsN2.LogN(), false)
-		eval.xPow2InvN2 = he.GenXPow2NTT(paramsN2.RingQ(), paramsN2.LogN(), true)
+		eval.xPow2N1 = rlwe.GenXPow2NTT(paramsN1.RingQ().AtLevel(0), paramsN2.LogN(), false)
+		eval.xPow2N2 = rlwe.GenXPow2NTT(paramsN2.RingQ().AtLevel(0), paramsN2.LogN(), false)
+		eval.xPow2InvN2 = rlwe.GenXPow2NTT(paramsN2.RingQ(), paramsN2.LogN(), true)
 	}
 
 	if btpParams.Mod1ParametersLiteral.Mod1Type == mod1.SinContinuous && btpParams.Mod1ParametersLiteral.DoubleAngle != 0 {

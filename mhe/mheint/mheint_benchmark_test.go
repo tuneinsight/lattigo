@@ -5,9 +5,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/he/heint"
 	"github.com/tuneinsight/lattigo/v5/mhe"
+	"github.com/tuneinsight/lattigo/v5/schemes/bgv"
 )
 
 func BenchmarkInteger(b *testing.B) {
@@ -17,11 +18,11 @@ func BenchmarkInteger(b *testing.B) {
 	paramsLiterals := testParams
 
 	if *flagParamString != "" {
-		var jsonParams heint.ParametersLiteral
+		var jsonParams bgv.ParametersLiteral
 		if err = json.Unmarshal([]byte(*flagParamString), &jsonParams); err != nil {
 			b.Fatal(err)
 		}
-		paramsLiterals = []heint.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
+		paramsLiterals = []bgv.ParametersLiteral{jsonParams} // the custom test suite reads the parameters from the -params flag
 	}
 
 	for _, p := range paramsLiterals {
@@ -30,8 +31,8 @@ func BenchmarkInteger(b *testing.B) {
 
 			p.PlaintextModulus = plaintextModulus
 
-			var params heint.Parameters
-			if params, err = heint.NewParametersFromLiteral(p); err != nil {
+			var params bgv.Parameters
+			if params, err = bgv.NewParametersFromLiteral(p); err != nil {
 				b.Fatal(err)
 			}
 
@@ -67,7 +68,7 @@ func benchRefresh(tc *testContext, b *testing.B) {
 	p.s = sk0Shards[0]
 	p.share = p.AllocateShare(minLevel, maxLevel)
 
-	ciphertext := heint.NewCiphertext(tc.params, 1, minLevel)
+	ciphertext := bgv.NewCiphertext(tc.params, 1, minLevel)
 
 	crp := p.SampleCRP(maxLevel, tc.crs)
 
@@ -86,7 +87,7 @@ func benchRefresh(tc *testContext, b *testing.B) {
 	})
 
 	b.Run(GetTestName("Refresh/Finalize", tc.params, tc.NParties), func(b *testing.B) {
-		opOut := heint.NewCiphertext(tc.params, 1, maxLevel)
+		opOut := bgv.NewCiphertext(tc.params, 1, maxLevel)
 		for i := 0; i < b.N; i++ {
 			p.Finalize(ciphertext, crp, p.share, opOut)
 		}

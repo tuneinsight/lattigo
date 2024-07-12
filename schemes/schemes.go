@@ -22,5 +22,4 @@ type Evaluator interface {
 	MulThenAdd(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error)
 	Relinearize(op0, op1 *rlwe.Ciphertext) (err error)
 	Rescale(op0, op1 *rlwe.Ciphertext) (err error)
-	GetEvaluatorBuffer() *rlwe.EvaluatorBuffers
 }

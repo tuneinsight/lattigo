@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/tuneinsight/lattigo/v5/circuits/blind_rotation"
+	"github.com/tuneinsight/lattigo/v5/core/rgsw/blind_rotation"
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 	"github.com/tuneinsight/lattigo/v5/ring"
 	"github.com/tuneinsight/lattigo/v5/utils"

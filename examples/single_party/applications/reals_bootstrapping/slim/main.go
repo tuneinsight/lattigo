@@ -37,9 +37,9 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/tuneinsight/lattigo/v5/circuits/bootstrapping"
-	"github.com/tuneinsight/lattigo/v5/circuits/dft"
-	"github.com/tuneinsight/lattigo/v5/circuits/mod1"
+	"github.com/tuneinsight/lattigo/v5/circuits/ckks/bootstrapping"
+	"github.com/tuneinsight/lattigo/v5/circuits/ckks/dft"
+	"github.com/tuneinsight/lattigo/v5/circuits/ckks/mod1"
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 	"github.com/tuneinsight/lattigo/v5/ring"
 	"github.com/tuneinsight/lattigo/v5/schemes/ckks"

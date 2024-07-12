@@ -6,7 +6,7 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v5/circuits/polynomial/polyfloat"
+	"github.com/tuneinsight/lattigo/v5/circuits/ckks/polynomial"
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 	"github.com/tuneinsight/lattigo/v5/ring"
 	"github.com/tuneinsight/lattigo/v5/schemes/ckks"
@@ -111,8 +111,8 @@ func main() {
 	}
 
 	// Vectorized Chebyhsev approximation of g0(x) and g1(x) in the domain [-K, K] of degree 63.
-	var polys polyfloat.PolynomialVector
-	if polys, err = polyfloat.NewPolynomialVector([]bignum.Polynomial{
+	var polys polynomial.PolynomialVector
+	if polys, err = polynomial.NewPolynomialVector([]bignum.Polynomial{
 		GetChebyshevPoly(K, 63, g0),
 		GetChebyshevPoly(K, 63, g1),
 	}, mapping); err != nil {
@@ -120,7 +120,7 @@ func main() {
 	}
 
 	// Instantiates the polynomial evaluator
-	polyEval := polyfloat.NewPolynomialEvaluator(params, eval)
+	polyEval := polynomial.NewPolynomialEvaluator(params, eval)
 
 	// Retrieves the vectorized change of basis y = scalar * x + constant
 	scalar, constant := polys.ChangeOfBasis(ct.Slots())

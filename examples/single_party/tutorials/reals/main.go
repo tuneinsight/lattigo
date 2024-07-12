@@ -5,8 +5,8 @@ import (
 	"math/cmplx"
 	"math/rand"
 
-	"github.com/tuneinsight/lattigo/v5/circuits/linear_transformation/ltfloat"
-	"github.com/tuneinsight/lattigo/v5/circuits/polynomial/polyfloat"
+	"github.com/tuneinsight/lattigo/v5/circuits/ckks/linear_transformation"
+	"github.com/tuneinsight/lattigo/v5/circuits/ckks/polynomial"
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 	"github.com/tuneinsight/lattigo/v5/schemes/ckks"
 	"github.com/tuneinsight/lattigo/v5/utils"
@@ -565,7 +565,7 @@ func main() {
 		panic(err)
 	}
 
-	polyEval := polyfloat.NewPolynomialEvaluator(params, eval)
+	polyEval := polynomial.NewPolynomialEvaluator(params, eval)
 
 	// And we evaluate this polynomial on the ciphertext
 	// The last argument, `params.DefaultScale()` is the scale that we want the ciphertext
@@ -658,7 +658,7 @@ func main() {
 	nonZeroDiagonals := []int{-15, -4, -1, 0, 1, 2, 3, 4, 15}
 
 	// We allocate the non-zero diagonals and populate them
-	diagonals := make(ltfloat.Diagonals[complex128])
+	diagonals := make(linear_transformation.Diagonals[complex128])
 
 	for _, i := range nonZeroDiagonals {
 		tmp := make([]complex128, Slots)
@@ -674,7 +674,7 @@ func main() {
 	// Here we use the default structs of the rlwe package, which is compliant to the rlwe.LinearTransformationParameters interface
 	// But a user is free to use any struct compliant to this interface.
 	// See the definition of the interface for more information about the parameters.
-	ltparams := ltfloat.LinearTransformationParameters{
+	ltparams := linear_transformation.LinearTransformationParameters{
 		DiagonalsIndexList:        diagonals.DiagonalsIndexList(),
 		LevelQ:                    ct1.Level(),
 		LevelP:                    params.MaxLevelP(),
@@ -685,22 +685,22 @@ func main() {
 
 	// We allocated the rlwe.LinearTransformation.
 	// The allocation takes into account the parameters of the linear transformation.
-	lt := ltfloat.NewLinearTransformation(params, ltparams)
+	lt := linear_transformation.NewLinearTransformation(params, ltparams)
 
 	// We encode our linear transformation on the allocated rlwe.LinearTransformation.
 	// Not that trying to encode a linear transformation with different non-zero diagonals,
 	// plaintext dimensions or baby-step giant-step ratio than the one used to allocate the
 	// rlwe.LinearTransformation will return an error.
-	if err := ltfloat.EncodeLinearTransformation(ecd, diagonals, lt); err != nil {
+	if err := linear_transformation.EncodeLinearTransformation(ecd, diagonals, lt); err != nil {
 		panic(err)
 	}
 
 	// Then we generate the corresponding Galois keys.
 	// The list of Galois elements can also be obtained with `lt.GaloisElements`
 	// but this requires to have it pre-allocated, which is not always desirable.
-	galEls = ltfloat.GaloisElementsForLinearTransformation(params, ltparams)
+	galEls = linear_transformation.GaloisElementsForLinearTransformation(params, ltparams)
 
-	ltEval := ltfloat.NewLinearTransformationEvaluator(eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, kgen.GenGaloisKeysNew(galEls, sk)...)))
+	ltEval := linear_transformation.NewLinearTransformationEvaluator(eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, kgen.GenGaloisKeysNew(galEls, sk)...)))
 
 	// And we valuate the linear transform
 	if err := ltEval.Evaluate(ct1, lt, res); err != nil {

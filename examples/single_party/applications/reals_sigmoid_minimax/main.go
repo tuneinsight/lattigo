@@ -6,7 +6,7 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v5/circuits/polynomial/polyfloat"
+	"github.com/tuneinsight/lattigo/v5/circuits/ckks/polynomial"
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 	"github.com/tuneinsight/lattigo/v5/ring"
 	"github.com/tuneinsight/lattigo/v5/schemes/ckks"
@@ -85,10 +85,10 @@ func main() {
 	}
 
 	// Minimax approximation of the sigmoid in the domain [-K, K] of degree 63.
-	poly := polyfloat.NewPolynomial(GetMinimaxPoly(K, 63, sigmoid))
+	poly := polynomial.NewPolynomial(GetMinimaxPoly(K, 63, sigmoid))
 
 	// Instantiates the polynomial evaluator
-	polyEval := polyfloat.NewPolynomialEvaluator(params, eval)
+	polyEval := polynomial.NewPolynomialEvaluator(params, eval)
 
 	// Retrieves the change of basis y = scalar * x + constant
 	scalar, constant := poly.ChangeOfBasis()

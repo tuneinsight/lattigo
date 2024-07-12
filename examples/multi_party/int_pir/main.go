@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/mhe"
+	"github.com/tuneinsight/lattigo/v5/multi_party"
 	"github.com/tuneinsight/lattigo/v5/ring"
 	"github.com/tuneinsight/lattigo/v5/schemes/bgv"
 	"github.com/tuneinsight/lattigo/v5/utils/sampling"
@@ -36,11 +36,11 @@ type party struct {
 	sk         *rlwe.SecretKey
 	rlkEphemSk *rlwe.SecretKey
 
-	ckgShare    mhe.PublicKeyGenShare
-	rkgShareOne mhe.RelinearizationKeyGenShare
-	rkgShareTwo mhe.RelinearizationKeyGenShare
-	gkgShare    mhe.GaloisKeyGenShare
-	cksShare    mhe.KeySwitchShare
+	ckgShare    multi_party.PublicKeyGenShare
+	rkgShareOne multi_party.RelinearizationKeyGenShare
+	rkgShareTwo multi_party.RelinearizationKeyGenShare
+	gkgShare    multi_party.GaloisKeyGenShare
+	cksShare    multi_party.KeySwitchShare
 
 	input []uint64
 }
@@ -212,7 +212,7 @@ func cksphase(params bgv.Parameters, P []*party, result *rlwe.Ciphertext) *rlwe.
 
 	l.Println("> KeySwitch Phase")
 
-	cks, err := mhe.NewKeySwitchProtocol(params, ring.DiscreteGaussian{Sigma: 1 << 30, Bound: 6 * (1 << 30)}) // Collective public-key re-encryption
+	cks, err := multi_party.NewKeySwitchProtocol(params, ring.DiscreteGaussian{Sigma: 1 << 30, Bound: 6 * (1 << 30)}) // Collective public-key re-encryption
 	if err != nil {
 		panic(err)
 	}
@@ -271,7 +271,7 @@ func ckgphase(params bgv.Parameters, crs sampling.PRNG, P []*party) *rlwe.Public
 
 	l.Println("> PublicKeyGen Phase")
 
-	ckg := mhe.NewPublicKeyGenProtocol(params) // Public key generation
+	ckg := multi_party.NewPublicKeyGenProtocol(params) // Public key generation
 
 	ckgCombined := ckg.AllocateShare()
 	for _, pi := range P {
@@ -306,7 +306,7 @@ func rkgphase(params bgv.Parameters, crs sampling.PRNG, P []*party) *rlwe.Reline
 
 	l.Println("> RelinearizationKeyGen Phase")
 
-	rkg := mhe.NewRelinearizationKeyGenProtocol(params) // Relineariation key generation
+	rkg := multi_party.NewRelinearizationKeyGenProtocol(params) // Relineariation key generation
 
 	_, rkgCombined1, rkgCombined2 := rkg.AllocateShare()
 
@@ -357,7 +357,7 @@ func gkgphase(params bgv.Parameters, crs sampling.PRNG, P []*party) (galKeys []*
 
 	l.Println("> RTG Phase")
 
-	gkg := mhe.NewGaloisKeyGenProtocol(params) // Rotation keys generation
+	gkg := multi_party.NewGaloisKeyGenProtocol(params) // Rotation keys generation
 
 	for _, pi := range P {
 		pi.gkgShare = gkg.AllocateShare()

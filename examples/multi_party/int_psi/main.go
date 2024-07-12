@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/mhe"
+	"github.com/tuneinsight/lattigo/v5/multi_party"
 	"github.com/tuneinsight/lattigo/v5/ring"
 	"github.com/tuneinsight/lattigo/v5/schemes/bgv"
 	"github.com/tuneinsight/lattigo/v5/utils/sampling"
@@ -36,10 +36,10 @@ type party struct {
 	sk         *rlwe.SecretKey
 	rlkEphemSk *rlwe.SecretKey
 
-	ckgShare    mhe.PublicKeyGenShare
-	rkgShareOne mhe.RelinearizationKeyGenShare
-	rkgShareTwo mhe.RelinearizationKeyGenShare
-	pcksShare   mhe.PublicKeySwitchShare
+	ckgShare    multi_party.PublicKeyGenShare
+	rkgShareOne multi_party.RelinearizationKeyGenShare
+	rkgShareTwo multi_party.RelinearizationKeyGenShare
+	pcksShare   multi_party.PublicKeySwitchShare
 
 	input []uint64
 }
@@ -310,7 +310,7 @@ func pcksPhase(params bgv.Parameters, tpk *rlwe.PublicKey, encRes *rlwe.Cipherte
 	// Collective key switching from the collective secret key to
 	// the target public key
 
-	pcks, err := mhe.NewPublicKeySwitchProtocol(params, ring.DiscreteGaussian{Sigma: 1 << 30, Bound: 6 * (1 << 30)})
+	pcks, err := multi_party.NewPublicKeySwitchProtocol(params, ring.DiscreteGaussian{Sigma: 1 << 30, Bound: 6 * (1 << 30)})
 	if err != nil {
 		panic(err)
 	}
@@ -348,7 +348,7 @@ func rkgphase(params bgv.Parameters, crs sampling.PRNG, P []*party) *rlwe.Reline
 
 	l.Println("> RelinearizationKeyGen Phase")
 
-	rkg := mhe.NewRelinearizationKeyGenProtocol(params) // Relineariation key generation
+	rkg := multi_party.NewRelinearizationKeyGenProtocol(params) // Relineariation key generation
 	_, rkgCombined1, rkgCombined2 := rkg.AllocateShare()
 
 	for _, pi := range P {
@@ -398,7 +398,7 @@ func ckgphase(params bgv.Parameters, crs sampling.PRNG, P []*party) *rlwe.Public
 
 	l.Println("> PublicKeyGen Phase")
 
-	ckg := mhe.NewPublicKeyGenProtocol(params) // Public key generation
+	ckg := multi_party.NewPublicKeyGenProtocol(params) // Public key generation
 	ckgCombined := ckg.AllocateShare()
 	for _, pi := range P {
 		pi.ckgShare = ckg.AllocateShare()

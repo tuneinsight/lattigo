@@ -9,8 +9,8 @@ import (
 )
 
 // EvaluatorForMod1 defines a set of common and scheme agnostic
-// methods that are necessary to instantiate a Mod1Evaluator.
-// The default hefloat.Evaluator is compliant to this interface.
+// methods that are necessary to instantiate a [Mod1Evaluator].
+// The default [hefloat.Evaluator] is compliant to this interface.
 type EvaluatorForMod1 interface {
 	he.Evaluator
 	DropLevel(*rlwe.Ciphertext, int)
@@ -25,8 +25,8 @@ type Mod1Evaluator struct {
 	Mod1Parameters      Mod1Parameters
 }
 
-// NewMod1Evaluator instantiates a new Mod1Evaluator evaluator.
-// The default hefloat.Evaluator is compliant to the EvaluatorForMod1 interface.
+// NewMod1Evaluator instantiates a new [Mod1Evaluator] evaluator.
+// The default [hefloat.Evaluator] is compliant to the [EvaluatorForMod1] interface.
 // This method is allocation free.
 func NewMod1Evaluator(eval EvaluatorForMod1, evalPoly *PolynomialEvaluator, Mod1Parameters Mod1Parameters) *Mod1Evaluator {
 	return &Mod1Evaluator{EvaluatorForMod1: eval, PolynomialEvaluator: evalPoly, Mod1Parameters: Mod1Parameters}

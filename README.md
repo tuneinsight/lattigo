@@ -108,6 +108,17 @@ RLWE --> MHE([MHE])
 MHE --> MHEInt
 ```
 
+### Documentation
+
+The full documentation of the individual packages can be browsed as a web page using official
+Golang documentation rendering tool `pkgsite`
+
+```bash
+$ go install golang.org/x/pkgsite/cmd/pkgsite@latest
+$ cd lattigo
+$ pkgsite -open .
+```
+
 ## Versions and Roadmap
 
 The Lattigo library was originally exclusively developed by the EPFL Laboratory for Data Security

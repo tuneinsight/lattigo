@@ -12,7 +12,7 @@ import (
 // MinimaxCompositePolynomial is a struct storing P(x) = pk(x) o pk-1(x) o ... o p1(x) o p0(x).
 type MinimaxCompositePolynomial []bignum.Polynomial
 
-// NewMinimaxCompositePolynomial creates a new MinimaxCompositePolynomial from a list of coefficients.
+// NewMinimaxCompositePolynomial creates a new [MinimaxCompositePolynomial] from a list of coefficients.
 // Coefficients are expected to be given in the Chebyshev basis.
 func NewMinimaxCompositePolynomial(coeffsStr [][]string) MinimaxCompositePolynomial {
 	polys := make([]bignum.Polynomial, len(coeffsStr))
@@ -78,7 +78,7 @@ var CoeffsSignX4Cheby = []string{"0", "1.1962890625", "0", "-0.2392578125", "0",
 //
 // The sign function is defined as: -1 if -1 <= x < 0, 0 if x = 0, 1 if 0 < x <= 1.
 //
-// See GenMinimaxCompositePolynomial for information about how to instantiate and
+// See [GenMinimaxCompositePolynomial] for information about how to instantiate and
 // parameterize each input value of the algorithm.
 func GenMinimaxCompositePolynomialForSign(prec uint, logalpha, logerr int, deg []int) {
 

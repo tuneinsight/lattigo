@@ -26,9 +26,9 @@ type KeySwitchShare struct {
 	Value ring.Poly
 }
 
-// ShallowCopy creates a shallow copy of KeySwitchProtocol in which all the read-only data-structures are
+// ShallowCopy creates a shallow copy of [KeySwitchProtocol] in which all the read-only data-structures are
 // shared with the receiver and the temporary bufers are reallocated. The receiver and the returned
-// KeySwitchProtocol can be used concurrently.
+// [KeySwitchProtocol] can be used concurrently.
 func (cks KeySwitchProtocol) ShallowCopy() KeySwitchProtocol {
 	prng, err := sampling.NewPRNG()
 
@@ -60,7 +60,7 @@ type KeySwitchCRP struct {
 	Value ring.Poly
 }
 
-// NewKeySwitchProtocol creates a new KeySwitchProtocol that will be used to perform a collective key-switching on a ciphertext encrypted under a collective public-key, whose
+// NewKeySwitchProtocol creates a new [KeySwitchProtocol] that will be used to perform a collective key-switching on a ciphertext encrypted under a collective public-key, whose
 // secret-shares are distributed among j parties, re-encrypting the ciphertext under another public-key, whose secret-shares are also known to the
 // parties.
 func NewKeySwitchProtocol(params rlwe.ParameterProvider, noiseFlooding ring.DistributionParameters) (KeySwitchProtocol, error) {
@@ -112,7 +112,7 @@ func (cks KeySwitchProtocol) SampleCRP(level int, crs CRS) KeySwitchCRP {
 }
 
 // GenShare computes a party's share in the KeySwitchcol from secret-key skInput to secret-key skOutput.
-// ct is the rlwe.Ciphertext to keyswitch. Note that ct.Value[0] is not used by the function and can be nil/zero.
+// ct is the [rlwe.Ciphertext] to keyswitch. Note that ct.Value[0] is not used by the function and can be nil/zero.
 //
 // Expected noise: ctNoise + encFreshSk + smudging
 func (cks KeySwitchProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlwe.Ciphertext, shareOut *KeySwitchShare) {
@@ -148,7 +148,7 @@ func (cks KeySwitchProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlw
 	}
 }
 
-// AggregateShares is the second part of the unique round of the KeySwitchProtocol protocol. Upon receiving the j-1 elements each party computes :
+// AggregateShares is the second part of the unique round of the [KeySwitchProtocol] protocol. Upon receiving the j-1 elements each party computes:
 //
 // [ctx[0] + sum((skInput_i - skOutput_i) * ctx[0] + e_i), ctx[1]]
 func (cks KeySwitchProtocol) AggregateShares(share1, share2 KeySwitchShare, shareOut *KeySwitchShare) (err error) {
@@ -187,30 +187,30 @@ func (ckss KeySwitchShare) BinarySize() int {
 	return ckss.Value.BinarySize()
 }
 
-// WriteTo writes the object on an io.Writer. It implements the io.WriterTo
+// WriteTo writes the object on an [io.Writer]. It implements the [io.WriterTo]
 // interface, and will write exactly object.BinarySize() bytes on w.
 //
-// Unless w implements the buffer.Writer interface (see lattigo/utils/buffer/writer.go),
-// it will be wrapped into a bufio.Writer. Since this requires allocations, it
-// is preferable to pass a buffer.Writer directly:
+// Unless w implements the [buffer.Writer] interface (see lattigo/utils/buffer/writer.go),
+// it will be wrapped into a [bufio.Writer]. Since this requires allocations, it
+// is preferable to pass a [buffer.Writer] directly:
 //
-//   - When writing multiple times to a io.Writer, it is preferable to first wrap the
-//     io.Writer in a pre-allocated bufio.Writer.
+//   - When writing multiple times to a [io.Writer], it is preferable to first wrap the
+//     [io.Writer] in a pre-allocated [bufio.Writer].
 //   - When writing to a pre-allocated var b []byte, it is preferable to pass
 //     buffer.NewBuffer(b) as w (see lattigo/utils/buffer/buffer.go).
 func (ckss KeySwitchShare) WriteTo(w io.Writer) (n int64, err error) {
 	return ckss.Value.WriteTo(w)
 }
 
-// ReadFrom reads on the object from an io.Writer. It implements the
-// io.ReaderFrom interface.
+// ReadFrom reads on the object from an [io.Writer]. It implements the
+// [io.ReaderFrom] interface.
 //
-// Unless r implements the buffer.Reader interface (see see lattigo/utils/buffer/reader.go),
-// it will be wrapped into a bufio.Reader. Since this requires allocation, it
-// is preferable to pass a buffer.Reader directly:
+// Unless r implements the [buffer.Reader] interface (see see lattigo/utils/buffer/reader.go),
+// it will be wrapped into a [bufio.Reader]. Since this requires allocation, it
+// is preferable to pass a [buffer.Reader] directly:
 //
-//   - When reading multiple values from a io.Reader, it is preferable to first
-//     first wrap io.Reader in a pre-allocated bufio.Reader.
+//   - When reading multiple values from a [io.Reader], it is preferable to first
+//     first wrap [io.Reader] in a pre-allocated [bufio.Reader].
 //   - When reading from a var b []byte, it is preferable to pass a buffer.NewBuffer(b)
 //     as w (see lattigo/utils/buffer/buffer.go).
 func (ckss *KeySwitchShare) ReadFrom(r io.Reader) (n int64, err error) {
@@ -223,7 +223,7 @@ func (ckss KeySwitchShare) MarshalBinary() (p []byte, err error) {
 }
 
 // UnmarshalBinary decodes a slice of bytes generated by
-// MarshalBinary or WriteTo on the object.
+// [KeySwitchShare.MarshalBinary] or[KeySwitchShare.WriteTo] on the object.
 func (ckss *KeySwitchShare) UnmarshalBinary(p []byte) (err error) {
 	return ckss.Value.UnmarshalBinary(p)
 }

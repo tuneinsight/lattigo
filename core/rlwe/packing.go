@@ -11,7 +11,7 @@ import (
 
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for n <= i < N
 // Monomial X^k vanishes if k is not divisible by (N/n), otherwise it is multiplied by (N/n).
-// Ciphertext is pre-multiplied by (N/n)^-1 to remove the (N/n) factor.
+// [Ciphertext] is pre-multiplied by (N/n)^-1 to remove the (N/n) factor.
 // Examples of full Trace for [0 + 1X + 2X^2 + 3X^3 + 4X^4 + 5X^5 + 6X^6 + 7X^7]
 //
 // 1.
@@ -119,7 +119,7 @@ func (eval Evaluator) Trace(ctIn *Ciphertext, logN int, opOut *Ciphertext) (err 
 	return
 }
 
-// GaloisElementsForTrace returns the list of Galois elements requored for the for the `Trace` operation.
+// GaloisElementsForTrace returns the list of Galois elements requored for the for the [Evaluator.Trace] operation.
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for 2^{LogN} <= i < N.
 func GaloisElementsForTrace(params ParameterProvider, logN int) (galEls []uint64) {
 
@@ -144,7 +144,7 @@ func GaloisElementsForTrace(params ParameterProvider, logN int) (galEls []uint64
 	return
 }
 
-// Expand expands a RLWE Ciphertext encrypting sum ai * X^i to 2^logN ciphertexts,
+// Expand expands a RLWE [Ciphertext] encrypting sum ai * X^i to 2^logN ciphertexts,
 // each encrypting ai * X^0 for 0 <= i < 2^LogN. That is, it extracts the first 2^logN
 // coefficients, whose degree is a multiple of 2^logGap, of ctIn and returns an RLWE
 // Ciphertext for each coefficient extracted.
@@ -256,7 +256,7 @@ func (eval Evaluator) Expand(ctIn *Ciphertext, logN, logGap int) (opOut []*Ciphe
 }
 
 // GaloisElementsForExpand returns the list of Galois elements required
-// to perform the `Expand` operation with parameter `logN`.
+// to perform the [Evaluator.Expand] operation with parameter logN.
 func GaloisElementsForExpand(params ParameterProvider, logN int) (galEls []uint64) {
 	galEls = make([]uint64, logN)
 
@@ -269,19 +269,15 @@ func GaloisElementsForExpand(params ParameterProvider, logN int) (galEls []uint6
 	return
 }
 
-// Pack packs a batch of RLWE ciphertexts, packing the batch of ciphertexts into a single ciphertext.
+// Pack packs a batch of RLWE [Ciphertext], packing the batch of ciphertexts into a single ciphertext.
 // The number of key-switching operations is inputLogGap - log2(gap) + len(cts), where log2(gap) is the
 // minimum distance between two keys of the map cts[int]*Ciphertext.
 //
-// Input:
+// Inputs:
 //
-//		cts: a map of Ciphertext, where the index in the map is the future position of the first coefficient
-//		      of the indexed ciphertext in the final ciphertext (see example). Ciphertexts can be in or out of the NTT domain.
-//		logGap: all coefficients of the input ciphertexts that are not a multiple of X^{2^{logGap}} will be zeroed
-//		        during the merging (see example). This is equivalent to skipping the first 2^{logGap} steps of the
-//		        algorithm, i.e. having as input ciphertexts that are already partially packed.
-//	 zeroGarbageSlots: if set to true, slots which are not multiples of X^{2^{logGap}} will be zeroed during the procedure.
-//	                   this will greatly increase the noise and increase the number of key-switching operations to inputLogGap + len(cts).
+//   - cts: a map of Ciphertext, where the index in the map is the future position of the first coefficient  of the indexed ciphertext in the final ciphertext (see example). Ciphertexts can be in or out of the NTT domain.
+//   - logGap: all coefficients of the input ciphertexts that are not a multiple of X^{2^{logGap}} will be zeroed during the merging (see example). This is equivalent to skipping the first 2^{logGap} steps of the algorithm, i.e., having as input ciphertexts that are already partially packed.
+//   - zeroGarbageSlots: if set to true, slots which are not multiples of X^{2^{logGap}} will be zeroed during the procedure. This will greatly increase the noise and increase the number of key-switching operations to inputLogGap + len(cts).
 //
 // Output: a ciphertext packing all input ciphertexts
 //
@@ -295,7 +291,7 @@ func GaloisElementsForExpand(params ParameterProvider, logN int) (galEls []uint6
 //	   1: [x10, X, X, X, x11, X, X, X],
 //	   2: [x20, X, X, X, x21, X, X, X],
 //	   3: [x30, X, X, X, x31, X, X, X],
-//		}
+//	}
 //
 //	 Step 1:
 //	         map[0]: 2^{-1} * (map[0] + X^2 * map[2] + phi_{5^2}(map[0] - X^2 * map[2]) = [x00, X, x20, X, x01, X, x21, X]
@@ -438,7 +434,7 @@ func (eval Evaluator) Pack(cts map[int]*Ciphertext, inputLogGap int, zeroGarbage
 	return cts[0], nil
 }
 
-// GaloisElementsForPack returns the list of Galois elements required to perform the `Pack` operation.
+// GaloisElementsForPack returns the list of Galois elements required to perform the [Evaluator.Pack] operation.
 func GaloisElementsForPack(params ParameterProvider, logGap int) (galEls []uint64) {
 
 	p := params.GetRLWEParameters()

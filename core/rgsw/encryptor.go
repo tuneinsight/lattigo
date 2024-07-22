@@ -6,8 +6,8 @@ import (
 	"github.com/tuneinsight/lattigo/v5/ring/ringqp"
 )
 
-// Encryptor is a type for encrypting RGSW ciphertexts. It implements the rlwe.Encryptor
-// interface overriding the `Encrypt` and `EncryptZero` methods to accept rgsw.Ciphertext
+// Encryptor is a type for encrypting RGSW ciphertexts. It implements the [rlwe.Encryptor]
+// interface overriding the [rlwe.Encryptor.Encrypt] and [rlwe.Encryptor.EncryptZero] methods to accept [rgsw.Ciphertext]
 // types in addition to ciphertexts types in the rlwe package.
 type Encryptor struct {
 	*rlwe.Encryptor
@@ -20,7 +20,7 @@ func NewEncryptor(params rlwe.ParameterProvider, key rlwe.EncryptionKey) *Encryp
 	return &Encryptor{rlwe.NewEncryptor(params, key), params.GetRLWEParameters().RingQP().NewPoly()}
 }
 
-// Encrypt encrypts a plaintext pt into a ciphertext ct, which can be a rgsw.Ciphertext
+// Encrypt encrypts a plaintext pt into a ciphertext ct, which can be a [rgsw.Ciphertext]
 // or any of the `rlwe` cipheretxt types.
 func (enc Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) (err error) {
 
@@ -69,7 +69,7 @@ func (enc Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) (err error) {
 	return nil
 }
 
-// EncryptZero generates an encryption of zero into a ciphertext ct, which can be a rgsw.Ciphertext
+// EncryptZero generates an encryption of zero into a ciphertext ct, which can be a [rgsw.Ciphertext]
 // or any of the `rlwe` ciphertext types.
 func (enc Encryptor) EncryptZero(ct interface{}) (err error) {
 
@@ -117,7 +117,7 @@ func (enc Encryptor) EncryptZero(ct interface{}) (err error) {
 	return nil
 }
 
-// ShallowCopy creates a shallow copy of this Encryptor in which all the read-only data-structures are
+// ShallowCopy creates a shallow copy of this [Encryptor] in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Encryptors can be used concurrently.
 func (enc Encryptor) ShallowCopy() *Encryptor {

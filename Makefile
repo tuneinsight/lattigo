@@ -2,6 +2,7 @@
 
 .PHONY: test_gotest
 test_gotest:
+	go clean -testcache
 	go test -timeout=0 ./...
 
 .PHONY: static_check

@@ -30,7 +30,7 @@ type CoefficientGetter[T any] interface {
 	ShallowCopy() CoefficientGetter[T]
 }
 
-// EvaluatePolynomial is a generic and scheme agnostic method to evaluate polynomials on rlwe.Ciphertexts.
+// EvaluatePolynomial is a generic and scheme agnostic method to evaluate polynomials on [rlwe.Ciphertexts].
 func EvaluatePolynomial(eval EvaluatorForPolynomial, input interface{}, p interface{}, targetScale rlwe.Scale, levelsConsumedPerRescaling int, SimEval SimEvaluator) (opOut *rlwe.Ciphertext, err error) {
 
 	var polyVec PolynomialVector
@@ -101,7 +101,7 @@ type BabyStep struct {
 	Value  *rlwe.Ciphertext
 }
 
-// EvaluatePatersonStockmeyerPolynomialVector evaluates a pre-decomposed PatersonStockmeyerPolynomialVector on a pre-computed power basis [1, X^{1}, X^{2}, ..., X^{2^{n}}, X^{2^{n+1}}, ..., X^{2^{m}}]
+// EvaluatePatersonStockmeyerPolynomialVector evaluates a pre-decomposed [PatersonStockmeyerPolynomialVector] on a pre-computed power basis [1, X^{1}, X^{2}, ..., X^{2^{n}}, X^{2^{n+1}}, ..., X^{2^{m}}]
 func EvaluatePatersonStockmeyerPolynomialVector[T any](eval Evaluator, poly PatersonStockmeyerPolynomialVector, cg CoefficientGetter[T], pb PowerBasis) (res *rlwe.Ciphertext, err error) {
 
 	split := len(poly.Value[0].Value)
@@ -253,7 +253,7 @@ func EvaluateMonomial(a, b, xpow *rlwe.Ciphertext, eval Evaluator) (err error) {
 	return
 }
 
-// EvaluatePolynomialVectorFromPowerBasis a method that complies to the interface he.PolynomialVectorEvaluator. This method evaluates P(ct) = sum c_i * ct^{i}.
+// EvaluatePolynomialVectorFromPowerBasis a method that complies to the interface [he.PolynomialVectorEvaluator]. This method evaluates P(ct) = sum c_i * ct^{i}.
 func EvaluatePolynomialVectorFromPowerBasis[T any](eval Evaluator, targetLevel int, pol PolynomialVector, cg CoefficientGetter[T], pb PowerBasis, targetScale rlwe.Scale) (res *rlwe.Ciphertext, err error) {
 
 	// Map[int] of the powers [X^{0}, X^{1}, X^{2}, ...]

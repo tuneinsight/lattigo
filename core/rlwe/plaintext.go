@@ -13,16 +13,16 @@ type Plaintext struct {
 	Value ring.Poly
 }
 
-// NewPlaintext creates a new Plaintext at level `level` from the parameters.
+// NewPlaintext creates a new [Plaintext] at the specified level from the parameters.
 func NewPlaintext(params ParameterProvider, level ...int) (pt *Plaintext) {
 	op := *NewElement(params, 0, level...)
 	return &Plaintext{Element: op, Value: op.Value[0]}
 }
 
-// NewPlaintextAtLevelFromPoly constructs a new Plaintext at a specific level
+// NewPlaintextAtLevelFromPoly constructs a new [Plaintext] at a specific level
 // where the message is set to the passed poly. No checks are performed on poly and
-// the returned Plaintext will share its backing array of coefficients.
-// Returned plaintext's MetaData is allocated but empty.
+// the returned [Plaintext] will share its backing array of coefficients.
+// Returned plaintext's [MetaData] is allocated but empty.
 func NewPlaintextAtLevelFromPoly(level int, poly ring.Poly) (pt *Plaintext, err error) {
 	Element, err := NewElementAtLevelFromPoly(level, []ring.Poly{poly})
 	if err != nil {
@@ -34,7 +34,7 @@ func NewPlaintextAtLevelFromPoly(level int, poly ring.Poly) (pt *Plaintext, err 
 	return &Plaintext{Element: *Element, Value: Element.Value[0]}, nil
 }
 
-// Copy copies the `other` plaintext value into the receiver plaintext.
+// Copy copies the supplied plaintext value into the receiver plaintext.
 func (pt Plaintext) Copy(other *Plaintext) {
 	pt.Element.Copy(&other.Element)
 	pt.Value = other.Element.Value[0]
@@ -52,22 +52,22 @@ func (pt Plaintext) Equal(other *Plaintext) bool {
 	return pt.Element.Equal(&other.Element) && pt.Value.Equal(&other.Value)
 }
 
-// NewPlaintextRandom generates a new uniformly distributed Plaintext.
+// NewPlaintextRandom generates a new uniformly distributed [Plaintext].
 func NewPlaintextRandom(prng sampling.PRNG, params ParameterProvider, level int) (pt *Plaintext) {
 	pt = NewPlaintext(params, level)
 	PopulateElementRandom(prng, params, pt.El())
 	return
 }
 
-// ReadFrom reads on the object from an io.Writer. It implements the
-// io.ReaderFrom interface.
+// ReadFrom reads on the object from an [io.Writer]. It implements the
+// [io.ReaderFrom] interface.
 //
-// Unless r implements the buffer.Reader interface (see see lattigo/utils/buffer/reader.go),
-// it will be wrapped into a bufio.Reader. Since this requires allocation, it
+// Unless r implements the [buffer.Reader] interface (see see lattigo/utils/buffer/reader.go),
+// it will be wrapped into a [bufio.Reader]. Since this requires allocation, it
 // is preferable to pass a buffer.Reader directly:
 //
-//   - When reading multiple values from a io.Reader, it is preferable to first
-//     first wrap io.Reader in a pre-allocated bufio.Reader.
+//   - When reading multiple values from a [io.Reader], it is preferable to first
+//     first wrap io.Reader in a pre-allocated [bufio.Reader].
 //   - When reading from a var b []byte, it is preferable to pass a buffer.NewBuffer(b)
 //     as w (see lattigo/utils/buffer/buffer.go).
 func (pt *Plaintext) ReadFrom(r io.Reader) (n int64, err error) {

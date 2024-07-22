@@ -10,12 +10,12 @@ import (
 	"github.com/tuneinsight/lattigo/v5/schemes/bgv"
 )
 
-// NewPlaintext allocates a new rlwe.Plaintext from the BFV parameters, at the
+// NewPlaintext allocates a new [rlwe.Plaintext] from the BFV parameters, at the
 // specified level. If the level argument is not provided, the plaintext is
 // initialized at level params.MaxLevelQ().
 //
 // The plaintext is initialized with its metadata so that it can be passed to a,
-// bfv.Encoder. Before doing so, the user can update the MetaData field to set
+// [bfv.Encoder]. Before doing so, the user can update the MetaData field to set
 // a specific scaling factor,
 // plaintext dimensions (if applicable) or encoding domain.
 func NewPlaintext(params Parameters, level ...int) (pt *rlwe.Plaintext) {
@@ -26,7 +26,7 @@ func NewPlaintext(params Parameters, level ...int) (pt *rlwe.Plaintext) {
 	return
 }
 
-// NewCiphertext allocates a new rlwe.Ciphertext from the BFV parameters,
+// NewCiphertext allocates a new [rlwe.Ciphertext] from the BFV parameters,
 // at the specified level and ciphertext degree. If the level argument is not
 // provided, the ciphertext is initialized at level params.MaxLevelQ().
 //
@@ -40,19 +40,19 @@ func NewCiphertext(params Parameters, degree int, level ...int) (ct *rlwe.Cipher
 	return
 }
 
-// NewEncryptor instantiates a new rlwe.Encryptor from the given BFV parameters and
-// encryption key. This key can be either a *rlwe.SecretKey or a *rlwe.PublicKey.
+// NewEncryptor instantiates a new [rlwe.Encryptor] from the given BFV parameters and
+// encryption key. This key can be either a *[rlwe.SecretKey] or a *[rlwe.PublicKey].
 func NewEncryptor(params Parameters, key rlwe.EncryptionKey) *rlwe.Encryptor {
 	return rlwe.NewEncryptor(params, key)
 }
 
-// NewDecryptor instantiates a new rlwe.Decryptor from the given BFV parameters and
+// NewDecryptor instantiates a new [rlwe.Decryptor] from the given BFV parameters and
 // secret decryption key.
 func NewDecryptor(params Parameters, key *rlwe.SecretKey) *rlwe.Decryptor {
 	return rlwe.NewDecryptor(params, key)
 }
 
-// NewKeyGenerator instantiates a new rlwe.KeyGenerator from the given
+// NewKeyGenerator instantiates a new [rlwe.KeyGenerator] from the given
 // BFV parameters.
 func NewKeyGenerator(params Parameters) *rlwe.KeyGenerator {
 	return rlwe.NewKeyGenerator(params)
@@ -63,12 +63,12 @@ type Encoder struct {
 	*bgv.Encoder
 }
 
-// NewEncoder creates a new Encoder from the provided parameters.
+// NewEncoder creates a new [Encoder] from the provided parameters.
 func NewEncoder(params Parameters) *Encoder {
 	return &Encoder{bgv.NewEncoder(params.Parameters)}
 }
 
-// ShallowCopy creates a shallow copy of this Encoder in which the read-only data-structures are
+// ShallowCopy creates a shallow copy of this [Encoder] in which the read-only data-structures are
 // shared with the receiver.
 func (e Encoder) ShallowCopy() *Encoder {
 	return &Encoder{Encoder: e.Encoder.ShallowCopy()}
@@ -80,20 +80,20 @@ type Evaluator struct {
 	*bgv.Evaluator
 }
 
-// NewEvaluator creates a new Evaluator, that can be used to do homomorphic
+// NewEvaluator creates a new [Evaluator], that can be used to do homomorphic
 // operations on ciphertexts and/or plaintexts. It stores a memory buffer
 // and ciphertexts that will be used for intermediate values.
 func NewEvaluator(params Parameters, evk rlwe.EvaluationKeySet) *Evaluator {
 	return &Evaluator{bgv.NewEvaluator(params.Parameters, evk)}
 }
 
-// WithKey creates a shallow copy of this Evaluator in which the read-only data-structures are
-// shared with the receiver but the EvaluationKey is evaluationKey.
+// WithKey creates a shallow copy of this [Evaluator] in which the read-only data-structures are
+// shared with the receiver but for which the evaluation key is set to the provided [rlwe.EvaluationKeySet].
 func (eval Evaluator) WithKey(evk rlwe.EvaluationKeySet) *Evaluator {
 	return &Evaluator{eval.Evaluator.WithKey(evk)}
 }
 
-// ShallowCopy creates a shallow copy of this Evaluator in which the read-only data-structures are
+// ShallowCopy creates a shallow copy of this [Evaluator] in which the read-only data-structures are
 // shared with the receiver.
 func (eval Evaluator) ShallowCopy() *Evaluator {
 	return &Evaluator{eval.Evaluator.ShallowCopy()}
@@ -101,12 +101,12 @@ func (eval Evaluator) ShallowCopy() *Evaluator {
 
 // Mul multiplies op0 with op1 without relinearization and returns the result in opOut.
 // inputs:
-//   - op0: an *rlwe.Ciphertext
+//   - op0: an *[rlwe.Ciphertext]
 //   - op1:
-//   - rlwe.ElementInterface[ring.Poly]
+//   - [rlwe.ElementInterface][ring.Poly]
 //   - *big.Int, uint64, int64, int
 //   - []uint64 or []int64 (of size at most N where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
-//   - opOut: an *rlwe.Ciphertext
+//   - opOut: an *[rlwe.Ciphertext]
 //
 // The procedure will return an error if either op0 or op1 are have a degree higher than 1.
 // The procedure will return an error if opOut.Degree != op0.Degree + op1.Degree.
@@ -124,12 +124,12 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 
 // MulNew multiplies op0 with op1 without relinearization and returns the result in a new opOut.
 // inputs:
-//   - op0: an *rlwe.Ciphertext
+//   - op0: an *[rlwe.Ciphertext]
 //   - op1:
-//   - rlwe.ElementInterface[ring.Poly]
+//   - [rlwe.ElementInterface][[ring.Poly]]
 //   - *big.Int, uint64, int64, int
 //   - []uint64 or []int64 (of size at most N where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
-//   - opOut: an *rlwe.Ciphertext
+//   - opOut: an *[rlwe.Ciphertext]
 //
 // The procedure will return an error if either op0.Degree or op1.Degree > 1.
 func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlwe.Ciphertext, err error) {
@@ -145,12 +145,12 @@ func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlw
 
 // MulRelinNew multiplies op0 with op1 with relinearization and returns the result in a new opOut.
 // inputs:
-//   - op0: an *rlwe.Ciphertext
+//   - op0: an *[rlwe.Ciphertext]
 //   - op1:
-//   - rlwe.ElementInterface[ring.Poly]
+//   - [rlwe.ElementInterface][[ring.Poly]]
 //   - *big.Int, uint64, int64, int
 //   - []uint64 or []int64 (of size at most N where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
-//   - opOut: an *rlwe.Ciphertext
+//   - opOut: an *[rlwe.Ciphertext]
 //
 // The procedure will return an error if either op0.Degree or op1.Degree > 1.
 // The procedure will return an error if the evaluator was not created with an relinearization key.
@@ -160,12 +160,12 @@ func (eval Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut
 
 // MulRelin multiplies op0 with op1 with relinearization and returns the result in opOut.
 // inputs:
-//   - op0: an *rlwe.Ciphertext
+//   - op0: an *[rlwe.Ciphertext]
 //   - op1:
-//   - rlwe.ElementInterface[ring.Poly]
+//   - [rlwe.ElementInterface][[ring.Poly]]
 //   - *big.Int, uint64, int64, int
 //   - []uint64 or []int64 (of size at most N where N is the smallest integer satisfying PlaintextModulus = 1 mod 2N)
-//   - opOut: an *rlwe.Ciphertext
+//   - opOut: an *[rlwe.Ciphertext]
 //
 // The procedure will return an error if either op0.Degree or op1.Degree > 1.
 // The procedure will return an error if opOut.Degree != op0.Degree + op1.Degree.

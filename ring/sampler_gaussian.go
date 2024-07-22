@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/tuneinsight/lattigo/v5/utils"
 	"github.com/tuneinsight/lattigo/v5/utils/bignum"
 	"github.com/tuneinsight/lattigo/v5/utils/sampling"
 )
@@ -18,7 +19,7 @@ type GaussianSampler struct {
 	baseSampler
 	xe            DiscreteGaussian
 	randomBufferN []byte
-	ptr           uint64
+	ptr           *uint64 // cross-instance buffer pointer
 	montgomery    bool
 }
 
@@ -29,7 +30,7 @@ func NewGaussianSampler(prng sampling.PRNG, baseRing *Ring, X DiscreteGaussian, 
 	g = new(GaussianSampler)
 	g.prng = prng
 	g.randomBufferN = make([]byte, 1024)
-	g.ptr = 0
+	g.ptr = utils.Pointy[uint64](0)
 	g.baseRing = baseRing
 	g.xe = X
 	g.montgomery = montgomery
@@ -182,7 +183,7 @@ func (g *GaussianSampler) read(pol Poly, f func(a, b, c uint64) uint64) {
 // to use a secure PRNG instead of math/rand.
 func (g *GaussianSampler) normFloat64() (float64, uint64) {
 
-	ptr := g.ptr
+	ptr := *g.ptr
 	buff := g.randomBufferN
 	prng := g.prng
 	buffLen := uint64(len(buff))
@@ -224,7 +225,7 @@ func (g *GaussianSampler) normFloat64() (float64, uint64) {
 
 		// 1 (>99%)
 		if uint32(j) < kn[i] {
-			g.ptr = ptr
+			*g.ptr = ptr
 			return x, sign
 		}
 
@@ -242,13 +243,13 @@ func (g *GaussianSampler) normFloat64() (float64, uint64) {
 				}
 			}
 
-			g.ptr = ptr
+			*g.ptr = ptr
 			return x + rn, sign
 		}
 
 		// 3
 		if fn[i]+float32(randF64())*(fn[i-1]-fn[i]) < float32(math.Exp(-0.5*x*x)) {
-			g.ptr = ptr
+			*g.ptr = ptr
 			return x, sign
 		}
 	}

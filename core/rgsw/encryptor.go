@@ -2,6 +2,7 @@ package rgsw
 
 import (
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo/v5/ring"
 	"github.com/tuneinsight/lattigo/v5/ring/ringqp"
 )
 
@@ -69,7 +70,7 @@ func (enc Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) (err error) {
 }
 
 // EncryptZero generates an encryption of zero into a ciphertext ct, which can be a [rgsw.Ciphertext]
-// or any of the `rlwe` cipheretxt types.
+// or any of the `rlwe` ciphertext types.
 func (enc Encryptor) EncryptZero(ct interface{}) (err error) {
 
 	var rgswCt *Ciphertext
@@ -87,11 +88,28 @@ func (enc Encryptor) EncryptZero(ct interface{}) (err error) {
 
 	for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
 		for j := 0; j < BaseTwoDecompositionVectorSize[i]; j++ {
-			if err = enc.Encryptor.EncryptZero(rlwe.Element[ringqp.Poly]{MetaData: metadata, Value: []ringqp.Poly(rgswCt.Value[0].Value[i][j])}); err != nil {
-				return
-			}
-			if err = enc.Encryptor.EncryptZero(rlwe.Element[ringqp.Poly]{MetaData: metadata, Value: []ringqp.Poly(rgswCt.Value[1].Value[i][j])}); err != nil {
-				return
+
+			// extract the RingQ polynomial in case not P moduli have been provided
+			if rgswCt.LevelP() == -1 {
+				q0 := make([]ring.Poly, len(rgswCt.Value[0].Value[i][j]))
+				q1 := make([]ring.Poly, len(rgswCt.Value[1].Value[i][j]))
+				for k := range q0 {
+					q0[k] = rgswCt.Value[0].Value[i][j][k].Q
+					q1[k] = rgswCt.Value[1].Value[i][j][k].Q
+				}
+				if err = enc.Encryptor.EncryptZero(&rlwe.Ciphertext{Element: rlwe.Element[ring.Poly]{MetaData: metadata, Value: q0}}); err != nil {
+					return
+				}
+				if err = enc.Encryptor.EncryptZero(&rlwe.Ciphertext{Element: rlwe.Element[ring.Poly]{MetaData: metadata, Value: q1}}); err != nil {
+					return
+				}
+			} else {
+				if err = enc.Encryptor.EncryptZero(rlwe.Element[ringqp.Poly]{MetaData: metadata, Value: []ringqp.Poly(rgswCt.Value[0].Value[i][j])}); err != nil {
+					return
+				}
+				if err = enc.Encryptor.EncryptZero(rlwe.Element[ringqp.Poly]{MetaData: metadata, Value: []ringqp.Poly(rgswCt.Value[1].Value[i][j])}); err != nil {
+					return
+				}
 			}
 		}
 	}

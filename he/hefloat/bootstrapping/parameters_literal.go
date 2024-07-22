@@ -13,8 +13,8 @@ import (
 )
 
 // ParametersLiteral is a struct to parameterize the bootstrapping parameters.
-// The `ParametersLiteral` struct an unchecked struct that is given to the method `NewParametersFromLiteral` to validate them
-// and create the bootstrapping `Parameter` struct, which is used to instantiate a `Bootstrapper`.
+// The ParametersLiteral struct an unchecked struct that is given to the method [NewParametersFromLiteral] to validate them
+// and create the bootstrapping [Parameters] struct, which is used to instantiate a Bootstrapper.
 // This struct contains only optional fields.
 // The default bootstrapping (with no optional field) has
 // - Depth 4 for CoeffsToSlots
@@ -67,8 +67,8 @@ import (
 //	See https://eprint.iacr.org/2022/024 for more information.
 //
 // IterationsParameters : by treating the bootstrapping as a black box with precision logprec, we can construct a bootstrapping of precision ~k*logprec by iteration (see https://eprint.iacr.org/2022/1167).
-// - BootstrappingPrecision: []float64, the list of iterations (after the initial bootstrapping) given by the expected precision of each previous iteration.
-// - ReservedPrimeBitSize: the size of the reserved prime for the scaling after the initial bootstrapping.
+//   - BootstrappingPrecision: []float64, the list of iterations (after the initial bootstrapping) given by the expected precision of each previous iteration.
+//   - ReservedPrimeBitSize: the size of the reserved prime for the scaling after the initial bootstrapping.
 //
 // For example: &bootstrapping.IterationsParameters{BootstrappingPrecision: []float64{16}, ReservedPrimeBitSize: 16} will define a two iteration bootstrapping (the first iteration being the initial bootstrapping)
 // with a additional prime close to 2^{16} reserved for the scaling of the error during the second iteration.
@@ -76,25 +76,27 @@ import (
 // Here is an example for a two iterations bootstrapping of an input message mod [logq0=55, logq1=45] with scaling factor 2^{90}:
 //
 // INPUT:
-// 1) The input is a ciphertext encrypting [2^{90} * M]_{q0, q1}
+//  1. The input is a ciphertext encrypting [2^{90} * M]_{q0, q1}
+//
 // ITERATION N°0
-// 2) Rescale  [M^{90}]_{q0, q1} to [M^{90}/q1]_{q0} (ensure that M^{90}/q1 ~ q0/messageratio by additional scaling if necessary)
-// 3) Bootstrap [M^{90}/q1]_{q0} to [M^{90}/q1 + e^{90 - logprec}/q1]_{q0, q1, q2, ...}
-// 4) Scale up [M^{90}/q1 + e^{90 - logprec}/q1]_{q0, q1, q2, ...} to [M^{d} + e^{d - logprec}]_{q0, q1, q2, ...}
+//  2. Rescale  [M^{90}]_{q0, q1} to [M^{90}/q1]_{q0} (ensure that M^{90}/q1 ~ q0/messageratio by additional scaling if necessary)
+//  3. Bootstrap [M^{90}/q1]_{q0} to [M^{90}/q1 + e^{90 - logprec}/q1]_{q0, q1, q2, ...}
+//  4. Scale up [M^{90}/q1 + e^{90 - logprec}/q1]_{q0, q1, q2, ...} to [M^{d} + e^{d - logprec}]_{q0, q1, q2, ...}
+//
 // ITERATION N°1
-// 5) Subtract [M^{d}]_{q0, q1} to [M^{d} + e^{d - logprec}]_{q0, q1, q2, ...} to get [e^{d - logprec}]_{q0, q1}
-// 6) Scale up [e^{90 - logprec}]_{q0, q1} by 2^{logprec} to get [e^{d}]_{q0, q1}
-// 7) Rescale  [e^{90}]_{q0, q1} to [{90}/q1]_{q0}
-// 8) Bootstrap [e^{90}/q1]_{q0} to [e^{90}/q1 + e'^{90 - logprec}/q1]_{q0, q1, q2, ...}
-// 9) Scale up [e^{90}/q1 + e'^{90 - logprec}/q0]_{q0, q1, q2, ...} by round(q1/2^{logprec}) to get [e^{90-logprec} + e'^{90 - 2logprec}]_{q0, q1, q2, ...}
-// 10) Subtract [e^{d - logprec} + e'^{d - 2logprec}]_{q0, q1, q2, ...} to [M^{d} + e^{d - logprec}]_{q0, q1, q2, ...} to get [M^{d} + e'^{d - 2logprec}]_{q0, q1, q2, ...}
-// 11) Go back to step 5 for more iterations until 2^{k * logprec} >= 2^{90}
+//  5. Subtract [M^{d}]_{q0, q1} to [M^{d} + e^{d - logprec}]_{q0, q1, q2, ...} to get [e^{d - logprec}]_{q0, q1}
+//  6. Scale up [e^{90 - logprec}]_{q0, q1} by 2^{logprec} to get [e^{d}]_{q0, q1}
+//  7. Rescale  [e^{90}]_{q0, q1} to [{90}/q1]_{q0}
+//  8. Bootstrap [e^{90}/q1]_{q0} to [e^{90}/q1 + e'^{90 - logprec}/q1]_{q0, q1, q2, ...}
+//  9. Scale up [e^{90}/q1 + e'^{90 - logprec}/q0]_{q0, q1, q2, ...} by round(q1/2^{logprec}) to get [e^{90-logprec} + e'^{90 - 2logprec}]_{q0, q1, q2, ...}
+//  10. Subtract [e^{d - logprec} + e'^{d - 2logprec}]_{q0, q1, q2, ...} to [M^{d} + e^{d - logprec}]_{q0, q1, q2, ...} to get [M^{d} + e'^{d - 2logprec}]_{q0, q1, q2, ...}
+//  11. Go back to step 5 for more iterations until 2^{k * logprec} >= 2^{90}
 //
 // This example can be generalized to input messages of any scaling factor and desired output precision by increasing the input scaling factor and substituting q1 by a larger product of primes.
 //
 // Notes:
 //   - The bootstrapping precision cannot exceed the original input ciphertext precision.
-//   - Although the rescalings of 2) and 7) are approximate, we can ignore them and treat them as being part of the bootstrapping error
+//   - Although the rescaling of 2) and 7) are approximate, we can ignore them and treat them as being part of the bootstrapping error
 //   - As long as round(q1/2^{k*logprec}) >= 2^{logprec}, for k the iteration number, we are guaranteed that the error due to the approximate scale up of step 8) is smaller than 2^{logprec}
 //   - The gain in precision for each iteration is proportional to min(round(q1/2^{k*logprec}), 2^{logprec})
 //   - If round(q1/2^{k * logprec}) < 2^{logprec}, where k is the iteration number, then the gain in precision will be less than the expected logprec.
@@ -111,7 +113,7 @@ import (
 //		When using a small ratio (i.e. 2^4), for example if ct.PlaintextScale is close to Q[0] is small or if |m| is large, the Mod1InvDegree can be set to
 //	 a non zero value (i.e. 5 or 7). This will greatly improve the precision of the bootstrapping, at the expense of slightly increasing its depth.
 //
-// Mod1Type: the type of approximation for the modular reduction polynomial. By default set to hefloat.CosDiscrete.
+// Mod1Type: the type of approximation for the modular reduction polynomial. By default set to [hefloat.CosDiscrete].
 //
 // K: the range of the approximation interval, by default set to 16.
 //
@@ -191,18 +193,18 @@ type IterationsParameters struct {
 }
 
 // MarshalBinary returns a JSON representation of the the target ParametersLiteral struct on a slice of bytes.
-// See `Marshal` from the `encoding/json` package.
+// See Marshal from the [encoding/json] package.
 func (p ParametersLiteral) MarshalBinary() (data []byte, err error) {
 	return json.Marshal(p)
 }
 
 // UnmarshalBinary reads a JSON representation on the target ParametersLiteral struct.
-// See `Unmarshal` from the `encoding/json` package.
+// See Unmarshal from the [encoding/json] package.
 func (p *ParametersLiteral) UnmarshalBinary(data []byte) (err error) {
 	return json.Unmarshal(data, p)
 }
 
-// GetLogN returns the LogN field of the target ParametersLiteral.
+// GetLogN returns the LogN field of the target [ParametersLiteral].
 // The default value DefaultLogN is returned if the field is nil.
 func (p ParametersLiteral) GetLogN() (LogN int) {
 	if v := p.LogN; v == nil {
@@ -214,7 +216,7 @@ func (p ParametersLiteral) GetLogN() (LogN int) {
 	return
 }
 
-// GetDefaultXs returns the Xs field of the target ParametersLiteral.
+// GetDefaultXs returns the Xs field of the target [ParametersLiteral].
 // The default value DefaultXs is returned if the field is nil.
 func (p ParametersLiteral) GetDefaultXs() (Xs ring.DistributionParameters) {
 	if v := p.Xs; v == nil {
@@ -226,7 +228,7 @@ func (p ParametersLiteral) GetDefaultXs() (Xs ring.DistributionParameters) {
 	return
 }
 
-// GetDefaultXe returns the Xe field of the target ParametersLiteral.
+// GetDefaultXe returns the Xe field of the target [ParametersLiteral].
 // The default value DefaultXe is returned if the field is nil.
 func (p ParametersLiteral) GetDefaultXe() (Xe ring.DistributionParameters) {
 	if v := p.Xe; v == nil {
@@ -254,7 +256,7 @@ func (p ParametersLiteral) GetLogP(NumberOfQi int) (LogP []int) {
 	return
 }
 
-// GetLogSlots returns the LogSlots field of the target ParametersLiteral.
+// GetLogSlots returns the LogSlots field of the target [ParametersLiteral].
 // The default value LogN-1 is returned if the field is nil.
 func (p ParametersLiteral) GetLogSlots() (LogSlots int, err error) {
 
@@ -274,8 +276,8 @@ func (p ParametersLiteral) GetLogSlots() (LogSlots int, err error) {
 	return
 }
 
-// GetCoeffsToSlotsFactorizationDepthAndLogScales returns a copy of the CoeffsToSlotsFactorizationDepthAndLogScales field of the target ParametersLiteral.
-// The default value constructed from DefaultC2SFactorization and DefaultC2SLogScale is returned if the field is nil.
+// GetCoeffsToSlotsFactorizationDepthAndLogScales returns a copy of the CoeffsToSlotsFactorizationDepthAndLogScales field of the target [ParametersLiteral].
+// The default value constructed from [DefaultSlotsToCoeffsFactorizationDepth] and [DefaultSlotsToCoeffsLogScale] is returned if the field is nil.
 func (p ParametersLiteral) GetCoeffsToSlotsFactorizationDepthAndLogScales(LogSlots int) (CoeffsToSlotsFactorizationDepthAndLogScales [][]int, err error) {
 	if p.CoeffsToSlotsFactorizationDepthAndLogScales == nil {
 		CoeffsToSlotsFactorizationDepthAndLogScales = make([][]int, utils.Min(DefaultCoeffsToSlotsFactorizationDepth, utils.Max(LogSlots, 1)))
@@ -297,8 +299,8 @@ func (p ParametersLiteral) GetCoeffsToSlotsFactorizationDepthAndLogScales(LogSlo
 	return
 }
 
-// GetSlotsToCoeffsFactorizationDepthAndLogScales returns a copy of the SlotsToCoeffsFactorizationDepthAndLogScales field of the target ParametersLiteral.
-// The default value constructed from DefaultS2CFactorization and DefaultS2CLogScale is returned if the field is nil.
+// GetSlotsToCoeffsFactorizationDepthAndLogScales returns a copy of the SlotsToCoeffsFactorizationDepthAndLogScales field of the target [ParametersLiteral].
+// The default value constructed from [DefaultSlotsToCoeffsFactorizationDepth] and [DefaultSlotsToCoeffsLogScale] is returned if the field is nil.
 func (p ParametersLiteral) GetSlotsToCoeffsFactorizationDepthAndLogScales(LogSlots int) (SlotsToCoeffsFactorizationDepthAndLogScales [][]int, err error) {
 	if p.SlotsToCoeffsFactorizationDepthAndLogScales == nil {
 		SlotsToCoeffsFactorizationDepthAndLogScales = make([][]int, utils.Min(DefaultSlotsToCoeffsFactorizationDepth, utils.Max(LogSlots, 1)))
@@ -320,8 +322,8 @@ func (p ParametersLiteral) GetSlotsToCoeffsFactorizationDepthAndLogScales(LogSlo
 	return
 }
 
-// GetEvalMod1LogScale returns the EvalModLogScale field of the target ParametersLiteral.
-// The default value DefaultEvalModLogScale is returned if the field is nil.
+// GetEvalMod1LogScale returns the EvalModLogScale field of the target [ParametersLiteral].
+// The default value [DefaultEvalModLogScale] is returned if the field is nil.
 func (p ParametersLiteral) GetEvalMod1LogScale() (EvalModLogScale int, err error) {
 	if v := p.EvalModLogScale; v == nil {
 		EvalModLogScale = DefaultEvalModLogScale
@@ -337,7 +339,7 @@ func (p ParametersLiteral) GetEvalMod1LogScale() (EvalModLogScale int, err error
 	return
 }
 
-// GetIterationsParameters returns the IterationsParameters field of the target ParametersLiteral.
+// GetIterationsParameters returns the [IterationsParameters] field of the target [ParametersLiteral].
 // The default value is nil.
 func (p ParametersLiteral) GetIterationsParameters() (Iterations *IterationsParameters, err error) {
 
@@ -363,8 +365,8 @@ func (p ParametersLiteral) GetIterationsParameters() (Iterations *IterationsPara
 	}
 }
 
-// GetLogMessageRatio returns the LogMessageRatio field of the target ParametersLiteral.
-// The default value DefaultLogMessageRatio is returned if the field is nil.
+// GetLogMessageRatio returns the []LogMessageRatio field of the target [ParametersLiteral].
+// The default value [DefaultLogMessageRatio] is returned if the field is nil.
 func (p ParametersLiteral) GetLogMessageRatio() (LogMessageRatio int, err error) {
 	if v := p.LogMessageRatio; v == nil {
 		LogMessageRatio = DefaultLogMessageRatio
@@ -379,8 +381,8 @@ func (p ParametersLiteral) GetLogMessageRatio() (LogMessageRatio int, err error)
 	return
 }
 
-// GetK returns the K field of the target ParametersLiteral.
-// The default value DefaultK is returned if the field is nil.
+// GetK returns the K field of the target [ParametersLiteral].
+// The default value [DefaultK] is returned if the field is nil.
 func (p ParametersLiteral) GetK() (K int, err error) {
 	if v := p.K; v == nil {
 		K = DefaultK
@@ -395,14 +397,14 @@ func (p ParametersLiteral) GetK() (K int, err error) {
 	return
 }
 
-// GetMod1Type returns the Mod1Type field of the target ParametersLiteral.
-// The default value DefaultMod1Type is returned if the field is nil.
+// GetMod1Type returns the Mod1Type field of the target [ParametersLiteral].
+// The default value [DefaultMod1Type] is returned if the field is nil.
 func (p ParametersLiteral) GetMod1Type() (Mod1Type hefloat.Mod1Type) {
 	return p.Mod1Type
 }
 
-// GetDoubleAngle returns the DoubleAngle field of the target ParametersLiteral.
-// The default value DefaultDoubleAngle is returned if the field is nil.
+// GetDoubleAngle returns the DoubleAngle field of the target [ParametersLiteral].
+// The default value [DefaultDoubleAngle] is returned if the field is nil.
 func (p ParametersLiteral) GetDoubleAngle() (DoubleAngle int, err error) {
 
 	if v := p.DoubleAngle; v == nil {
@@ -424,8 +426,8 @@ func (p ParametersLiteral) GetDoubleAngle() (DoubleAngle int, err error) {
 	return
 }
 
-// GetMod1Degree returns the Mod1Degree field of the target ParametersLiteral.
-// The default value DefaultMod1Degree is returned if the field is nil.
+// GetMod1Degree returns the Mod1Degree field of the target [ParametersLiteral].
+// The default value [DefaultMod1Degree] is returned if the field is nil.
 func (p ParametersLiteral) GetMod1Degree() (Mod1Degree int, err error) {
 	if v := p.Mod1Degree; v == nil {
 		Mod1Degree = DefaultMod1Degree
@@ -439,8 +441,8 @@ func (p ParametersLiteral) GetMod1Degree() (Mod1Degree int, err error) {
 	return
 }
 
-// GetMod1InvDegree returns the Mod1InvDegree field of the target ParametersLiteral.
-// The default value DefaultMod1InvDegree is returned if the field is nil.
+// GetMod1InvDegree returns the Mod1InvDegree field of the target [ParametersLiteral].
+// The default value [DefaultMod1InvDegree] is returned if the field is nil.
 func (p ParametersLiteral) GetMod1InvDegree() (Mod1InvDegree int, err error) {
 	if v := p.Mod1InvDegree; v == nil {
 		Mod1InvDegree = DefaultMod1InvDegree
@@ -455,8 +457,8 @@ func (p ParametersLiteral) GetMod1InvDegree() (Mod1InvDegree int, err error) {
 	return
 }
 
-// GetEphemeralSecretWeight returns the EphemeralSecretWeight field of the target ParametersLiteral.
-// The default value DefaultEphemeralSecretWeight is returned if the field is nil.
+// GetEphemeralSecretWeight returns the EphemeralSecretWeight field of the target [ParametersLiteral].
+// The default value [DefaultEphemeralSecretWeight] is returned if the field is nil.
 func (p ParametersLiteral) GetEphemeralSecretWeight() (EphemeralSecretWeight int, err error) {
 	if v := p.EphemeralSecretWeight; v == nil {
 		EphemeralSecretWeight = DefaultEphemeralSecretWeight
@@ -471,7 +473,7 @@ func (p ParametersLiteral) GetEphemeralSecretWeight() (EphemeralSecretWeight int
 }
 
 // BitConsumption returns the expected consumption in bits of
-// bootstrapping circuit of the target ParametersLiteral.
+// bootstrapping circuit of the target [ParametersLiteral].
 // The value is rounded up and thus will overestimate the value by up to 1 bit.
 func (p ParametersLiteral) BitConsumption(LogSlots int) (logQ int, err error) {
 

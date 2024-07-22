@@ -12,17 +12,17 @@ type Ciphertext struct {
 	Element[ring.Poly]
 }
 
-// NewCiphertext returns a new Ciphertext with zero values and an associated
+// NewCiphertext returns a new [Ciphertext] with zero values and an associated
 // MetaData set to the Parameters default value.
 func NewCiphertext(params ParameterProvider, degree int, level ...int) (ct *Ciphertext) {
 	op := *NewElement(params, degree, level...)
 	return &Ciphertext{op}
 }
 
-// NewCiphertextAtLevelFromPoly constructs a new Ciphertext at a specific level
+// NewCiphertextAtLevelFromPoly constructs a new [Ciphertext] at a specific level
 // where the message is set to the passed poly. No checks are performed on poly and
-// the returned Ciphertext will share its backing array of coefficients.
-// Returned Ciphertext's MetaData is allocated but empty	.
+// the returned [Ciphertext] will share its backing array of coefficients.
+// Returned [Ciphertext]'s MetaData is allocated but empty.
 func NewCiphertextAtLevelFromPoly(level int, poly []ring.Poly) (*Ciphertext, error) {
 
 	operand, err := NewElementAtLevelFromPoly(level, poly)
@@ -36,7 +36,7 @@ func NewCiphertextAtLevelFromPoly(level int, poly []ring.Poly) (*Ciphertext, err
 	return &Ciphertext{*operand}, nil
 }
 
-// NewCiphertextRandom generates a new uniformly distributed Ciphertext of degree, level.
+// NewCiphertextRandom generates a new uniformly distributed [Ciphertext] of degree, level.
 func NewCiphertextRandom(prng sampling.PRNG, params ParameterProvider, degree, level int) (ciphertext *Ciphertext) {
 	ciphertext = NewCiphertext(params, degree, level)
 	PopulateElementRandom(prng, params, ciphertext.El())

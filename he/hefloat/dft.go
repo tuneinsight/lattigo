@@ -15,8 +15,8 @@ import (
 	"github.com/tuneinsight/lattigo/v5/utils/bignum"
 )
 
-// EvaluatorForDFT is an interface defining the set of methods required to instantiate a DFTEvaluator.
-// The default hefloat.Evaluator is compliant to this interface.
+// EvaluatorForDFT is an interface defining the set of methods required to instantiate a [DFTEvaluator].
+// The default [hefloat.Evaluator] is compliant to this interface.
 type EvaluatorForDFT interface {
 	rlwe.ParameterProvider
 	he.EvaluatorForLinearTransformation
@@ -135,13 +135,13 @@ func (d DFTMatrixLiteral) GaloisElements(params Parameters) (galEls []uint64) {
 }
 
 // MarshalBinary returns a JSON representation of the the target DFTMatrixLiteral on a slice of bytes.
-// See `Marshal` from the `encoding/json` package.
+// See Marshal from the [encoding/json] package.
 func (d DFTMatrixLiteral) MarshalBinary() (data []byte, err error) {
 	return json.Marshal(d)
 }
 
 // UnmarshalBinary reads a JSON representation on the target DFTMatrixLiteral struct.
-// See `Unmarshal` from the `encoding/json` package.
+// See Unmarshal from the [encoding/json] package.
 func (d *DFTMatrixLiteral) UnmarshalBinary(data []byte) error {
 	return json.Unmarshal(data, d)
 }
@@ -154,8 +154,8 @@ type DFTEvaluator struct {
 	parameters Parameters
 }
 
-// NewDFTEvaluator instantiates a new DFTEvaluator.
-// The default hefloat.Evaluator is compliant to the EvaluatorForDFT interface.
+// NewDFTEvaluator instantiates a new [DFTEvaluator].
+// The default [hefloat.Evaluator] is compliant to the [EvaluatorForDFT] interface.
 func NewDFTEvaluator(params Parameters, eval EvaluatorForDFT) *DFTEvaluator {
 	dfteval := new(DFTEvaluator)
 	dfteval.EvaluatorForDFT = eval
@@ -350,7 +350,7 @@ func (eval *DFTEvaluator) SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext, stcMatr
 	return
 }
 
-// dft evaluates a series of LinearTransformation sequentially on the ctIn and stores the result in opOut.
+// dft evaluates a series of [LinearTransformation] sequentially on the ctIn and stores the result in opOut.
 func (eval *DFTEvaluator) dft(ctIn *rlwe.Ciphertext, matrices []LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
 
 	inputLogSlots := ctIn.LogDimensions

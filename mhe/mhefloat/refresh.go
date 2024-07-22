@@ -13,7 +13,7 @@ type RefreshProtocol struct {
 	MaskedLinearTransformationProtocol
 }
 
-// NewRefreshProtocol creates a new Refresh protocol instance.
+// NewRefreshProtocol creates a new [RefreshProtocol] instance.
 // prec : the log2 of decimal precision of the internal encoder.
 func NewRefreshProtocol(params hefloat.Parameters, prec uint, noise ring.DistributionParameters) (rfp RefreshProtocol, err error) {
 	rfp = RefreshProtocol{}
@@ -22,9 +22,9 @@ func NewRefreshProtocol(params hefloat.Parameters, prec uint, noise ring.Distrib
 	return rfp, err
 }
 
-// ShallowCopy creates a shallow copy of RefreshProtocol in which all the read-only data-structures are
+// ShallowCopy creates a shallow copy of [RefreshProtocol] in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// RefreshProtocol can be used concurrently.
+// [RefreshProtocol] can be used concurrently.
 func (rfp RefreshProtocol) ShallowCopy() RefreshProtocol {
 	return RefreshProtocol{rfp.MaskedLinearTransformationProtocol.ShallowCopy()}
 }
@@ -35,11 +35,13 @@ func (rfp RefreshProtocol) AllocateShare(inputLevel, outputLevel int) mhe.Refres
 }
 
 // GenShare generates a share for the Refresh protocol.
-// This protocol requires additional inputs which are :
-// logBound : the bit length of the masks
-// ct1      : the degree 1 element the ciphertext to refresh, i.e. ct1 = ckk.Ciphetext.Value[1].
-// scale    : the scale of the ciphertext entering the refresh.
-// The method "GetMinimumLevelForBootstrapping" should be used to get the minimum level at which the refresh can be called while still ensure 128-bits of security, as well as the
+// This protocol requires additional inputs which are:
+//
+//   - logBound : the bit length of the masks
+//   - ct1      : the degree 1 element the ciphertext to refresh, i.e. ct1 = ckk.Ciphetext.Value[1].
+//   - scale    : the scale of the ciphertext entering the refresh.
+//
+// The method [GetMinimumLevelForRefresh] should be used to get the minimum level at which the refresh can be called while still ensure 128-bits of security, as well as the
 // value for logBound.
 func (rfp RefreshProtocol) GenShare(sk *rlwe.SecretKey, logBound uint, ct *rlwe.Ciphertext, crs mhe.KeySwitchCRP, shareOut *mhe.RefreshShare) (err error) {
 	return rfp.MaskedLinearTransformationProtocol.GenShare(sk, sk, logBound, ct, crs, nil, shareOut)

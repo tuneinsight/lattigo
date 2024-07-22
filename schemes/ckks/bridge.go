@@ -17,10 +17,10 @@ type DomainSwitcher struct {
 	automorphismIndex []uint64
 }
 
-// NewDomainSwitcher instantiate a new DomainSwitcher type. It may be instantiated from parameters from either RingType.
+// NewDomainSwitcher instantiate a new [DomainSwitcher] type. It may be instantiated from parameters from either RingType.
 // The method returns an error if the parameters cannot support the switching (e.g., the NTTs are undefined for
 // either of the two ring types).
-// The comlexToRealEvk and comlexToRealEvk EvaluationKeys can be generated using the rlwe.KeyGenerator.GenEvaluationKeysForRingSwap(*).
+// The comlexToRealEvk and comlexToRealEvk EvaluationKeys can be generated using [rlwe.KeyGenerator.GenEvaluationKeysForRingSwap].
 func NewDomainSwitcher(params Parameters, comlexToRealEvk, realToComplexEvk *rlwe.EvaluationKey) (DomainSwitcher, error) {
 
 	s := DomainSwitcher{
@@ -44,8 +44,8 @@ func NewDomainSwitcher(params Parameters, comlexToRealEvk, realToComplexEvk *rlw
 	return s, nil
 }
 
-// ComplexToReal switches the provided ciphertext `ctIn` from the standard domain to the conjugate
-// invariant domain and writes the result into `opOut`.
+// ComplexToReal switches the provided ciphertext ctIn from the standard domain to the conjugate
+// invariant domain and writes the result into opOut.
 // Given ctInCKKS = enc(real(m) + imag(m)) in Z[X](X^N + 1), returns opOutCI = enc(real(m))
 // in Z[X+X^-1]/(X^N + 1) in compressed form (N/2 coefficients).
 // The scale of the output ciphertext is twice the scale of the input one.
@@ -86,13 +86,13 @@ func (switcher DomainSwitcher) ComplexToReal(eval *Evaluator, ctIn, opOut *rlwe.
 	return
 }
 
-// RealToComplex switches the provided ciphertext `ctIn` from the conjugate invariant domain to the
-// standard domain and writes the result into `opOut`.
+// RealToComplex switches the provided ciphertext ctIn from the conjugate invariant domain to the
+// standard domain and writes the result into opOut.
 // Given ctInCI = enc(real(m)) in Z[X+X^-1]/(X^2N+1) in compressed form (N coefficients), returns
 // opOutCKKS = enc(real(m) + imag(0)) in Z[X]/(X^2N+1).
 // Requires the ring degree of opOut to be twice the ring degree of ctIn.
 // The security is changed from Z[X]/(X^N+1) to Z[X]/(X^2N+1).
-// The method will return an error if the DomainSwitcher was not initialized with a the appropriate EvaluationKeys.
+// The method will return an error if the [DomainSwitcher] was not initialized with a the appropriate EvaluationKeys.
 func (switcher DomainSwitcher) RealToComplex(eval *Evaluator, ctIn, opOut *rlwe.Ciphertext) (err error) {
 
 	evalRLWE := eval.Evaluator

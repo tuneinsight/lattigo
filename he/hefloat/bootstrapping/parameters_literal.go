@@ -79,13 +79,13 @@ import (
 // 1) The input is a ciphertext encrypting [2^{90} * M]_{q0, q1}
 // ITERATION N°0
 // 2) Rescale  [M^{90}]_{q0, q1} to [M^{90}/q1]_{q0} (ensure that M^{90}/q1 ~ q0/messageratio by additional scaling if necessary)
-// 3) Bootsrap [M^{90}/q1]_{q0} to [M^{90}/q1 + e^{90 - logprec}/q1]_{q0, q1, q2, ...}
+// 3) Bootstrap [M^{90}/q1]_{q0} to [M^{90}/q1 + e^{90 - logprec}/q1]_{q0, q1, q2, ...}
 // 4) Scale up [M^{90}/q1 + e^{90 - logprec}/q1]_{q0, q1, q2, ...} to [M^{d} + e^{d - logprec}]_{q0, q1, q2, ...}
 // ITERATION N°1
 // 5) Subtract [M^{d}]_{q0, q1} to [M^{d} + e^{d - logprec}]_{q0, q1, q2, ...} to get [e^{d - logprec}]_{q0, q1}
 // 6) Scale up [e^{90 - logprec}]_{q0, q1} by 2^{logprec} to get [e^{d}]_{q0, q1}
 // 7) Rescale  [e^{90}]_{q0, q1} to [{90}/q1]_{q0}
-// 8) Bootsrap [e^{90}/q1]_{q0} to [e^{90}/q1 + e'^{90 - logprec}/q1]_{q0, q1, q2, ...}
+// 8) Bootstrap [e^{90}/q1]_{q0} to [e^{90}/q1 + e'^{90 - logprec}/q1]_{q0, q1, q2, ...}
 // 9) Scale up [e^{90}/q1 + e'^{90 - logprec}/q0]_{q0, q1, q2, ...} by round(q1/2^{logprec}) to get [e^{90-logprec} + e'^{90 - 2logprec}]_{q0, q1, q2, ...}
 // 10) Subtract [e^{d - logprec} + e'^{d - 2logprec}]_{q0, q1, q2, ...} to [M^{d} + e^{d - logprec}]_{q0, q1, q2, ...} to get [M^{d} + e'^{d - 2logprec}]_{q0, q1, q2, ...}
 // 11) Go back to step 5 for more iterations until 2^{k * logprec} >= 2^{90}
@@ -530,45 +530,6 @@ func (p ParametersLiteral) BitConsumption(LogSlots int) (logQ int, err error) {
 	logQ += 1 + EvalModLogPlaintextScale*(bits.Len64(uint64(Mod1Degree))+DoubleAngle+bits.Len64(uint64(Mod1InvDegree))) + ReservedPrimeBitSize
 
 	return
-}
-
-// MarshalJSON returns the JSON representation of the target ParametersLiteral struct.
-func (p ParametersLiteral) MarshalJSON() (data []byte, err error) {
-	return json.Marshal(struct {
-		LogN                                        *int
-		LogP                                        []int
-		Xs                                          ring.DistributionParameters
-		Xe                                          ring.DistributionParameters
-		LogSlots                                    *int
-		CoeffsToSlotsFactorizationDepthAndLogScales [][]int
-		SlotsToCoeffsFactorizationDepthAndLogScales [][]int
-		EvalModLogScale                             *int
-		EphemeralSecretWeight                       *int
-		IterationsParameters                        *IterationsParameters
-		Mod1Type                                    uint64
-		LogMessageRatio                             *int
-		K                                           *int
-		Mod1Degree                                  *int
-		DoubleAngle                                 *int
-		Mod1InvDegree                               *int
-	}{
-		LogN:     p.LogN,
-		LogP:     p.LogP,
-		Xs:       p.Xs,
-		Xe:       p.Xe,
-		LogSlots: p.LogSlots,
-		CoeffsToSlotsFactorizationDepthAndLogScales: p.CoeffsToSlotsFactorizationDepthAndLogScales,
-		SlotsToCoeffsFactorizationDepthAndLogScales: p.SlotsToCoeffsFactorizationDepthAndLogScales,
-		EvalModLogScale:       p.EvalModLogScale,
-		EphemeralSecretWeight: p.EphemeralSecretWeight,
-		IterationsParameters:  p.IterationsParameters,
-		Mod1Type:              uint64(p.Mod1Type),
-		LogMessageRatio:       p.LogMessageRatio,
-		K:                     p.K,
-		Mod1Degree:            p.Mod1Degree,
-		DoubleAngle:           p.DoubleAngle,
-		Mod1InvDegree:         p.Mod1InvDegree,
-	})
 }
 
 // UnmarshalJSON reads a JSON representation on the target ParametersLiteral struct.

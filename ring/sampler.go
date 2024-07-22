@@ -166,20 +166,30 @@ func ParametersFromMap(distDef map[string]interface{}) (DistributionParameters, 
 	case ternaryDistName:
 		_, hasP := distDef["P"]
 		_, hasH := distDef["H"]
-		var p float64
-		var h int
-		var err error
-		switch {
-		case !hasH && hasP:
-			p, err = getFloatFromMap(distDef, "P")
-		case hasH && !hasP:
-			h, err = getIntFromMap(distDef, "H")
-		default:
-			err = fmt.Errorf("exactly one of the field P or H need to be set")
+
+		var (
+			p   float64
+			h   int
+			err error
+		)
+
+		// a zero value for both P and H is interpreted as an unset value
+		if hasP {
+			if p, err = getFloatFromMap(distDef, "P"); err != nil {
+				return nil, fmt.Errorf("unable to parse ternary parameters P: %w", err)
+			}
+			hasP = (p != 0)
 		}
-		if err != nil {
-			return nil, err
+		if hasH {
+			if h, err = getIntFromMap(distDef, "H"); err != nil {
+				return nil, fmt.Errorf("unable to parse ternary parameters H: %w", err)
+			}
+			hasH = (h != 0)
 		}
+		if (hasP && hasH) || (!hasP && !hasH) {
+			return nil, fmt.Errorf("exactly one of the fields P or H need to be set")
+		}
+
 		return Ternary{P: p, H: h}, nil
 	case discreteGaussianName:
 		sigma, errSigma := getFloatFromMap(distDef, "Sigma")

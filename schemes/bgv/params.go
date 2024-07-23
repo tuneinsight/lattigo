@@ -273,7 +273,7 @@ func (p Parameters) GaloisElementsForReplicate(batch, n int) (galEls []uint64) {
 	return
 }
 
-// GaloisElementsForTrace returns the list of Galois elements requored for the for the Trace operation.
+// GaloisElementsForTrace returns the list of Galois elements required for the for the Trace operation.
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for 2^{LogN} <= i < N.
 func (p Parameters) GaloisElementsForTrace(logN int) []uint64 {
 	return rlwe.GaloisElementsForTrace(p, logN)

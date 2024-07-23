@@ -54,7 +54,7 @@ type LinearTransformationParameters struct {
 	// LevelQ is the level at which to encode the linear transformation.
 	LevelQ int
 
-	// LevelP is the level of the auxliary prime used during the automorphisms
+	// LevelP is the level of the auxiliary prime used during the automorphisms
 	// User must ensure that this value is the same as the one used to generate
 	// the evaluation keys used to perform the automorphisms.
 	LevelP int
@@ -197,7 +197,7 @@ func NewLinearTransformation(params rlwe.ParameterProvider, ltparams LinearTrans
 	}
 }
 
-// EncodeLinearTransformation encodes on a pre-allocated [LinearTransformation] a set of non-zero diagonaes of a matrix representing a linear transformation.
+// EncodeLinearTransformation encodes on a pre-allocated [LinearTransformation] a set of non-zero diagonals of a matrix representing a linear transformation.
 func EncodeLinearTransformation[T any](encoder Encoder[T, ringqp.Poly], diagonals Diagonals[T], allocated LinearTransformation) (err error) {
 
 	rows := 1 << allocated.LogDimensions.Rows

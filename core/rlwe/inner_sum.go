@@ -77,7 +77,7 @@ func (eval Evaluator) Trace(ctIn *Ciphertext, logN int, opOut *Ciphertext) (err 
 		buff, err := NewCiphertextAtLevelFromPoly(level, []ring.Poly{eval.BuffQP[3].Q, eval.BuffQP[4].Q})
 
 		// Sanity check, this error should not happen unless the
-		// evaluator's buffer thave been improperly tempered with.
+		// evaluator's buffer has been improperly tempered with.
 		if err != nil {
 			panic(err)
 		}
@@ -119,7 +119,7 @@ func (eval Evaluator) Trace(ctIn *Ciphertext, logN int, opOut *Ciphertext) (err 
 	return
 }
 
-// GaloisElementsForTrace returns the list of Galois elements requored for the for the `Trace` operation.
+// GaloisElementsForTrace returns the list of Galois elements required for the for the `Trace` operation.
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for 2^{LogN} <= i < N.
 func GaloisElementsForTrace(params ParameterProvider, logN int) (galEls []uint64) {
 
@@ -217,7 +217,7 @@ func (eval Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, opOut *Cipher
 		cQ, err := NewCiphertextAtLevelFromPoly(levelQ, []ring.Poly{cQP.Value[0].Q, cQP.Value[1].Q})
 
 		// Sanity check, this error should not happen unless the
-		// evaluator's buffer thave been improperly tempered with.
+		// evaluator's buffer has been improperly tempered with.
 		if err != nil {
 			panic(err)
 		}
@@ -361,7 +361,7 @@ func (eval Evaluator) InnerFunction(ctIn *Ciphertext, batchSize, n int, f func(a
 		*accQ.MetaData = *ctInNTT.MetaData
 
 		// Sanity check, this error should not happen unless the
-		// evaluator's buffer thave been improperly tempered with.
+		// evaluator's buffer has been improperly tempered with.
 		if err != nil {
 			panic(err)
 		}
@@ -371,7 +371,7 @@ func (eval Evaluator) InnerFunction(ctIn *Ciphertext, batchSize, n int, f func(a
 		*cQ.MetaData = *ctInNTT.MetaData
 
 		// Sanity check, this error should not happen unless the
-		// evaluator's buffer thave been improperly tempered with.
+		// evaluator's buffer has been improperly tempered with.
 		if err != nil {
 			panic(err)
 		}

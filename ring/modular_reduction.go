@@ -20,7 +20,7 @@ func MForm(a, q uint64, bredconstant [2]uint64) (r uint64) {
 	// Since r is in [0, 2q] and q is in [0, 2^{63}-1]
 	// we are ensured that r < 2^64, thus r = r mod 2^{64}
 	// So we can work mod 2^{64} (i.e. with uint64)
-	// and therfore:
+	// and therefore:
 	//
 	// r = b - n * q mod 2^{64}
 	//   = a * 2^{64} - n * q mod 2^{64}

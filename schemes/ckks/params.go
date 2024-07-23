@@ -256,7 +256,7 @@ func (p Parameters) QLvl(level int) *big.Int {
 //
 // Example:
 // Recall that batched plaintexts are 2xN/2 matrices of the form [m, conjugate(m)]
-// (the conjugate is implicitely ingored) thus given the following plaintext matrix:
+// (the conjugate is implicitly ignored) thus given the following plaintext matrix:
 //
 // [a, b, c, d][conj(a), conj(b), conj(c), conj(d)]
 //
@@ -279,7 +279,7 @@ func (p Parameters) GaloisElementForRotation(k int) uint64 {
 //
 // Example:
 // Recall that batched plaintexts are 2xN/2 matrices of the form [m, conjugate(m)]
-// (the conjugate is implicitely ingored) thus given the following plaintext matrix:
+// (the conjugate is implicitly ignored) thus given the following plaintext matrix:
 //
 // [a, b, c, d][conj(a), conj(b), conj(c), conj(d)]
 //
@@ -305,7 +305,7 @@ func (p Parameters) GaloisElementsForReplicate(batch, n int) []uint64 {
 	return rlwe.GaloisElementsForReplicate(p, batch, n)
 }
 
-// GaloisElementsForTrace returns the list of Galois elements requored for the for the Trace operation.
+// GaloisElementsForTrace returns the list of Galois elements required for the for the Trace operation.
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for 2^{LogN} <= i < N.
 func (p Parameters) GaloisElementsForTrace(logN int) []uint64 {
 	return rlwe.GaloisElementsForTrace(p, logN)

@@ -128,8 +128,8 @@ func GetPreRotatedCiphertextForDiagonalMatrixMultiplication(levelQ, levelP int, 
 	return
 }
 
-// EvaluateLinearTranformationSequential takes as input a ciphertext ctIn and a list of linear transformations [M0, M1, M2, ...] and evaluates opOut:...M2(M1(M0(ctIn))
-func EvaluateLinearTranformationSequential(evalLT EvaluatorForLinearTransformation, evalDiag EvaluatorForDiagonalMatrix, ctIn *rlwe.Ciphertext, linearTransformations []LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
+// EvaluateLinearTransformationSequential takes as input a ciphertext ctIn and a list of linear transformations [M0, M1, M2, ...] and evaluates opOut:...M2(M1(M0(ctIn))
+func EvaluateLinearTransformationSequential(evalLT EvaluatorForLinearTransformation, evalDiag EvaluatorForDiagonalMatrix, ctIn *rlwe.Ciphertext, linearTransformations []LinearTransformation, opOut *rlwe.Ciphertext) (err error) {
 
 	if err = EvaluateLinearTransformationsMany(evalLT, evalDiag, ctIn, linearTransformations[:1], []*rlwe.Ciphertext{opOut}); err != nil {
 		return

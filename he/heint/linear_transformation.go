@@ -114,8 +114,8 @@ func (p Permutation[T]) GetDiagonals(logSlots int) Diagonals[T] {
 	return Diagonals[T](diagonals)
 }
 
-// LinearTransformationParameters is a wrapper of he.LinearTransformationParameters.
-// See he.LinearTransformationParameters for the documentation.
+// LinearTransformationParameters is a wrapper of [he.LinearTransformationParameters].
+// See [he.LinearTransformationParameters] for the documentation.
 type LinearTransformationParameters he.LinearTransformationParameters
 
 // LinearTransformation is a wrapper of [he.LinearTransformation].
@@ -209,7 +209,7 @@ func (eval LinearTransformationEvaluator) EvaluateSequential(ctIn *rlwe.Cipherte
 	for i := range circuitLTs {
 		circuitLTs[i] = he.LinearTransformation(linearTransformations[i])
 	}
-	return he.EvaluateLinearTranformationSequential(eval.EvaluatorForLinearTransformation, eval.EvaluatorForDiagonalMatrix, ctIn, circuitLTs, opOut)
+	return he.EvaluateLinearTransformationSequential(eval.EvaluatorForLinearTransformation, eval.EvaluatorForDiagonalMatrix, ctIn, circuitLTs, opOut)
 }
 
 // defaultDiagonalMatrixEvaluator is a struct implementing the interface [he.EvaluatorForDiagonalMatrix].

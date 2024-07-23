@@ -42,7 +42,7 @@ func main() {
 	// friendly API for the homomorphic operations.
 
 	// =======================================================
-	// `rlwe.Ciphertert`, `rlwe.Plaintext` and `rlwe.MetaData`
+	// `rlwe.Ciphertext`, `rlwe.Plaintext` and `rlwe.MetaData`
 	// =======================================================
 	//
 	// Before talking about the capabilities of the `he/float` package, we have to give some information about the `rlwe.Ciphertext` and `rlwe.Plaintext` objects.

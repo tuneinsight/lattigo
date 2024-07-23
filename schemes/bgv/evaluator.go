@@ -1498,7 +1498,7 @@ func (eval Evaluator) matchScalesBinary(scale0, scale1 uint64) (r0, r1, e uint64
 	GenBRedConstant := ringT.SubRings[0].BRedConstant
 
 	// This should never happen and if it were to happen,
-	// there is no way to recovernfrom it.
+	// there is no way to recover from it.
 	if utils.GCD(scale0, t) != 1 {
 		panic("cannot matchScalesBinary: invalid ciphertext scale: gcd(scale, t) != 1")
 	}

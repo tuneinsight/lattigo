@@ -106,7 +106,7 @@ func testHomomorphicEncoding(params hefloat.Parameters, LogSlots int, t *testing
 		//
 		// Enc(iFFT(vReal+ i*vImag))
 		//
-		// And returns the result in one ciphextext if the ciphertext can store it else in two ciphertexts
+		// And returns the result in one ciphertext if the ciphertext can store it else in two ciphertexts
 		//
 		// Enc(Ecd(vReal) || Ecd(vImag)) or Enc(Ecd(vReal)) and Enc(Ecd(vImag))
 		//

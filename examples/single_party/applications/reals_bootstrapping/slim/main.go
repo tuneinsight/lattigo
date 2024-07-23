@@ -192,7 +192,7 @@ func main() {
 		panic(err)
 	}
 
-	// Generate a random plaintext with values uniformely distributed in [-1, 1] for the real and imaginary part.
+	// Generate a random plaintext with values uniformly distributed in [-1, 1] for the real and imaginary part.
 	valuesWant := make([]complex128, params.MaxSlots())
 	for i := range valuesWant {
 		valuesWant[i] = sampling.RandComplex128(-1, 1)
@@ -225,7 +225,7 @@ func main() {
 	}
 
 	// Step 2: Some circuit in the coefficient domain
-	// Note: the result of SlotsToCoeffs is naturaly given in bit-reversed order
+	// Note: the result of SlotsToCoeffs is naturally given in bit-reversed order
 	// In this example, we multiply by the monomial X^{N/2} (which is the imaginary
 	// unit in the slots domain)
 	if err = eval.Evaluator.Mul(ciphertext, 1i, ciphertext); err != nil {

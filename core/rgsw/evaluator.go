@@ -8,25 +8,25 @@ import (
 
 // Evaluator is a type for evaluating homomorphic operations involving RGSW ciphertexts.
 // It currently supports the external product between a RLWE and a RGSW ciphertext (see
-// Evaluator.ExternalProduct).
+// [Evaluator.ExternalProduct]).
 type Evaluator struct {
 	rlwe.Evaluator
 }
 
-// NewEvaluator creates a new Evaluator type supporting RGSW operations in addition
-// to rlwe.Evaluator operations.
+// NewEvaluator creates a new [Evaluator] type supporting RGSW operations in addition
+// to [rlwe.Evaluator] operations.
 func NewEvaluator(params rlwe.ParameterProvider, evk rlwe.EvaluationKeySet) *Evaluator {
 	return &Evaluator{*rlwe.NewEvaluator(params, evk)}
 }
 
-// ShallowCopy creates a shallow copy of this Evaluator in which all the read-only data-structures are
+// ShallowCopy creates a shallow copy of this [Evaluator] in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Evaluators can be used concurrently.
 func (eval Evaluator) ShallowCopy() *Evaluator {
 	return &Evaluator{*eval.Evaluator.ShallowCopy()}
 }
 
-// WithKey creates a shallow copy of the receiver Evaluator for which the new EvaluationKey is evaluationKey
+// WithKey creates a shallow copy of the receiver [Evaluator] for which the evaluation key is set to the provided [rlwe.EvaluationKeySet]
 // and where the temporary buffers are shared. The receiver and the returned Evaluators cannot be used concurrently.
 func (eval Evaluator) WithKey(evk rlwe.EvaluationKeySet) *Evaluator {
 	return &Evaluator{*eval.Evaluator.WithKey(evk)}

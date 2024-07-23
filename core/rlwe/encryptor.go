@@ -11,12 +11,12 @@ import (
 )
 
 // EncryptionKey is an interface for encryption keys. Valid encryption
-// keys are the SecretKey and PublicKey types.
+// keys are the [SecretKey] and [PublicKey] types.
 type EncryptionKey interface {
 	isEncryptionKey()
 }
 
-// NewEncryptor creates a new Encryptor from either a public key or a private key.
+// NewEncryptor creates a new [Encryptor] from either a public key or a private key.
 func NewEncryptor(params ParameterProvider, key EncryptionKey) *Encryptor {
 
 	p := *params.GetRLWEParameters()
@@ -56,7 +56,7 @@ type Encryptor struct {
 	uniformSampler ringqp.UniformSampler
 }
 
-// GetRLWEParameters returns the underlying rlwe.Parameters.
+// GetRLWEParameters returns the underlying [Parameters].
 func (enc Encryptor) GetRLWEParameters() *Parameters {
 	return &enc.params
 }
@@ -123,10 +123,10 @@ func newEncryptorBuffers(params Parameters) *encryptorBuffers {
 }
 
 // Encrypt encrypts the input plaintext using the stored encryption key and writes the result on ct.
-// The method currently accepts only *rlwe.Ciphertext as ct.
-// If a Plaintext is given, then the output Ciphertext MetaData will match the Plaintext MetaData.
+// The method currently accepts only *[Ciphertext] as ct.
+// If a [Plaintext] is given, then the output [Ciphertext] [MetaData] will match the [Plaintext] [MetaData].
 // The method returns an error if the ct has an unsupported type or if no encryption key is stored
-// in the Encryptor.
+// in the [Encryptor].
 //
 // The encryption procedure masks the plaintext by adding a fresh encryption of zero.
 // The encryption procedure depends on the parameters: If the auxiliary modulus P is defined, the
@@ -152,10 +152,10 @@ func (enc Encryptor) Encrypt(pt *Plaintext, ct interface{}) (err error) {
 }
 
 // EncryptNew encrypts the input plaintext using the stored encryption key and returns a newly
-// allocated Ciphertext containing the result.
-// If a Plaintext is provided, then the output ciphertext MetaData will match the Plaintext MetaData.
+// allocated [Ciphertext] containing the result.
+// If a [Plaintext] is provided, then the output [Ciphertext] [MetaData] will match the [Plaintext] [MetaData].
 // The method returns an error if the ct has an unsupported type or if no encryption key is stored
-// in the Encryptor.
+// in the [Encryptor].
 //
 // The encryption procedure masks the plaintext by adding a fresh encryption of zero.
 // The encryption procedure depends on the parameters: If the auxiliary modulus P is defined, the
@@ -166,13 +166,13 @@ func (enc Encryptor) EncryptNew(pt *Plaintext) (ct *Ciphertext, err error) {
 }
 
 // EncryptZero generates an encryption of zero under the stored encryption key and writes the result on ct.
-// The method accepts only *rlwe.Ciphertext as input.
+// The method accepts only *[Ciphertext] as input.
 // The method returns an error if the ct has an unsupported type or if no encryption key is stored
-// in the Encryptor.
+// in the [Encryptor].
 //
 // The encryption procedure depends on the parameters: If the auxiliary modulus P is defined, the
 // encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
-// The zero encryption is generated according to the given Ciphertext MetaData.
+// The zero encryption is generated according to the given [Ciphertext] [MetaData].
 func (enc Encryptor) EncryptZero(ct interface{}) (err error) {
 	switch key := enc.encKey.(type) {
 	case *SecretKey:
@@ -188,8 +188,8 @@ func (enc Encryptor) EncryptZero(ct interface{}) (err error) {
 }
 
 // EncryptZeroNew generates an encryption of zero under the stored encryption key and returns a newly
-// allocated Ciphertext containing the result.
-// The method returns an error if no encryption key is stored in the Encryptor.
+// allocated [Ciphertext] containing the result.
+// The method returns an error if no encryption key is stored in the [Encryptor].
 // The encryption procedure depends on the parameters: If the auxiliary modulus P is defined, the
 // encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
 func (enc Encryptor) EncryptZeroNew(level int) (ct *Ciphertext) {

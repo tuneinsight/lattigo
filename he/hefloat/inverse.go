@@ -10,8 +10,8 @@ import (
 )
 
 // EvaluatorForInverse defines a set of common and scheme agnostic
-// methods that are necessary to instantiate an InverseEvaluator.
-// The default hefloat.Evaluator is compliant to this interface.
+// methods that are necessary to instantiate an [InverseEvaluator].
+// The default [hefloat.Evaluator] is compliant to this interface.
 type EvaluatorForInverse interface {
 	EvaluatorForMinimaxCompositePolynomial
 	SetScale(ct *rlwe.Ciphertext, scale rlwe.Scale) (err error)
@@ -26,9 +26,9 @@ type InverseEvaluator struct {
 	Parameters Parameters
 }
 
-// NewInverseEvaluator instantiates a new InverseEvaluator.
-// The default hefloat.Evaluator is compliant to the EvaluatorForInverse interface.
-// The field he.Bootstrapper[rlwe.Ciphertext] can be nil if the parameters have enough levels to support the computation.
+// NewInverseEvaluator instantiates a new [InverseEvaluator].
+// The default [hefloat.Evaluator] is compliant to the EvaluatorForInverse interface.
+// The field [he.Bootstrapper][[rlwe.Ciphertext]] can be nil if the parameters have enough levels to support the computation.
 // This method is allocation free.
 func NewInverseEvaluator(params Parameters, eval EvaluatorForInverse, btp he.Bootstrapper[rlwe.Ciphertext]) InverseEvaluator {
 	return InverseEvaluator{
@@ -49,7 +49,7 @@ func NewInverseEvaluator(params Parameters, eval EvaluatorForInverse, btp he.Boo
 //
 // The user can provide a minimax composite polynomial (signMinimaxPoly) for the sign function in the interval
 // [-1-e, -2^{log2min}] U [2^{log2min}, 1+e] (where e is an upperbound on the scheme error).
-// If no such polynomial is provided, then the DefaultMinimaxCompositePolynomialForSign is used by default.
+// If no such polynomial is provided, then the [DefaultMinimaxCompositePolynomialForSign] is used by default.
 // Note that the precision of the output of sign(x * c) does not impact the circuit precision since this value ends up being both at
 // the numerator and denominator, thus cancelling itself.
 func (eval InverseEvaluator) EvaluateFullDomainNew(ct *rlwe.Ciphertext, log2min, log2max float64, signMinimaxPoly ...MinimaxCompositePolynomial) (cInv *rlwe.Ciphertext, err error) {

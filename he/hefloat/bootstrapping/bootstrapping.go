@@ -24,11 +24,11 @@ import (
 // can be used to do a scale matching.
 //
 // The circuit consists in 5 steps.
-// 1) ScaleDown: scales the ciphertext to q/|m| and bringing it down to q
-// 2) ModUp: brings the modulus from q to Q
-// 3) CoeffsToSlots: homomorphic encoding
-// 4) EvalMod: homomorphic modular reduction
-// 5) SlotsToCoeffs: homomorphic decoding
+//  1. ScaleDown: scales the ciphertext to q/|m| and bringing it down to q
+//  2. ModUp: brings the modulus from q to Q
+//  3. CoeffsToSlots: homomorphic encoding
+//  4. EvalMod: homomorphic modular reduction
+//  5. SlotsToCoeffs: homomorphic decoding
 func (eval Evaluator) Evaluate(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err error) {
 
 	if eval.IterationsParameters == nil && eval.ResidualParameters.PrecisionMode() != ckks.PREC128 {
@@ -275,8 +275,9 @@ func (eval Evaluator) bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, 
 
 // ScaleDown brings the ciphertext level to zero and scaling factor to Q[0]/MessageRatio
 // It multiplies the ciphertexts by round(currentMessageRatio / targetMessageRatio) where:
-// - currentMessageRatio = Q/ctIn.Scale
-// - targetMessageRatio = q/|m|
+//   - currentMessageRatio = Q/ctIn.Scale
+//   - targetMessageRatio = q/|m|
+//
 // and updates the scale of ctIn accordingly
 // It then rescales the ciphertext down to q if necessary and also returns the rescaling error from this process
 func (eval Evaluator) ScaleDown(ctIn *rlwe.Ciphertext) (*rlwe.Ciphertext, *rlwe.Scale, error) {

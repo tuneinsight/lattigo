@@ -9,7 +9,7 @@ import (
 	"github.com/tuneinsight/lattigo/v5/utils"
 )
 
-// EvaluatorForLinearTransformation defines a set of common and scheme agnostic method necessary to instantiate an LinearTransformationEvaluator.
+// EvaluatorForLinearTransformation defines a set of common and scheme agnostic method necessary to instantiate a [EvaluatorForLinearTransformation].
 type EvaluatorForLinearTransformation interface {
 	rlwe.ParameterProvider
 	Rescale(op1, op2 *rlwe.Ciphertext) (err error)
@@ -61,7 +61,18 @@ func EvaluateLinearTransformationsMany(evalLT EvaluatorForLinearTransformation, 
 
 	evalDiag.Decompose(levelQ, levelP, ctIn, BuffDecompQP)
 
-	ctPreRot := map[int]*rlwe.Element[ringqp.Poly]{}
+	// precompute all rotated ciphertexts for each linear transform
+	ctPreRot := make([]map[int]*rlwe.Element[ringqp.Poly], len(linearTransformations))
+	for i, lt := range linearTransformations {
+		if lt.N1 == 0 {
+			continue
+		}
+		ctPreRot[i] = map[int]*rlwe.Element[ringqp.Poly]{}
+		_, _, rotN2 := lt.BSGSIndex()
+		if err = evalDiag.GetPreRotatedCiphertextForDiagonalMatrixMultiplication(levelQ, levelP, ctIn, BuffDecompQP, rotN2, ctPreRot[i]); err != nil {
+			return
+		}
+	}
 
 	for i, lt := range linearTransformations {
 
@@ -70,14 +81,14 @@ func EvaluateLinearTransformationsMany(evalLT EvaluatorForLinearTransformation, 
 				return
 			}
 		} else {
-
 			_, _, rotN2 := lt.BSGSIndex()
 
-			if err = evalDiag.GetPreRotatedCiphertextForDiagonalMatrixMultiplication(levelQ, levelP, ctIn, BuffDecompQP, rotN2, ctPreRot); err != nil {
+			if err = evalDiag.GetPreRotatedCiphertextForDiagonalMatrixMultiplication(levelQ, levelP, ctIn, BuffDecompQP, rotN2, ctPreRot[i]); err != nil {
 				return
 			}
 
-			if err = evalDiag.MultiplyByDiagMatrixBSGS(ctIn, lt, ctPreRot, opOut[i]); err != nil {
+			if err = evalDiag.MultiplyByDiagMatrixBSGS(ctIn, lt, ctPreRot[i], opOut[i]); err != nil {
+
 				return
 			}
 		}
@@ -142,8 +153,8 @@ func EvaluateLinearTranformationSequential(evalLT EvaluatorForLinearTransformati
 	return
 }
 
-// MultiplyByDiagMatrix multiplies the Ciphertext "ctIn" by the plaintext matrix "matrix" and returns the result on the Ciphertext
-// "opOut". Memory buffers for the decomposed ciphertext BuffDecompQP, BuffDecompQP must be provided, those are list of poly of ringQ and ringP
+// MultiplyByDiagMatrix multiplies the Ciphertext ctIn by the plaintext matrix and returns the result on the Ciphertext
+// opOut. Memory buffers for the decomposed ciphertext BuffDecompQP, BuffDecompQP must be provided, those are list of poly of ringQ and ringP
 // respectively, each of size params.Beta().
 // The naive approach is used (single hoisting and no baby-step giant-step), which is faster than MultiplyByDiagMatrixBSGS
 // for matrix of only a few non-zero diagonals but uses more keys.
@@ -268,7 +279,7 @@ func MultiplyByDiagMatrix(eval EvaluatorForLinearTransformation, ctIn *rlwe.Ciph
 	return
 }
 
-// MultiplyByDiagMatrixBSGS multiplies the Ciphertext "ctIn" by the plaintext matrix "matrix" and returns the result on the Ciphertext "opOut".
+// MultiplyByDiagMatrixBSGS multiplies the Ciphertext ctIn by the plaintext matrix and returns the result on the Ciphertext opOut.
 // ctInPreRotated can be obtained with GetPreRotatedCiphertextForDiagonalMatrixMultiplication.
 // The BSGS approach is used (double hoisting with baby-step giant-step), which is faster than MultiplyByDiagMatrix
 // for matrix with more than a few non-zero diagonals and uses significantly less keys.

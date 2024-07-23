@@ -23,7 +23,7 @@ func NewAdditiveShare(r *ring.Ring) AdditiveShare {
 	return AdditiveShare{Value: r.NewPoly()}
 }
 
-// NewAdditiveShareBigint instantiates a new additive share struct composed of n big.Int elements.
+// NewAdditiveShareBigint instantiates a new additive share struct composed of n [big.Int] elements.
 func NewAdditiveShareBigint(n int) AdditiveShareBigint {
 	v := make([]*big.Int, n)
 	for i := range v {

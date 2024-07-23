@@ -141,7 +141,7 @@ func (lt LinearTransformation) BSGSIndex() (index map[int][]int, n1, n2 []int) {
 	return BSGSIndex(utils.GetKeys(lt.Vec), 1<<lt.LogDimensions.Cols, lt.N1)
 }
 
-// NewLinearTransformation allocates a new LinearTransformation with zero values according to the parameters specified by the LinearTransformationParameters.
+// NewLinearTransformation allocates a new LinearTransformation with zero values according to the parameters specified by the [LinearTransformationParameters].
 func NewLinearTransformation(params rlwe.ParameterProvider, ltparams LinearTransformationParameters) LinearTransformation {
 
 	p := params.GetRLWEParameters()
@@ -197,7 +197,7 @@ func NewLinearTransformation(params rlwe.ParameterProvider, ltparams LinearTrans
 	}
 }
 
-// EncodeLinearTransformation encodes on a pre-allocated LinearTransformation a set of non-zero diagonaes of a matrix representing a linear transformation.
+// EncodeLinearTransformation encodes on a pre-allocated [LinearTransformation] a set of non-zero diagonaes of a matrix representing a linear transformation.
 func EncodeLinearTransformation[T any](encoder Encoder[T, ringqp.Poly], diagonals Diagonals[T], allocated LinearTransformation) (err error) {
 
 	rows := 1 << allocated.LogDimensions.Rows
@@ -288,7 +288,7 @@ func rotateAndEncodeDiagonal[T any](v []T, encoder Encoder[T, ringqp.Poly], rot 
 }
 
 // GaloisElementsForLinearTransformation returns the list of Galois elements needed for the evaluation of a linear transformation
-// given the index of its non-zero diagonals, the number of slots in the plaintext and the LogBabyStepGianStepRatio (see LinearTransformationParameters).
+// given the index of its non-zero diagonals, the number of slots in the plaintext and the LogBabyStepGianStepRatio (see [LinearTransformationParameters]).
 func GaloisElementsForLinearTransformation(params rlwe.ParameterProvider, diags []int, slots, logBabyStepGianStepRatio int) (galEls []uint64) {
 
 	p := params.GetRLWEParameters()

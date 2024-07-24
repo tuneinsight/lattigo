@@ -223,9 +223,9 @@ func (ekg RelinearizationKeyGenProtocol) GenShareRoundOne(sk *rlwe.SecretKey, cr
 
 // GenShareRoundTwo is the second of three rounds of the [RelinearizationKeyGenProtocol] protocol. Upon receiving the j-1 shares, each party computes :
 //
-//   - round1 = sum([-u_i * a + s_i * P + e_0i, s_i* a + e_i1]) = [u * a + s * P + e0, s * a + e1]
+//   - round1 = sum([-u_i * a + s_i * P + e_0i, s_i* a + e_i1]) = [-ua + sP + e0, sa + e1]
 //
-//   - round2 = [s_i * round1[0] + e_i2, (u_i - s_i) * round1[1] + e_i3] = [s_i * {u * a + s * P + e0} + e_i2, (u_i - s_i) * {s * a + e1} + e_i3]
+//   - round2 = [s_i * round1[0] + (u_i - s_i) * round1[1] + e_i2] = [s_i * {-ua + s * P + e0} + (u_i - s_i) * {sa + e1} + e_i2]
 //
 // and broadcasts both values to the other j-1 parties.
 func (ekg RelinearizationKeyGenProtocol) GenShareRoundTwo(ephSk, sk *rlwe.SecretKey, round1 RelinearizationKeyGenShare, shareOut *RelinearizationKeyGenShare) {
@@ -263,15 +263,8 @@ func (ekg RelinearizationKeyGenProtocol) GenShareRoundTwo(ephSk, sk *rlwe.Secret
 			ringQP.Add(shareOut.Value[i][j][0], ekg.buf[1], shareOut.Value[i][j][0])
 
 			// second part
-			// (u_i - s_i) * (sum [x][s*a_i + e_2i]) + e3i
-			sampler.Read(shareOut.Value[i][j][1].Q)
-
-			if levelP > -1 {
-				ringQP.ExtendBasisSmallNormAndCenter(shareOut.Value[i][j][1].Q, levelP, shareOut.Value[i][j][1].Q, shareOut.Value[i][j][1].P)
-			}
-
-			ringQP.NTT(shareOut.Value[i][j][1], shareOut.Value[i][j][1])
-			ringQP.MulCoeffsMontgomeryThenAdd(ekg.buf[0], round1.Value[i][j][1], shareOut.Value[i][j][1])
+			// (AggRound1Samples[0])*sk + (u_i - s_i) * (AggRound1Samples[1]) + e_1
+			ringQP.MulCoeffsMontgomeryThenAdd(ekg.buf[0], round1.Value[i][j][1], shareOut.Value[i][j][0])
 		}
 	}
 }
@@ -288,17 +281,19 @@ func (ekg RelinearizationKeyGenProtocol) AggregateShares(share1, share2 Relinear
 
 	for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
 		for j := 0; j < BaseTwoDecompositionVectorSize[i]; j++ {
-			ringQP.Add(share1.Value[i][j][0], share2.Value[i][j][0], shareOut.Value[i][j][0])
-			ringQP.Add(share1.Value[i][j][1], share2.Value[i][j][1], shareOut.Value[i][j][1])
+			// deg(round 1 shares) = 1, deg(round 2 shares) = 0
+			for k := 0; k <= share1.Degree(); k++ {
+				ringQP.Add(share1.Value[i][j][k], share2.Value[i][j][k], shareOut.Value[i][j][k])
+			}
 		}
 	}
 }
 
 // GenRelinearizationKey computes the generated RLK from the public shares and write the result in evalKeyOut.
 //
-//   - round1 = [u * a + s * P + e0, s * a + e1]
-//   - round2 = sum([s_i * {u * a + s * P + e0} + e_i2, (u_i - s_i) * {s * a + e1} + e_i3]) = [-sua + P*s^2 + s*e0 + e2, sua + ue1 - s^2a -s*e1 + e3]
-//   - [round2[0] + round2[1], round1[1]] = [- s^2a - s*e1 + P*s^2 + s*e0 + u*e1 + e2 + e3, s * a + e1] = [s * b + P * s^2 + s*e0 + u*e1 + e2 + e3, b]
+//   - round1 = [-ua + sP + e0, sa + e1]
+//   - round2 = sum([s_i * {-ua + sP + e0} + (u_i - s_i) * {sa + e1} + e_i2]) = [-sua + Ps^2 + se0 + e2, sua + ue1 - s^2a -se1]
+//   - [round2[0] + round2[1], round1[1]] = [-{s^2a + se1} + Ps^2 + {se0 + ue1 + e2}, sa + e1] = [sb + Ps^2 + e, b]
 func (ekg RelinearizationKeyGenProtocol) GenRelinearizationKey(round1 RelinearizationKeyGenShare, round2 RelinearizationKeyGenShare, evalKeyOut *rlwe.RelinearizationKey) {
 
 	levelQ := round1.LevelQ()
@@ -310,15 +305,14 @@ func (ekg RelinearizationKeyGenProtocol) GenRelinearizationKey(round1 Relineariz
 
 	for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
 		for j := 0; j < BaseTwoDecompositionVectorSize[i]; j++ {
-			ringQP.Add(round2.Value[i][j][0], round2.Value[i][j][1], evalKeyOut.Value[i][j][0])
-			evalKeyOut.Value[i][j][1].Copy(round1.Value[i][j][1])
-			ringQP.MForm(evalKeyOut.Value[i][j][0], evalKeyOut.Value[i][j][0])
-			ringQP.MForm(evalKeyOut.Value[i][j][1], evalKeyOut.Value[i][j][1])
+			ringQP.MForm(round2.Value[i][j][0], evalKeyOut.Value[i][j][0])
+			ringQP.MForm(round1.Value[i][j][1], evalKeyOut.Value[i][j][1])
 		}
 	}
 }
 
 // AllocateShare allocates the share of the EKG protocol.
+// To satisfy the correctness of the multi-party protocol, linearization keys shares cannot be allocated in the compressed format.
 func (ekg RelinearizationKeyGenProtocol) AllocateShare(evkParams ...rlwe.EvaluationKeyParameters) (ephSk *rlwe.SecretKey, r1 RelinearizationKeyGenShare, r2 RelinearizationKeyGenShare) {
 	params := ekg.params
 	ephSk = rlwe.NewSecretKey(params)
@@ -326,7 +320,7 @@ func (ekg RelinearizationKeyGenProtocol) AllocateShare(evkParams ...rlwe.Evaluat
 	levelQ, levelP, BaseTwoDecomposition := rlwe.ResolveEvaluationKeyParameters(ekg.params, evkParams)
 
 	r1 = RelinearizationKeyGenShare{GadgetCiphertext: *rlwe.NewGadgetCiphertext(params, 1, levelQ, levelP, BaseTwoDecomposition)}
-	r2 = RelinearizationKeyGenShare{GadgetCiphertext: *rlwe.NewGadgetCiphertext(params, 1, levelQ, levelP, BaseTwoDecomposition)}
+	r2 = RelinearizationKeyGenShare{GadgetCiphertext: *rlwe.NewGadgetCiphertext(params, 0, levelQ, levelP, BaseTwoDecomposition)}
 
 	return
 }

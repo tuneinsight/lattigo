@@ -42,6 +42,11 @@ func NewGadgetCiphertext(params ParameterProvider, Degree, LevelQ, LevelP, BaseT
 	return &GadgetCiphertext{BaseTwoDecomposition: BaseTwoDecomposition, Value: m}
 }
 
+// Degree returns the degree of the target ciphertext.
+func (ct GadgetCiphertext) Degree() int {
+	return len(ct.Value[0][0]) - 1
+}
+
 // LevelQ returns the level of the modulus Q of the target ciphertext.
 func (ct GadgetCiphertext) LevelQ() int {
 	return ct.Value[0][0][0].LevelQ()

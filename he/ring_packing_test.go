@@ -446,6 +446,8 @@ func testExtractPermuteRepack(params rlwe.Parameters, level int, enc *rlwe.Encry
 	// Generates a random index selection
 	// of size N/2 (to test that omitted
 	// elements output zero coefficients)
+
+	//#nosec G404 -- weak randomness is fine for tests
 	r := rand.New(rand.NewSource(0))
 	list := make([]int, params.N())
 	for i := range list {

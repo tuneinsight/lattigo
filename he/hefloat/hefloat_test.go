@@ -335,6 +335,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		for i := range idx {
 			idx[i] = i
 		}
+		//#nosec G404 -- weak randomness is fine for tests
 		r := rand.New(rand.NewSource(0))
 		r.Shuffle(len(idx), func(i, j int) {
 			idx[i], idx[j] = idx[j], idx[i]

@@ -81,7 +81,7 @@ func benchSampling(tc *testParams, b *testing.B) {
 
 	b.Run(testString("Sampling/Gaussian", tc.ringQ), func(b *testing.B) {
 
-		sampler, err := NewSampler(tc.prng, tc.ringQ, &DiscreteGaussian{Sigma: DefaultSigma, Bound: DefaultBound}, false)
+		sampler, err := NewSampler(tc.prng, tc.ringQ, DiscreteGaussian{Sigma: DefaultSigma, Bound: DefaultBound}, false)
 		require.NoError(b, err)
 
 		for i := 0; i < b.N; i++ {
@@ -121,7 +121,7 @@ func benchSampling(tc *testParams, b *testing.B) {
 
 	b.Run(testString("Sampling/Uniform", tc.ringQ), func(b *testing.B) {
 
-		sampler, err := NewSampler(tc.prng, tc.ringQ, &Uniform{}, true)
+		sampler, err := NewSampler(tc.prng, tc.ringQ, Uniform{}, true)
 		require.NoError(b, err)
 
 		for i := 0; i < b.N; i++ {

@@ -21,6 +21,10 @@ is a common choice thanks to its natural concurrency model and portability.
 
 ## Library overview
 
+<p align="center" width="100%"">
+  <img width=500 height=350 alt="lattigo-hierarchy" src="./lattigo-hierarchy.svg">
+</p>
+
 The library exposes the following packages:
 
 - `lattigo/he`: The main package of the library which provides scheme-agnostic interfaces

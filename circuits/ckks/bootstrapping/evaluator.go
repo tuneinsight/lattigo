@@ -22,8 +22,8 @@ import (
 type Evaluator struct {
 	Parameters
 	*ckks.Evaluator
-	*dft.DFTEvaluator
-	*mod1.Mod1Evaluator
+	DFTEvaluator  *dft.Evaluator
+	Mod1Evaluator *mod1.Evaluator
 	*EvaluationKeys
 
 	ckks.DomainSwitcher
@@ -35,9 +35,9 @@ type Evaluator struct {
 	// [1, x^-1, x^-2, x^-4, ..., x^-N2/2] / (X^N2 +1)
 	xPow2InvN2 []ring.Poly
 
-	Mod1Parameters mod1.Mod1Parameters
-	S2CDFTMatrix   dft.DFTMatrix
-	C2SDFTMatrix   dft.DFTMatrix
+	Mod1Parameters mod1.Parameters
+	S2CDFTMatrix   dft.Matrix
+	C2SDFTMatrix   dft.Matrix
 
 	SkDebug *rlwe.SecretKey
 }
@@ -82,7 +82,7 @@ func NewEvaluator(btpParams Parameters, evk *EvaluationKeys) (eval *Evaluator, e
 	}
 
 	if btpParams.Mod1ParametersLiteral.Mod1Type == mod1.CosDiscrete && btpParams.Mod1ParametersLiteral.Mod1Degree < 2*(btpParams.Mod1ParametersLiteral.K-1) {
-		return nil, fmt.Errorf("Mod1Type 'hefloat.CosDiscrete' uses a minimum degree of 2*(K-1) but EvalMod degree is smaller")
+		return nil, fmt.Errorf("Mod1Type 'mod1.CosDiscrete' uses a minimum degree of 2*(K-1) but EvalMod degree is smaller")
 	}
 
 	switch btpParams.CircuitOrder {
@@ -117,9 +117,9 @@ func NewEvaluator(btpParams Parameters, evk *EvaluationKeys) (eval *Evaluator, e
 
 	eval.Evaluator = ckks.NewEvaluator(params, evk)
 
-	eval.DFTEvaluator = dft.NewDFTEvaluator(params, eval.Evaluator)
+	eval.DFTEvaluator = dft.NewEvaluator(params, eval.Evaluator)
 
-	eval.Mod1Evaluator = mod1.NewMod1Evaluator(eval.Evaluator, polynomial.NewPolynomialEvaluator(params, eval.Evaluator), eval.Mod1Parameters)
+	eval.Mod1Evaluator = mod1.NewEvaluator(eval.Evaluator, polynomial.NewEvaluator(params, eval.Evaluator), eval.Mod1Parameters)
 
 	return
 }
@@ -135,8 +135,8 @@ func (eval Evaluator) ShallowCopy() *Evaluator {
 		S2CDFTMatrix:   eval.S2CDFTMatrix,
 		C2SDFTMatrix:   eval.C2SDFTMatrix,
 		Evaluator:      heEvaluator,
-		DFTEvaluator:   dft.NewDFTEvaluator(params, heEvaluator),
-		Mod1Evaluator:  mod1.NewMod1Evaluator(heEvaluator, polynomial.NewPolynomialEvaluator(params, heEvaluator), eval.Mod1Parameters),
+		DFTEvaluator:   dft.NewEvaluator(params, heEvaluator),
+		Mod1Evaluator:  mod1.NewEvaluator(heEvaluator, polynomial.NewEvaluator(params, heEvaluator), eval.Mod1Parameters),
 	}
 }
 
@@ -169,7 +169,7 @@ func (eval *Evaluator) initialize(btpParams Parameters) (err error) {
 	eval.Parameters = btpParams
 	params := btpParams.BootstrappingParameters
 
-	if eval.Mod1Parameters, err = mod1.NewMod1ParametersFromLiteral(params, btpParams.Mod1ParametersLiteral); err != nil {
+	if eval.Mod1Parameters, err = mod1.NewParametersFromLiteral(params, btpParams.Mod1ParametersLiteral); err != nil {
 		return
 	}
 
@@ -213,11 +213,11 @@ func (eval *Evaluator) initialize(btpParams Parameters) (err error) {
 		eval.SlotsToCoeffsParameters.Scaling.Mul(eval.SlotsToCoeffsParameters.Scaling, StCScaling)
 	}
 
-	if eval.C2SDFTMatrix, err = dft.NewDFTMatrixFromLiteral(params, eval.CoeffsToSlotsParameters, encoder); err != nil {
+	if eval.C2SDFTMatrix, err = dft.NewMatrixFromLiteral(params, eval.CoeffsToSlotsParameters, encoder); err != nil {
 		return
 	}
 
-	if eval.S2CDFTMatrix, err = dft.NewDFTMatrixFromLiteral(params, eval.SlotsToCoeffsParameters, encoder); err != nil {
+	if eval.S2CDFTMatrix, err = dft.NewMatrixFromLiteral(params, eval.SlotsToCoeffsParameters, encoder); err != nil {
 		return
 	}
 
@@ -653,8 +653,8 @@ func (eval Evaluator) ModUp(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err 
 	Q := ringQ.ModuliChain()
 	P := ringP.ModuliChain()
 	q := Q[0]
-	BRCQ := ringQ.GetBRedConstants()
-	BRCP := ringP.GetBRedConstants()
+	BRCQ := ringQ.BRedConstants()
+	BRCP := ringP.BRedConstants()
 
 	var coeff, tmp, pos, neg uint64
 
@@ -754,7 +754,7 @@ func (eval Evaluator) ModUp(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err 
 
 // CoeffsToSlots applies the homomorphic decoding
 func (eval Evaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext) (ctReal, ctImag *rlwe.Ciphertext, err error) {
-	return eval.CoeffsToSlotsNew(ctIn, eval.C2SDFTMatrix)
+	return eval.DFTEvaluator.CoeffsToSlotsNew(ctIn, eval.C2SDFTMatrix)
 }
 
 // EvalMod applies the homomorphic modular reduction by q.
@@ -768,7 +768,7 @@ func (eval Evaluator) EvalMod(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, er
 }
 
 func (eval Evaluator) SlotsToCoeffs(ctReal, ctImag *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err error) {
-	return eval.SlotsToCoeffsNew(ctReal, ctImag, eval.S2CDFTMatrix)
+	return eval.DFTEvaluator.SlotsToCoeffsNew(ctReal, ctImag, eval.S2CDFTMatrix)
 }
 
 func (eval Evaluator) SwitchRingDegreeN1ToN2New(ctN1 *rlwe.Ciphertext) (ctN2 *rlwe.Ciphertext) {

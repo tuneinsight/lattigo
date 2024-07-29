@@ -14,7 +14,7 @@ import (
 // factors of the polynomial coefficients used by the inlined
 // polynomial evaluation by running the polynomial evaluation
 // with dummy operands.
-// This struct implements the interface polynomial.SimEvaluator.
+// This struct implements the interface [polynomial.SimEvaluator].
 type simEvaluator struct {
 	params             bgv.Parameters
 	InvariantTensoring bool
@@ -36,7 +36,7 @@ func (d simEvaluator) Rescale(op0 *polynomial.SimOperand) {
 	}
 }
 
-// MulNew multiplies two polynomial.SimOperand, stores the result the target polynomial.SimOperand and returns the result.
+// MulNew multiplies two polynomial.SimOperand, stores the result the target [polynomial.SimOperand] and returns the result.
 func (d simEvaluator) MulNew(op0, op1 *polynomial.SimOperand) (opOut *polynomial.SimOperand) {
 	opOut = new(polynomial.SimOperand)
 	opOut.Level = utils.Min(op0.Level, op1.Level)

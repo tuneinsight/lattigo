@@ -41,7 +41,7 @@ func TestPolynomialEvaluator(t *testing.T) {
 			t.Fatal(err)
 		}
 	default:
-		testParams = ckks.TestParametersLiteral
+		testParams = testParametersLiteral
 	}
 
 	for _, ringType := range []ring.Type{ring.Standard, ring.ConjugateInvariant} {
@@ -72,7 +72,7 @@ func run(tc *ckks.TestContext, t *testing.T) {
 
 	var err error
 
-	polyEval := NewPolynomialEvaluator(params, tc.Evl)
+	polyEval := NewEvaluator(params, tc.Evl)
 
 	t.Run(name("EvaluatePoly/PolySingle/Exp", tc), func(t *testing.T) {
 
@@ -156,3 +156,23 @@ func run(tc *ckks.TestContext, t *testing.T) {
 		ckks.VerifyTestVectors(params, tc.Ecd, tc.Dec, valuesWant, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 }
+
+var (
+	// testInsecurePrec45 are insecure parameters used for the sole purpose of fast testing.
+	testInsecurePrec45 = ckks.ParametersLiteral{
+		LogN:            10,
+		LogQ:            []int{55, 45, 45, 45, 45, 45, 45},
+		LogP:            []int{60},
+		LogDefaultScale: 45,
+	}
+
+	// testInsecurePrec90 are insecure parameters used for the sole purpose of fast testing.
+	testInsecurePrec90 = ckks.ParametersLiteral{
+		LogN:            10,
+		LogQ:            []int{55, 55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45},
+		LogP:            []int{60, 60},
+		LogDefaultScale: 90,
+	}
+
+	testParametersLiteral = []ckks.ParametersLiteral{testInsecurePrec45, testInsecurePrec90}
+)

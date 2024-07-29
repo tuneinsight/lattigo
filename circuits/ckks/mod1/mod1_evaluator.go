@@ -9,19 +9,18 @@ import (
 	"github.com/tuneinsight/lattigo/v5/schemes/ckks"
 )
 
-// Mod1Evaluator is an evaluator providing an API for homomorphic evaluations of scaled x mod 1.
+// Evaluator is an evaluator providing an API for homomorphic evaluations of scaled x mod 1.
 // All fields of this struct are public, enabling custom instantiations.
-type Mod1Evaluator struct {
+type Evaluator struct {
 	*ckks.Evaluator
-	PolynomialEvaluator *polynomial.PolynomialEvaluator
-	Mod1Parameters      Mod1Parameters
+	PolynomialEvaluator *polynomial.Evaluator
+	Parameters          Parameters
 }
 
-// NewMod1Evaluator instantiates a new Mod1Evaluator evaluator.
-// The default hefloat.Evaluator is compliant to the EvaluatorForMod1 interface.
+// NewEvaluator instantiates a new [Evaluator] evaluator from [ckks.Evaluator].
 // This method is allocation free.
-func NewMod1Evaluator(eval *ckks.Evaluator, evalPoly *polynomial.PolynomialEvaluator, Mod1Parameters Mod1Parameters) *Mod1Evaluator {
-	return &Mod1Evaluator{Evaluator: eval, PolynomialEvaluator: evalPoly, Mod1Parameters: Mod1Parameters}
+func NewEvaluator(eval *ckks.Evaluator, evalPoly *polynomial.Evaluator, Mod1Parameters Parameters) *Evaluator {
+	return &Evaluator{Evaluator: eval, PolynomialEvaluator: evalPoly, Parameters: Mod1Parameters}
 }
 
 // EvaluateNew applies a homomorphic mod Q on a vector scaled by Delta, scaled down to mod 1 :
@@ -38,11 +37,11 @@ func NewMod1Evaluator(eval *ckks.Evaluator, evalPoly *polynomial.PolynomialEvalu
 // !! Assumes that the input is normalized by 1/K for K the range of the approximation.
 //
 // Scaling back error correction by 2^{round(log(Q))}/Q afterward is included in the polynomial
-func (eval Mod1Evaluator) EvaluateNew(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, error) {
+func (eval Evaluator) EvaluateNew(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, error) {
 
 	var err error
 
-	evm := eval.Mod1Parameters
+	evm := eval.Parameters
 
 	if ct.Level() < evm.LevelQ {
 		return nil, fmt.Errorf("cannot Evaluate: ct.Level() < Mod1Parameters.LevelQ")

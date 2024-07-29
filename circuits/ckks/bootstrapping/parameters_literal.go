@@ -131,7 +131,7 @@ type ParametersLiteral struct {
 	EvalModLogScale                             *int                        // Default: 60
 	EphemeralSecretWeight                       *int                        // Default: 32
 	IterationsParameters                        *IterationsParameters       // Default: nil (default starting level of 0 and 1 iteration)
-	Mod1Type                                    mod1.Mod1Type               // Default: mod1.CosDiscrete
+	Mod1Type                                    mod1.Type                   // Default: mod1.CosDiscrete
 	LogMessageRatio                             *int                        // Default: 8
 	K                                           *int                        // Default: 16
 	Mod1Degree                                  *int                        // Default: 30
@@ -397,7 +397,7 @@ func (p ParametersLiteral) GetK() (K int, err error) {
 
 // GetMod1Type returns the Mod1Type field of the target ParametersLiteral.
 // The default value DefaultMod1Type is returned if the field is nil.
-func (p ParametersLiteral) GetMod1Type() (Mod1Type mod1.Mod1Type) {
+func (p ParametersLiteral) GetMod1Type() (Mod1Type mod1.Type) {
 	return p.Mod1Type
 }
 

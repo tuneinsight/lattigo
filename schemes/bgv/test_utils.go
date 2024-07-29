@@ -105,16 +105,3 @@ func NewTestVector(params Parameters, encoder *Encoder, encryptor *rlwe.Encrypto
 	}
 	return
 }
-
-var (
-	// BgvTestInsecure are insecure parameters used for the sole purpose of fast testing.
-	TestInsecure = ParametersLiteral{
-		LogN: 10,
-		Q:    []uint64{0x3fffffa8001, 0x1000090001, 0x10000c8001, 0x10000f0001, 0xffff00001},
-		P:    []uint64{0x7fffffd8001},
-	}
-
-	TestPlaintextModulus = []uint64{0x101, 0xffc001}
-
-	TestParams = []ParametersLiteral{TestInsecure}
-)

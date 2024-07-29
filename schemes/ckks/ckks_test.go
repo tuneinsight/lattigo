@@ -32,7 +32,7 @@ func TestCKKS(t *testing.T) {
 			t.Fatal(err)
 		}
 	default:
-		testParams = TestParametersLiteral
+		testParams = testParametersLiteral
 	}
 
 	for _, ringType := range []ring.Type{ring.Standard, ring.ConjugateInvariant} {

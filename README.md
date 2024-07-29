@@ -25,32 +25,25 @@ is a common choice thanks to its natural concurrency model and portability.
   <img width=500 height=350 alt="lattigo-hierarchy" src="./lattigo-hierarchy.svg">
 </p>
 
-The library exposes the following packages:
+Lattigo is a strictly hierarchical library whose packages form a linear dependency chain ranging from
+low-level arithmetic functionalities to high-level homomorphic circuits. A graphical depiction of the
+Lattigo package organization is given in the Figure above.
 
-- `lattigo/he`: The main package of the library which provides scheme-agnostic interfaces
-  and Homomorphic Encryption for different plaintext domains.
+- `lattigo/ring`: At the lowest level resides the `ring` package providing modular arithmetic operations for polynomials
+  in the RNS basis, including: RNS basis extension; RNS rescaling; number theoretic transform (NTT); uniform,
+  Gaussian and ternary sampling.
+  
+  - `lattigo/core`: This package implements the core cryptographic functionalities of the library and builds directly
+    upon the arithmetic functionalities provided by the `ring` package:
 
-  - `hebin`: Homomorphic Encryption for binary arithmetic. It comprises blind rotations (a.k.a Lookup Tables) over RLWE ciphertexts.
+	- `rlwe`: Common base for generic RLWE-based homomorphic encryption.
+      It provides all homomorphic functionalities and defines all structs that are not scheme-specific.
+      This includes plaintext, ciphertext, key-generation, encryption, decryption and key-switching, as
+      well as other more advanced primitives such as RLWE-repacking.
 
-  - `hefloat`: Homomorphic Encryption for fixed-point approximate arithmetic over the complex or real numbers.
-
-    - `bootstrapping`: Bootstrapping for fixed-point approximate arithmetic over the real
-      and complex numbers, with support for the Conjugate Invariant ring, batch bootstrapping with automatic
-      packing/unpacking of sparsely packed/smaller ring degree ciphertexts, arbitrary precision bootstrapping,
-      and advanced circuit customization/parameterization.
-
-  - `heint`: Homomorphic Encryption for modular arithmetic over the integers.
-
-- `lattigo/mhe`: Package for multiparty (a.k.a. distributed or threshold) key-generation and 
-  interactive ciphertext bootstrapping with secret-shared secret keys.
-
-  - `mhefloat`: Homomorphic decryption and re-encryption from and to Linear-Secret-Sharing-Shares, 
-    as well as interactive ciphertext bootstrapping for the package `he/hefloat`.
-
-  - `mheint`: Homomorphic decryption and re-encryption from and to Linear-Secret-Sharing-Shares, 
-    as well as interactive ciphertext bootstrapping for the package `he/heint`.
-
-- `lattigo/schemes`: A package implementing RLWE-based homomorphic encryption schemes.
+    - `rgsw`: A Full-RNS variant of Ring-GSW ciphertexts and the external product.
+	
+- `lattigo/schemes`: The implementation of RLWE-based homomorphic encryption schemes are found in the `schemes` package:
 
   - `bfv`: A Full-RNS variant of the Brakerski-Fan-Vercauteren scale-invariant homomorphic
     encryption scheme. This scheme is instantiated via a wrapper of the `bgv` scheme. 
@@ -63,19 +56,39 @@ The library exposes the following packages:
   - `ckks`: A Full-RNS Homomorphic Encryption for Arithmetic for Approximate Numbers (HEAAN,
     a.k.a. CKKS) scheme. It provides fixed-point approximate arithmetic over the complex numbers (in its classic
     variant) and over the real numbers (in its conjugate-invariant variant).
+	
+- `lattigo/circuits`: The circuits package provides implementation of a select set of homomorphic circuits for
+  the `bgv` and `ckks` cryptosystems:
+  
+  - `bgv/lintrans`, `ckks/lintrans`: Arbitrary linear transformations and slot permutations for both `bgv` and `ckks`.
+    Scheme-generic objects and functions are part of `common/lintrans`.
 
-- `lattigo/core`: A package implementing the core cryptographic functionalities of the library.
+  - `bgv/polynomial`, `ckks/polynomial`: Polynomial evaluation circuits for `bgv` and `ckks`.
+    Scheme-generic objects and functions are part of `common/polynomial`.
+	
+  - `ckks/minimax`: Minimax composite polynomial evaluator for `ckks`.
+  
+  - `ckks/comparison`: Homomorphic comparison-based circuits such as `sign`, `max` and `step` for the `ckks` scheme.
+  
+  - `ckks/inverse`: Homomorphic inverse circuit for `ckks`.
+  
+  - `ckks/mod1`: Homomorphic circuit for the `mod1` function using the `ckks` cryptosystem.
+  
+  - `ckks/dft`: Homomorphic Discrete Fourier Transform circuits for the `ckks` scheme.
+  
+  - `ckks/bootstrapping`: Bootstrapping for fixed-point approximate arithmetic over the real
+     and complex numbers, i.e., the `ckks` scheme, with support for the Conjugate Invariant ring, batch bootstrapping with automatic
+     packing/unpacking of sparsely packed/smaller ring degree ciphertexts, arbitrary precision bootstrapping,
+     and advanced circuit customization/parameterization.
 
-  - `rlwe`: Common base for generic RLWE-based homomorphic encryption.
-  It provides all homomorphic functionalities and defines all structs that are not scheme-specific.
-  This includes plaintext, ciphertext, key-generation, encryption, decryption and key-switching, as
-  well as other more advanced primitives such as RLWE-repacking.
+- `lattigo/multiparty`: Package for multiparty (a.k.a. distributed or threshold) key-generation and 
+  interactive ciphertext bootstrapping with secret-shared secret keys.
 
-  - `rgsw`: A Full-RNS variant of Ring-GSW ciphertexts and the external product.
+  - `mpckks`: Homomorphic decryption and re-encryption from and to Linear-Secret-Sharing-Shares, 
+    as well as interactive ciphertext bootstrapping for the `schemes/ckks` package.
 
-- `lattigo/ring`: Modular arithmetic operations for polynomials in the RNS basis, including: RNS
-  basis extension; RNS rescaling; number theoretic transform (NTT); uniform, Gaussian and ternary
-  sampling.
+  - `mpbgv`: Homomorphic decryption and re-encryption from and to Linear-Secret-Sharing-Shares, 
+    as well as interactive ciphertext bootstrapping for the `schemes/bgv` package.
 
 - `lattigo/examples`: Executable Go programs that demonstrate the use of the Lattigo library. Each
                       subpackage includes test files that further demonstrate the use of Lattigo
@@ -87,30 +100,6 @@ The library exposes the following packages:
   - `factorization`: Various factorization algorithms for medium-sized integers.
   - `sampling`: Secure bytes sampling.
   - `structs`: Generic structs for maps, vectors and matrices, including serialization.
-
-```mermaid
----
-title: Packages Dependency & Organization
----
-flowchart LR
-RING(RING) --> RLWE(RLWE)
-RLWE --> RGSW(RGSW)
-RLWE --> HE([HE])
-RLWE --> CKKS{{CKKS}}
-RGSW --> HEBin{HEBin}
-HE --> HEFloat{HEFloat}
-HE --> HEInt{HEInt}
-HE --> HEBin
-BFV/BGV --> HEInt
-CKKS --> HEFloat
-RLWE --> BFV/BGV{{BFV/BGV}}
-MHE --> MHEFloat
-HEFloat --> MHEFloat((MHEFloat))
-HEFloat --> Bootstrapping
-HEInt --> MHEInt((MHEInt))
-RLWE --> MHE([MHE])
-MHE --> MHEInt
-```
 
 ### Documentation
 

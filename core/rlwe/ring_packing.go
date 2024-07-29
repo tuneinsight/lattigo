@@ -798,7 +798,7 @@ func GenXPow2NTT(r *ring.Ring, logN int, div bool) (xPow []ring.Poly) {
 	xPow = make([]ring.Poly, logN)
 
 	moduli := r.ModuliChain()[:r.Level()+1]
-	BRC := r.GetBRedConstants()
+	BRC := r.BRedConstants()
 
 	var idx int
 	for i := 0; i < logN; i++ {

@@ -10,24 +10,23 @@ import (
 	"github.com/tuneinsight/lattigo/v5/schemes/ckks"
 )
 
-// MinimaxCompositePolynomialEvaluator is an evaluator used to evaluate composite polynomials on ciphertexts.
+// Evaluator is an evaluator used to evaluate composite polynomials on ciphertexts.
 // All fields of this struct are publics, enabling custom instantiations.
-type MinimaxCompositePolynomialEvaluator struct {
+type Evaluator struct {
 	*ckks.Evaluator
-	*polynomial.PolynomialEvaluator
+	PolyEval   *polynomial.Evaluator
 	BtsEval    bootstrapping.Bootstrapper
 	Parameters ckks.Parameters
 }
 
-// NewMinimaxCompositePolynomialEvaluator instantiates a new MinimaxCompositePolynomialEvaluator.
-// The default hefloat.Evaluator is compliant to the EvaluatorForMinimaxCompositePolynomial interface.
+// NewEvaluator instantiates a new Evaluator.
 // This method is allocation free.
-func NewMinimaxCompositePolynomialEvaluator(params ckks.Parameters, eval *ckks.Evaluator, btsEval bootstrapping.Bootstrapper) *MinimaxCompositePolynomialEvaluator {
-	return &MinimaxCompositePolynomialEvaluator{eval, polynomial.NewPolynomialEvaluator(params, eval), btsEval, params}
+func NewEvaluator(params ckks.Parameters, eval *ckks.Evaluator, btsEval bootstrapping.Bootstrapper) *Evaluator {
+	return &Evaluator{eval, polynomial.NewEvaluator(params, eval), btsEval, params}
 }
 
 // Evaluate evaluates the provided MinimaxCompositePolynomial on the input ciphertext.
-func (eval MinimaxCompositePolynomialEvaluator) Evaluate(ct *rlwe.Ciphertext, mcp MinimaxCompositePolynomial) (res *rlwe.Ciphertext, err error) {
+func (eval Evaluator) Evaluate(ct *rlwe.Ciphertext, mcp Polynomial) (res *rlwe.Ciphertext, err error) {
 
 	params := eval.Parameters
 
@@ -62,7 +61,7 @@ func (eval MinimaxCompositePolynomialEvaluator) Evaluate(ct *rlwe.Ciphertext, mc
 		}
 
 		// Evaluate the polynomial
-		if res, err = eval.PolynomialEvaluator.Evaluate(res, poly, targetScale); err != nil {
+		if res, err = eval.PolyEval.Evaluate(res, poly, targetScale); err != nil {
 			return nil, fmt.Errorf("evaluate polynomial: %w", err)
 		}
 

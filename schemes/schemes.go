@@ -2,12 +2,14 @@ package schemes
 
 import "github.com/tuneinsight/lattigo/v5/core/rlwe"
 
+// Encoder is a scheme-agnostic encoding interface.
 type Encoder interface {
 	Encode(values interface{}, pt *rlwe.Plaintext) error
 	Decode(pt *rlwe.Plaintext, values interface{}) error
 	Embed(values interface{}, metadata *rlwe.MetaData, polyOut interface{}) error
 }
 
+// Evaluator is a scheme-agnostic evaluator interface.
 type Evaluator interface {
 	rlwe.ParameterProvider
 	rlwe.EvaluatorProvider

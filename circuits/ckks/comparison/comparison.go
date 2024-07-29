@@ -10,17 +10,16 @@ import (
 	"github.com/tuneinsight/lattigo/v5/utils/bignum"
 )
 
-// ComparisonEvaluator is an evaluator providing an API for homomorphic comparisons.
+// Evaluator is an evaluator providing an API for homomorphic comparisons.
 // All fields of this struct are public, enabling custom instantiations.
-type ComparisonEvaluator struct {
+type Evaluator struct {
 	Parameters ckks.Parameters
-	*minimax.MinimaxCompositePolynomialEvaluator
-	MinimaxCompositeSignPolynomial minimax.MinimaxCompositePolynomial
+	*minimax.Evaluator
+	MinimaxCompositeSignPolynomial minimax.Polynomial
 }
 
-// NewComparisonEvaluator instantiates a new ComparisonEvaluator.
-// The default hefloat.Evaluator is compliant with the EvaluatorForMinimaxCompositePolynomial interface.
-// The field he.Bootstrapper[rlwe.Ciphertext] can be nil if the parameters have enough level to support the computation.
+// NewEvaluator instantiates a new ComparisonEvaluator.
+// The default ckks.Evaluator is compliant with the EvaluatorForMinimaxCompositePolynomial interface.
 //
 // Giving a MinimaxCompositePolynomial is optional, but it is highly recommended to provide one that is optimized
 // for the circuit requiring the comparisons as this polynomial will define the internal precision of all computations
@@ -34,23 +33,23 @@ type ComparisonEvaluator struct {
 // See the doc of DefaultMinimaxCompositePolynomialForSign for additional information about the performance of this approximation.
 //
 // This method is allocation free if a MinimaxCompositePolynomial is given.
-func NewComparisonEvaluator(params ckks.Parameters, eval *minimax.MinimaxCompositePolynomialEvaluator, signPoly ...minimax.MinimaxCompositePolynomial) *ComparisonEvaluator {
+func NewEvaluator(params ckks.Parameters, eval *minimax.Evaluator, signPoly ...minimax.Polynomial) *Evaluator {
 	if len(signPoly) == 1 {
-		return &ComparisonEvaluator{
-			Parameters:                          params,
-			MinimaxCompositePolynomialEvaluator: eval,
-			MinimaxCompositeSignPolynomial:      signPoly[0],
+		return &Evaluator{
+			Parameters:                     params,
+			Evaluator:                      eval,
+			MinimaxCompositeSignPolynomial: signPoly[0],
 		}
 	} else {
-		return &ComparisonEvaluator{
-			Parameters:                          params,
-			MinimaxCompositePolynomialEvaluator: eval,
-			MinimaxCompositeSignPolynomial:      minimax.NewMinimaxCompositePolynomial(DefaultMinimaxCompositePolynomialForSign),
+		return &Evaluator{
+			Parameters:                     params,
+			Evaluator:                      eval,
+			MinimaxCompositeSignPolynomial: minimax.NewPolynomial(DefaultCompositePolynomialForSign),
 		}
 	}
 }
 
-// DefaultMinimaxCompositePolynomialForSign is an example of composite minimax polynomial
+// DefaultCompositePolynomialForSign is an example of composite minimax polynomial
 // for the sign function that is able to distinguish between value with a delta of up to
 // 2^{-alpha=30}, tolerates a scheme error of 2^{-35} and outputs a binary value (-1, or 1)
 // of up to 20x4 bits of precision.
@@ -58,7 +57,7 @@ func NewComparisonEvaluator(params ckks.Parameters, eval *minimax.MinimaxComposi
 // It was computed with GenMinimaxCompositePolynomialForSign(256, 30, 35, []int{15, 15, 15, 17, 31, 31, 31, 31})
 // which outputs a minimax composite polynomial of precision 21.926741, which is further composed with
 // CoeffsSignX4Cheby to bring it to ~80bits of precision.
-var DefaultMinimaxCompositePolynomialForSign = [][]string{
+var DefaultCompositePolynomialForSign = [][]string{
 	{"0", "0.6371462957672043333", "0", "-0.2138032460610765328", "0", "0.1300439303835664499", "0", "-0.0948842756566191044", "0", "0.0760417811618939909", "0", "-0.0647714820920817557", "0", "0.0577904411211959048", "0", "-0.5275634328386103792"},
 	{"0", "0.6371463830322414578", "0", "-0.2138032749880402509", "0", "0.1300439475440832118", "0", "-0.0948842877009570762", "0", "0.0760417903036533484", "0", "-0.0647714893343788749", "0", "0.0577904470018789283", "0", "-0.5275633669027163690"},
 	{"0", "0.6371474873319408921", "0", "-0.2138036410457105809", "0", "0.1300441647026617059", "0", "-0.0948844401165889295", "0", "0.0760419059884502454", "0", "-0.0647715809823254389", "0", "0.0577905214191996406", "0", "-0.5275625325136631842"},
@@ -72,13 +71,13 @@ var DefaultMinimaxCompositePolynomialForSign = [][]string{
 
 // Sign evaluates f(x) = 1 if x > 0, -1 if x < 0, else 0.
 // This will ensure that sign.Scale = params.DefaultScale().
-func (eval ComparisonEvaluator) Sign(op0 *rlwe.Ciphertext) (sign *rlwe.Ciphertext, err error) {
+func (eval Evaluator) Sign(op0 *rlwe.Ciphertext) (sign *rlwe.Ciphertext, err error) {
 	return eval.Evaluate(op0, eval.MinimaxCompositeSignPolynomial)
 }
 
 // Step evaluates f(x) = 1 if x > 0, 0 if x < 0, else 0.5 (i.e. (sign+1)/2).
 // This will ensure that step.Scale = params.DefaultScale().
-func (eval ComparisonEvaluator) Step(op0 *rlwe.Ciphertext) (step *rlwe.Ciphertext, err error) {
+func (eval Evaluator) Step(op0 *rlwe.Ciphertext) (step *rlwe.Ciphertext, err error) {
 
 	n := len(eval.MinimaxCompositeSignPolynomial)
 
@@ -108,7 +107,7 @@ func (eval ComparisonEvaluator) Step(op0 *rlwe.Ciphertext) (step *rlwe.Ciphertex
 //   - op0.Scale = op1.Scale.
 //
 // This method ensures that max.Scale = params.DefaultScale.
-func (eval ComparisonEvaluator) Max(op0, op1 *rlwe.Ciphertext) (max *rlwe.Ciphertext, err error) {
+func (eval Evaluator) Max(op0, op1 *rlwe.Ciphertext) (max *rlwe.Ciphertext, err error) {
 
 	// step * diff
 	var stepdiff *rlwe.Ciphertext
@@ -130,7 +129,7 @@ func (eval ComparisonEvaluator) Max(op0, op1 *rlwe.Ciphertext) (max *rlwe.Cipher
 //   - op0.Scale = op1.Scale.
 //
 // This method ensures that min.Scale = params.DefaultScale.
-func (eval ComparisonEvaluator) Min(op0, op1 *rlwe.Ciphertext) (min *rlwe.Ciphertext, err error) {
+func (eval Evaluator) Min(op0, op1 *rlwe.Ciphertext) (min *rlwe.Ciphertext, err error) {
 
 	// step * diff
 	var stepdiff *rlwe.Ciphertext
@@ -146,7 +145,7 @@ func (eval ComparisonEvaluator) Min(op0, op1 *rlwe.Ciphertext) (min *rlwe.Cipher
 	return stepdiff, nil
 }
 
-func (eval ComparisonEvaluator) stepdiff(op0, op1 *rlwe.Ciphertext) (stepdiff *rlwe.Ciphertext, err error) {
+func (eval Evaluator) stepdiff(op0, op1 *rlwe.Ciphertext) (stepdiff *rlwe.Ciphertext, err error) {
 	params := eval.Parameters
 
 	// diff = op0 - op1

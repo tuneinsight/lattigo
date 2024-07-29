@@ -48,7 +48,7 @@ func TestMod1(t *testing.T) {
 func testMod1Marhsalling(t *testing.T) {
 	t.Run("Marshalling", func(t *testing.T) {
 
-		evm := Mod1ParametersLiteral{
+		evm := ParametersLiteral{
 			LevelQ:          12,
 			Mod1Type:        SinContinuous,
 			LogMessageRatio: 8,
@@ -61,7 +61,7 @@ func testMod1Marhsalling(t *testing.T) {
 		data, err := evm.MarshalBinary()
 		assert.Nil(t, err)
 
-		evmNew := new(Mod1ParametersLiteral)
+		evmNew := new(ParametersLiteral)
 		if err := evmNew.UnmarshalBinary(data); err != nil {
 			assert.Nil(t, err)
 		}
@@ -80,7 +80,7 @@ func testMod1(params ckks.Parameters, t *testing.T) {
 
 	t.Run("SineContinuousWithArcSine", func(t *testing.T) {
 
-		evm := Mod1ParametersLiteral{
+		evm := ParametersLiteral{
 			LevelQ:          12,
 			Mod1Type:        SinContinuous,
 			LogMessageRatio: 8,
@@ -97,7 +97,7 @@ func testMod1(params ckks.Parameters, t *testing.T) {
 
 	t.Run("CosDiscrete", func(t *testing.T) {
 
-		evm := Mod1ParametersLiteral{
+		evm := ParametersLiteral{
 			LevelQ:          12,
 			Mod1Type:        CosDiscrete,
 			LogMessageRatio: 8,
@@ -114,7 +114,7 @@ func testMod1(params ckks.Parameters, t *testing.T) {
 
 	t.Run("CosContinuous", func(t *testing.T) {
 
-		evm := Mod1ParametersLiteral{
+		evm := ParametersLiteral{
 			LevelQ:          12,
 			Mod1Type:        CosContinuous,
 			LogMessageRatio: 4,
@@ -130,9 +130,9 @@ func testMod1(params ckks.Parameters, t *testing.T) {
 	})
 }
 
-func evaluateMod1(evm Mod1ParametersLiteral, params ckks.Parameters, ecd *ckks.Encoder, enc *rlwe.Encryptor, eval *ckks.Evaluator, t *testing.T) ([]float64, *rlwe.Ciphertext) {
+func evaluateMod1(evm ParametersLiteral, params ckks.Parameters, ecd *ckks.Encoder, enc *rlwe.Encryptor, eval *ckks.Evaluator, t *testing.T) ([]float64, *rlwe.Ciphertext) {
 
-	mod1Parameters, err := NewMod1ParametersFromLiteral(params, evm)
+	mod1Parameters, err := NewParametersFromLiteral(params, evm)
 	require.NoError(t, err)
 
 	values, _, ciphertext := newTestVectorsMod1(params, enc, ecd, mod1Parameters, t)
@@ -152,7 +152,7 @@ func evaluateMod1(evm Mod1ParametersLiteral, params ckks.Parameters, ecd *ckks.E
 	require.NoError(t, eval.Rescale(ciphertext, ciphertext))
 
 	// EvalMod
-	ciphertext, err = NewMod1Evaluator(eval, polynomial.NewPolynomialEvaluator(params, eval), mod1Parameters).EvaluateNew(ciphertext)
+	ciphertext, err = NewEvaluator(eval, polynomial.NewEvaluator(params, eval), mod1Parameters).EvaluateNew(ciphertext)
 	require.NoError(t, err)
 
 	// PlaintextCircuit
@@ -177,7 +177,7 @@ func evaluateMod1(evm Mod1ParametersLiteral, params ckks.Parameters, ecd *ckks.E
 	return values, ciphertext
 }
 
-func newTestVectorsMod1(params ckks.Parameters, encryptor *rlwe.Encryptor, encoder *ckks.Encoder, evm Mod1Parameters, t *testing.T) (values []float64, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
+func newTestVectorsMod1(params ckks.Parameters, encryptor *rlwe.Encryptor, encoder *ckks.Encoder, evm Parameters, t *testing.T) (values []float64, plaintext *rlwe.Plaintext, ciphertext *rlwe.Ciphertext) {
 
 	logSlots := params.LogMaxDimensions().Cols
 

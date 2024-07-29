@@ -9,12 +9,12 @@ import (
 	"github.com/tuneinsight/lattigo/v5/utils/bignum"
 )
 
-// MinimaxCompositePolynomial is a struct storing P(x) = pk(x) o pk-1(x) o ... o p1(x) o p0(x).
-type MinimaxCompositePolynomial []bignum.Polynomial
+// Polynomial is a struct storing P(x) = pk(x) o pk-1(x) o ... o p1(x) o p0(x).
+type Polynomial []bignum.Polynomial
 
-// NewMinimaxCompositePolynomial creates a new MinimaxCompositePolynomial from a list of coefficients.
+// NewPolynomial creates a new Polynomial from a list of coefficients.
 // Coefficients are expected to be given in the Chebyshev basis.
-func NewMinimaxCompositePolynomial(coeffsStr [][]string) MinimaxCompositePolynomial {
+func NewPolynomial(coeffsStr [][]string) Polynomial {
 	polys := make([]bignum.Polynomial, len(coeffsStr))
 
 	for i := range coeffsStr {
@@ -33,17 +33,17 @@ func NewMinimaxCompositePolynomial(coeffsStr [][]string) MinimaxCompositePolynom
 		polys[i] = poly
 	}
 
-	return MinimaxCompositePolynomial(polys)
+	return Polynomial(polys)
 }
 
-func (mcp MinimaxCompositePolynomial) MaxDepth() (depth int) {
+func (mcp Polynomial) MaxDepth() (depth int) {
 	for i := range mcp {
 		depth = utils.Max(depth, mcp[i].Depth())
 	}
 	return
 }
 
-func (mcp MinimaxCompositePolynomial) Evaluate(x interface{}) (y *bignum.Complex) {
+func (mcp Polynomial) Evaluate(x interface{}) (y *bignum.Complex) {
 	y = mcp[0].Evaluate(x)
 
 	for _, p := range mcp[1:] {

@@ -10,17 +10,17 @@ import (
 	"github.com/tuneinsight/lattigo/v5/schemes/bgv"
 )
 
-type PolynomialEvaluator struct {
+type Evaluator struct {
 	bgv.Parameters
-	polynomial.PolynomialEvaluator[uint64]
+	polynomial.Evaluator[uint64]
 	InvariantTensoring bool
 }
 
-// NewPolynomialEvaluator instantiates a new PolynomialEvaluator from a circuit.Evaluator.
-// The default heint.Evaluator is compliant to the circuit.Evaluator interface.
+// NewEvaluator instantiates a new PolynomialEvaluator from a [schemes.Evaluator].
+// The default [bgv.Evaluator] is compliant to the [schemes.Evaluator] interface.
 // InvariantTensoring is a boolean that specifies if the evaluator performed the invariant tensoring (BFV-style) or
-// the regular tensoring (BGB-style).
-func NewPolynomialEvaluator(params bgv.Parameters, eval schemes.Evaluator, InvariantTensoring bool) *PolynomialEvaluator {
+// the regular tensoring (BGV-style).
+func NewEvaluator(params bgv.Parameters, eval schemes.Evaluator, InvariantTensoring bool) *Evaluator {
 
 	var evalForPoly schemes.Evaluator
 
@@ -41,9 +41,9 @@ func NewPolynomialEvaluator(params bgv.Parameters, eval schemes.Evaluator, Invar
 		evalForPoly = eval
 	}
 
-	return &PolynomialEvaluator{
+	return &Evaluator{
 		Parameters: params,
-		PolynomialEvaluator: polynomial.PolynomialEvaluator[uint64]{
+		Evaluator: polynomial.Evaluator[uint64]{
 			Evaluator:         evalForPoly,
 			CoefficientGetter: CoefficientGetter{values: make([]uint64, params.MaxSlots())},
 		},
@@ -56,10 +56,10 @@ func NewPolynomialEvaluator(params bgv.Parameters, eval schemes.Evaluator, Invar
 // Returns an error if something is wrong with the scale.
 // If the polynomial is given in Chebyshev basis, then a change of basis ct' = (2/(b-a)) * (ct + (-a-b)/(b-a))
 // is necessary before the polynomial evaluation to ensure correctness.
-// pol: a *bignum.Polynomial, *Polynomial or *PolynomialVector
+// pol: a *[bignum.Polynomial], *[Polynomial] or *[PolynomialVector]
 // targetScale: the desired output scale. This value shouldn't differ too much from the original ciphertext scale. It can
 // for example be used to correct small deviations in the ciphertext scale and reset it to the default scale.
-func (eval PolynomialEvaluator) Evaluate(ct *rlwe.Ciphertext, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
+func (eval Evaluator) Evaluate(ct *rlwe.Ciphertext, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 
 	var phe interface{}
 	switch p := p.(type) {
@@ -71,13 +71,13 @@ func (eval PolynomialEvaluator) Evaluate(ct *rlwe.Ciphertext, p interface{}, tar
 		phe = p
 	}
 
-	return eval.EvaluatePolynomial(ct, phe, targetScale, 1, &simEvaluator{eval.Parameters, eval.InvariantTensoring})
+	return eval.Evaluator.Evaluate(ct, phe, targetScale, 1, &simEvaluator{eval.Parameters, eval.InvariantTensoring})
 }
 
-// EvaluateFromPowerBasis evaluates a polynomial using the provided PowerBasis, holding pre-computed powers of X.
+// EvaluateFromPowerBasis evaluates a polynomial using the provided [polynomial.PowerBasis], holding pre-computed powers of X.
 // This method is the same as Evaluate except that the encrypted input is a PowerBasis.
-// See Evaluate for additional information.
-func (eval PolynomialEvaluator) EvaluateFromPowerBasis(pb polynomial.PowerBasis, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
+// See [Evaluate] for additional information.
+func (eval Evaluator) EvaluateFromPowerBasis(pb polynomial.PowerBasis, p interface{}, targetScale rlwe.Scale) (opOut *rlwe.Ciphertext, err error) {
 
 	var phe interface{}
 	switch p := p.(type) {
@@ -93,11 +93,10 @@ func (eval PolynomialEvaluator) EvaluateFromPowerBasis(pb polynomial.PowerBasis,
 		return nil, fmt.Errorf("cannot EvaluateFromPowerBasis: X^{1} is nil")
 	}
 
-	return eval.EvaluatePolynomial(pb, phe, targetScale, 1, &simEvaluator{eval.Parameters, eval.InvariantTensoring})
+	return eval.Evaluator.Evaluate(pb, phe, targetScale, 1, &simEvaluator{eval.Parameters, eval.InvariantTensoring})
 }
 
-// scaleInvariantEvaluator is a struct implementing the interface he.Evaluator with
-// scale invariant tensoring (BFV-style).
+// scaleInvariantEvaluator is a struct containing a [bfv.Evaluator] with scale invariant tensoring (BFV-style).
 type scaleInvariantEvaluator struct {
 	*bgv.Evaluator
 }
@@ -123,14 +122,14 @@ func (polyEval scaleInvariantEvaluator) Rescale(op0, op1 *rlwe.Ciphertext) (err 
 }
 
 // CoefficientGetter is a struct that implements the
-// he.CoefficientGetter[uint64] interface.
+// [polynomial.CoefficientGetter][uint64] interface.
 type CoefficientGetter struct {
 	values []uint64
 }
 
 // GetVectorCoefficient return a slice []uint64 containing the k-th coefficient
 // of each polynomial of PolynomialVector indexed by its Mapping.
-// See PolynomialVector for additional information about the Mapping.
+// See [PolynomialVector] for additional information about the Mapping.
 func (c CoefficientGetter) GetVectorCoefficient(pol polynomial.PolynomialVector, k int) (values []uint64) {
 
 	values = c.values

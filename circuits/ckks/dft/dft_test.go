@@ -25,7 +25,7 @@ func TestHomomorphicDFT(t *testing.T) {
 
 	testDFTMatrixLiteralMarshalling(t)
 
-	for _, paramsLiteral := range ckks.TestParametersLiteral {
+	for _, paramsLiteral := range testParametersLiteral {
 
 		var params ckks.Parameters
 		if params, err = ckks.NewParametersFromLiteral(paramsLiteral); err != nil {
@@ -46,7 +46,7 @@ func TestHomomorphicDFT(t *testing.T) {
 
 func testDFTMatrixLiteralMarshalling(t *testing.T) {
 	t.Run("Marshalling", func(t *testing.T) {
-		m := DFTMatrixLiteral{
+		m := MatrixLiteral{
 			LogSlots:     15,
 			Type:         HomomorphicDecode,
 			Format:       RepackImagAsReal,
@@ -60,7 +60,7 @@ func testDFTMatrixLiteralMarshalling(t *testing.T) {
 		data, err := m.MarshalBinary()
 		require.Nil(t, err)
 
-		mNew := new(DFTMatrixLiteral)
+		mNew := new(MatrixLiteral)
 		if err := mNew.UnmarshalBinary(data); err != nil {
 			require.Nil(t, err)
 		}
@@ -118,7 +118,7 @@ func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T)
 			Levels[i] = 1
 		}
 
-		CoeffsToSlotsParametersLiteral := DFTMatrixLiteral{
+		CoeffsToSlotsParametersLiteral := MatrixLiteral{
 			LogSlots: LogSlots,
 			Type:     HomomorphicEncode,
 			Format:   RepackImagAsReal,
@@ -134,7 +134,7 @@ func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T)
 		decryptor := rlwe.NewDecryptor(params, sk)
 
 		// Generates the encoding matrices
-		CoeffsToSlotMatrices, err := NewDFTMatrixFromLiteral(params, CoeffsToSlotsParametersLiteral, encoder)
+		CoeffsToSlotMatrices, err := NewMatrixFromLiteral(params, CoeffsToSlotsParametersLiteral, encoder)
 		require.NoError(t, err)
 
 		// Gets Galois elements
@@ -146,7 +146,7 @@ func testHomomorphicEncoding(params ckks.Parameters, LogSlots int, t *testing.T)
 
 		// Creates an evaluator with the rotation keys
 		eval := ckks.NewEvaluator(params, evk)
-		hdftEval := NewDFTEvaluator(params, eval)
+		hdftEval := NewEvaluator(params, eval)
 
 		prec := params.EncodingPrecision()
 
@@ -323,7 +323,7 @@ func testHomomorphicDecoding(params ckks.Parameters, LogSlots int, t *testing.T)
 			Levels[i] = 1
 		}
 
-		SlotsToCoeffsParametersLiteral := DFTMatrixLiteral{
+		SlotsToCoeffsParametersLiteral := MatrixLiteral{
 			LogSlots: LogSlots,
 			Type:     HomomorphicDecode,
 			Format:   RepackImagAsReal,
@@ -339,7 +339,7 @@ func testHomomorphicDecoding(params ckks.Parameters, LogSlots int, t *testing.T)
 		decryptor := rlwe.NewDecryptor(params, sk)
 
 		// Generates the encoding matrices
-		SlotsToCoeffsMatrix, err := NewDFTMatrixFromLiteral(params, SlotsToCoeffsParametersLiteral, encoder)
+		SlotsToCoeffsMatrix, err := NewMatrixFromLiteral(params, SlotsToCoeffsParametersLiteral, encoder)
 		require.NoError(t, err)
 
 		// Gets the Galois elements
@@ -351,7 +351,7 @@ func testHomomorphicDecoding(params ckks.Parameters, LogSlots int, t *testing.T)
 
 		// Creates an evaluator with the rotation keys
 		eval := ckks.NewEvaluator(params, evk)
-		hdftEval := NewDFTEvaluator(params, eval)
+		hdftEval := NewEvaluator(params, eval)
 
 		prec := params.EncodingPrecision()
 
@@ -430,3 +430,23 @@ func testHomomorphicDecoding(params ckks.Parameters, LogSlots int, t *testing.T)
 		ckks.VerifyTestVectors(params, encoder, decryptor, valuesReal, valuesTest, params.LogDefaultScale(), 0, true, t)
 	})
 }
+
+var (
+	// testInsecurePrec45 are insecure parameters used for the sole purpose of fast testing.
+	testInsecurePrec45 = ckks.ParametersLiteral{
+		LogN:            10,
+		LogQ:            []int{55, 45, 45, 45, 45, 45, 45},
+		LogP:            []int{60},
+		LogDefaultScale: 45,
+	}
+
+	// testInsecurePrec90 are insecure parameters used for the sole purpose of fast testing.
+	testInsecurePrec90 = ckks.ParametersLiteral{
+		LogN:            10,
+		LogQ:            []int{55, 55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45},
+		LogP:            []int{60, 60},
+		LogDefaultScale: 90,
+	}
+
+	testParametersLiteral = []ckks.ParametersLiteral{testInsecurePrec45, testInsecurePrec90}
+)

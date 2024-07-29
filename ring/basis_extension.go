@@ -287,10 +287,10 @@ func ModUpExact(p1, p2 [][]uint64, ringQ, ringP *Ring, MUC ModUpConstants) {
 	levelP := len(p2) - 1
 
 	Q := ringQ.ModuliChain()
-	mredQ := ringQ.GetMRedConstants()
+	mredQ := ringQ.MRedConstants()
 
 	P := ringP.ModuliChain()
-	mredP := ringP.GetMRedConstants()
+	mredP := ringP.MRedConstants()
 
 	vtimesqmodp := MUC.vtimesqmodp
 	qoverqiinvqi := MUC.qoverqiinvqi
@@ -403,14 +403,14 @@ func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, BaseRNSDec
 		var pos, neg, coeff, tmp uint64
 
 		Q := ringQ.ModuliChain()
-		BRCQ := ringQ.GetBRedConstants()
+		BRCQ := ringQ.BRedConstants()
 
 		var P []uint64
 		var BRCP [][2]uint64
 
 		if ringP != nil {
 			P = ringP.ModuliChain()
-			BRCP = ringP.GetBRedConstants()
+			BRCP = ringP.BRedConstants()
 		}
 
 		for j := 0; j < N; j++ {
@@ -452,8 +452,8 @@ func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, BaseRNSDec
 
 		Q := ringQ.ModuliChain()
 		P := ringP.ModuliChain()
-		mredQ := ringQ.GetMRedConstants()
-		mredP := ringP.GetMRedConstants()
+		mredQ := ringQ.MRedConstants()
+		mredP := ringP.MRedConstants()
 		qoverqiinvqi := MUC.qoverqiinvqi
 		vtimesqmodp := MUC.vtimesqmodp
 		qoverqimodp := MUC.qoverqimodp
@@ -509,20 +509,20 @@ func reconstructRNSCentered(start, end, x int, p [][]uint64, v *[8]uint64, vi *[
 		qqiinv := qoverqiinvqi[i]
 		qi := Q[j]
 		qHalf := QHalfModqi[i]
-		GenMRedConstant := mredQ[j]
+		mredConstant := mredQ[j]
 		qif := float64(qi)
 
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p[j])%8 != 0 */
 		px := (*[8]uint64)(unsafe.Pointer(&p[j][x]))
 
-		y0[i] = MRed(px[0]+qHalf, qqiinv, qi, GenMRedConstant)
-		y1[i] = MRed(px[1]+qHalf, qqiinv, qi, GenMRedConstant)
-		y2[i] = MRed(px[2]+qHalf, qqiinv, qi, GenMRedConstant)
-		y3[i] = MRed(px[3]+qHalf, qqiinv, qi, GenMRedConstant)
-		y4[i] = MRed(px[4]+qHalf, qqiinv, qi, GenMRedConstant)
-		y5[i] = MRed(px[5]+qHalf, qqiinv, qi, GenMRedConstant)
-		y6[i] = MRed(px[6]+qHalf, qqiinv, qi, GenMRedConstant)
-		y7[i] = MRed(px[7]+qHalf, qqiinv, qi, GenMRedConstant)
+		y0[i] = MRed(px[0]+qHalf, qqiinv, qi, mredConstant)
+		y1[i] = MRed(px[1]+qHalf, qqiinv, qi, mredConstant)
+		y2[i] = MRed(px[2]+qHalf, qqiinv, qi, mredConstant)
+		y3[i] = MRed(px[3]+qHalf, qqiinv, qi, mredConstant)
+		y4[i] = MRed(px[4]+qHalf, qqiinv, qi, mredConstant)
+		y5[i] = MRed(px[5]+qHalf, qqiinv, qi, mredConstant)
+		y6[i] = MRed(px[6]+qHalf, qqiinv, qi, mredConstant)
+		y7[i] = MRed(px[7]+qHalf, qqiinv, qi, mredConstant)
 
 		// Computation of the correction term v * Q%pi
 		vi[0] += float64(y0[i]) / qif

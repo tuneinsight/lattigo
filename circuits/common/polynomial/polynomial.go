@@ -11,7 +11,7 @@ import (
 
 // Polynomial is a struct for representing plaintext polynomials
 // for their homomorphic evaluation in an encrypted point. The
-// type wraps a bignum.Polynomial along with several evaluation-
+// type wraps a [bignum.Polynomial] along with several evaluation-
 // related parameters.
 type Polynomial struct {
 	bignum.Polynomial
@@ -23,7 +23,7 @@ type Polynomial struct {
 }
 
 // NewPolynomial returns an instantiated Polynomial for the
-// provided bignum.Polynomial.
+// provided [bignum.Polynomial].
 func NewPolynomial(poly bignum.Polynomial) Polynomial {
 	return Polynomial{
 		Polynomial: poly,
@@ -68,9 +68,9 @@ type PatersonStockmeyerPolynomial struct {
 	Value  []Polynomial
 }
 
-// GetPatersonStockmeyerPolynomial returns the Paterson Stockmeyer polynomial decomposition of the target polynomial.
+// PatersonStockmeyerPolynomial returns the Paterson Stockmeyer polynomial decomposition of the target polynomial.
 // The decomposition is done with the power of two basis.
-func (p Polynomial) GetPatersonStockmeyerPolynomial(params rlwe.ParameterProvider, inputLevel int, inputScale, outputScale rlwe.Scale, eval SimEvaluator) PatersonStockmeyerPolynomial {
+func (p Polynomial) PatersonStockmeyerPolynomial(params rlwe.ParameterProvider, inputLevel int, inputScale, outputScale rlwe.Scale, eval SimEvaluator) PatersonStockmeyerPolynomial {
 
 	// ceil(log2(degree))
 	logDegree := bits.Len64(uint64(p.Degree()))
@@ -232,12 +232,12 @@ type PatersonStockmeyerPolynomialVector struct {
 	Mapping map[int][]int
 }
 
-// GetPatersonStockmeyerPolynomial returns the Paterson Stockmeyer polynomial decomposition of the target PolynomialVector.
+// PatersonStockmeyerPolynomial returns the Paterson Stockmeyer polynomial decomposition of the target PolynomialVector.
 // The decomposition is done with the power of two basis
-func (p PolynomialVector) GetPatersonStockmeyerPolynomial(params rlwe.Parameters, inputLevel int, inputScale, outputScale rlwe.Scale, eval SimEvaluator) PatersonStockmeyerPolynomialVector {
+func (p PolynomialVector) PatersonStockmeyerPolynomial(params rlwe.Parameters, inputLevel int, inputScale, outputScale rlwe.Scale, eval SimEvaluator) PatersonStockmeyerPolynomialVector {
 	Value := make([]PatersonStockmeyerPolynomial, len(p.Value))
 	for i := range Value {
-		Value[i] = p.Value[i].GetPatersonStockmeyerPolynomial(params, inputLevel, inputScale, outputScale, eval)
+		Value[i] = p.Value[i].PatersonStockmeyerPolynomial(params, inputLevel, inputScale, outputScale, eval)
 	}
 
 	return PatersonStockmeyerPolynomialVector{

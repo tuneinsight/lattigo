@@ -6,7 +6,7 @@ import (
 	"github.com/tuneinsight/lattigo/v5/utils/bignum"
 )
 
-// Polynomial is a type wrapping the type he.Polynomial.
+// Polynomial is a type wrapping the type [polynomial.Polynomial].
 type Polynomial polynomial.Polynomial
 
 // NewPolynomial creates a new Polynomial from a list of coefficients []T.
@@ -14,10 +14,10 @@ func NewPolynomial[T bgv.Integer](coeffs []T) Polynomial {
 	return Polynomial(polynomial.NewPolynomial(bignum.NewPolynomial(bignum.Monomial, coeffs, nil)))
 }
 
-// PolynomialVector is a type wrapping the type he.PolynomialVector.
+// PolynomialVector is a type wrapping the type [polynomial.PolynomialVector].
 type PolynomialVector polynomial.PolynomialVector
 
-// Depth returns the depth of the target PolynomialVector.
+// Depth returns the depth of the target [PolynomialVector].
 func (p PolynomialVector) Depth() int {
 	return p.Value[0].Depth()
 }

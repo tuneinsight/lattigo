@@ -21,11 +21,11 @@ type Parameters struct {
 	// BootstrappingParameters: Parameters during the bootstrapping circuit
 	BootstrappingParameters ckks.Parameters
 	// SlotsToCoeffsParameters Parameters of the homomorphic decoding linear transformation
-	SlotsToCoeffsParameters dft.DFTMatrixLiteral
+	SlotsToCoeffsParameters dft.MatrixLiteral
 	// Mod1ParametersLiteral: Parameters of the homomorphic modular reduction
-	Mod1ParametersLiteral mod1.Mod1ParametersLiteral
+	Mod1ParametersLiteral mod1.ParametersLiteral
 	// CoeffsToSlotsParameters: Parameters of the homomorphic encoding linear transformation
-	CoeffsToSlotsParameters dft.DFTMatrixLiteral
+	CoeffsToSlotsParameters dft.MatrixLiteral
 	// IterationsParameters: Parameters of the bootstrapping iterations (META-BTS)
 	IterationsParameters *IterationsParameters
 	// EphemeralSecretWeight: Hamming weight of the ephemeral secret. If 0, no ephemeral secret is used during the bootstrapping.
@@ -34,20 +34,20 @@ type Parameters struct {
 	CircuitOrder CircuitOrder
 }
 
-// NewParametersFromLiteral instantiates a Parameters from the residual hefloat.Parameters and
-// a bootstrapping.ParametersLiteral struct.
+// NewParametersFromLiteral instantiates a [Parameters] from the residual [ckks.Parameters] and
+// a [ParametersLiteral] struct.
 //
-// The residualParameters corresponds to the hefloat.Parameters that are left after the bootstrapping circuit is evaluated.
+// The residualParameters corresponds to the [ckks.Parameters] that are left after the bootstrapping circuit is evaluated.
 // These are entirely independent of the bootstrapping parameters with one exception: the ciphertext primes Qi must be
 // congruent to 1 mod 2N of the bootstrapping parameters (note that the auxiliary primes Pi do not need to be).
 // This is required because the primes Qi of the residual parameters and the bootstrapping parameters are the same between
 // the two sets of parameters.
 //
-// The user can ensure that this condition is met by setting the appropriate LogNThRoot in the hefloat.ParametersLiteral before
+// The user can ensure that this condition is met by setting the appropriate LogNThRoot in the [ckks.ParametersLiteral] before
 // instantiating them.
 //
-// The method NewParametersFromLiteral will automatically allocate the ckks.Parameters of the bootstrapping circuit based on
-// the provided residualParameters and the information given in the bootstrapping.ParametersLiteral.
+// The method NewParametersFromLiteral will automatically allocate the [ckks.Parameters] of the bootstrapping circuit based on
+// the provided residualParameters and the information given in the [ParametersLiteral].
 func NewParametersFromLiteral(residualParameters ckks.Parameters, btpLit ParametersLiteral) (Parameters, error) {
 
 	var err error
@@ -124,7 +124,7 @@ func NewParametersFromLiteral(residualParameters ckks.Parameters, btpLit Paramet
 	}
 
 	// SlotsToCoeffs parameters (homomorphic decoding)
-	S2CParams := dft.DFTMatrixLiteral{
+	S2CParams := dft.MatrixLiteral{
 		Type:         dft.HomomorphicDecode,
 		LogSlots:     LogSlots,
 		Format:       dft.RepackImagAsReal,
@@ -173,7 +173,7 @@ func NewParametersFromLiteral(residualParameters ckks.Parameters, btpLit Paramet
 	}
 
 	// Parameters of the homomorphic modular reduction x mod 1
-	Mod1ParametersLiteral := mod1.Mod1ParametersLiteral{
+	Mod1ParametersLiteral := mod1.ParametersLiteral{
 		LogScale:        EvalMod1LogScale,
 		Mod1Type:        Mod1Type,
 		Mod1Degree:      Mod1Degree,
@@ -199,7 +199,7 @@ func NewParametersFromLiteral(residualParameters ckks.Parameters, btpLit Paramet
 	}
 
 	// Parameters of the CoeffsToSlots (homomorphic encoding)
-	C2SParams := dft.DFTMatrixLiteral{
+	C2SParams := dft.MatrixLiteral{
 		Type:         dft.HomomorphicEncode,
 		Format:       dft.RepackImagAsReal,
 		LogSlots:     LogSlots,
@@ -326,7 +326,7 @@ func NewParametersFromLiteral(residualParameters ckks.Parameters, btpLit Paramet
 		LogDefaultScale = residualParameters.LogQi()[0] - LogMessageRatio
 	}
 
-	// Instantiates the hefloat.Parameters of the bootstrapping circuit.
+	// Instantiates the ckks.Parameters of the bootstrapping circuit.
 	params, err := ckks.NewParametersFromLiteral(ckks.ParametersLiteral{
 		LogN:            LogN,
 		Q:               Q,
@@ -408,9 +408,9 @@ func (p Parameters) MarshalJSON() (data []byte, err error) {
 	return json.Marshal(struct {
 		ResidualParameters      ckks.Parameters
 		BootstrappingParameters ckks.Parameters
-		SlotsToCoeffsParameters dft.DFTMatrixLiteral
-		Mod1ParametersLiteral   mod1.Mod1ParametersLiteral
-		CoeffsToSlotsParameters dft.DFTMatrixLiteral
+		SlotsToCoeffsParameters dft.MatrixLiteral
+		Mod1ParametersLiteral   mod1.ParametersLiteral
+		CoeffsToSlotsParameters dft.MatrixLiteral
 		IterationsParameters    *IterationsParameters
 		EphemeralSecretWeight   int
 	}{
@@ -428,9 +428,9 @@ func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 	var params struct {
 		ResidualParameters      ckks.Parameters
 		BootstrappingParameters ckks.Parameters
-		SlotsToCoeffsParameters dft.DFTMatrixLiteral
-		Mod1ParametersLiteral   mod1.Mod1ParametersLiteral
-		CoeffsToSlotsParameters dft.DFTMatrixLiteral
+		SlotsToCoeffsParameters dft.MatrixLiteral
+		Mod1ParametersLiteral   mod1.ParametersLiteral
+		CoeffsToSlotsParameters dft.MatrixLiteral
 		IterationsParameters    *IterationsParameters
 		EphemeralSecretWeight   int
 	}

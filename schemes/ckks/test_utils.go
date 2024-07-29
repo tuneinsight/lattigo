@@ -112,7 +112,7 @@ func randomConst(tp ring.Type, prec uint, a, b complex128) (constant *bignum.Com
 
 var (
 	// testInsecurePrec45 are insecure parameters used for the sole purpose of fast testing.
-	TestInsecurePrec45 = ParametersLiteral{
+	testInsecurePrec45 = ParametersLiteral{
 		LogN:            10,
 		LogQ:            []int{55, 45, 45, 45, 45, 45, 45},
 		LogP:            []int{60},
@@ -120,14 +120,14 @@ var (
 	}
 
 	// testInsecurePrec90 are insecure parameters used for the sole purpose of fast testing.
-	TestInsecurePrec90 = ParametersLiteral{
+	testInsecurePrec90 = ParametersLiteral{
 		LogN:            10,
 		LogQ:            []int{55, 55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45},
 		LogP:            []int{60, 60},
 		LogDefaultScale: 90,
 	}
 
-	TestParametersLiteral = []ParametersLiteral{TestInsecurePrec45, TestInsecurePrec90}
+	testParametersLiteral = []ParametersLiteral{testInsecurePrec45, testInsecurePrec90}
 )
 
 // testInsecurePrec45 = ParametersLiteral{

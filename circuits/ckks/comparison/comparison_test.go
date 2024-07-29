@@ -21,7 +21,7 @@ var printPrecisionStats = flag.Bool("print-precision", false, "print precision s
 func TestComparisons(t *testing.T) {
 	var err error
 
-	paramsLiteral := ckks.TestInsecurePrec90
+	paramsLiteral := testInsecurePrec90
 
 	for _, ringType := range []ring.Type{ring.Standard, ring.ConjugateInvariant} {
 
@@ -42,11 +42,11 @@ func TestComparisons(t *testing.T) {
 
 		eval := tc.Evl.WithKey(rlwe.NewMemEvaluationKeySet(tc.Kgen.GenRelinearizationKeyNew(tc.Sk), galKeys...))
 
-		polys := minimax.NewMinimaxCompositePolynomial(DefaultMinimaxCompositePolynomialForSign)
+		polys := minimax.NewPolynomial(DefaultCompositePolynomialForSign)
 
-		minimaxEvl := minimax.NewMinimaxCompositePolynomialEvaluator(tc.Params, eval, btp)
+		minimaxEvl := minimax.NewEvaluator(tc.Params, eval, btp)
 
-		CmpEval := NewComparisonEvaluator(tc.Params, minimaxEvl, polys)
+		CmpEval := NewEvaluator(tc.Params, minimaxEvl, polys)
 
 		t.Run(name("Sign", tc), func(t *testing.T) {
 
@@ -159,4 +159,12 @@ func name(opname string, tc *ckks.TestContext) string {
 		tc.Params.QCount(),
 		tc.Params.PCount(),
 		int(math.Log2(tc.Params.DefaultScale().Float64())))
+}
+
+// testInsecurePrec90 are insecure parameters used for the sole purpose of fast testing.
+var testInsecurePrec90 = ckks.ParametersLiteral{
+	LogN:            10,
+	LogQ:            []int{55, 55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45},
+	LogP:            []int{60, 60},
+	LogDefaultScale: 90,
 }

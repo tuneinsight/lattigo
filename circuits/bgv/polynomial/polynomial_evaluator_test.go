@@ -18,7 +18,7 @@ var flagParamString = flag.String("params", "", "specify the test cryptographic 
 func TestPolynomialEvaluator(t *testing.T) {
 	var err error
 
-	paramsLiterals := bgv.TestParams
+	paramsLiterals := testParams
 
 	if *flagParamString != "" {
 		var jsonParams bgv.ParametersLiteral
@@ -30,7 +30,7 @@ func TestPolynomialEvaluator(t *testing.T) {
 
 	for _, p := range paramsLiterals[:] {
 
-		for _, plaintextModulus := range bgv.TestPlaintextModulus[:] {
+		for _, plaintextModulus := range testPlaintextModulus[:] {
 			p.PlaintextModulus = plaintextModulus
 
 			tc := bgv.NewTestContext(p)
@@ -65,7 +65,7 @@ func run(tc *bgv.TestContext, t *testing.T) {
 
 		t.Run("Standard"+tc.String(), func(t *testing.T) {
 
-			polyEval := NewPolynomialEvaluator(tc.Params, tc.Evl, false)
+			polyEval := NewEvaluator(tc.Params, tc.Evl, false)
 
 			res, err := polyEval.Evaluate(ciphertext, poly, tc.Params.DefaultScale())
 			require.NoError(t, err)
@@ -77,7 +77,7 @@ func run(tc *bgv.TestContext, t *testing.T) {
 
 		t.Run("Invariant"+tc.String(), func(t *testing.T) {
 
-			polyEval := NewPolynomialEvaluator(tc.Params, tc.Evl, true)
+			polyEval := NewEvaluator(tc.Params, tc.Evl, true)
 
 			res, err := polyEval.Evaluate(ciphertext, poly, tc.Params.DefaultScale())
 			require.NoError(t, err)
@@ -89,3 +89,16 @@ func run(tc *bgv.TestContext, t *testing.T) {
 		})
 	})
 }
+
+var (
+	// testInsecure are insecure parameters used for the sole purpose of fast testing.
+	testInsecure = bgv.ParametersLiteral{
+		LogN: 10,
+		Q:    []uint64{0x3fffffa8001, 0x1000090001, 0x10000c8001, 0x10000f0001, 0xffff00001},
+		P:    []uint64{0x7fffffd8001},
+	}
+
+	testPlaintextModulus = []uint64{0x101, 0xffc001}
+
+	testParams = []bgv.ParametersLiteral{testInsecure}
+)

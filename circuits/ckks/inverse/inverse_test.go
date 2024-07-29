@@ -22,7 +22,7 @@ var printPrecisionStats = flag.Bool("print-precision", false, "print precision s
 
 func TestInverse(t *testing.T) {
 
-	paramsLiteral := ckks.TestInsecurePrec90
+	paramsLiteral := testInsecurePrec90
 
 	for _, ringType := range []ring.Type{ring.Standard, ring.ConjugateInvariant} {
 
@@ -63,9 +63,9 @@ func TestInverse(t *testing.T) {
 				values[i][0].Quo(one, values[i][0])
 			}
 
-			minEvl := minimax.NewMinimaxCompositePolynomialEvaluator(tc.Params, eval, btp)
+			minEvl := minimax.NewEvaluator(tc.Params, eval, btp)
 
-			invEval := NewInverseEvaluator(tc.Params, minEvl)
+			invEval := NewEvaluator(tc.Params, minEvl)
 
 			var err error
 			if ciphertext, err = invEval.GoldschmidtDivisionNew(ciphertext, logmin); err != nil {
@@ -79,9 +79,9 @@ func TestInverse(t *testing.T) {
 
 			values, _, ct := tc.NewTestVector(complex(0, 0), complex(max, 0))
 
-			minEvl := minimax.NewMinimaxCompositePolynomialEvaluator(tc.Params, eval, btp)
+			minEvl := minimax.NewEvaluator(tc.Params, eval, btp)
 
-			invEval := NewInverseEvaluator(tc.Params, minEvl)
+			invEval := NewEvaluator(tc.Params, minEvl)
 
 			cInv, err := invEval.EvaluatePositiveDomainNew(ct, logmin, logmax)
 			require.NoError(t, err)
@@ -108,9 +108,9 @@ func TestInverse(t *testing.T) {
 
 			values, _, ct := tc.NewTestVector(complex(-max, 0), complex(0, 0))
 
-			minEvl := minimax.NewMinimaxCompositePolynomialEvaluator(tc.Params, eval, btp)
+			minEvl := minimax.NewEvaluator(tc.Params, eval, btp)
 
-			invEval := NewInverseEvaluator(tc.Params, minEvl)
+			invEval := NewEvaluator(tc.Params, minEvl)
 
 			cInv, err := invEval.EvaluateNegativeDomainNew(ct, logmin, logmax)
 			require.NoError(t, err)
@@ -137,11 +137,11 @@ func TestInverse(t *testing.T) {
 
 			values, _, ct := tc.NewTestVector(complex(-max, 0), complex(max, 0))
 
-			minEvl := minimax.NewMinimaxCompositePolynomialEvaluator(tc.Params, eval, btp)
+			minEvl := minimax.NewEvaluator(tc.Params, eval, btp)
 
-			invEval := NewInverseEvaluator(tc.Params, minEvl)
+			invEval := NewEvaluator(tc.Params, minEvl)
 
-			cInv, err := invEval.EvaluateFullDomainNew(ct, logmin, logmax, minimax.NewMinimaxCompositePolynomial(comparison.DefaultMinimaxCompositePolynomialForSign))
+			cInv, err := invEval.EvaluateFullDomainNew(ct, logmin, logmax, minimax.NewPolynomial(comparison.DefaultCompositePolynomialForSign))
 			require.NoError(t, err)
 
 			have := make([]*big.Float, tc.Params.MaxSlots())
@@ -173,4 +173,12 @@ func name(opname string, tc *ckks.TestContext) string {
 		tc.Params.QCount(),
 		tc.Params.PCount(),
 		int(math.Log2(tc.Params.DefaultScale().Float64())))
+}
+
+// testInsecurePrec90 are insecure parameters used for the sole purpose of fast testing.
+var testInsecurePrec90 = ckks.ParametersLiteral{
+	LogN:            10,
+	LogQ:            []int{55, 55, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45},
+	LogP:            []int{60, 60},
+	LogDefaultScale: 90,
 }

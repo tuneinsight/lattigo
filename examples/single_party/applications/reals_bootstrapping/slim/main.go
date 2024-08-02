@@ -36,7 +36,6 @@ import (
 	"flag"
 	"fmt"
 	"math"
-	"math/big"
 
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 	"github.com/tuneinsight/lattigo/v5/he/hefloat"
@@ -71,7 +70,7 @@ func main() {
 	// For the purpose of the example, only one prime is allocated to the circuit in the slots domain
 	// and no prime is allocated to the circuit in the coeffs domain.
 
-	LogDefaultScale := 40
+	LogDefaultScale := 45
 
 	q0 := []int{55}                                    // 3) ScaleDown & 4) ModUp
 	qiSlotsToCoeffs := []int{39, 39, 39}               // 1) SlotsToCoeffs
@@ -105,38 +104,34 @@ func main() {
 		Type:         hefloat.HomomorphicEncode,
 		Format:       hefloat.RepackImagAsReal, // Returns the real and imaginary part into separate ciphertexts
 		LogSlots:     params.LogMaxSlots(),
-		LevelStart:   params.MaxLevel(),
+		LevelQ:       params.MaxLevelQ(),
+		LevelP:       params.MaxLevelP(),
 		LogBSGSRatio: 1,
 		Levels:       []int{1, 1, 1, 1}, //qiCoeffsToSlots
 	}
 
 	// Parameters of the homomorphic modular reduction x mod 1
 	Mod1ParametersLiteral := hefloat.Mod1ParametersLiteral{
+		LevelQ:          params.MaxLevel() - CoeffsToSlotsParameters.Depth(true),
 		LogScale:        60,                  // Matches qiEvalMod
 		Mod1Type:        hefloat.CosDiscrete, // Multi-interval Chebyshev interpolation
 		Mod1Degree:      30,                  // Depth 5
 		DoubleAngle:     3,                   // Depth 3
 		K:               16,                  // With EphemeralSecretWeight = 32 and 2^{15} slots, ensures < 2^{-138.7} failure probability
-		LogMessageRatio: 5,                   // q/|m| = 2^5
+		LogMessageRatio: 10,                  // q/|m| = 2^10
 		Mod1InvDegree:   0,                   // Depth 0
-		LevelStart:      params.MaxLevel() - len(CoeffsToSlotsParameters.Levels),
 	}
-
-	// Since we scale the values by 1/2^{LogMessageRatio} during CoeffsToSlots,
-	// we must scale them back by 2^{LogMessageRatio} after EvalMod.
-	// This is done by scaling the EvalMod polynomial coefficients by 2^{LogMessageRatio}.
-	Mod1ParametersLiteral.Scaling = math.Exp2(-float64(Mod1ParametersLiteral.LogMessageRatio))
 
 	// SlotsToCoeffs parameters (homomorphic decoding)
 	SlotsToCoeffsParameters := hefloat.DFTMatrixLiteral{
 		Type:         hefloat.HomomorphicDecode,
 		LogSlots:     params.LogMaxSlots(),
-		Scaling:      new(big.Float).SetFloat64(math.Exp2(float64(Mod1ParametersLiteral.LogMessageRatio))),
 		LogBSGSRatio: 1,
+		LevelP:       params.MaxLevelP(),
 		Levels:       []int{1, 1, 1}, // qiSlotsToCoeffs
 	}
 
-	SlotsToCoeffsParameters.LevelStart = len(SlotsToCoeffsParameters.Levels)
+	SlotsToCoeffsParameters.LevelQ = len(SlotsToCoeffsParameters.Levels)
 
 	// Custom bootstrapping.Parameters.
 	// All fields are public and can be manually instantiated.
@@ -148,11 +143,6 @@ func main() {
 		CoeffsToSlotsParameters: CoeffsToSlotsParameters,
 		EphemeralSecretWeight:   32, // > 128bit secure for LogN=16 and LogQP = 115.
 		CircuitOrder:            bootstrapping.DecodeThenModUp,
-	}
-
-	if *flagShort {
-		// Corrects the message ratio Q0/|m(X)| to take into account the smaller number of slots and keep the same precision
-		btpParams.Mod1ParametersLiteral.LogMessageRatio += 16 - params.LogN()
 	}
 
 	// We pring some information about the bootstrapping parameters (which are identical to the residual parameters in this example).
@@ -209,7 +199,7 @@ func main() {
 	}
 
 	// We encrypt at level 0
-	plaintext := hefloat.NewPlaintext(params, SlotsToCoeffsParameters.LevelStart)
+	plaintext := hefloat.NewPlaintext(params, SlotsToCoeffsParameters.LevelQ)
 	if err := encoder.Encode(valuesWant, plaintext); err != nil {
 		panic(err)
 	}

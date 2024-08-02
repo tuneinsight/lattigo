@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"math/rand"
 	"runtime"
 	"testing"
 
@@ -166,6 +167,36 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 	params := tc.params
 
+	mulCmplx := bignum.NewComplexMultiplier().Mul
+
+	add := func(a, b, c []*bignum.Complex) {
+		for i := range c {
+			if a[i] != nil && b[i] != nil {
+				c[i].Add(a[i], b[i])
+			}
+		}
+	}
+
+	muladd := func(a, b, c []*bignum.Complex) {
+		tmp := &bignum.Complex{new(big.Float), new(big.Float)}
+		for i := range c {
+			if a[i] != nil && b[i] != nil {
+				mulCmplx(a[i], b[i], tmp)
+				c[i].Add(c[i], tmp)
+			}
+		}
+	}
+
+	prec := tc.encoder.Prec()
+
+	newVec := func(size int) (vec []*bignum.Complex) {
+		vec = make([]*bignum.Complex, size)
+		for i := range vec {
+			vec[i] = &bignum.Complex{new(big.Float).SetPrec(prec), new(big.Float).SetPrec(0)}
+		}
+		return
+	}
+
 	t.Run(GetTestName(params, "Average"), func(t *testing.T) {
 
 		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
@@ -218,16 +249,16 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		diagonals := make(hefloat.Diagonals[*bignum.Complex])
 		for _, i := range nonZeroDiags {
 			diagonals[i] = make([]*bignum.Complex, slots)
-
-			for j := 0; j < slots; j++ {
+			for j := 0; j < slots>>1; j++ {
 				diagonals[i][j] = &bignum.Complex{one, zero}
 			}
 		}
 
 		ltparams := hefloat.LinearTransformationParameters{
-			DiagonalsIndexList:       nonZeroDiags,
-			Level:                    ciphertext.Level(),
-			Scale:                    rlwe.NewScale(params.Q()[ciphertext.Level()]),
+			DiagonalsIndexList:       diagonals.DiagonalsIndexList(),
+			LevelQ:                   ciphertext.Level(),
+			LevelP:                   params.MaxLevelP(),
+			Scale:                    params.GetOptimalScalingFactor(ciphertext.Scale, params.DefaultScale(), ciphertext.Level()),
 			LogDimensions:            ciphertext.LogDimensions,
 			LogBabyStepGianStepRatio: 1,
 		}
@@ -246,21 +277,7 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 		require.NoError(t, ltEval.Evaluate(ciphertext, linTransf, ciphertext))
 
-		tmp := make([]*bignum.Complex, len(values))
-		for i := range tmp {
-			tmp[i] = values[i].Clone()
-		}
-
-		for i := 0; i < slots; i++ {
-			values[i].Add(values[i], tmp[(i-15+slots)%slots])
-			values[i].Add(values[i], tmp[(i-4+slots)%slots])
-			values[i].Add(values[i], tmp[(i-1+slots)%slots])
-			values[i].Add(values[i], tmp[(i+1)%slots])
-			values[i].Add(values[i], tmp[(i+2)%slots])
-			values[i].Add(values[i], tmp[(i+3)%slots])
-			values[i].Add(values[i], tmp[(i+4)%slots])
-			values[i].Add(values[i], tmp[(i+15)%slots])
-		}
+		values = diagonals.Evaluate(values, newVec, add, muladd)
 
 		hefloat.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
@@ -286,8 +303,9 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 		}
 
 		ltparams := hefloat.LinearTransformationParameters{
-			DiagonalsIndexList:       nonZeroDiags,
-			Level:                    ciphertext.Level(),
+			DiagonalsIndexList:       diagonals.DiagonalsIndexList(),
+			LevelQ:                   ciphertext.Level(),
+			LevelP:                   params.MaxLevelP(),
 			Scale:                    rlwe.NewScale(params.Q()[ciphertext.Level()]),
 			LogDimensions:            ciphertext.LogDimensions,
 			LogBabyStepGianStepRatio: -1,
@@ -307,21 +325,65 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 		require.NoError(t, ltEval.Evaluate(ciphertext, linTransf, ciphertext))
 
-		tmp := make([]*bignum.Complex, len(values))
-		for i := range tmp {
-			tmp[i] = values[i].Clone()
+		values = diagonals.Evaluate(values, newVec, add, muladd)
+
+		hefloat.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
+	})
+
+	t.Run(GetTestName(params, "LinearTransform/Permutation"), func(t *testing.T) {
+		idx := make([]int, params.MaxSlots())
+		for i := range idx {
+			idx[i] = i
+		}
+		//#nosec G404 -- weak randomness is fine for tests
+		r := rand.New(rand.NewSource(0))
+		r.Shuffle(len(idx), func(i, j int) {
+			idx[i], idx[j] = idx[j], idx[i]
+		})
+
+		idx = idx[:len(idx)>>1] // truncates to test partial permutation
+
+		permutation := make([]hefloat.PermutationMapping[*bignum.Complex], len(idx))
+
+		for i := range permutation {
+			permutation[i] = hefloat.PermutationMapping[*bignum.Complex]{
+				From: i,
+				To:   idx[i],
+				Scaling: &bignum.Complex{
+					bignum.NewFloat(sampling.RandFloat64(real(-1), real(1)), prec),
+					bignum.NewFloat(sampling.RandFloat64(imag(-1), imag(1)), prec),
+				},
+			}
 		}
 
-		for i := 0; i < slots; i++ {
-			values[i].Add(values[i], tmp[(i-15+slots)%slots])
-			values[i].Add(values[i], tmp[(i-4+slots)%slots])
-			values[i].Add(values[i], tmp[(i-1+slots)%slots])
-			values[i].Add(values[i], tmp[(i+1)%slots])
-			values[i].Add(values[i], tmp[(i+2)%slots])
-			values[i].Add(values[i], tmp[(i+3)%slots])
-			values[i].Add(values[i], tmp[(i+4)%slots])
-			values[i].Add(values[i], tmp[(i+15)%slots])
+		diagonals := hefloat.Permutation[*bignum.Complex](permutation).GetDiagonals(params.LogMaxSlots())
+
+		values, _, ciphertext := newTestVectors(tc, tc.encryptorSk, -1-1i, 1+1i, t)
+
+		ltparams := hefloat.LinearTransformationParameters{
+			DiagonalsIndexList:       diagonals.DiagonalsIndexList(),
+			LevelQ:                   ciphertext.Level(),
+			LevelP:                   params.MaxLevelP(),
+			Scale:                    params.GetOptimalScalingFactor(ciphertext.Scale, params.DefaultScale(), ciphertext.Level()),
+			LogDimensions:            ciphertext.LogDimensions,
+			LogBabyStepGianStepRatio: 1,
 		}
+
+		// Allocate the linear transformation
+		linTransf := hefloat.NewLinearTransformation(params, ltparams)
+
+		// Encode on the linear transformation
+		require.NoError(t, hefloat.EncodeLinearTransformation[*bignum.Complex](tc.encoder, diagonals, linTransf))
+
+		galEls := hefloat.GaloisElementsForLinearTransformation(params, ltparams)
+
+		evk := rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)
+
+		ltEval := hefloat.NewLinearTransformationEvaluator(tc.evaluator.WithKey(evk))
+
+		require.NoError(t, ltEval.Evaluate(ciphertext, linTransf, ciphertext))
+
+		values = diagonals.Evaluate(values, newVec, add, muladd)
 
 		hefloat.VerifyTestVectors(params, tc.encoder, tc.decryptor, values, ciphertext, params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})

@@ -44,15 +44,20 @@ import (
 //     than their matrix representation by being able to only store the non-zero diagonals.
 //
 // Finally, some metrics about the time and storage complexity of homomorphic linear transformations:
-//   - Storage: #diagonals polynomials mod Q_level * P
+//   - Storage: #diagonals polynomials mod Q * P
 //   - Evaluation: #diagonals multiplications and 2sqrt(#diagonals) ciphertexts rotations.
 type LinearTransformationParameters struct {
 	// DiagonalsIndexList is the list of the non-zero diagonals of the square matrix.
 	// A non zero diagonals is a diagonal with a least one non-zero element.
 	DiagonalsIndexList []int
 
-	// Level is the level at which to encode the linear transformation.
-	Level int
+	// LevelQ is the level at which to encode the linear transformation.
+	LevelQ int
+
+	// LevelP is the level of the auxiliary prime used during the automorphisms
+	// User must ensure that this value is the same as the one used to generate
+	// the evaluation keys used to perform the automorphisms.
+	LevelP int
 
 	// Scale is the plaintext scale at which to encode the linear transformation.
 	Scale rlwe.Scale
@@ -121,7 +126,8 @@ type LinearTransformation struct {
 	*rlwe.MetaData
 	LogBabyStepGianStepRatio int
 	N1                       int
-	Level                    int
+	LevelQ                   int
+	LevelP                   int
 	Vec                      map[int]ringqp.Poly
 }
 
@@ -143,8 +149,8 @@ func NewLinearTransformation(params rlwe.ParameterProvider, ltparams LinearTrans
 	vec := make(map[int]ringqp.Poly)
 	cols := 1 << ltparams.LogDimensions.Cols
 	logBabyStepGianStepRatio := ltparams.LogBabyStepGianStepRatio
-	levelQ := ltparams.Level
-	levelP := p.MaxLevelP()
+	levelQ := ltparams.LevelQ
+	levelP := ltparams.LevelP
 	ringQP := p.RingQP().AtLevel(levelQ, levelP)
 
 	diagslislt := ltparams.DiagonalsIndexList
@@ -185,12 +191,13 @@ func NewLinearTransformation(params rlwe.ParameterProvider, ltparams LinearTrans
 		MetaData:                 metadata,
 		LogBabyStepGianStepRatio: logBabyStepGianStepRatio,
 		N1:                       N1,
-		Level:                    levelQ,
+		LevelQ:                   levelQ,
+		LevelP:                   levelP,
 		Vec:                      vec,
 	}
 }
 
-// EncodeLinearTransformation encodes on a pre-allocated [LinearTransformation] a set of non-zero diagonaes of a matrix representing a linear transformation.
+// EncodeLinearTransformation encodes on a pre-allocated [LinearTransformation] a set of non-zero diagonals of a matrix representing a linear transformation.
 func EncodeLinearTransformation[T any](encoder Encoder[T, ringqp.Poly], diagonals Diagonals[T], allocated LinearTransformation) (err error) {
 
 	rows := 1 << allocated.LogDimensions.Rows

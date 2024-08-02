@@ -29,7 +29,7 @@ const (
 // This struct is consumed by [NewMod1ParametersFromLiteral] to generate the [Mod1ParametersLiteral] struct, which notably stores
 // the coefficient of the polynomial approximating the function x mod Q[0].
 type Mod1ParametersLiteral struct {
-	LevelStart      int      // Starting level of x mod 1
+	LevelQ          int      // Starting level of x mod 1
 	LogScale        int      // Log2 of the scaling factor used during x mod 1
 	Mod1Type        Mod1Type // Chose between [Sin(2*pi*x)] or [cos(2*pi*x/r) with double angle formula]
 	Scaling         float64  // Value by which the output is scaled by
@@ -71,7 +71,7 @@ func (evm Mod1ParametersLiteral) Depth() (depth int) {
 
 // Mod1Parameters is a struct storing the parameters and polynomials approximating the function x mod Q[0] (the first prime of the moduli chain).
 type Mod1Parameters struct {
-	levelStart      int                // starting level of the operation
+	LevelQ          int                // starting level of the operation
 	LogDefaultScale int                // log2 of the default scaling factor
 	Mod1Type        Mod1Type           // type of approximation for the f: x mod 1 function
 	LogMessageRatio int                // Log2 of the ratio between Q0 and m, i.e. Q[0]/|m|
@@ -82,11 +82,6 @@ type Mod1Parameters struct {
 	mod1Poly        bignum.Polynomial  // Polynomial for f: x mod 1
 	mod1InvPoly     *bignum.Polynomial // Polynomial for f^-1: (x mod 1)^-1
 	k               float64            // interval [-k, k]
-}
-
-// LevelStart returns the starting level of the x mod 1.
-func (evp Mod1Parameters) LevelStart() int {
-	return evp.levelStart
 }
 
 // ScalingFactor returns scaling factor used during the x mod 1.
@@ -220,7 +215,7 @@ func NewMod1ParametersFromLiteral(params Parameters, evm Mod1ParametersLiteral) 
 	}
 
 	return Mod1Parameters{
-		levelStart:      evm.LevelStart,
+		LevelQ:          evm.LevelQ,
 		LogDefaultScale: evm.LogScale,
 		Mod1Type:        evm.Mod1Type,
 		LogMessageRatio: evm.LogMessageRatio,

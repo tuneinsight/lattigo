@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo/v5/he"
 	"github.com/tuneinsight/lattigo/v5/he/hefloat"
 	"github.com/tuneinsight/lattigo/v5/ring"
 	"github.com/tuneinsight/lattigo/v5/schemes/ckks"
@@ -67,9 +68,9 @@ func NewEvaluator(btpParams Parameters, evk *EvaluationKeys) (eval *Evaluator, e
 	eval.Parameters = btpParams
 
 	if paramsN1.N() != paramsN2.N() {
-		eval.xPow2N1 = rlwe.GenXPow2(paramsN1.RingQ().AtLevel(0), paramsN2.LogN(), false)
-		eval.xPow2N2 = rlwe.GenXPow2(paramsN2.RingQ().AtLevel(0), paramsN2.LogN(), false)
-		eval.xPow2InvN2 = rlwe.GenXPow2(paramsN2.RingQ(), paramsN2.LogN(), true)
+		eval.xPow2N1 = he.GenXPow2NTT(paramsN1.RingQ().AtLevel(0), paramsN2.LogN(), false)
+		eval.xPow2N2 = he.GenXPow2NTT(paramsN2.RingQ().AtLevel(0), paramsN2.LogN(), false)
+		eval.xPow2InvN2 = he.GenXPow2NTT(paramsN2.RingQ(), paramsN2.LogN(), true)
 	}
 
 	if btpParams.Mod1ParametersLiteral.Mod1Type == hefloat.SinContinuous && btpParams.Mod1ParametersLiteral.DoubleAngle != 0 {
@@ -82,15 +83,15 @@ func NewEvaluator(btpParams Parameters, evk *EvaluationKeys) (eval *Evaluator, e
 
 	switch btpParams.CircuitOrder {
 	case ModUpThenEncode:
-		if btpParams.CoeffsToSlotsParameters.LevelStart-btpParams.CoeffsToSlotsParameters.Depth(true) != btpParams.Mod1ParametersLiteral.LevelStart {
+		if btpParams.CoeffsToSlotsParameters.LevelQ-btpParams.CoeffsToSlotsParameters.Depth(true) != btpParams.Mod1ParametersLiteral.LevelQ {
 			return nil, fmt.Errorf("starting level and depth of CoeffsToSlotsParameters inconsistent starting level of Mod1ParametersLiteral")
 		}
 
-		if btpParams.Mod1ParametersLiteral.LevelStart-btpParams.Mod1ParametersLiteral.Depth() != btpParams.SlotsToCoeffsParameters.LevelStart {
+		if btpParams.Mod1ParametersLiteral.LevelQ-btpParams.Mod1ParametersLiteral.Depth() != btpParams.SlotsToCoeffsParameters.LevelQ {
 			return nil, fmt.Errorf("starting level and depth of Mod1ParametersLiteral inconsistent starting level of CoeffsToSlotsParameters")
 		}
 	case DecodeThenModUp:
-		if btpParams.BootstrappingParameters.MaxLevel()-btpParams.CoeffsToSlotsParameters.Depth(true) != btpParams.Mod1ParametersLiteral.LevelStart {
+		if btpParams.BootstrappingParameters.MaxLevel()-btpParams.CoeffsToSlotsParameters.Depth(true) != btpParams.Mod1ParametersLiteral.LevelQ {
 			return nil, fmt.Errorf("starting level and depth of Mod1ParametersLiteral inconsistent starting level of CoeffsToSlotsParameters")
 		}
 	case Custom:
@@ -124,32 +125,14 @@ func NewEvaluator(btpParams Parameters, evk *EvaluationKeys) (eval *Evaluator, e
 // Evaluator can be used concurrently.
 func (eval Evaluator) ShallowCopy() *Evaluator {
 	heEvaluator := eval.Evaluator.ShallowCopy()
-
-	paramsN1 := eval.ResidualParameters
-	paramsN2 := eval.BootstrappingParameters
-
-	var DomainSwitcher ckks.DomainSwitcher
-	if paramsN1.RingType() == ring.ConjugateInvariant {
-		var err error
-		if DomainSwitcher, err = ckks.NewDomainSwitcher(paramsN2.Parameters, eval.EvkCmplxToReal, eval.EvkRealToCmplx); err != nil {
-			panic(fmt.Errorf("cannot NewBootstrapper: ckks.NewDomainSwitcher: %w", err))
-		}
-	}
-
+	params := eval.BootstrappingParameters
 	return &Evaluator{
-		Parameters:     eval.Parameters,
-		EvaluationKeys: eval.EvaluationKeys,
 		Mod1Parameters: eval.Mod1Parameters,
 		S2CDFTMatrix:   eval.S2CDFTMatrix,
 		C2SDFTMatrix:   eval.C2SDFTMatrix,
 		Evaluator:      heEvaluator,
-		xPow2N1:        eval.xPow2N1,
-		xPow2N2:        eval.xPow2N2,
-		xPow2InvN2:     eval.xPow2InvN2,
-		DomainSwitcher: DomainSwitcher,
-		DFTEvaluator:   hefloat.NewDFTEvaluator(paramsN2, heEvaluator),
-		Mod1Evaluator:  hefloat.NewMod1Evaluator(heEvaluator, hefloat.NewPolynomialEvaluator(paramsN2, heEvaluator), eval.Mod1Parameters),
-		SkDebug:        eval.SkDebug,
+		DFTEvaluator:   hefloat.NewDFTEvaluator(params, heEvaluator),
+		Mod1Evaluator:  hefloat.NewMod1Evaluator(heEvaluator, hefloat.NewPolynomialEvaluator(params, heEvaluator), eval.Mod1Parameters),
 	}
 }
 

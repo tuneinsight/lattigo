@@ -26,7 +26,7 @@ type numberTheoreticTransformerBase struct {
 	N            int
 	Modulus      uint64
 	MRedConstant uint64
-	BRedConstant []uint64
+	BRedConstant [2]uint64
 }
 
 // NumberTheoreticTransformerStandard computes the standard nega-cyclic NTT in the ring Z[X]/(X^N+1).
@@ -171,7 +171,7 @@ func invbutterfly(U, V, Psi, twoQ, fourQ, Q, MRedConstant uint64) (X, Y uint64) 
 }
 
 // NTTStandard computes the NTTStandard in the given SubRing.
-func NTTStandard(p1, p2 []uint64, N int, Q, MRedConstant uint64, BRedConstant, roots []uint64) {
+func NTTStandard(p1, p2 []uint64, N int, Q, MRedConstant uint64, BRedConstant [2]uint64, roots []uint64) {
 	nttCoreLazy(p1, p2, N, Q, MRedConstant, roots)
 	reducevec(p2, p2, Q, BRedConstant)
 }
@@ -701,7 +701,7 @@ func inttLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []
 }
 
 // NTTConjugateInvariant evaluates p2 = NTT(p1) in the sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1).
-func NTTConjugateInvariant(p1, p2 []uint64, N int, Q, MRedConstant uint64, BRedConstant, roots []uint64) {
+func NTTConjugateInvariant(p1, p2 []uint64, N int, Q, MRedConstant uint64, BRedConstant [2]uint64, roots []uint64) {
 	nttCoreConjugateInvariantLazy(p1, p2, N, Q, MRedConstant, roots)
 	reducevec(p2, p2, Q, BRedConstant)
 }

@@ -219,6 +219,16 @@ func (p Parameters) LevelsConsumedPerRescaling() int {
 	}
 }
 
+// GetOptimalScalingFactor returns a scaling factor b such that Rescale(a * b) = c
+func (p Parameters) GetOptimalScalingFactor(a, c rlwe.Scale, level int) (b rlwe.Scale) {
+	b = rlwe.NewScale(1)
+	Q := p.Q()
+	for i := 0; i < p.LevelsConsumedPerRescaling(); i++ {
+		b = b.Mul(rlwe.NewScale(Q[level-i]))
+	}
+	return
+}
+
 // MaxDepth returns the maximum depth enabled by the parameters,
 // which is obtained as p.MaxLevel() / p.LevelsConsumedPerRescaling().
 func (p Parameters) MaxDepth() int {
@@ -246,7 +256,7 @@ func (p Parameters) QLvl(level int) *big.Int {
 //
 // Example:
 // Recall that batched plaintexts are 2xN/2 matrices of the form [m, conjugate(m)]
-// (the conjugate is implicitely ingored) thus given the following plaintext matrix:
+// (the conjugate is implicitly ignored) thus given the following plaintext matrix:
 //
 // [a, b, c, d][conj(a), conj(b), conj(c), conj(d)]
 //
@@ -269,7 +279,7 @@ func (p Parameters) GaloisElementForRotation(k int) uint64 {
 //
 // Example:
 // Recall that batched plaintexts are 2xN/2 matrices of the form [m, conjugate(m)]
-// (the conjugate is implicitely ingored) thus given the following plaintext matrix:
+// (the conjugate is implicitly ignored) thus given the following plaintext matrix:
 //
 // [a, b, c, d][conj(a), conj(b), conj(c), conj(d)]
 //
@@ -295,21 +305,10 @@ func (p Parameters) GaloisElementsForReplicate(batch, n int) []uint64 {
 	return rlwe.GaloisElementsForReplicate(p, batch, n)
 }
 
-// GaloisElementsForTrace returns the list of Galois elements requored for the for the Trace operation.
+// GaloisElementsForTrace returns the list of Galois elements required for the for the Trace operation.
 // Trace maps X -> sum((-1)^i * X^{i*n+1}) for 2^{LogN} <= i < N.
 func (p Parameters) GaloisElementsForTrace(logN int) []uint64 {
 	return rlwe.GaloisElementsForTrace(p, logN)
-}
-
-// GaloisElementsForExpand returns the list of Galois elements required
-// to perform the Expand operation with parameter logN.
-func (p Parameters) GaloisElementsForExpand(logN int) []uint64 {
-	return rlwe.GaloisElementsForExpand(p, logN)
-}
-
-// GaloisElementsForPack returns the list of Galois elements required to perform the Pack operation.
-func (p Parameters) GaloisElementsForPack(logN int) []uint64 {
-	return rlwe.GaloisElementsForPack(p, logN)
 }
 
 // Equal compares two sets of parameters for equality.

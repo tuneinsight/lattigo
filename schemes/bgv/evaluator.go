@@ -1495,17 +1495,17 @@ func (eval Evaluator) matchScalesBinary(scale0, scale1 uint64) (r0, r1, e uint64
 
 	t := ringT.SubRings[0].Modulus
 	tHalf := t >> 1
-	BRedConstant := ringT.SubRings[0].BRedConstant
+	GenBRedConstant := ringT.SubRings[0].BRedConstant
 
 	// This should never happen and if it were to happen,
-	// there is no way to recovernfrom it.
+	// there is no way to recover from it.
 	if utils.GCD(scale0, t) != 1 {
 		panic("cannot matchScalesBinary: invalid ciphertext scale: gcd(scale, t) != 1")
 	}
 
 	var a = ringT.SubRings[0].Modulus
 	var b uint64 = 0
-	var A = ring.BRed(ring.ModExp(scale0, t-2, t), scale1, t, BRedConstant)
+	var A = ring.BRed(ring.ModExp(scale0, t-2, t), scale1, t, GenBRedConstant)
 	var B uint64 = 1
 
 	r0, r1 = A, B
@@ -1516,7 +1516,7 @@ func (eval Evaluator) matchScalesBinary(scale0, scale1 uint64) (r0, r1, e uint64
 
 		q := a / A
 		a, A = A, a%A
-		b, B = B, ring.CRed(t+b-ring.BRed(B, q, t, BRedConstant), t)
+		b, B = B, ring.CRed(t+b-ring.BRed(B, q, t, GenBRedConstant), t)
 
 		if A != 0 && utils.GCD(A, t) == 1 {
 			tmp := center(A, tHalf, t) + center(B, tHalf, t)

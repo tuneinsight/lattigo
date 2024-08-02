@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"math/rand"
 	"runtime"
 	"slices"
 	"testing"
@@ -13,7 +14,6 @@ import (
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 	"github.com/tuneinsight/lattigo/v5/he/heint"
 	"github.com/tuneinsight/lattigo/v5/ring"
-	"github.com/tuneinsight/lattigo/v5/utils"
 
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v5/utils/bignum"
@@ -173,42 +173,46 @@ func verifyTestVectors(tc *testContext, decryptor *rlwe.Decryptor, coeffs ring.P
 
 func testLinearTransformation(tc *testContext, t *testing.T) {
 
+	rT := tc.params.RingT().SubRings[0]
+
+	add := func(a, b, c []uint64) {
+		rT.Add(a, b, c)
+	}
+
+	muladd := func(a, b, c []uint64) {
+		rT.MulCoeffsBarrettThenAdd(a, b, c)
+	}
+
+	newVec := func(size int) (vec []uint64) {
+		return make([]uint64, size)
+	}
+
+	params := tc.params
+
+	T := params.PlaintextModulus()
+
 	level := tc.params.MaxLevel()
-	t.Run(GetTestName("Evaluator/LinearTransformationBSGS=true", tc.params, level), func(t *testing.T) {
 
-		params := tc.params
+	t.Run(GetTestName("Evaluator/LinearTransformationBSGS=true", params, level), func(t *testing.T) {
 
-		values, _, ciphertext := newTestVectorsLvl(level, tc.params.DefaultScale(), tc, tc.encryptorSk)
+		values, _, ciphertext := newTestVectorsLvl(level, params.DefaultScale(), tc, tc.encryptorSk)
+
+		slots := ciphertext.Slots()
+
+		nonZeroDiags := []int{-15, -4, -1, 0, 1, 2, 3, 4, 15}
 
 		diagonals := make(heint.Diagonals[uint64])
-
-		totSlots := values.N()
-
-		diagonals[-15] = make([]uint64, totSlots)
-		diagonals[-4] = make([]uint64, totSlots)
-		diagonals[-1] = make([]uint64, totSlots)
-		diagonals[0] = make([]uint64, totSlots)
-		diagonals[1] = make([]uint64, totSlots)
-		diagonals[2] = make([]uint64, totSlots)
-		diagonals[3] = make([]uint64, totSlots)
-		diagonals[4] = make([]uint64, totSlots)
-		diagonals[15] = make([]uint64, totSlots)
-
-		for i := 0; i < totSlots; i++ {
-			diagonals[-15][i] = 1
-			diagonals[-4][i] = 1
-			diagonals[-1][i] = 1
-			diagonals[0][i] = 1
-			diagonals[1][i] = 1
-			diagonals[2][i] = 1
-			diagonals[3][i] = 1
-			diagonals[4][i] = 1
-			diagonals[15][i] = 1
+		for _, i := range nonZeroDiags {
+			diagonals[i] = make([]uint64, slots)
+			for j := 0; j < slots>>1; j++ {
+				diagonals[i][j] = sampling.RandUint64() % T
+			}
 		}
 
 		ltparams := heint.LinearTransformationParameters{
-			DiagonalsIndexList:       []int{-15, -4, -1, 0, 1, 2, 3, 4, 15},
-			Level:                    ciphertext.Level(),
+			DiagonalsIndexList:       diagonals.DiagonalsIndexList(),
+			LevelQ:                   ciphertext.Level(),
+			LevelP:                   params.MaxLevelP(),
 			Scale:                    tc.params.DefaultScale(),
 			LogDimensions:            ciphertext.LogDimensions,
 			LogBabyStepGianStepRatio: 1,
@@ -227,59 +231,32 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 		require.NoError(t, ltEval.Evaluate(ciphertext, linTransf, ciphertext))
 
-		tmp := make([]uint64, totSlots)
-		copy(tmp, values.Coeffs[0])
-
-		subRing := tc.params.RingT().SubRings[0]
-
-		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, -15), values.Coeffs[0])
-		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, -4), values.Coeffs[0])
-		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, -1), values.Coeffs[0])
-		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 1), values.Coeffs[0])
-		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 2), values.Coeffs[0])
-		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 3), values.Coeffs[0])
-		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 4), values.Coeffs[0])
-		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 15), values.Coeffs[0])
+		values.Coeffs[0] = diagonals.Evaluate(values.Coeffs[0], newVec, add, muladd)
 
 		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
 	})
 
-	t.Run(GetTestName("Evaluator/LinearTransformationBSGS=false", tc.params, level), func(t *testing.T) {
+	t.Run(GetTestName("Evaluator/LinearTransformationBSGS=false", params, level), func(t *testing.T) {
 
-		params := tc.params
+		values, _, ciphertext := newTestVectorsLvl(level, params.DefaultScale(), tc, tc.encryptorSk)
 
-		values, _, ciphertext := newTestVectorsLvl(level, tc.params.DefaultScale(), tc, tc.encryptorSk)
+		slots := ciphertext.Slots()
 
-		diagonals := make(map[int][]uint64)
+		nonZeroDiags := []int{-15, -4, -1, 0, 1, 2, 3, 4, 15}
 
-		totSlots := values.N()
-
-		diagonals[-15] = make([]uint64, totSlots)
-		diagonals[-4] = make([]uint64, totSlots)
-		diagonals[-1] = make([]uint64, totSlots)
-		diagonals[0] = make([]uint64, totSlots)
-		diagonals[1] = make([]uint64, totSlots)
-		diagonals[2] = make([]uint64, totSlots)
-		diagonals[3] = make([]uint64, totSlots)
-		diagonals[4] = make([]uint64, totSlots)
-		diagonals[15] = make([]uint64, totSlots)
-
-		for i := 0; i < totSlots; i++ {
-			diagonals[-15][i] = 1
-			diagonals[-4][i] = 1
-			diagonals[-1][i] = 1
-			diagonals[0][i] = 1
-			diagonals[1][i] = 1
-			diagonals[2][i] = 1
-			diagonals[3][i] = 1
-			diagonals[4][i] = 1
-			diagonals[15][i] = 1
+		diagonals := make(heint.Diagonals[uint64])
+		for _, i := range nonZeroDiags {
+			diagonals[i] = make([]uint64, slots)
+			for j := 0; j < slots>>1; j++ {
+				diagonals[i][j] = sampling.RandUint64() % T
+			}
 		}
 
 		ltparams := heint.LinearTransformationParameters{
-			DiagonalsIndexList:       []int{-15, -4, -1, 0, 1, 2, 3, 4, 15},
-			Level:                    ciphertext.Level(),
-			Scale:                    tc.params.DefaultScale(),
+			DiagonalsIndexList:       diagonals.DiagonalsIndexList(),
+			LevelQ:                   ciphertext.Level(),
+			LevelP:                   params.MaxLevelP(),
+			Scale:                    params.DefaultScale(),
 			LogDimensions:            ciphertext.LogDimensions,
 			LogBabyStepGianStepRatio: -1,
 		}
@@ -297,19 +274,82 @@ func testLinearTransformation(tc *testContext, t *testing.T) {
 
 		require.NoError(t, ltEval.Evaluate(ciphertext, linTransf, ciphertext))
 
-		tmp := make([]uint64, totSlots)
-		copy(tmp, values.Coeffs[0])
+		values.Coeffs[0] = diagonals.Evaluate(values.Coeffs[0], newVec, add, muladd)
 
-		subRing := tc.params.RingT().SubRings[0]
+		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
+	})
 
-		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, -15), values.Coeffs[0])
-		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, -4), values.Coeffs[0])
-		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, -1), values.Coeffs[0])
-		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 1), values.Coeffs[0])
-		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 2), values.Coeffs[0])
-		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 3), values.Coeffs[0])
-		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 4), values.Coeffs[0])
-		subRing.Add(values.Coeffs[0], utils.RotateSlotsNew(tmp, 15), values.Coeffs[0])
+	t.Run(GetTestName("Evaluator/LinearTransformation/Permutation", params, level), func(t *testing.T) {
+
+		idx := [2][]int{
+			make([]int, params.MaxSlots()>>1),
+			make([]int, params.MaxSlots()>>1),
+		}
+
+		for i := range idx[0] {
+			idx[0][i] = i
+			idx[1][i] = i
+		}
+
+		r := rand.New(rand.NewSource(0))
+		r.Shuffle(len(idx[0]), func(i, j int) {
+			idx[0][i], idx[0][j] = idx[0][j], idx[0][i]
+		})
+		r.Shuffle(len(idx[1]), func(i, j int) {
+			idx[1][i], idx[1][j] = idx[1][j], idx[1][i]
+		})
+
+		idx[0] = idx[0][:len(idx[0])>>1]
+		idx[1] = idx[1][:len(idx[1])>>1] // truncates to test partial permutation
+
+		permutation := [2][]heint.PermutationMapping[uint64]{
+			make([]heint.PermutationMapping[uint64], len(idx[0])),
+			make([]heint.PermutationMapping[uint64], len(idx[1])),
+		}
+
+		for i := range permutation {
+			for j := range permutation[i] {
+				permutation[i][j] = heint.PermutationMapping[uint64]{
+					From:    j,
+					To:      idx[i][j],
+					Scaling: sampling.RandUint64() % T,
+				}
+				permutation[i][j] = heint.PermutationMapping[uint64]{
+					From:    j,
+					To:      idx[i][j],
+					Scaling: sampling.RandUint64() % T,
+				}
+			}
+		}
+
+		diagonals := heint.Permutation[uint64](permutation).GetDiagonals(params.LogMaxSlots())
+
+		values, _, ciphertext := newTestVectorsLvl(level, tc.params.NewScale(1), tc, tc.encryptorSk)
+
+		ltparams := heint.LinearTransformationParameters{
+			DiagonalsIndexList:       diagonals.DiagonalsIndexList(),
+			LevelQ:                   ciphertext.Level(),
+			LevelP:                   params.MaxLevelP(),
+			Scale:                    params.DefaultScale(),
+			LogDimensions:            ciphertext.LogDimensions,
+			LogBabyStepGianStepRatio: 1,
+		}
+
+		// Allocate the linear transformation
+		linTransf := heint.NewLinearTransformation(params, ltparams)
+
+		// Encode on the linear transformation
+		require.NoError(t, heint.EncodeLinearTransformation[uint64](tc.encoder, diagonals, linTransf))
+
+		galEls := heint.GaloisElementsForLinearTransformation(params, ltparams)
+
+		evk := rlwe.NewMemEvaluationKeySet(nil, tc.kgen.GenGaloisKeysNew(galEls, tc.sk)...)
+
+		ltEval := heint.NewLinearTransformationEvaluator(tc.evaluator.WithKey(evk))
+
+		require.NoError(t, ltEval.Evaluate(ciphertext, linTransf, ciphertext))
+
+		values.Coeffs[0] = diagonals.Evaluate(values.Coeffs[0], newVec, add, muladd)
 
 		verifyTestVectors(tc, tc.decryptor, values, ciphertext, t)
 	})

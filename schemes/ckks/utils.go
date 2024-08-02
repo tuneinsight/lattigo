@@ -210,7 +210,7 @@ func SingleFloat64ToFixedPointCRT(r *ring.Ring, i int, value float64, scale floa
 		}
 
 	} else {
-		brc := r.BRedConstants()
+		brc := r.GetBRedConstants()
 
 		c = uint64(value + 0.5)
 		if isNegative {

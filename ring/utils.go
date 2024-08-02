@@ -6,7 +6,7 @@ type Dimensions struct {
 
 // EvalPolyModP evaluates y = sum poly[i] * x^{i} mod p.
 func EvalPolyModP(x uint64, poly []uint64, p uint64) (y uint64) {
-	brc := BRedConstant(p)
+	brc := GenBRedConstant(p)
 	y = poly[len(poly)-1]
 	for i := len(poly) - 2; i >= 0; i-- {
 		y = BRed(y, x, p, brc)
@@ -28,7 +28,7 @@ func Min(x, y int) int {
 // ModExp performs the modular exponentiation x^e mod p,
 // x and p are required to be at most 64 bits to avoid an overflow.
 func ModExp(x, e, p uint64) (result uint64) {
-	brc := BRedConstant(p)
+	brc := GenBRedConstant(p)
 	result = 1
 	for i := e; i > 0; i >>= 1 {
 		if i&1 == 1 {
@@ -55,15 +55,15 @@ func ModExpPow2(x, e, p uint64) (result uint64) {
 
 // ModexpMontgomery performs the modular exponentiation x^e mod p,
 // where x is in Montgomery form, and returns x^e in Montgomery form.
-func ModexpMontgomery(x uint64, e int, q, qInv uint64, bredconstant []uint64) (result uint64) {
+func ModexpMontgomery(x uint64, e int, q, mredconstant uint64, bredconstant [2]uint64) (result uint64) {
 
 	result = MForm(1, q, bredconstant)
 
 	for i := e; i > 0; i >>= 1 {
 		if i&1 == 1 {
-			result = MRed(result, x, q, qInv)
+			result = MRed(result, x, q, mredconstant)
 		}
-		x = MRed(x, x, q, qInv)
+		x = MRed(x, x, q, mredconstant)
 	}
 	return result
 }

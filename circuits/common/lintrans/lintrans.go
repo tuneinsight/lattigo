@@ -1,3 +1,4 @@
+// Package lintrans bundles generic parts of the homomorphic linear transformation circuit.
 package lintrans
 
 import (

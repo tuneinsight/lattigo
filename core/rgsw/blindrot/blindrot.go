@@ -1,4 +1,5 @@
-package blind_rotation
+// Package blindrot implements blind rotations evaluation for RLWE schemes.
+package blindrot
 
 import (
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"

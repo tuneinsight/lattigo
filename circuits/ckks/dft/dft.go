@@ -1,3 +1,4 @@
+// Package dft implements a homomorphic DFT circuit for the CKKS scheme.
 package dft
 
 import (

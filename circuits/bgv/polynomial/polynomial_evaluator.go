@@ -72,31 +72,6 @@ func (eval Evaluator) EvaluateFromPowerBasis(pb polynomial.PowerBasis, p interfa
 	return eval.Evaluator.Evaluate(pb, phe, targetScale, 1, &simEvaluator{eval.Parameters, eval.InvariantTensoring})
 }
 
-// scaleInvariantEvaluator is a struct containing a [bfv.Evaluator] with scale invariant tensoring (BFV-style).
-type scaleInvariantEvaluator struct {
-	*bgv.Evaluator
-}
-
-func (polyEval scaleInvariantEvaluator) Mul(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error) {
-	return polyEval.MulScaleInvariant(op0, op1, opOut)
-}
-
-func (polyEval scaleInvariantEvaluator) MulRelin(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error) {
-	return polyEval.Evaluator.MulRelinScaleInvariant(op0, op1, opOut)
-}
-
-func (polyEval scaleInvariantEvaluator) MulNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlwe.Ciphertext, err error) {
-	return polyEval.Evaluator.MulScaleInvariantNew(op0, op1)
-}
-
-func (polyEval scaleInvariantEvaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlwe.Ciphertext, err error) {
-	return polyEval.Evaluator.MulRelinScaleInvariantNew(op0, op1)
-}
-
-func (polyEval scaleInvariantEvaluator) Rescale(op0, op1 *rlwe.Ciphertext) (err error) {
-	return nil
-}
-
 // CoefficientGetter is a struct that implements the
 // [polynomial.CoefficientGetter][uint64] interface.
 type CoefficientGetter struct {

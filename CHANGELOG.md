@@ -1,9 +1,39 @@
-
 # Changelog
 All notable changes to this library are documented in this file.
 
-## UNRELEASED
+## [6.0.0] - 05.08.2024
 - Deprecated Go versions `1.18`, `1.19` and `1.20`. The minimum version is now `1.21`, due to the use of the slices of std library package.
+  - Removal of all slice utility functions in `utils/slices.go` that are provided in the standard library.
+- Golang test cache is deleted before invoking the unit test suite via `make test`.
+- Deletion of the `he` package and its abstraction layers for the BGV and CKKS, refocus of the library onto the scheme level, i.e., the `schemes` package.
+- Extraction of the homomorphic circuits from the `he` into a new `circuits` package.
+  - Simplification of the API for several circuits:
+	- Removal of the circuit-specific evaluator interfaces, e.g., `EvaluatorForLinearTransformation`. These interfaces are replaced with a scheme-agnostic evaluator in `schemes/schemes.go` due to the refocus of the Lattigo towards the individual cryptosystems.
+	- The individual homomorphic circuits are organized by schemes, in other words in the packages `circuits/bgv`, `circuits/ckks` and `circuits/common` where the latter bundles scheme-generic functionalities of circuits common to all deriving schemes.
+- Absorb the `bfv` package into the `bgv` package.
+- Rename `mhe` into `multiparty`.
+- Slot-wise permutations as part of the `LinearTransformation` circuits:
+  - Permutation are handled through `lintrans.Permutation` and `lintrans.PermutationMapping` that induce `lintrans.Diagonals` from which a regular linear transformation can be bootstrapped.
+- New ring packing API:
+  - New packing evaluator: `rlwe.RingPackingEvaluator`:
+	- `NewRingPackingEvaluator(evk *RingPackingEvaluationKey)`
+	- `Extract(ct *rlwe.Ciphertext, idx []int, naive bool) (cts map[int]*rlwe.Ciphertext, err error)`
+	- `Repack(cts map[int]*rlwe.Ciphertext, naive bool) (ct *rlwe.Ciphertext, err error)`
+	- `Split(ctN, ctEvenNHalf, ctOddNHalf *rlwe.Ciphertext) (err error)`
+	- `Merge(ctEvenNHalf, ctOddNHalf, ctN *rlwe.Ciphertext) (err error)`
+	- `ShallowCopy() *RingPackingEvaluator`
+  - New packing evaluation key:
+	- `rlwe.RingPackingEvaluationKey`
+- Streamlined unit test context generation to reduce boilerplate code duplication:
+  - `schemes/*/test_utils.go` to be reused in packages `schemes` and packages that depend on `schemes`.
+- Introduction of the `lintrans.Parameters.LevelQ` and `lintrans.Parameters.LevelP` fields and the removal of the `lintrans.Parameters.Level` field.
+- Optimizations:
+  - Reduce the number of masking operations in `rlwe.Evaluator.gadgetProductSinglePAndBitDecompLazy`.
+  - Reduce degree of relinearization key shares in `multiparty/keygen_relin.go`.
+- Add `gosec` exception directive to weak randomness in unit tests.
+- Fix various linter warnings.
+- Various docstring formatting fixes and the addition of `godoc` links through the `[]` operator.
+- Updated `README.md` with new package hierarchy figures `lattigo-hierachy.svg` and new issue policy.
 
 ## [5.0.0] - 15.11.2023
 - Deprecated Go versions `1.14`, `1.15`, `1.16`, and `1.17`. The minimum version is now `1.18`, due to the required use of generics.

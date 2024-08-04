@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/tuneinsight/lattigo/v5/core/rgsw/blind_rotation"
+	"github.com/tuneinsight/lattigo/v5/core/rgsw/blindrot"
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 	"github.com/tuneinsight/lattigo/v5/ring"
 	"github.com/tuneinsight/lattigo/v5/utils"
@@ -59,7 +59,7 @@ func main() {
 	slots := 32
 
 	// Test poly
-	testPoly := blind_rotation.InitTestPolynomial(sign, rlwe.NewScale(scaleBR), paramsBR.RingQ(), -1, 1)
+	testPoly := blindrot.InitTestPolynomial(sign, rlwe.NewScale(scaleBR), paramsBR.RingQ(), -1, 1)
 
 	// Index map of which test poly to evaluate on which slot
 	testPolyMap := make(map[int]*ring.Poly)
@@ -98,13 +98,13 @@ func main() {
 	}
 
 	// Evaluator for the Blind Rotations
-	eval := blind_rotation.NewEvaluator(paramsBR, paramsLWE)
+	eval := blindrot.NewEvaluator(paramsBR, paramsLWE)
 
 	// Secret of the RGSW ciphertexts encrypting the bits of skLWE
 	skBR := rlwe.NewKeyGenerator(paramsBR).GenSecretKeyNew()
 
 	// Collection of RGSW ciphertexts encrypting the bits of skLWE under skBR
-	blindeRotateKey := blind_rotation.GenEvaluationKeyNew(paramsBR, skBR, paramsLWE, skLWE, evkParams)
+	blindeRotateKey := blindrot.GenEvaluationKeyNew(paramsBR, skBR, paramsLWE, skLWE, evkParams)
 
 	// Evaluation of BlindRotate(ctLWE) = testPoly(X) * X^{dec{ctLWE}}
 	// Returns one RLWE sample per slot in ctLWE

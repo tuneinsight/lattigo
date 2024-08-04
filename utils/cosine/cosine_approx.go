@@ -1,3 +1,10 @@
+// Package cosine method is the Go implementation of the polynomial-approximation algorithm by Han and Ki in
+//
+//	"Better Bootstrapping for Approximate Homomorphic Encryption", <https://epring.iacr.org/2019/688O>.
+//
+// The algorithm was originally implemented in C++, available at
+//
+//	https://github.com/DohyeongKi/better-homomorphic-sine-evaluation
 package cosine
 
 import (

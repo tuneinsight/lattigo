@@ -1,3 +1,4 @@
+// Package schemes contains the implemented cryptosystems.
 package schemes
 
 import "github.com/tuneinsight/lattigo/v5/core/rlwe"

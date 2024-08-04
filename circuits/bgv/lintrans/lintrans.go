@@ -1,3 +1,4 @@
+// Package lintrans implements homomorphic linear transformations for the BFV/BGV schemes.
 package lintrans
 
 import (

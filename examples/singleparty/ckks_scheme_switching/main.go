@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/tuneinsight/lattigo/v5/circuits/ckks/dft"
-	"github.com/tuneinsight/lattigo/v5/core/rgsw/blind_rotation"
+	"github.com/tuneinsight/lattigo/v5/core/rgsw/blindrot"
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
 	"github.com/tuneinsight/lattigo/v5/ring"
 	"github.com/tuneinsight/lattigo/v5/schemes/ckks"
@@ -118,7 +118,7 @@ func main() {
 	fmt.Printf("Generating Test Poly... ")
 	now := time.Now()
 	// Generate test polynomial, provide function, outputscale, ring and interval.
-	testPoly := blind_rotation.InitTestPolynomial(sign, paramsN12.DefaultScale(), paramsN12.RingQ(), a, b)
+	testPoly := blindrot.InitTestPolynomial(sign, paramsN12.DefaultScale(), paramsN12.RingQ(), a, b)
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	// Index of the test poly and repacking after evaluating the BlindRotation.
@@ -165,7 +165,7 @@ func main() {
 	evk := rlwe.NewMemEvaluationKeySet(nil, kgenN12.GenGaloisKeysNew(galEls, skN12)...)
 
 	// BlindRotation Evaluator
-	evalBR := blind_rotation.NewEvaluator(paramsN12, paramsN11)
+	evalBR := blindrot.NewEvaluator(paramsN12, paramsN11)
 
 	// Evaluator
 	eval := ckks.NewEvaluator(paramsN12, evk)
@@ -173,7 +173,7 @@ func main() {
 
 	fmt.Printf("Encrypting bits of skLWE in RGSW... ")
 	now = time.Now()
-	blindRotateKey := blind_rotation.GenEvaluationKeyNew(paramsN12, skN12, paramsN11, skN11, evkParams) // Generate RGSW(sk_i) for all coefficients of sk
+	blindRotateKey := blindrot.GenEvaluationKeyNew(paramsN12, skN12, paramsN11, skN11, evkParams) // Generate RGSW(sk_i) for all coefficients of sk
 	fmt.Printf("Done (%s)\n", time.Since(now))
 
 	// Generates the starting plaintext values.

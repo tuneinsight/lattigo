@@ -1,3 +1,4 @@
+// Package mod1 implements a homomorphic mod1 circuit for the CKKS scheme.
 package mod1
 
 import (

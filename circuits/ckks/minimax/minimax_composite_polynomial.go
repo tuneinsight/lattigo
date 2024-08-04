@@ -1,3 +1,4 @@
+// Package minimax implements a homomorphic minimax circuit for the CKKS scheme.
 package minimax
 
 import (

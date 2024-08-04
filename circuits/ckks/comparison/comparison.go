@@ -1,3 +1,4 @@
+// Package comparison implements homomorphic comparisons for the CKKS scheme.
 package comparison
 
 import (

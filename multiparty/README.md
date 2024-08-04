@@ -1,7 +1,9 @@
 # Multi-Party
+
 The `multiparty` package implements several Multiparty Homomorphic Encryption (MHE) primitives based on Ring-Learning-with-Errors (RLWE).
 It provides generic interfaces for the local steps of the MHE-based Secure Multiparty Computation (MHE-MPC) protocol that are common across all the RLWE distributed schemes implemented in Lattigo (e.g., collective key generation).
-The `multiparty/mpbgv` and `multiparty/mpckks` packages import `multiparty` and provide scheme-specific functionalities (e.g., interactive bootstrapping).
+The `multiparty/mpbgv` and `multiparty/mpckks` packages provide scheme-specific functionalities (e.g., interactive bootstrapping) by implementing **threshold** versions of the single-party BFV/BGV and CKKS cryptosystems
+found in the `schemes` package.
 
 This package implements local operations only, hence does not assume or provide any network-layer protocol implementation.
 However, it provides serialization methods for all relevant structures that implement the standard `encoding.BinaryMarshaller` and `encoding.BinaryUnmarshaller` interfaces (see [https://pkg.go.dev/encoding](https://pkg.go.dev/encoding)) as well as the `io.WriterTo` and `io.ReaderFrom` interfaces (see [https://pkg.go.dev/encoding](https://pkg.go.dev/io)).

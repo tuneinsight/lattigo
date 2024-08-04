@@ -1,3 +1,4 @@
+// Package polynomial implements a homomorphic polynomial evaluator for the CKKS scheme.
 package polynomial
 
 import (

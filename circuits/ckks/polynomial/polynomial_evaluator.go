@@ -5,7 +5,6 @@ import (
 
 	"github.com/tuneinsight/lattigo/v5/circuits/common/polynomial"
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/schemes"
 	"github.com/tuneinsight/lattigo/v5/schemes/ckks"
 	"github.com/tuneinsight/lattigo/v5/utils/bignum"
 )
@@ -19,7 +18,7 @@ type Evaluator struct {
 
 // NewEvaluator instantiates a new [Evaluator] from a [ckks.Evaluator].
 // This method is allocation free.
-func NewEvaluator(params ckks.Parameters, eval schemes.Evaluator) *Evaluator {
+func NewEvaluator(params ckks.Parameters, eval *ckks.Evaluator) *Evaluator {
 	return &Evaluator{
 		Parameters: params,
 		Evaluator: polynomial.Evaluator[*bignum.Complex]{

@@ -13,11 +13,18 @@ import (
 
 // Evaluator is a struct that holds the necessary elements to perform the homomorphic operations between ciphertexts and/or plaintexts.
 // It also holds a memory buffer used to store intermediate computations.
+// The [Evaluator.ScaleInvariant] flag needs to be set in order to use a BFV-style
+// version of the evaluator.
 type Evaluator struct {
 	*evaluatorBase
 	*evaluatorBuffers
 	*rlwe.Evaluator
 	*Encoder
+
+	// ScaleInvariant is a flag indicating whether the evaluator executes
+	// scale-invariant multiplications (transforming the BGV evaluator into
+	// BFV evaluator).
+	ScaleInvariant bool
 }
 
 type evaluatorBase struct {
@@ -112,12 +119,16 @@ func newEvaluatorBuffer(params Parameters) *evaluatorBuffers {
 // NewEvaluator creates a new [Evaluator], that can be used to do homomorphic
 // operations on ciphertexts and/or plaintexts. It stores a memory buffer
 // and ciphertexts that will be used for intermediate values.
-func NewEvaluator(parameters Parameters, evk rlwe.EvaluationKeySet) *Evaluator {
+// The evaluator can optionally be initialized as scale-invariant, which
+// transforms it into a BFV evaluator. See `schemes/bfv/README.md` for more
+// information.
+func NewEvaluator(parameters Parameters, evk rlwe.EvaluationKeySet, scaleInvariant ...bool) *Evaluator {
 	ev := new(Evaluator)
 	ev.evaluatorBase = newEvaluatorPrecomp(parameters)
 	ev.evaluatorBuffers = newEvaluatorBuffer(parameters)
 	ev.Evaluator = rlwe.NewEvaluator(parameters.Parameters, evk)
 	ev.Encoder = NewEncoder(parameters)
+	ev.ScaleInvariant = len(scaleInvariant) > 0 && scaleInvariant[0]
 
 	return ev
 }
@@ -444,6 +455,13 @@ func (eval Evaluator) DropLevel(op0 *rlwe.Ciphertext, levels int) {
 //   - the scale of opOut will be updated to op0.Scale * op1.Scale
 func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error) {
 
+	if eval.ScaleInvariant {
+		switch op1 := op1.(type) {
+		case rlwe.ElementInterface[ring.Poly], []uint64, []int64:
+			return eval.MulScaleInvariant(op0, op1, opOut)
+		}
+	}
+
 	switch op1 := op1.(type) {
 	case rlwe.ElementInterface[ring.Poly]:
 
@@ -540,6 +558,14 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 //   - the level of opOut will be to min(op0.Level(), op1.Level())
 //   - the scale of opOut will be to op0.Scale * op1.Scale
 func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlwe.Ciphertext, err error) {
+
+	if eval.ScaleInvariant {
+		switch op1 := op1.(type) {
+		case rlwe.ElementInterface[ring.Poly], []uint64, []int64:
+			return eval.MulScaleInvariantNew(op0, op1)
+		}
+	}
+
 	switch op1 := op1.(type) {
 	case rlwe.ElementInterface[ring.Poly]:
 		opOut = NewCiphertext(eval.parameters, op0.Degree()+op1.Degree(), utils.Min(op0.Level(), op1.Level()))
@@ -569,6 +595,11 @@ func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlw
 //   - the level of opOut will be updated to min(op0.Level(), op1.Level())
 //   - the scale of opOut will be updated to op0.Scale * op1.Scale
 func (eval Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error) {
+
+	if eval.ScaleInvariant {
+		return eval.MulRelinScaleInvariant(op0, op1, opOut)
+	}
+
 	switch op1 := op1.(type) {
 	case rlwe.ElementInterface[ring.Poly]:
 
@@ -609,6 +640,11 @@ func (eval Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rl
 //   - the level of opOut will be to min(op0.Level(), op1.Level())
 //   - the scale of opOut will be to op0.Scale * op1.Scale
 func (eval Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlwe.Ciphertext, err error) {
+
+	if eval.ScaleInvariant {
+		return eval.MulRelinScaleInvariantNew(op0, op1)
+	}
+
 	switch op1 := op1.(type) {
 	case rlwe.ElementInterface[ring.Poly]:
 		opOut = NewCiphertext(eval.parameters, 1, utils.Min(op0.Level(), op1.Level()))
@@ -1369,6 +1405,10 @@ func (eval Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ri
 // The scale of opOut will be updated to op0.Scale * qi^{-1} mod PlaintextModulus where qi is the prime consumed by
 // the rescaling operation.
 func (eval Evaluator) Rescale(op0, opOut *rlwe.Ciphertext) (err error) {
+
+	if eval.ScaleInvariant {
+		return nil
+	}
 
 	if op0.MetaData == nil || opOut.MetaData == nil {
 		return fmt.Errorf("cannot Rescale: op0.MetaData or opOut.MetaData is nil")

@@ -34,7 +34,7 @@ func TestLinearTransformation(t *testing.T) {
 		for _, plaintextModulus := range testPlaintextModulus[:] {
 			p.PlaintextModulus = plaintextModulus
 
-			tc := bgv.NewTestContext(p)
+			tc := bgv.NewTestContext(p, false)
 
 			for _, testSet := range []func(tc *bgv.TestContext, t *testing.T){
 				run,

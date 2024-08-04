@@ -30,7 +30,7 @@ type TestContext struct {
 	Evl *Evaluator
 }
 
-func NewTestContext(params ParametersLiteral) *TestContext {
+func NewTestContext(params ParametersLiteral, scaleInvariant bool) *TestContext {
 	tc := new(TestContext)
 
 	var err error
@@ -53,7 +53,7 @@ func NewTestContext(params ParametersLiteral) *TestContext {
 	tc.Enc = rlwe.NewEncryptor(tc.Params, tc.Pk)
 	tc.Dec = rlwe.NewDecryptor(tc.Params, tc.Sk)
 
-	tc.Evl = NewEvaluator(tc.Params, rlwe.NewMemEvaluationKeySet(tc.Kgen.GenRelinearizationKeyNew(tc.Sk)))
+	tc.Evl = NewEvaluator(tc.Params, rlwe.NewMemEvaluationKeySet(tc.Kgen.GenRelinearizationKeyNew(tc.Sk)), scaleInvariant)
 
 	return tc
 }

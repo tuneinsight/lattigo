@@ -5,8 +5,6 @@ import (
 
 	"github.com/tuneinsight/lattigo/v5/circuits/common/polynomial"
 	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/schemes"
-	"github.com/tuneinsight/lattigo/v5/schemes/bfv"
 	"github.com/tuneinsight/lattigo/v5/schemes/bgv"
 )
 
@@ -16,38 +14,16 @@ type Evaluator struct {
 	InvariantTensoring bool
 }
 
-// NewEvaluator instantiates a new PolynomialEvaluator from a [schemes.Evaluator].
-// The default [bgv.Evaluator] is compliant to the [schemes.Evaluator] interface.
-// InvariantTensoring is a boolean that specifies if the evaluator performed the invariant tensoring (BFV-style) or
-// the regular tensoring (BGV-style).
-func NewEvaluator(params bgv.Parameters, eval schemes.Evaluator, InvariantTensoring bool) *Evaluator {
-
-	var evalForPoly schemes.Evaluator
-
-	switch eval := eval.(type) {
-	case *bgv.Evaluator:
-		if InvariantTensoring {
-			evalForPoly = scaleInvariantEvaluator{eval}
-		} else {
-			evalForPoly = eval
-		}
-	case *bfv.Evaluator:
-		if InvariantTensoring {
-			evalForPoly = eval
-		} else {
-			evalForPoly = eval.Evaluator
-		}
-	default:
-		evalForPoly = eval
-	}
+// NewEvaluator instantiates a new PolynomialEvaluator from a [bgv.Evaluator].
+func NewEvaluator(params bgv.Parameters, eval *bgv.Evaluator) *Evaluator {
 
 	return &Evaluator{
 		Parameters: params,
 		Evaluator: polynomial.Evaluator[uint64]{
-			Evaluator:         evalForPoly,
+			Evaluator:         eval,
 			CoefficientGetter: CoefficientGetter{values: make([]uint64, params.MaxSlots())},
 		},
-		InvariantTensoring: InvariantTensoring,
+		InvariantTensoring: eval.ScaleInvariant,
 	}
 }
 

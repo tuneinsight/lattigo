@@ -33,7 +33,7 @@ func TestPolynomialEvaluator(t *testing.T) {
 		for _, plaintextModulus := range testPlaintextModulus[:] {
 			p.PlaintextModulus = plaintextModulus
 
-			tc := bgv.NewTestContext(p)
+			tc := bgv.NewTestContext(p, false)
 
 			for _, testSet := range []func(tc *bgv.TestContext, t *testing.T){
 				run,
@@ -65,7 +65,7 @@ func run(tc *bgv.TestContext, t *testing.T) {
 
 		t.Run("Standard"+tc.String(), func(t *testing.T) {
 
-			polyEval := NewEvaluator(tc.Params, tc.Evl, false)
+			polyEval := NewEvaluator(tc.Params, tc.Evl)
 
 			res, err := polyEval.Evaluate(ciphertext, poly, tc.Params.DefaultScale())
 			require.NoError(t, err)
@@ -76,8 +76,9 @@ func run(tc *bgv.TestContext, t *testing.T) {
 		})
 
 		t.Run("Invariant"+tc.String(), func(t *testing.T) {
+			tc.Evl.ScaleInvariant = true
 
-			polyEval := NewEvaluator(tc.Params, tc.Evl, true)
+			polyEval := NewEvaluator(tc.Params, tc.Evl)
 
 			res, err := polyEval.Evaluate(ciphertext, poly, tc.Params.DefaultScale())
 			require.NoError(t, err)

@@ -30,7 +30,7 @@ func BenchmarkBGV(b *testing.B) {
 	}
 
 	for _, paramsLiteral := range testParams {
-		tc := NewTestContext(paramsLiteral)
+		tc := NewTestContext(paramsLiteral, false)
 
 		for _, testSet := range []func(tc *TestContext, b *testing.B){
 			benchEncoder,

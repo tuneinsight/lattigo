@@ -6,7 +6,7 @@ The BFV package provides an RNS-accelerated implementation of the Fan-Vercautere
 
 ## Implementation Notes
 
-The proposed implementation is built as a wrapper over the `bgv` package, which implements a unified variant of the BFV and BGV schemes. The only practical difference with the standard BFV is that the plaintext modulus must be coprime with the ciphertext modulus. This is both required for correctness ($T^{-1}\mod Q$ must be defined) and for security reasons (if $T|Q$ then the BGV scheme is not IND-CPA secure anymore).
+The proposed implementation is built as a wrapper over the `bgv` package, which implements a unified variant of the BFV and BGV schemes. The only practical difference with the standard BFV is that the plaintext modulus must be coprime with the ciphertext modulus. This is both required for correctness ($T^{-1}\mod Q$ must be defined) and for security reasons (if $T|Q$ then the BGV scheme is not IND-CPA secure anymore). To instantiate the BFV cryptosystem, generate a new BGV evaluator by with the optional scale-invariant parameter set to `true`.
 
 For additional information, see the [`README.md`](../bgv/README.md) in the `bgv` package.
 

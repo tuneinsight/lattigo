@@ -1,3 +1,4 @@
+// Package polynomial bundles generic parts of the homomorphic polynomial evaluation circuit.
 package polynomial
 
 import (

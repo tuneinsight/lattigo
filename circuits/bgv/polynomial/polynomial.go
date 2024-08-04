@@ -1,3 +1,4 @@
+// Package polynomial implements a homomorphic polynomial evaluator for the BFV/BGV schemes.
 package polynomial
 
 import (

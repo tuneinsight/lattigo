@@ -1,3 +1,4 @@
+// Package lintrans implements homomorphic linear transformations for the CKKS scheme.
 package lintrans
 
 import (
@@ -122,7 +123,7 @@ func Encode[T ckks.Float](ecd schemes.Encoder, diagonals Diagonals[T], allocated
 		lintrans.LinearTransformation(allocated))
 }
 
-// // GaloisElements returns the list of Galois elements required to evaluate the linear transformation.
+// GaloisElements returns the list of Galois elements required to evaluate the linear transformation.
 func GaloisElements(params rlwe.ParameterProvider, lt Parameters) (galEls []uint64) {
 	return lintrans.GaloisElements(params, lt.DiagonalsIndexList, 1<<lt.LogDimensions.Cols, lt.LogBabyStepGiantStepRatio)
 }

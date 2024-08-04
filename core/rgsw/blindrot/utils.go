@@ -1,4 +1,4 @@
-package blind_rotation
+package blindrot
 
 import (
 	"math/big"

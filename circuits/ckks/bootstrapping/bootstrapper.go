@@ -1,3 +1,5 @@
+// Package bootstrapping implements bootstrapping for fixed-point encrypted
+// approximate homomorphic encryption over the complex/real numbers (CKKS scheme).
 package bootstrapping
 
 import "github.com/tuneinsight/lattigo/v5/core/rlwe"

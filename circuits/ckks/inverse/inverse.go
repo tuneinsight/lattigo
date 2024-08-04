@@ -1,3 +1,4 @@
+// Package inverse implements a homomorphic inversion circuit for the CKKS scheme.
 package inverse
 
 import (

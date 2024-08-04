@@ -436,7 +436,8 @@ func (eval Evaluator) DropLevel(op0 *rlwe.Ciphertext, levels int) {
 	op0.Resize(op0.Degree(), op0.Level()-levels)
 }
 
-// Mul multiplies op0 with op1 without relinearization and using standard tensoring (BGV/CKKS-style), and returns the result in opOut.
+// Mul multiplies op0 with op1 without relinearization using either standard tensoring (BGV/CKKS-style) when [Evaluator.ScaleInvariant]
+// is set to false or scale-invariant tensoring (BFV-style) otherwise, i.e., [Evaluator.MulScaleInvariant], and returns the result in opOut.
 // This tensoring increases the noise by a multiplicative factor of the plaintext and noise norms of the operands and will usually
 // require to be followed by a rescaling operation to avoid an exponential growth of the noise from subsequent multiplications.
 // The procedure will return an error if either op0 or op1 are have a degree higher than 1.
@@ -541,10 +542,12 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 	return
 }
 
-// MulNew multiplies op0 with op1 without relinearization and using standard tensoring (BGV/CKKS-style), and returns the result in a new *[rlwe.Ciphertext] opOut.
-// This tensoring increases the noise by a multiplicative factor of the plaintext and noise norms of the operands and will usually
-// require to be followed by a rescaling operation to avoid an exponential growth of the noise from subsequent multiplications.
-// The procedure will return an error if either op0 or op1 are have a degree higher than 1.
+// MulNew multiplies op0 with op1 without relinearization using standard tensoring (BGV/CKKS-style) when [Evaluator.ScaleInvariant]
+// is set to false or scale-invariant tensoring (BFV-style) otherwise, i.e., [Evaluator.MulScaleInvariantNew], and returns
+// the result in a new *[rlwe.Ciphertext] opOut. This tensoring increases the noise by a multiplicative factor of the plaintext
+// and noise norms of the operands and will usually require to be followed by a rescaling operation to avoid an exponential
+// growth of the noise from subsequent multiplications. The procedure will return an error if either op0 or op1 are have a
+// degree higher than 1.
 //
 // inputs:
 //   - op0: an *[rlwe.Ciphertext]
@@ -576,8 +579,9 @@ func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlw
 	return opOut, eval.Mul(op0, op1, opOut)
 }
 
-// MulRelin multiplies op0 with op1 with relinearization and using standard tensoring (BGV/CKKS-style), and returns the result in opOut.
-// This tensoring increases the noise by a multiplicative factor of the plaintext and noise norms of the operands and will usually
+// MulRelin multiplies op0 with op1 with relinearization using standard tensoring (BGV/CKKS-style) when [Evaluator.ScaleInvariant]
+// is set to false or scale-invariant tensoring (BFV-style) otherwise, i.e., [Evaluator.MulRelinScaleInvariant], and returns the result in
+// opOut. This tensoring increases the noise by a multiplicative factor of the plaintext and noise norms of the operands and will usually
 // require to be followed by a rescaling operation to avoid an exponential growth of the noise from subsequent multiplications.
 // The procedure will return an error if either op0.Degree or op1.Degree > 1.
 // The procedure will return an error if opOut.Degree != op0.Degree + op1.Degree.
@@ -623,9 +627,11 @@ func (eval Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rl
 	return
 }
 
-// MulRelinNew multiplies op0 with op1 with relinearization and and using standard tensoring (BGV/CKKS-style), returns the result in a new *[rlwe.Ciphertext] opOut.
-// This tensoring increases the noise by a multiplicative factor of the plaintext and noise norms of the operands and will usually
-// require to be followed by a rescaling operation to avoid an exponential growth of the noise from subsequent multiplications.
+// MulRelinNew multiplies op0 with op1 with relinearization using standard tensoring (BGV/CKKS-style) when [Evaluator.ScaleInvariant]
+// is set to false or scale-invariant tensoring (BFV-style) otherwise, i.e., [Evaluator.MulRelinScaleInvariantNew], and returns the result
+// in a new *[rlwe.Ciphertext] opOut. This tensoring increases the noise by a multiplicative factor of the plaintext and noise norms
+// of the operands and will usually require to be followed by a rescaling operation to avoid an exponential growth of the noise from
+// subsequent multiplications.
 // The procedure will return an error if either op0.Degree or op1.Degree > 1.
 // The procedure will return an error if the evaluator was not created with an relinearization key.
 //
@@ -1404,6 +1410,7 @@ func (eval Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ri
 //
 // The scale of opOut will be updated to op0.Scale * qi^{-1} mod PlaintextModulus where qi is the prime consumed by
 // the rescaling operation.
+// Note that if the evaluator has been instantiated as scale-invariant (BFV-style), then Rescale is a nop.
 func (eval Evaluator) Rescale(op0, opOut *rlwe.Ciphertext) (err error) {
 
 	if eval.ScaleInvariant {

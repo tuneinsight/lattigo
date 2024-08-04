@@ -240,7 +240,7 @@ func (ecd Encoder) EncodeRingT(values IntegerSlice, scale rlwe.Scale, pT ring.Po
 	return nil
 }
 
-// Embed is a generic method to encode an IntegerSlice on [ringqp.Poly] or *[ring.Poly].
+// EmbedScale is a generic method to encode an IntegerSlice on [ringqp.Poly] or *[ring.Poly].
 // If scaleUp is true, then the values will to be multiplied by PlaintextModulus^{-1} mod Q after being encoded on the polynomial.
 // Encoding is done according to the metadata.
 // Accepted polyOut.(type) are a ringqp.Poly and *ring.Poly

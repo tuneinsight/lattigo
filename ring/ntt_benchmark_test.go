@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/tuneinsight/lattigo/v5/utils/sampling"
+	"github.com/tuneinsight/lattigo/v6/utils/sampling"
 )
 
 func BenchmarkNTT(b *testing.B) {

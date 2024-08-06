@@ -10,12 +10,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/tuneinsight/lattigo/v5/ring"
-	"github.com/tuneinsight/lattigo/v5/ring/ringqp"
-	"github.com/tuneinsight/lattigo/v5/utils"
-	"github.com/tuneinsight/lattigo/v5/utils/buffer"
-	"github.com/tuneinsight/lattigo/v5/utils/sampling"
-	"github.com/tuneinsight/lattigo/v5/utils/structs"
+	"github.com/tuneinsight/lattigo/v6/ring"
+	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
+	"github.com/tuneinsight/lattigo/v6/utils"
+	"github.com/tuneinsight/lattigo/v6/utils/buffer"
+	"github.com/tuneinsight/lattigo/v6/utils/sampling"
+	"github.com/tuneinsight/lattigo/v6/utils/structs"
 )
 
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
@@ -147,6 +147,74 @@ func testUserDefinedParameters(t *testing.T) {
 		err = json.Unmarshal(dataWithBadDist, &paramsWithBadDist)
 		require.NotNil(t, err)
 		require.Equal(t, paramsWithBadDist, Parameters{})
+	})
+
+	// test valid/invalid configurations of prime fields
+	t.Run("Parameters/NewParametersFromLiteral", func(t *testing.T) {
+		Q := []uint64{0x200000440001, 0x7fff80001, 0x800280001, 0x7ffd80001, 0x7ffc80001}
+		P := []uint64{0x3ffffffb80001, 0x4000000800001}
+		logQ := []int{55, 40, 40, 40, 40}
+		logP := []int{55, 55}
+
+		// both Q and P given (good)
+		params, err := NewParametersFromLiteral(ParametersLiteral{
+			LogN: logN, Q: Q, P: P, LogQ: nil, LogP: nil,
+		})
+		require.NoError(t, err)
+		require.Equal(t, params.qi, Q)
+		require.Equal(t, params.pi, P)
+
+		// only Q given (good)
+		params, err = NewParametersFromLiteral(ParametersLiteral{
+			LogN: logN, Q: Q, P: nil, LogQ: nil, LogP: nil,
+		})
+		require.NoError(t, err)
+		require.Equal(t, params.qi, Q)
+		require.Empty(t, params.pi)
+
+		// Q and logP given (good)
+		params, err = NewParametersFromLiteral(ParametersLiteral{
+			LogN: logN, Q: Q, P: nil, LogQ: nil, LogP: logP,
+		})
+		require.NoError(t, err)
+		require.Equal(t, params.qi, Q)
+		require.Equal(t, len(params.pi), len(logP))
+
+		// logQ and P given (good)
+		params, err = NewParametersFromLiteral(ParametersLiteral{
+			LogN: logN, Q: nil, P: P, LogQ: logQ, LogP: nil,
+		})
+		require.NoError(t, err)
+		require.Equal(t, len(params.qi), len(logQ))
+		require.Equal(t, params.pi, P)
+
+		// both LogQ and LogP given (good)
+		params, err = NewParametersFromLiteral(ParametersLiteral{
+			LogN: logN, Q: nil, P: nil, LogQ: logQ, LogP: logP,
+		})
+		require.NoError(t, err)
+		require.Equal(t, len(params.qi), len(logQ))
+		require.Equal(t, len(params.pi), len(logP))
+
+		// only LogQ given (good)
+		params, err = NewParametersFromLiteral(ParametersLiteral{
+			LogN: logN, Q: nil, P: nil, LogQ: logQ, LogP: nil,
+		})
+		require.NoError(t, err)
+		require.Equal(t, len(params.qi), len(logQ))
+		require.Empty(t, params.pi)
+
+		// empty primes (bad)
+		_, err = NewParametersFromLiteral(ParametersLiteral{
+			LogN: logN, Q: nil, P: nil, LogQ: nil, LogP: nil,
+		})
+		require.Error(t, err)
+
+		// double set log/non-prime (bad)
+		_, err = NewParametersFromLiteral(ParametersLiteral{
+			LogN: logN, Q: Q, P: nil, LogQ: logQ, LogP: nil,
+		})
+		require.Error(t, err)
 	})
 
 }

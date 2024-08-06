@@ -3,8 +3,8 @@ package ring
 import (
 	"encoding/binary"
 
-	"github.com/tuneinsight/lattigo/v5/utils"
-	"github.com/tuneinsight/lattigo/v5/utils/sampling"
+	"github.com/tuneinsight/lattigo/v6/utils"
+	"github.com/tuneinsight/lattigo/v6/utils/sampling"
 )
 
 // UniformSampler wraps a util.PRNG and represents the state of a sampler of uniform polynomials.

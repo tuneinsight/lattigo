@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/tuneinsight/lattigo/v5/utils"
-	"github.com/tuneinsight/lattigo/v5/utils/buffer"
+	"github.com/tuneinsight/lattigo/v6/utils"
+	"github.com/tuneinsight/lattigo/v6/utils/buffer"
 	"golang.org/x/exp/constraints"
 )
 

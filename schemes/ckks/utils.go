@@ -4,9 +4,9 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/ring"
-	"github.com/tuneinsight/lattigo/v5/utils/bignum"
+	"github.com/tuneinsight/lattigo/v6/core/rlwe"
+	"github.com/tuneinsight/lattigo/v6/ring"
+	"github.com/tuneinsight/lattigo/v6/utils/bignum"
 )
 
 // GetRootsBigComplex returns the roots e^{2*pi*i/m *j} for 0 <= j <= NthRoot
@@ -210,7 +210,7 @@ func SingleFloat64ToFixedPointCRT(r *ring.Ring, i int, value float64, scale floa
 		}
 
 	} else {
-		brc := r.GetBRedConstants()
+		brc := r.BRedConstants()
 
 		c = uint64(value + 0.5)
 		if isNegative {

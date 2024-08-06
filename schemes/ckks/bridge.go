@@ -3,9 +3,9 @@ package ckks
 import (
 	"fmt"
 
-	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/ring"
-	"github.com/tuneinsight/lattigo/v5/utils"
+	"github.com/tuneinsight/lattigo/v6/core/rlwe"
+	"github.com/tuneinsight/lattigo/v6/ring"
+	"github.com/tuneinsight/lattigo/v6/utils"
 )
 
 // DomainSwitcher is a type for switching between the standard CKKS domain (which encrypts vectors of complex numbers)

@@ -9,8 +9,8 @@ import (
 	"math/big"
 	"math/bits"
 
-	"github.com/tuneinsight/lattigo/v5/utils"
-	"github.com/tuneinsight/lattigo/v5/utils/bignum"
+	"github.com/tuneinsight/lattigo/v6/utils"
+	"github.com/tuneinsight/lattigo/v6/utils/bignum"
 )
 
 const (
@@ -216,9 +216,9 @@ func (r Ring) Modulus() *big.Int {
 	return r.ModulusAtLevel[r.level]
 }
 
-// GetMRedConstants returns the concatenation of the Montgomery constants
+// MRedConstants returns the concatenation of the Montgomery constants
 // of the target ring.
-func (r Ring) GetMRedConstants() (MRC []uint64) {
+func (r Ring) MRedConstants() (MRC []uint64) {
 	MRC = make([]uint64, len(r.SubRings))
 	for i := range r.SubRings {
 		MRC[i] = r.SubRings[i].MRedConstant
@@ -227,9 +227,9 @@ func (r Ring) GetMRedConstants() (MRC []uint64) {
 	return
 }
 
-// GetBRedConstants returns the concatenation of the Barrett constants
+// BRedConstants returns the concatenation of the Barrett constants
 // of the target ring.
-func (r Ring) GetBRedConstants() (BRC [][2]uint64) {
+func (r Ring) BRedConstants() (BRC [][2]uint64) {
 	BRC = make([][2]uint64, len(r.SubRings))
 	for i := range r.SubRings {
 		BRC[i] = r.SubRings[i].BRedConstant

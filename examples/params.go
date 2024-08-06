@@ -1,135 +1,135 @@
 package examples
 
 import (
-	"github.com/tuneinsight/lattigo/v5/he/hefloat"
-	"github.com/tuneinsight/lattigo/v5/he/heint"
-	"github.com/tuneinsight/lattigo/v5/ring"
+	"github.com/tuneinsight/lattigo/v6/ring"
+	"github.com/tuneinsight/lattigo/v6/schemes/bgv"
+	"github.com/tuneinsight/lattigo/v6/schemes/ckks"
 )
 
 var (
 
-	// HEIntParamsN12QP109 is an example parameter set for the `heint` package logN=12 and logQP=109.
+	// BGVParamsN12QP109 is an example parameter set for the `bgv` package logN=12 and logQP=109.
 	// These parameters expect the user to use the regular tensoring (i.e. Evaluator.Mul) followed
 	// by the rescaling (i.e. Evaluator.Rescale).
-	HEIntParamsN12QP109 = heint.ParametersLiteral{
+	BGVParamsN12QP109 = bgv.ParametersLiteral{
 		LogN:             12,
 		LogQ:             []int{39, 31},
 		LogP:             []int{39},
 		PlaintextModulus: 0x10001,
 	}
 
-	// HEIntParamsN13QP218 is an example parameter set for the `heint` package with logN=13 and logQP=218.
+	// BGVParamsN13QP218 is an example parameter set for the `bgv` package with logN=13 and logQP=218.
 	// These parameters expect the user to use the regular tensoring (i.e. Evaluator.Mul) followed
 	// by the rescaling (i.e. Evaluator.Rescale).
-	HEIntParamsN13QP218 = heint.ParametersLiteral{
+	BGVParamsN13QP218 = bgv.ParametersLiteral{
 		LogN:             13,
 		LogQ:             []int{42, 33, 33, 33, 33},
 		LogP:             []int{44},
 		PlaintextModulus: 0x10001,
 	}
 
-	// HEIntParamsN14QP438 is an example parameter set for the `heint` package with logN=14 and logQP=438.
+	// BGVParamsN14QP438 is an example parameter set for the `bgv` package with logN=14 and logQP=438.
 	// These parameters expect the user to use the regular tensoring (i.e. Evaluator.Mul) followed
 	// by the rescaling (i.e. Evaluator.Rescale).
-	HEIntParamsN14QP438 = heint.ParametersLiteral{
+	BGVParamsN14QP438 = bgv.ParametersLiteral{
 		LogN:             14,
 		LogQ:             []int{44, 34, 34, 34, 34, 34, 34, 34, 34, 34},
 		LogP:             []int{44, 44},
 		PlaintextModulus: 0x10001,
 	}
 
-	// HEIntParamsN15QP880 is an example parameter set for the `heint` package with logN=15 and logQP=881.
+	// BGVParamsN15QP880 is an example parameter set for the `bgv` package with logN=15 and logQP=881.
 	// These parameters expect the user to use the regular tensoring (i.e. Evaluator.Mul) followed
 	// by the rescaling (i.e. Evaluator.Rescale).
-	HEIntParamsN15QP880 = heint.ParametersLiteral{
+	BGVParamsN15QP880 = bgv.ParametersLiteral{
 		LogN:             15,
 		LogQ:             []int{47, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34},
 		LogP:             []int{47, 47, 47, 47},
 		PlaintextModulus: 0x10001,
 	}
 
-	// HEIntScaleInvariantParamsN12QP109 is an example parameter set for the `heint` package logN=12 and logQP=109.
+	// BGVScaleInvariantParamsN12QP109 is an example parameter set for the `bgv` package logN=12 and logQP=109.
 	// These parameters expect the user to use the scale invariant tensoring (i.e. Evaluator.MulScaleInvariant).
-	HEIntScaleInvariantParamsN12QP109 = heint.ParametersLiteral{
+	BGVScaleInvariantParamsN12QP109 = bgv.ParametersLiteral{
 		LogN:             12,
 		LogQ:             []int{39, 39},
 		LogP:             []int{31},
 		PlaintextModulus: 0x10001,
 	}
 
-	// HEIntScaleInvariantParamsN13QP218 is an example parameter set for the `heint` package with logN=13 and logQP=218.
+	// BGVScaleInvariantParamsN13QP218 is an example parameter set for the `bgv` package with logN=13 and logQP=218.
 	// These parameters expect the user to use the scale invariant tensoring (i.e. Evaluator.MulScaleInvariant).
-	HEIntScaleInvariantParamsN13QP218 = heint.ParametersLiteral{
+	BGVScaleInvariantParamsN13QP218 = bgv.ParametersLiteral{
 		LogN:             13,
 		LogQ:             []int{55, 54, 54},
 		LogP:             []int{55},
 		PlaintextModulus: 0x10001,
 	}
 
-	// HEIntScaleInvariantParamsN14QP438 is an example parameter set for the `heint` package with logN=14 and logQP=438.
+	// BGVScaleInvariantParamsN14QP438 is an example parameter set for the `bgv` package with logN=14 and logQP=438.
 	// These parameters expect the user to use the scale invariant tensoring (i.e. Evaluator.MulScaleInvariant).
-	HEIntScaleInvariantParamsN14QP438 = heint.ParametersLiteral{
+	BGVScaleInvariantParamsN14QP438 = bgv.ParametersLiteral{
 		LogN:             14,
 		LogQ:             []int{55, 55, 55, 54, 54, 54},
 		LogP:             []int{56, 55},
 		PlaintextModulus: 0x10001,
 	}
 
-	// HEIntScaleInvariantParamsN15QP880 is an example parameter set for the `heint` package with logN=15 and logQP=881.
+	// BGVScaleInvariantParamsN15QP880 is an example parameter set for the `bgv` package with logN=15 and logQP=881.
 	// These parameters expect the user to use the scale invariant tensoring (i.e. Evaluator.MulScaleInvariant).
-	HEIntScaleInvariantParamsN15QP880 = heint.ParametersLiteral{
+	BGVScaleInvariantParamsN15QP880 = bgv.ParametersLiteral{
 		LogN:             15,
 		LogQ:             []int{60, 60, 59, 58, 58, 58, 58, 58, 58, 58, 58, 58},
 		LogP:             []int{60, 60, 60},
 		PlaintextModulus: 0x10001,
 	}
 
-	// HEFloatComplexParamsN12QP109 is an example parameter set for the `hefloat` package with logN=12 and logQP=109.
-	// These parameters instantiate `hefloat` over the complex field with N/2 SIMD slots.
-	HEFloatComplexParamsN12QP109 = hefloat.ParametersLiteral{
+	// CKKSComplexParamsN12QP109 is an example parameter set for the `ckks` package with logN=12 and logQP=109.
+	// These parameters instantiate `ckks` over the complex field with N/2 SIMD slots.
+	CKKSComplexParamsN12QP109 = ckks.ParametersLiteral{
 		LogN:            12,
 		LogQ:            []int{38, 32},
 		LogP:            []int{39},
 		LogDefaultScale: 32,
 	}
 
-	// HEFloatComplexParamsN13QP218 is an example parameter set for the `hefloat` package with logN=13 and logQP=218.
-	// These parameters instantiate `hefloat` over the complex field with N/2 SIMD slots.
-	HEFloatComplexParamsN13QP218 = hefloat.ParametersLiteral{
+	// CKKSComplexParamsN13QP218 is an example parameter set for the `ckks` package with logN=13 and logQP=218.
+	// These parameters instantiate `ckks` over the complex field with N/2 SIMD slots.
+	CKKSComplexParamsN13QP218 = ckks.ParametersLiteral{
 		LogN:            13,
 		LogQ:            []int{33, 30, 30, 30, 30, 30},
 		LogP:            []int{35},
 		LogDefaultScale: 30,
 	}
-	// HEFloatComplexParamsN14QP438 is an example parameter set for the `hefloat` package with logN=14 and logQP=438.
-	// These parameters instantiate `hefloat` over the complex field with N/2 SIMD slots.
-	HEFloatComplexParamsN14QP438 = hefloat.ParametersLiteral{
+	// CKKSComplexParamsN14QP438 is an example parameter set for the `ckks` package with logN=14 and logQP=438.
+	// These parameters instantiate `ckks` over the complex field with N/2 SIMD slots.
+	CKKSComplexParamsN14QP438 = ckks.ParametersLiteral{
 		LogN:            14,
 		LogQ:            []int{45, 34, 34, 34, 34, 34, 34, 34, 34, 34},
 		LogP:            []int{44, 43},
 		LogDefaultScale: 34,
 	}
 
-	// HEFloatComplexParamsN15QP880 is an example parameter set for the `hefloat` package with logN=15 and logQP=881.
-	// These parameters instantiate `hefloat` over the complex field with N/2 SIMD slots.
-	HEFloatComplexParamsN15QP881 = hefloat.ParametersLiteral{
+	// CKKSComplexParamsN15QP880 is an example parameter set for the `ckks` package with logN=15 and logQP=881.
+	// These parameters instantiate `ckks` over the complex field with N/2 SIMD slots.
+	CKKSComplexParamsN15QP881 = ckks.ParametersLiteral{
 		LogN:            15,
 		LogQ:            []int{51, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40},
 		LogP:            []int{50, 50, 50},
 		LogDefaultScale: 40,
 	}
-	// HEFloatComplexParamsPN16QP1761 is an example parameter set for the `hefloat` package with logN=16 and logQP = 1761.
-	// These parameters instantiate `hefloat` over the complex field with N/2 SIMD slots.
-	HEFloatComplexParamsPN16QP1761 = hefloat.ParametersLiteral{
+	// CKKSComplexParamsPN16QP1761 is an example parameter set for the `ckks` package with logN=16 and logQP = 1761.
+	// These parameters instantiate `ckks` over the complex field with N/2 SIMD slots.
+	CKKSComplexParamsPN16QP1761 = ckks.ParametersLiteral{
 		LogN:            16,
 		LogQ:            []int{56, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45},
 		LogP:            []int{55, 55, 55, 55},
 		LogDefaultScale: 45,
 	}
 
-	// HEFloatRealParamsN12QP109 is an example parameter set for the `hefloat` package with conjugate-invariant CKKS and logN=12 and logQP=109.
-	// These parameters instantiate `hefloat` over the real field with N SIMD slots.
-	HEFloatRealParamsN12QP109 = hefloat.ParametersLiteral{
+	// CKKSRealParamsN12QP109 is an example parameter set for the `ckks` package with conjugate-invariant CKKS and logN=12 and logQP=109.
+	// These parameters instantiate `ckks` over the real field with N SIMD slots.
+	CKKSRealParamsN12QP109 = ckks.ParametersLiteral{
 		LogN:            12,
 		LogQ:            []int{38, 32},
 		LogP:            []int{39},
@@ -137,9 +137,9 @@ var (
 		RingType:        ring.ConjugateInvariant,
 	}
 
-	// HEFloatRealParamsN13QP218 is an example parameter set for the `hefloat` package with conjugate-invariant CKKS and logN=13 and logQP=218
-	// These parameters instantiate `hefloat` over the real field with N SIMD slots.
-	HEFloatRealParamsN13QP218 = hefloat.ParametersLiteral{
+	// CKKSRealParamsN13QP218 is an example parameter set for the `ckks` package with conjugate-invariant CKKS and logN=13 and logQP=218
+	// These parameters instantiate `ckks` over the real field with N SIMD slots.
+	CKKSRealParamsN13QP218 = ckks.ParametersLiteral{
 		LogN:            13,
 		LogQ:            []int{33, 30, 30, 30, 30, 30},
 		LogP:            []int{35},
@@ -147,9 +147,9 @@ var (
 		RingType:        ring.ConjugateInvariant,
 	}
 
-	// HEFloatRealParamsN14QP438 is an example parameter set for the `hefloat` package with logN=14 and logQP=438.
-	// These parameters instantiate `hefloat` over the real field with N SIMD slots.
-	HEFloatRealParamsN14QP438 = hefloat.ParametersLiteral{
+	// CKKSRealParamsN14QP438 is an example parameter set for the `ckks` package with logN=14 and logQP=438.
+	// These parameters instantiate `ckks` over the real field with N SIMD slots.
+	CKKSRealParamsN14QP438 = ckks.ParametersLiteral{
 		LogN:            14,
 		LogQ:            []int{46, 34, 34, 34, 34, 34, 34, 34, 34, 34},
 		LogP:            []int{43, 43},
@@ -157,9 +157,9 @@ var (
 		RingType:        ring.ConjugateInvariant,
 	}
 
-	// HEFloatRealParamsN15QP880 is an example parameter set for the `hefloat` package with logN=15 and logQP=881.
-	// These parameters instantiate `hefloat` over the real field with N SIMD slots.
-	HEFloatRealParamsN15QP881 = hefloat.ParametersLiteral{
+	// CKKSRealParamsN15QP880 is an example parameter set for the `ckks` package with logN=15 and logQP=881.
+	// These parameters instantiate `ckks` over the real field with N SIMD slots.
+	CKKSRealParamsN15QP881 = ckks.ParametersLiteral{
 		LogN:            15,
 		LogQ:            []int{51, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40},
 		LogP:            []int{50, 50, 50},
@@ -167,9 +167,9 @@ var (
 		RingType:        ring.ConjugateInvariant,
 	}
 
-	// HEFloatRealParamsPN16QP1761 is an example parameter set for the `hefloat` package with logN=16 and logQP = 1761
-	// These parameters instantiate `hefloat` over the real field with N SIMD slots.
-	HEFloatRealParamsPN16QP1761 = hefloat.ParametersLiteral{
+	// CKKSRealParamsPN16QP1761 is an example parameter set for the `ckks` package with logN=16 and logQP = 1761
+	// These parameters instantiate `ckks` over the real field with N SIMD slots.
+	CKKSRealParamsPN16QP1761 = ckks.ParametersLiteral{
 		LogN:            16,
 		LogQ:            []int{56, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45},
 		LogP:            []int{55, 55, 55, 55},
@@ -178,10 +178,10 @@ var (
 	}
 )
 
-var HEIntParams = []heint.ParametersLiteral{HEIntParamsN12QP109, HEIntParamsN13QP218, HEIntParamsN14QP438, HEIntParamsN15QP880}
+var BGVParams = []bgv.ParametersLiteral{BGVParamsN12QP109, BGVParamsN13QP218, BGVParamsN14QP438, BGVParamsN15QP880}
 
-var HEIntScaleInvariantParams = []heint.ParametersLiteral{HEIntScaleInvariantParamsN12QP109, HEIntScaleInvariantParamsN13QP218, HEIntScaleInvariantParamsN14QP438, HEIntScaleInvariantParamsN15QP880}
+var BGVScaleInvariantParams = []bgv.ParametersLiteral{BGVScaleInvariantParamsN12QP109, BGVScaleInvariantParamsN13QP218, BGVScaleInvariantParamsN14QP438, BGVScaleInvariantParamsN15QP880}
 
-var HEFloatComplexParams = []hefloat.ParametersLiteral{HEFloatComplexParamsN12QP109, HEFloatComplexParamsN13QP218, HEFloatComplexParamsN14QP438, HEFloatComplexParamsN15QP881, HEFloatComplexParamsPN16QP1761}
+var CKKSComplexParams = []ckks.ParametersLiteral{CKKSComplexParamsN12QP109, CKKSComplexParamsN13QP218, CKKSComplexParamsN14QP438, CKKSComplexParamsN15QP881, CKKSComplexParamsPN16QP1761}
 
-var HEFloatRealParams = []hefloat.ParametersLiteral{HEFloatRealParamsN12QP109, HEFloatRealParamsN13QP218, HEFloatRealParamsN14QP438, HEFloatRealParamsN15QP881, HEFloatRealParamsPN16QP1761}
+var CKKSRealParams = []ckks.ParametersLiteral{CKKSRealParamsN12QP109, CKKSRealParamsN13QP218, CKKSRealParamsN14QP438, CKKSRealParamsN15QP881, CKKSRealParamsPN16QP1761}

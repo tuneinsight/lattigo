@@ -11,10 +11,10 @@ import (
 	"slices"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/tuneinsight/lattigo/v5/ring"
-	"github.com/tuneinsight/lattigo/v5/ring/ringqp"
-	"github.com/tuneinsight/lattigo/v5/utils"
-	"github.com/tuneinsight/lattigo/v5/utils/buffer"
+	"github.com/tuneinsight/lattigo/v6/ring"
+	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
+	"github.com/tuneinsight/lattigo/v6/utils"
+	"github.com/tuneinsight/lattigo/v6/utils/buffer"
 )
 
 // MaxLogN is the log2 of the largest supported polynomial modulus degree.
@@ -670,7 +670,7 @@ func (p Parameters) WriteTo(w io.Writer) (n int64, err error) {
 			return 0, err
 		}
 
-		if n, err = buffer.WriteAsUint32[int](w, len(bytes)); err != nil {
+		if n, err = buffer.WriteAsUint32(w, len(bytes)); err != nil {
 			return n, fmt.Errorf("buffer.WriteAsUint32[int]: %w", err)
 		}
 
@@ -704,7 +704,7 @@ func (p *Parameters) ReadFrom(r io.Reader) (n int64, err error) {
 	case buffer.Reader:
 
 		var size int
-		if n, err = buffer.ReadAsUint32[int](r, &size); err != nil {
+		if n, err = buffer.ReadAsUint32(r, &size); err != nil {
 			return int64(n), fmt.Errorf("buffer.ReadAsUint64[int]: %w", err)
 		}
 

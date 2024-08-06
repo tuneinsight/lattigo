@@ -4,9 +4,9 @@ import (
 	"bufio"
 	"io"
 
-	"github.com/tuneinsight/lattigo/v5/utils"
-	"github.com/tuneinsight/lattigo/v5/utils/buffer"
-	"github.com/tuneinsight/lattigo/v5/utils/structs"
+	"github.com/tuneinsight/lattigo/v6/utils"
+	"github.com/tuneinsight/lattigo/v6/utils/buffer"
+	"github.com/tuneinsight/lattigo/v6/utils/structs"
 )
 
 // Poly is the structure that contains the coefficients of a polynomial.

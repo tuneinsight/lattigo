@@ -5,12 +5,12 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v5/ring"
+	"github.com/tuneinsight/lattigo/v6/ring"
 
-	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/ring/ringqp"
-	"github.com/tuneinsight/lattigo/v5/utils"
-	"github.com/tuneinsight/lattigo/v5/utils/bignum"
+	"github.com/tuneinsight/lattigo/v6/core/rlwe"
+	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
+	"github.com/tuneinsight/lattigo/v6/utils"
+	"github.com/tuneinsight/lattigo/v6/utils/bignum"
 )
 
 type Float interface {
@@ -132,9 +132,8 @@ func (ecd Encoder) GetRLWEParameters() rlwe.Parameters {
 // Encoding is done at the level and scale of the plaintext.
 // Encoding domain is done according to the metadata of the plaintext.
 // User must ensure that 1 <= len(values) <= 2^pt.LogMaxDimensions < 2^logN.
-// The imaginary part will be discarded if ringType == [ring.ConjugateInvariant].
-func (ecd Encoder) Encode(values FloatSlice, pt *rlwe.Plaintext) (err error) {
-
+// The imaginary part will be discarded if ringType == ring.ConjugateInvariant.
+func (ecd Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 	if pt.IsBatched {
 		return ecd.Embed(values, pt.MetaData, pt.Value)
 
@@ -167,8 +166,8 @@ func (ecd Encoder) Encode(values FloatSlice, pt *rlwe.Plaintext) (err error) {
 	return
 }
 
-// Decode decodes the input plaintext on a new [FloatSlice].
-func (ecd Encoder) Decode(pt *rlwe.Plaintext, values FloatSlice) (err error) {
+// Decode decodes the input plaintext on a new FloatSlice.
+func (ecd Encoder) Decode(pt *rlwe.Plaintext, values interface{}) (err error) {
 	return ecd.DecodePublic(pt, values, 0)
 }
 
@@ -182,9 +181,9 @@ func (ecd Encoder) DecodePublic(pt *rlwe.Plaintext, values FloatSlice, logprec f
 // Embed is a generic method to encode a [FloatSlice] on the target polyOut.
 // This method it as the core of the slot encoding.
 // Values are encoded according to the provided metadata.
-// Accepted polyOut.(type) are [ringqp.Poly] and [ring.Poly].
-// The imaginary part will be discarded if ringType == [ring.ConjugateInvariant].
-func (ecd Encoder) Embed(values FloatSlice, metadata *rlwe.MetaData, polyOut interface{}) (err error) {
+// Accepted polyOut.(type) are ringqp.Poly and ring.Poly.
+// The imaginary part will be discarded if ringType == ring.ConjugateInvariant.
+func (ecd Encoder) Embed(values interface{}, metadata *rlwe.MetaData, polyOut interface{}) (err error) {
 	if ecd.prec <= 53 {
 		return ecd.embedDouble(values, metadata, polyOut)
 	}

@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"io"
 
-	"github.com/tuneinsight/lattigo/v5/ring"
-	"github.com/tuneinsight/lattigo/v5/utils/buffer"
+	"github.com/tuneinsight/lattigo/v6/ring"
+	"github.com/tuneinsight/lattigo/v6/utils/buffer"
 )
 
 // Poly represents a polynomial in the ring of polynomial modulo Q*P.

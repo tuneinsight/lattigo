@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"io"
 
-	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/utils/buffer"
+	"github.com/tuneinsight/lattigo/v6/core/rlwe"
+	"github.com/tuneinsight/lattigo/v6/utils/buffer"
 )
 
 // Ciphertext is a generic type for RGSW ciphertext.

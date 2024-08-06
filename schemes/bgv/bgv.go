@@ -2,7 +2,7 @@
 package bgv
 
 import (
-	"github.com/tuneinsight/lattigo/v5/core/rlwe"
+	"github.com/tuneinsight/lattigo/v6/core/rlwe"
 )
 
 // NewPlaintext allocates a new [rlwe.Plaintext].

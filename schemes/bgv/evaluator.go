@@ -5,19 +5,26 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/tuneinsight/lattigo/v5/core/rlwe"
-	"github.com/tuneinsight/lattigo/v5/ring"
-	"github.com/tuneinsight/lattigo/v5/ring/ringqp"
-	"github.com/tuneinsight/lattigo/v5/utils"
+	"github.com/tuneinsight/lattigo/v6/core/rlwe"
+	"github.com/tuneinsight/lattigo/v6/ring"
+	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
+	"github.com/tuneinsight/lattigo/v6/utils"
 )
 
 // Evaluator is a struct that holds the necessary elements to perform the homomorphic operations between ciphertexts and/or plaintexts.
 // It also holds a memory buffer used to store intermediate computations.
+// The [Evaluator.ScaleInvariant] flag needs to be set in order to use a BFV-style
+// version of the evaluator.
 type Evaluator struct {
 	*evaluatorBase
 	*evaluatorBuffers
 	*rlwe.Evaluator
 	*Encoder
+
+	// ScaleInvariant is a flag indicating whether the evaluator executes
+	// scale-invariant multiplications (transforming the BGV evaluator into
+	// BFV evaluator).
+	ScaleInvariant bool
 }
 
 type evaluatorBase struct {
@@ -112,12 +119,16 @@ func newEvaluatorBuffer(params Parameters) *evaluatorBuffers {
 // NewEvaluator creates a new [Evaluator], that can be used to do homomorphic
 // operations on ciphertexts and/or plaintexts. It stores a memory buffer
 // and ciphertexts that will be used for intermediate values.
-func NewEvaluator(parameters Parameters, evk rlwe.EvaluationKeySet) *Evaluator {
+// The evaluator can optionally be initialized as scale-invariant, which
+// transforms it into a BFV evaluator. See `schemes/bfv/README.md` for more
+// information.
+func NewEvaluator(parameters Parameters, evk rlwe.EvaluationKeySet, scaleInvariant ...bool) *Evaluator {
 	ev := new(Evaluator)
 	ev.evaluatorBase = newEvaluatorPrecomp(parameters)
 	ev.evaluatorBuffers = newEvaluatorBuffer(parameters)
 	ev.Evaluator = rlwe.NewEvaluator(parameters.Parameters, evk)
 	ev.Encoder = NewEncoder(parameters)
+	ev.ScaleInvariant = len(scaleInvariant) > 0 && scaleInvariant[0]
 
 	return ev
 }
@@ -425,7 +436,8 @@ func (eval Evaluator) DropLevel(op0 *rlwe.Ciphertext, levels int) {
 	op0.Resize(op0.Degree(), op0.Level()-levels)
 }
 
-// Mul multiplies op0 with op1 without relinearization and using standard tensoring (BGV/CKKS-style), and returns the result in opOut.
+// Mul multiplies op0 with op1 without relinearization using either standard tensoring (BGV/CKKS-style) when [Evaluator.ScaleInvariant]
+// is set to false or scale-invariant tensoring (BFV-style) otherwise, i.e., [Evaluator.MulScaleInvariant], and returns the result in opOut.
 // This tensoring increases the noise by a multiplicative factor of the plaintext and noise norms of the operands and will usually
 // require to be followed by a rescaling operation to avoid an exponential growth of the noise from subsequent multiplications.
 // The procedure will return an error if either op0 or op1 are have a degree higher than 1.
@@ -443,6 +455,13 @@ func (eval Evaluator) DropLevel(op0 *rlwe.Ciphertext, levels int) {
 //   - the level of opOut will be updated to min(op0.Level(), op1.Level())
 //   - the scale of opOut will be updated to op0.Scale * op1.Scale
 func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error) {
+
+	if eval.ScaleInvariant {
+		switch op1 := op1.(type) {
+		case rlwe.ElementInterface[ring.Poly], []uint64, []int64:
+			return eval.MulScaleInvariant(op0, op1, opOut)
+		}
+	}
 
 	switch op1 := op1.(type) {
 	case rlwe.ElementInterface[ring.Poly]:
@@ -523,10 +542,12 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 	return
 }
 
-// MulNew multiplies op0 with op1 without relinearization and using standard tensoring (BGV/CKKS-style), and returns the result in a new *[rlwe.Ciphertext] opOut.
-// This tensoring increases the noise by a multiplicative factor of the plaintext and noise norms of the operands and will usually
-// require to be followed by a rescaling operation to avoid an exponential growth of the noise from subsequent multiplications.
-// The procedure will return an error if either op0 or op1 are have a degree higher than 1.
+// MulNew multiplies op0 with op1 without relinearization using standard tensoring (BGV/CKKS-style) when [Evaluator.ScaleInvariant]
+// is set to false or scale-invariant tensoring (BFV-style) otherwise, i.e., [Evaluator.MulScaleInvariantNew], and returns
+// the result in a new *[rlwe.Ciphertext] opOut. This tensoring increases the noise by a multiplicative factor of the plaintext
+// and noise norms of the operands and will usually require to be followed by a rescaling operation to avoid an exponential
+// growth of the noise from subsequent multiplications. The procedure will return an error if either op0 or op1 are have a
+// degree higher than 1.
 //
 // inputs:
 //   - op0: an *[rlwe.Ciphertext]
@@ -540,6 +561,14 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 //   - the level of opOut will be to min(op0.Level(), op1.Level())
 //   - the scale of opOut will be to op0.Scale * op1.Scale
 func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlwe.Ciphertext, err error) {
+
+	if eval.ScaleInvariant {
+		switch op1 := op1.(type) {
+		case rlwe.ElementInterface[ring.Poly], []uint64, []int64:
+			return eval.MulScaleInvariantNew(op0, op1)
+		}
+	}
+
 	switch op1 := op1.(type) {
 	case rlwe.ElementInterface[ring.Poly]:
 		opOut = NewCiphertext(eval.parameters, op0.Degree()+op1.Degree(), utils.Min(op0.Level(), op1.Level()))
@@ -550,8 +579,9 @@ func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlw
 	return opOut, eval.Mul(op0, op1, opOut)
 }
 
-// MulRelin multiplies op0 with op1 with relinearization and using standard tensoring (BGV/CKKS-style), and returns the result in opOut.
-// This tensoring increases the noise by a multiplicative factor of the plaintext and noise norms of the operands and will usually
+// MulRelin multiplies op0 with op1 with relinearization using standard tensoring (BGV/CKKS-style) when [Evaluator.ScaleInvariant]
+// is set to false or scale-invariant tensoring (BFV-style) otherwise, i.e., [Evaluator.MulRelinScaleInvariant], and returns the result in
+// opOut. This tensoring increases the noise by a multiplicative factor of the plaintext and noise norms of the operands and will usually
 // require to be followed by a rescaling operation to avoid an exponential growth of the noise from subsequent multiplications.
 // The procedure will return an error if either op0.Degree or op1.Degree > 1.
 // The procedure will return an error if opOut.Degree != op0.Degree + op1.Degree.
@@ -569,6 +599,11 @@ func (eval Evaluator) MulNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlw
 //   - the level of opOut will be updated to min(op0.Level(), op1.Level())
 //   - the scale of opOut will be updated to op0.Scale * op1.Scale
 func (eval Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ciphertext) (err error) {
+
+	if eval.ScaleInvariant {
+		return eval.MulRelinScaleInvariant(op0, op1, opOut)
+	}
+
 	switch op1 := op1.(type) {
 	case rlwe.ElementInterface[ring.Poly]:
 
@@ -592,9 +627,11 @@ func (eval Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rl
 	return
 }
 
-// MulRelinNew multiplies op0 with op1 with relinearization and and using standard tensoring (BGV/CKKS-style), returns the result in a new *[rlwe.Ciphertext] opOut.
-// This tensoring increases the noise by a multiplicative factor of the plaintext and noise norms of the operands and will usually
-// require to be followed by a rescaling operation to avoid an exponential growth of the noise from subsequent multiplications.
+// MulRelinNew multiplies op0 with op1 with relinearization using standard tensoring (BGV/CKKS-style) when [Evaluator.ScaleInvariant]
+// is set to false or scale-invariant tensoring (BFV-style) otherwise, i.e., [Evaluator.MulRelinScaleInvariantNew], and returns the result
+// in a new *[rlwe.Ciphertext] opOut. This tensoring increases the noise by a multiplicative factor of the plaintext and noise norms
+// of the operands and will usually require to be followed by a rescaling operation to avoid an exponential growth of the noise from
+// subsequent multiplications.
 // The procedure will return an error if either op0.Degree or op1.Degree > 1.
 // The procedure will return an error if the evaluator was not created with an relinearization key.
 //
@@ -609,6 +646,11 @@ func (eval Evaluator) MulRelin(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rl
 //   - the level of opOut will be to min(op0.Level(), op1.Level())
 //   - the scale of opOut will be to op0.Scale * op1.Scale
 func (eval Evaluator) MulRelinNew(op0 *rlwe.Ciphertext, op1 rlwe.Operand) (opOut *rlwe.Ciphertext, err error) {
+
+	if eval.ScaleInvariant {
+		return eval.MulRelinScaleInvariantNew(op0, op1)
+	}
+
 	switch op1 := op1.(type) {
 	case rlwe.ElementInterface[ring.Poly]:
 		opOut = NewCiphertext(eval.parameters, 1, utils.Min(op0.Level(), op1.Level()))
@@ -1368,7 +1410,12 @@ func (eval Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ri
 //
 // The scale of opOut will be updated to op0.Scale * qi^{-1} mod PlaintextModulus where qi is the prime consumed by
 // the rescaling operation.
+// Note that if the evaluator has been instantiated as scale-invariant (BFV-style), then Rescale is a nop.
 func (eval Evaluator) Rescale(op0, opOut *rlwe.Ciphertext) (err error) {
+
+	if eval.ScaleInvariant {
+		return nil
+	}
 
 	if op0.MetaData == nil || opOut.MetaData == nil {
 		return fmt.Errorf("cannot Rescale: op0.MetaData or opOut.MetaData is nil")

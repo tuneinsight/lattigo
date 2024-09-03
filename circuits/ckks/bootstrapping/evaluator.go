@@ -129,14 +129,30 @@ func NewEvaluator(btpParams Parameters, evk *EvaluationKeys) (eval *Evaluator, e
 // Evaluator can be used concurrently.
 func (eval Evaluator) ShallowCopy() *Evaluator {
 	heEvaluator := eval.Evaluator.ShallowCopy()
-	params := eval.BootstrappingParameters
+
+	paramsN1 := eval.ResidualParameters
+
+	var DomainSwitcher ckks.DomainSwitcher
+	if paramsN1.RingType() == ring.ConjugateInvariant {
+		var err error
+		if DomainSwitcher, err = ckks.NewDomainSwitcher(eval.Parameters.BootstrappingParameters, eval.EvkCmplxToReal, eval.EvkRealToCmplx); err != nil {
+			panic(fmt.Errorf("cannot NewBootstrapper: ckks.NewDomainSwitcher: %w", err))
+		}
+	}
 	return &Evaluator{
+		Parameters:     eval.Parameters,
+		EvaluationKeys: eval.EvaluationKeys,
 		Mod1Parameters: eval.Mod1Parameters,
 		S2CDFTMatrix:   eval.S2CDFTMatrix,
 		C2SDFTMatrix:   eval.C2SDFTMatrix,
 		Evaluator:      heEvaluator,
-		DFTEvaluator:   dft.NewEvaluator(params, heEvaluator),
-		Mod1Evaluator:  mod1.NewEvaluator(heEvaluator, polynomial.NewEvaluator(params, heEvaluator), eval.Mod1Parameters),
+		xPow2N1:        eval.xPow2N1,
+		xPow2N2:        eval.xPow2N2,
+		xPow2InvN2:     eval.xPow2InvN2,
+		DomainSwitcher: DomainSwitcher,
+		DFTEvaluator:   dft.NewEvaluator(paramsN1, heEvaluator),
+		Mod1Evaluator:  mod1.NewEvaluator(heEvaluator, polynomial.NewEvaluator(paramsN1, heEvaluator), eval.Mod1Parameters),
+		SkDebug:        eval.SkDebug,
 	}
 }
 

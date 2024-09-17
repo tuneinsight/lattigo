@@ -74,7 +74,7 @@ func main() {
 	// arg2: number of Go routines
 
 	// Largest for n=8192: 512 parties
-	N := 8 // Default number of parties
+	N := 16 // Default number of parties
 	var err error
 	if len(os.Args[1:]) >= 1 {
 		N, err = strconv.Atoi(os.Args[1])
@@ -226,6 +226,10 @@ func evalPhase(params bgv.Parameters, NGoRoutine int, encInputs []*rlwe.Cipherte
 					if err := evaluator.Relinearize(task.res, task.res); err != nil {
 						panic(err)
 					}
+					// 3) Rescaling
+					if err := evaluator.Rescale(task.res, task.res); err != nil {
+						panic(err)
+					}
 				})
 				task.wg.Done()
 			}
@@ -283,14 +287,14 @@ func genparties(params bgv.Parameters, N int) []*party {
 
 func genInputs(params bgv.Parameters, P []*party) (expRes []uint64) {
 
-	expRes = make([]uint64, params.N())
+	expRes = make([]uint64, params.MaxSlots())
 	for i := range expRes {
 		expRes[i] = 1
 	}
 
 	for _, pi := range P {
 
-		pi.input = make([]uint64, params.N())
+		pi.input = make([]uint64, params.MaxSlots())
 		for i := range pi.input {
 			if sampling.RandFloat64(0, 1) > 0.3 || i == 4 {
 				pi.input[i] = 1

@@ -207,7 +207,7 @@ func evalPhase(params bgv.Parameters, NGoRoutine int, encInputs []*rlwe.Cipherte
 	}
 	encRes = encLvls[len(encLvls)-1][0]
 
-	evaluator := bgv.NewEvaluator(params, evk)
+	evaluator := bgv.NewEvaluator(params, evk, true)
 	// Split the task among the Go routines
 	tasks := make(chan *multTask)
 	workers := &sync.WaitGroup{}
@@ -224,10 +224,6 @@ func evalPhase(params bgv.Parameters, NGoRoutine int, encInputs []*rlwe.Cipherte
 					}
 					// 2) Relinearization
 					if err := evaluator.Relinearize(task.res, task.res); err != nil {
-						panic(err)
-					}
-					// 3) Rescaling
-					if err := evaluator.Rescale(task.res, task.res); err != nil {
 						panic(err)
 					}
 				})

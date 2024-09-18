@@ -146,6 +146,7 @@ func (eval Evaluator) ShallowCopy() *Evaluator {
 		Evaluator:        eval.Evaluator.ShallowCopy(),
 		evaluatorBuffers: newEvaluatorBuffer(*eval.GetParameters()),
 		Encoder:          eval.Encoder.ShallowCopy(),
+		ScaleInvariant:   eval.ScaleInvariant,
 	}
 }
 

@@ -312,8 +312,8 @@ func verifyTestVectors(params ckks.Parameters, encoder *ckks.Encoder, decryptor 
 		t.Log(precStats.String())
 	}
 
-	rf64, _ := precStats.MeanPrecision.Real.Float64()
-	if64, _ := precStats.MeanPrecision.Imag.Float64()
+	rf64 := precStats.AVGLog2Prec.Real
+	if64 := precStats.AVGLog2Prec.Imag
 
 	require.GreaterOrEqual(t, rf64, minPrec)
 	require.GreaterOrEqual(t, if64, minPrec)

@@ -801,7 +801,7 @@ func testBridge(tc *TestContext, t *testing.T) {
 func name(opname string, tc *TestContext) string {
 
 	var precMode string
-	switch tc.Params.precisionMode {
+	switch tc.Params.PrecisionMode() {
 	case PREC64:
 		precMode = "PREC64"
 	case PREC128:

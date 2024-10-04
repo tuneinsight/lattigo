@@ -393,13 +393,13 @@ func (p Parameters) Depth() (depth int) {
 }
 
 // MarshalBinary returns a JSON representation of the Parameters struct.
-// See `Marshal` from the `encoding/json` package.
+// See Marshal from the [encoding/json] package.
 func (p Parameters) MarshalBinary() (data []byte, err error) {
 	return json.Marshal(p)
 }
 
 // UnmarshalBinary reads a JSON representation on the target Parameters struct.
-// See `Unmarshal` from the `encoding/json` package.
+// See Unmarshal from the [encoding/json] package.
 func (p *Parameters) UnmarshalBinary(data []byte) (err error) {
 	return json.Unmarshal(data, p)
 }
@@ -413,6 +413,7 @@ func (p Parameters) MarshalJSON() (data []byte, err error) {
 		CoeffsToSlotsParameters dft.MatrixLiteral
 		IterationsParameters    *IterationsParameters
 		EphemeralSecretWeight   int
+		CircuitOrder            int
 	}{
 		ResidualParameters:      p.ResidualParameters,
 		BootstrappingParameters: p.BootstrappingParameters,
@@ -421,6 +422,7 @@ func (p Parameters) MarshalJSON() (data []byte, err error) {
 		CoeffsToSlotsParameters: p.CoeffsToSlotsParameters,
 		IterationsParameters:    p.IterationsParameters,
 		EphemeralSecretWeight:   p.EphemeralSecretWeight,
+		CircuitOrder:            int(p.CircuitOrder),
 	})
 }
 
@@ -433,6 +435,7 @@ func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 		CoeffsToSlotsParameters dft.MatrixLiteral
 		IterationsParameters    *IterationsParameters
 		EphemeralSecretWeight   int
+		CircuitOrder            int
 	}
 
 	if err = json.Unmarshal(data, &params); err != nil {
@@ -446,6 +449,7 @@ func (p *Parameters) UnmarshalJSON(data []byte) (err error) {
 	p.CoeffsToSlotsParameters = params.CoeffsToSlotsParameters
 	p.IterationsParameters = params.IterationsParameters
 	p.EphemeralSecretWeight = params.EphemeralSecretWeight
+	p.CircuitOrder = CircuitOrder(params.CircuitOrder)
 
 	return
 }

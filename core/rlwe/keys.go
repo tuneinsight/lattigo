@@ -4,10 +4,12 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"slices"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
 	"github.com/tuneinsight/lattigo/v6/utils/buffer"
+	"github.com/tuneinsight/lattigo/v6/utils/sampling"
 	"github.com/tuneinsight/lattigo/v6/utils/structs"
 )
 
@@ -290,15 +292,17 @@ func (p *PublicKey) isEncryptionKey() {}
 //     is used to bring it back to its original key.
 type EvaluationKey struct {
 	GadgetCiphertext
+	Seed []byte
 }
 
 type EvaluationKeyParameters struct {
 	LevelQ               *int
 	LevelP               *int
 	BaseTwoDecomposition *int
+	Compressed           bool
 }
 
-func ResolveEvaluationKeyParameters(params Parameters, evkParams []EvaluationKeyParameters) (levelQ, levelP, BaseTwoDecomposition int) {
+func ResolveEvaluationKeyParameters(params Parameters, evkParams []EvaluationKeyParameters) (levelQ, levelP, BaseTwoDecomposition int, compressed bool) {
 	if len(evkParams) != 0 {
 		if evkParams[0].LevelQ == nil {
 			levelQ = params.MaxLevelQ()
@@ -315,6 +319,7 @@ func ResolveEvaluationKeyParameters(params Parameters, evkParams []EvaluationKey
 		if evkParams[0].BaseTwoDecomposition != nil {
 			BaseTwoDecomposition = *evkParams[0].BaseTwoDecomposition
 		}
+		compressed = evkParams[0].Compressed
 	} else {
 		levelQ = params.MaxLevelQ()
 		levelP = params.MaxLevelP()
@@ -326,22 +331,95 @@ func ResolveEvaluationKeyParameters(params Parameters, evkParams []EvaluationKey
 // NewEvaluationKey returns a new [EvaluationKey] with pre-allocated zero-value.
 func NewEvaluationKey(params ParameterProvider, evkParams ...EvaluationKeyParameters) *EvaluationKey {
 	p := *params.GetRLWEParameters()
-	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeyParameters(p, evkParams)
-	return newEvaluationKey(p, levelQ, levelP, BaseTwoDecomposition)
+	levelQ, levelP, BaseTwoDecomposition, compressed := ResolveEvaluationKeyParameters(p, evkParams)
+	return newEvaluationKey(p, levelQ, levelP, BaseTwoDecomposition, compressed)
 }
 
-func newEvaluationKey(params Parameters, levelQ, levelP, BaseTwoDecomposition int) *EvaluationKey {
-	return &EvaluationKey{GadgetCiphertext: *NewGadgetCiphertext(params, 1, levelQ, levelP, BaseTwoDecomposition)}
+func newEvaluationKey(params Parameters, levelQ, levelP, BaseTwoDecomposition int, compressed bool) *EvaluationKey {
+	degree := 1
+	if compressed {
+		degree = 0
+	}
+	return &EvaluationKey{
+		GadgetCiphertext: *NewGadgetCiphertext(params, degree, levelQ, levelP, BaseTwoDecomposition),
+	}
+}
+
+// IsCompressed indicates whether the [EvaluationKey] is compressed or not.
+func (evk EvaluationKey) IsCompressed() bool {
+	return evk.Degree() == 0
+}
+
+// Expand decompresses a compressed [EvaluationKey] of the form (-a*sk + w*P*s' + e) to (-a*sk + w*P*s' + e, a).
+// The user can provide a buffer GadgetCiphertext of degree 0 matching the size of the [EvaluationKey].
+// If no buffer is provided, the second component will be allocated.
+// The method will return an error if:
+//   - The [EvaluationKey] is not compressed
+//   - The provided buffer is invalid.
+func (evk EvaluationKey) Expand(params ParameterProvider, buffer *GadgetCiphertext) error {
+
+	if !evk.IsCompressed() {
+		return fmt.Errorf("evaluation key is not compressed")
+	}
+
+	prng, err := sampling.NewKeyedPRNG(evk.Seed)
+	if err != nil {
+		panic(fmt.Errorf("sampling.NewKeyedPRNG: %s", err))
+	}
+
+	levelQ := evk.LevelQ()
+	levelP := evk.LevelP()
+
+	uniformRingQPSampler := ringqp.NewUniformSampler(prng, *params.GetRLWEParameters().RingQP()).AtLevel(levelQ, levelP)
+	BaseRNSDecompositionVectorSize := evk.BaseRNSDecompositionVectorSize()
+	BaseTwoDecompositionVectorSize := evk.BaseTwoDecompositionVectorSize()
+
+	// Check that the provided buffer is of the correct size
+	if buffer != nil {
+
+		if have := buffer.Degree(); have != 0 {
+			return fmt.Errorf("invalid buffer, degree should be 0 but is %d", have)
+		}
+
+		if have := buffer.BaseRNSDecompositionVectorSize(); have != BaseRNSDecompositionVectorSize {
+			return fmt.Errorf("invalid buffer BaseRNSDecompositionVectorSize, should be %d but is %d", have, BaseRNSDecompositionVectorSize)
+		}
+
+		if have := buffer.BaseTwoDecompositionVectorSize(); !slices.Equal(have, BaseTwoDecompositionVectorSize) {
+			return fmt.Errorf("invalid buffer BaseTwoDecompositionVectorSize, should be %v but is %v", have, BaseTwoDecompositionVectorSize)
+		}
+
+		if have := buffer.LevelQ(); have != levelQ {
+			return fmt.Errorf("invalid buffer levelQ, should be %d but is %d", levelQ, have)
+		}
+
+		if have := buffer.LevelP(); have != levelP {
+			return fmt.Errorf("invalid buffer levelP, should be %d but is %d", levelP, have)
+		}
+
+	} else {
+		buffer = NewGadgetCiphertext(params, 0, levelQ, levelP, evk.BaseTwoDecomposition)
+	}
+
+	// This works because the uniform RingQP sampler is only used to sample 'a'
+	// during the creation of the compressed evaluation key with no other call to
+	// the sampler. Hence, both PRNG invocation sequences are equal.
+	value := make(structs.Matrix[VectorQP], BaseRNSDecompositionVectorSize)
+	for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
+		value[i] = make([]VectorQP, BaseTwoDecompositionVectorSize[i])
+		for j := range value[i] {
+			// Sample 'a' and create the full evaluation key (-a*sk + w*P*s' + e, a).
+			uniformRingQPSampler.Read(buffer.Value[i][j][0])
+			evk.Value[i][j] = VectorQP{evk.Value[i][j][0], buffer.Value[i][j][0]}
+		}
+	}
+
+	return nil
 }
 
 // CopyNew creates a deep copy of the target [EvaluationKey] and returns it.
 func (evk EvaluationKey) CopyNew() *EvaluationKey {
 	return &EvaluationKey{GadgetCiphertext: *evk.GadgetCiphertext.CopyNew()}
-}
-
-// Equal performs a deep equal.
-func (evk EvaluationKey) Equal(other *EvaluationKey) bool {
-	return evk.GadgetCiphertext.Equal(&other.GadgetCiphertext)
 }
 
 // RelinearizationKey is type of [EvaluationKey] used for ciphertext multiplication compactness.
@@ -355,22 +433,21 @@ type RelinearizationKey struct {
 // NewRelinearizationKey allocates a new [RelinearizationKey] with zero coefficients.
 func NewRelinearizationKey(params ParameterProvider, evkParams ...EvaluationKeyParameters) *RelinearizationKey {
 	p := *params.GetRLWEParameters()
-	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeyParameters(p, evkParams)
-	return newRelinearizationKey(p, levelQ, levelP, BaseTwoDecomposition)
+	levelQ, levelP, BaseTwoDecomposition, compressed := ResolveEvaluationKeyParameters(p, evkParams)
+	return newRelinearizationKey(p, levelQ, levelP, BaseTwoDecomposition, compressed)
 }
 
-func newRelinearizationKey(params Parameters, levelQ, levelP, BaseTwoDecomposition int) *RelinearizationKey {
-	return &RelinearizationKey{EvaluationKey: EvaluationKey{GadgetCiphertext: *NewGadgetCiphertext(params, 1, levelQ, levelP, BaseTwoDecomposition)}}
+func newRelinearizationKey(params Parameters, levelQ, levelP, BaseTwoDecomposition int, compressed bool) *RelinearizationKey {
+	degree := 1
+	if compressed {
+		degree = 0
+	}
+	return &RelinearizationKey{EvaluationKey: EvaluationKey{GadgetCiphertext: *NewGadgetCiphertext(params, degree, levelQ, levelP, BaseTwoDecomposition)}}
 }
 
 // CopyNew creates a deep copy of the object and returns it.
 func (rlk RelinearizationKey) CopyNew() *RelinearizationKey {
 	return &RelinearizationKey{EvaluationKey: *rlk.EvaluationKey.CopyNew()}
-}
-
-// Equal performs a deep equal.
-func (rlk RelinearizationKey) Equal(other *RelinearizationKey) bool {
-	return rlk.EvaluationKey.Equal(&other.EvaluationKey)
 }
 
 // GaloisKey is a type of [EvaluationKey] used to evaluate automorphisms on ciphertext.
@@ -393,20 +470,21 @@ type GaloisKey struct {
 // NewGaloisKey allocates a new [GaloisKey] with zero coefficients and GaloisElement set to zero.
 func NewGaloisKey(params ParameterProvider, evkParams ...EvaluationKeyParameters) *GaloisKey {
 	p := *params.GetRLWEParameters()
-	levelQ, levelP, BaseTwoDecomposition := ResolveEvaluationKeyParameters(p, evkParams)
-	return newGaloisKey(p, levelQ, levelP, BaseTwoDecomposition)
+	levelQ, levelP, BaseTwoDecomposition, compressed := ResolveEvaluationKeyParameters(p, evkParams)
+	return newGaloisKey(p, levelQ, levelP, BaseTwoDecomposition, compressed)
 }
 
-func newGaloisKey(params Parameters, levelQ, levelP, BaseTwoDecomposition int) *GaloisKey {
-	return &GaloisKey{
-		EvaluationKey: EvaluationKey{GadgetCiphertext: *NewGadgetCiphertext(params, 1, levelQ, levelP, BaseTwoDecomposition)},
-		NthRoot:       params.GetRLWEParameters().RingQ().NthRoot(),
+func newGaloisKey(params Parameters, levelQ, levelP, BaseTwoDecomposition int, compressed bool) *GaloisKey {
+	degree := 1
+	if compressed {
+		degree = 0
 	}
-}
-
-// Equal returns true if the two objects are equal.
-func (gk GaloisKey) Equal(other *GaloisKey) bool {
-	return gk.GaloisElement == other.GaloisElement && gk.NthRoot == other.NthRoot && cmp.Equal(gk.EvaluationKey, other.EvaluationKey)
+	return &GaloisKey{
+		EvaluationKey: EvaluationKey{
+			GadgetCiphertext: *NewGadgetCiphertext(params, degree, levelQ, levelP, BaseTwoDecomposition),
+		},
+		NthRoot: params.GetRLWEParameters().RingQ().NthRoot(),
+	}
 }
 
 // CopyNew creates a deep copy of the object and returns it
@@ -534,6 +612,9 @@ type EvaluationKeySet interface {
 
 	// GetRelinearizationKey retrieves the RelinearizationKey.
 	GetRelinearizationKey() (evk *RelinearizationKey, err error)
+
+	// ShallowCopy returns a thread-safe copy of the underlying object.
+	ShallowCopy() EvaluationKeySet
 }
 
 // MemEvaluationKeySet is a basic in-memory implementation of the [EvaluationKeySet] interface.
@@ -603,6 +684,11 @@ func (evk MemEvaluationKeySet) BinarySize() (size int) {
 	}
 
 	return
+}
+
+// ShallowCopy returns a thread-safe copy of the MemEvaluationKey object.
+func (evk *MemEvaluationKeySet) ShallowCopy() EvaluationKeySet {
+	return evk
 }
 
 // WriteTo writes the object on an [io.Writer]. It implements the [io.WriterTo]

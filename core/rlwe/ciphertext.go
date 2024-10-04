@@ -43,6 +43,18 @@ func NewCiphertextRandom(prng sampling.PRNG, params ParameterProvider, degree, l
 	return
 }
 
+// Plaintext casts the target ciphertext into a plaintext type.
+// This method is allocation free.
+func (ct Ciphertext) Plaintext() *Plaintext {
+	return &Plaintext{
+		Element: Element[ring.Poly]{
+			Value:    ct.Element.Value[:1],
+			MetaData: ct.MetaData,
+		},
+		Value: ct.Element.Value[0],
+	}
+}
+
 // CopyNew creates a new element as a copy of the target element.
 func (ct Ciphertext) CopyNew() *Ciphertext {
 	return &Ciphertext{Element: *ct.Element.CopyNew()}

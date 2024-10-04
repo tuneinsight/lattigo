@@ -2,6 +2,7 @@ package rlwe
 
 type TestParametersLiteral struct {
 	BaseTwoDecomposition int
+	Compressed           bool
 	ParametersLiteral
 }
 

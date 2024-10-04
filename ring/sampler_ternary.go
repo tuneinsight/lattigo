@@ -12,7 +12,7 @@ const ternarySamplerPrecision = uint64(56)
 
 // TernarySampler keeps the state of a polynomial sampler in the ternary distribution.
 type TernarySampler struct {
-	baseSampler
+	*baseSampler
 	matrixProba  [2][ternarySamplerPrecision - 1]uint8
 	matrixValues [][3]uint64
 	invDensity   float64
@@ -24,6 +24,7 @@ type TernarySampler struct {
 // parameters (see type Ternary). If "montgomery" is set to true, polynomials read from this sampler are in Montgomery form.
 func NewTernarySampler(prng sampling.PRNG, baseRing *Ring, X Ternary, montgomery bool) (ts *TernarySampler, err error) {
 	ts = new(TernarySampler)
+	ts.baseSampler = &baseSampler{}
 	ts.baseRing = baseRing
 	ts.prng = prng
 	ts.initializeMatrix(montgomery)

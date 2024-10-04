@@ -158,7 +158,7 @@ type PolynomialVector struct {
 	Mapping map[int][]int
 }
 
-// NewPolynomialVector instantiates a new PolynomialVector from a set of bignum.Polynomial and a mapping indicating
+// NewPolynomialVector instantiates a new [PolynomialVector] from a set of [bignum.Polynomial] and a mapping indicating
 // which polynomial has to be evaluated on which slot.
 // For example, if we are given two polynomials P0(X) and P1(X) and the folling mapping: map[int][]int{0:[0, 1, 2], 1:[3, 4, 5]},
 // then the polynomial evaluation on a vector [a, b, c, d, e, f, g, h] will evaluate to [P0(a), P0(b), P0(c), P1(d), P1(e), P1(f), 0, 0]
@@ -227,7 +227,7 @@ func (p PolynomialVector) Factorize(n int) (polyq, polyr PolynomialVector) {
 
 // PatersonStockmeyerPolynomialVector is a struct implementing the
 // Paterson Stockmeyer decomposition of a PolynomialVector.
-// See PatersonStockmeyerPolynomial for additional information.
+// See [PatersonStockmeyerPolynomial] for additional information.
 type PatersonStockmeyerPolynomialVector struct {
 	Value   []PatersonStockmeyerPolynomial
 	Mapping map[int][]int

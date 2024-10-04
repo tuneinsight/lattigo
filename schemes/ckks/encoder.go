@@ -124,6 +124,10 @@ func (ecd Encoder) Prec() uint {
 	return ecd.prec
 }
 
+func (ecd Encoder) GetParameters() Parameters {
+	return ecd.parameters
+}
+
 func (ecd Encoder) GetRLWEParameters() rlwe.Parameters {
 	return ecd.parameters.Parameters
 }

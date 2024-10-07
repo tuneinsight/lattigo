@@ -1,6 +1,24 @@
 # Changelog
 All notable changes to this library are documented in this file.
 
+## [6.1.0] - 04.10.2024
+- Update of `PrecisionStats` in `ckks/precision.go`:
+  - precision/error stats computed as log2 of min/max/average/... 
+  - fields renamed (`MinPrecision` -> `MINLog2Prec`, `MaxPrecision` -> `MAXLog2Prec`, ...)
+  - `rlwe.Scale` has a `.Log2()` method
+- Update of `mod1.Parameters` fields (made public, some removed)
+- Improvement of the relinearization key-generation protocol (reduce the degree of the shares)
+- Serialisation of bootstrapping keys 
+- Lower noise incurred by `ModUp`
+- Evaluation keys can be compressed (public element `a` can be generated from a seed)
+- More doc formatting 
+- Fix various bugs: 
+  - `ShallowCopy` of the CKKS bootstrapping evaluator and BFV evaluator not deep enough.
+  - PSI example failing 
+  - Incorrect reset of pointer in uniform sampler
+  - Error when doing inverse NTT with small degree 
+  - Mod1Evaluator changes the input ciphertext
+
 ## [6.0.0] - 06.08.2024
 - Deprecated Go versions `1.18`, `1.19` and `1.20`. The minimum version is now `1.21`, due to the use of the slices of std library package.
   - Removal of all slice utility functions in `utils/slices.go` that are provided in the standard library.

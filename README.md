@@ -129,7 +129,7 @@ on Lattigo:
   for example by changing the imports to `github.com/tuneinsight/lattigo/v[X]/[package]` and by
   running `go mod tidy`.
 
-The current version of Lattigo, (v5.x.x) is fast-evolving and in constant development. Consequently,
+The current version of Lattigo, (v6.x.x) is fast-evolving and in constant development. Consequently,
 there will still be backward-incompatible changes within this major version, in addition to many bug
 fixes and new features. Hence, we encourage all Lattigo users to update to the latest Lattigo version.
 
@@ -175,10 +175,10 @@ If you want to contribute to Lattigo or report a security issue, you have a feat
 Please use the following BibTex entry for citing Lattigo:
 
     @misc{lattigo,
-	    title = {Lattigo v5},
+	    title = {Lattigo v6},
 	    howpublished = {Online: \url{https://github.com/tuneinsight/lattigo}},
-	    month = Nov,
-	    year = 2023,
+	    month = Aug,
+	    year = 2024,
 	    note = {EPFL-LDS, Tune Insight SA}
     }
     

@@ -26,7 +26,7 @@ func NewEvaluator(eval *ckks.Evaluator, evalPoly *polynomial.Evaluator, Mod1Para
 	return &Evaluator{Evaluator: eval, PolynomialEvaluator: evalPoly, Parameters: Mod1Parameters}
 }
 
-// EvaluateAndScaleNew calls [EvaluateNew] and scales the output values by `scaling` (withotu consuming additional depth).
+// EvaluateAndScaleNew calls [EvaluateNew] and scales the output values by `scaling` (without consuming additional depth).
 // If `scaling` set to 1, then this is equivalent to simply calling [EvaluateNew].
 func (eval Evaluator) EvaluateAndScaleNew(ct *rlwe.Ciphertext, scaling complex128) (res *rlwe.Ciphertext, err error) {
 
@@ -143,7 +143,7 @@ func (eval Evaluator) EvaluateAndScaleNew(ct *rlwe.Ciphertext, scaling complex12
 	return res, nil
 }
 
-// EvaluateNew applies a homomorphic mod Q on a vector scaled by Delta, scaled down to mod 1 :
+// EvaluateNew applies an homomorphic mod Q on a vector scaled by Delta, scaled down to mod 1:
 //
 //  1. Delta * (Q/Delta * I(X) + m(X)) (Delta = scaling factor, I(X) integer poly, m(X) message)
 //  2. Delta * (I(X) + Delta/Q * m(X)) (divide by Q/Delta)

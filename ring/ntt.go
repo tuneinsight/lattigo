@@ -181,7 +181,7 @@ func NTTStandardLazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []uin
 	nttCoreLazy(p1, p2, N, Q, MRedConstant, roots)
 }
 
-// INTTStandard evalues p2 = INTTStandard(p1) in the given SubRing.
+// INTTStandard evaluates p2 = INTTStandard(p1) in the given SubRing.
 func INTTStandard(p1, p2 []uint64, N int, NInv, Q, MRedConstant uint64, roots []uint64) {
 	inttCoreLazy(p1, p2, N, Q, MRedConstant, roots)
 	if N < MinimumRingDegreeForLoopUnrolledNTT {
@@ -193,7 +193,7 @@ func INTTStandard(p1, p2 []uint64, N int, NInv, Q, MRedConstant uint64, roots []
 	}
 }
 
-// INTTStandardLazy evalues p2 = INTT(p1) in the given SubRing with p2 in [0, 2*modulus-1].
+// INTTStandardLazy evaluates p2 = INTT(p1) in the given SubRing with p2 in [0, 2*modulus-1].
 func INTTStandardLazy(p1, p2 []uint64, N int, NInv, Q, MRedConstant uint64, roots []uint64) {
 	inttCoreLazy(p1, p2, N, Q, MRedConstant, roots)
 	if N < MinimumRingDegreeForLoopUnrolledNTT {

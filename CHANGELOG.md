@@ -8,7 +8,7 @@ All notable changes to this library are documented in this file.
   - `rlwe.Scale` has a `.Log2()` method
 - Update of `mod1.Parameters` fields (made public, some removed)
 - Improvement of the relinearization key-generation protocol (reduce the degree of the shares)
-- Serialisation of bootstrapping keys 
+- Serialization of bootstrapping keys
 - Lower noise incurred by `ModUp`
 - Evaluation keys can be compressed (public element `a` can be generated from a seed)
 - More doc formatting 

@@ -806,7 +806,7 @@ func (eval Evaluator) EvalMod(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, er
 }
 
 // EvalModAndScale applies the homomorphic modular reduction by q and scales the output value (without
-// consumming an additional level).
+// consuming an additional level).
 func (eval Evaluator) EvalModAndScale(ctIn *rlwe.Ciphertext, scaling complex128) (ctOut *rlwe.Ciphertext, err error) {
 	if ctOut, err = eval.Mod1Evaluator.EvaluateAndScaleNew(ctIn, scaling); err != nil {
 		return nil, err

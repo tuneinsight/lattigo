@@ -79,15 +79,15 @@ import (
 //  1. The input is a ciphertext encrypting [2^{90} * M]_{q0, q1}
 //
 // ITERATION N°0
-//  2. Rescale  [M^{90}]_{q0, q1} to [M^{90}/q1]_{q0} (ensure that M^{90}/q1 ~ q0/messageratio by additional scaling if necessary)
-//  3. Bootsrap [M^{90}/q1]_{q0} to [M^{90}/q1 + e^{90 - logprec}/q1]_{q0, q1, q2, ...}
+//  2. Rescale  [M^{90}]_{q0, q1} to [M^{90}/q1]_{q0} (ensure that M^{90}/q1 ~ q0/message-ratio by additional scaling if necessary)
+//  3. Bootstrap [M^{90}/q1]_{q0} to [M^{90}/q1 + e^{90 - logprec}/q1]_{q0, q1, q2, ...}
 //  4. Scale up [M^{90}/q1 + e^{90 - logprec}/q1]_{q0, q1, q2, ...} to [M^{d} + e^{d - logprec}]_{q0, q1, q2, ...}
 //
 // ITERATION N°1
 //  5. Subtract [M^{d}]_{q0, q1} to [M^{d} + e^{d - logprec}]_{q0, q1, q2, ...} to get [e^{d - logprec}]_{q0, q1}
 //  6. Scale up [e^{90 - logprec}]_{q0, q1} by 2^{logprec} to get [e^{d}]_{q0, q1}
 //  7. Rescale  [e^{90}]_{q0, q1} to [{90}/q1]_{q0}
-//  8. Bootsrap [e^{90}/q1]_{q0} to [e^{90}/q1 + e'^{90 - logprec}/q1]_{q0, q1, q2, ...}
+//  8. Bootstrap [e^{90}/q1]_{q0} to [e^{90}/q1 + e'^{90 - logprec}/q1]_{q0, q1, q2, ...}
 //  9. Scale up [e^{90}/q1 + e'^{90 - logprec}/q0]_{q0, q1, q2, ...} by round(q1/2^{logprec}) to get [e^{90-logprec} + e'^{90 - 2logprec}]_{q0, q1, q2, ...}
 //  10. Subtract [e^{d - logprec} + e'^{d - 2logprec}]_{q0, q1, q2, ...} to [M^{d} + e^{d - logprec}]_{q0, q1, q2, ...} to get [M^{d} + e'^{d - 2logprec}]_{q0, q1, q2, ...}
 //  11. Go back to step 5 for more iterations until 2^{k * logprec} >= 2^{90}

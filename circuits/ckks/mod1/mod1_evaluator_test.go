@@ -30,7 +30,7 @@ func TestMod1(t *testing.T) {
 		LogDefaultScale: 45,
 	}
 
-	testMod1Marhsalling(t)
+	testMod1Marshalling(t)
 
 	var params ckks.Parameters
 	if params, err = ckks.NewParametersFromLiteral(ParametersLiteral); err != nil {
@@ -45,7 +45,7 @@ func TestMod1(t *testing.T) {
 	}
 }
 
-func testMod1Marhsalling(t *testing.T) {
+func testMod1Marshalling(t *testing.T) {
 	t.Run("Marshalling", func(t *testing.T) {
 
 		evm := ParametersLiteral{

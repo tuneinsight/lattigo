@@ -104,7 +104,7 @@ Lattigo package organization is given in the Figure above.
 ### Documentation
 
 The full documentation of the individual packages can be browsed as a web page using official
-Golang documentation rendering tool `pkgsite`
+Golang documentation rendering tool `pkgsite` or browsing the [Go doc](https://pkg.go.dev/github.com/tuneinsight/lattigo/v6).
 
 ```bash
 $ go install golang.org/x/pkgsite/cmd/pkgsite@latest

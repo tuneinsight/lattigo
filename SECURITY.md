@@ -11,7 +11,7 @@ Classified as an _approximate decryption_ scheme, the CKKS scheme is secure as l
 
 This attack demonstrates that, when using an approximate homomorphic encryption scheme, the usual CPA security may not sufficient depending on the application setting. Many applications do not require to share the result with external parties and are not affected by this attack, but the ones that do must take the appropriate steps to ensure that no key-dependent information is leaked. A homomorphic encryption scheme that provides such functionality and that can be secure when releasing decrypted plaintext to external parties is defined to be CPA<sup>D</sup> secure. The corresponding indistinguishability notion (IND-CPA<sup>D</sup>) is defined as "indistinguishability under chosen plaintext attacks with decryption oracles."
 
-# CPA<sup>D</sup> Security for Approximate Homomorphic Encryption
+## IND-CPA<sup>D</sup> Security for Approximate Homomorphic Encryption
 Lattigo implements tools to mitigate _Li and Micciancio_'s attack. In particular, the decoding step of CKKS (and its real-number variant R-CKKS) allows the user to specify the desired fixed-point bit-precision.
 
 Let $\epsilon$ be the scheme error after the decoding step. We compute the bit precision of the output as $\log_{2}(1/\epsilon)$.
@@ -25,3 +25,23 @@ Estimating $\text{Pr}[\epsilon < x] \leq 2^{-s}$ of the circuit must be done car
  4. Use the encoder method $\textsf{DecodePublic}$ with the parameter $\log_{2}(1/\epsilon)$ to decode plaintexts that will be published.
 
 Note that, for composability with differential privacy, the variance of the error introduced by the rounding is $\text{Var}[x - \lfloor x \cdot \epsilon \rceil / \epsilon] = \tfrac{\epsilon^2}{12}$ and therefore $\text{Var}[x -  \lfloor x/(\sigma\sqrt{12})\rceil\cdot(\sigma\sqrt{12})] = \sigma^2$.
+
+A second approach for IND-CPA<sup>D</sup>  secure CKKS is to use $(\delta, r)$-exact CKKS as proposed in the recent research paper [Bossuat et al.](https://eprint.iacr.org/2024/853), a version of CKKS that returns exact results on all except the least $r$ significant bits with (high) probability $\delta$, based on bounds on the noise.  In Lattigo, we have implemented specific noise analysis for all elementary operations, including bootstrapping, based on [Bossuat et al.](https://eprint.iacr.org/2024/853). We offer an estimator tool that combines the bounds on basic operations to provide accurate noise estimates, even for large circuits. The proposed bounds have small enough failure probability for the advantage of a IND-CPA<sup>D</sup> attacker against $(\delta, r)$-exact CKKS to become smaller than $2^{−128}$, while the parameter sets needed remain practical.
+
+# Security of Exact Homomorphic Encryption
+In recent papers [Checri et al.](https://eprint.iacr.org/2024/116) and [Cheon et al.](https://eprint.iacr.org/2024/127), the authors revealed new passive key-recovery attacks targeting also the exact FHE cryptosystems, including BFV, BGV, and TFHE. They exploit imperfect correctness and show that BFV, BGV and TFHE are not protected against IND-CPA<sup>D</sup> attackers.
+
+
+## IND-CPA<sup>D</sup> Security for Exact Homomorphic Encryption
+Achieving IND-CPA<sup>D</sup> security for the exact homomorphic encryption schemes requires near-perfect correctness, meaning decryption failures must be exceptionally rare, with a probability lower than $2^{−\lambda}$, where $\lambda$ is a user-defined security parameter. Such failures should be so unlikely that finding one is computationally infeasible.
+For exact schemes like BFV and BGV, implemented in Lattigo, near-perfect correctness can be maintained by adjusting scheme parameters to bound decryption noise, though this comes at the cost of performance. The scheme must also control noise growth by limiting the number and type of operations performed at each computation level.
+
+# Recommendation for applicative countermeasures
+1. FHE ciphertexts are inherently malleable, and this malleability, combined with vulnerabilities such as circular security and decision-to-search attacks, can lead to key-recovery attacks. As a foundational principle, it’s crucial that FHE ciphertexts are transmitted only through private and authenticated channels, encapsulated within traditional cryptographic methods.
+2. Use ephemeral keys or key rotations to bound the number of availab pairss (plantext, ciphertext). Most of the IND-CPA<sup>D</sup> attacks require hundreds of thousands of calls to the evaluation and decryption oracles
+3. A zero-knowledge proof can be used to demonstrate both the correctness of the ciphertext and knowledge of the plaintext.
+4. Independent parties replicate the computation to ensure that the public results are correct.
+5. Circuit Privacy: Ensuring that the output of an FHE computation does not leak any secret information from the evaluator.
+6. other physical limitations: firewall, rate control, enclaves
+
+

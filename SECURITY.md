@@ -26,16 +26,21 @@ Estimating $\text{Pr}[\epsilon < x] \leq 2^{-s}$ of the circuit must be done car
 
 Note that, for composability with differential privacy, the variance of the error introduced by the rounding is $\text{Var}[x - \lfloor x \cdot \epsilon \rceil / \epsilon] = \tfrac{\epsilon^2}{12}$ and therefore $\text{Var}[x -  \lfloor x/(\sigma\sqrt{12})\rceil\cdot(\sigma\sqrt{12})] = \sigma^2$.
 
-A second approach to achieve IND-CPA<sup>D</sup> secure CKKS is to use a version of CKKS that returns the exact message with probability $\delta$, called $delta$-exact CKKS and proposed in the recent research paper [Bossuat et al.](https://eprint.iacr.org/2024/853),  The autors achieve this by rounding off the noise after the CKKS decryption, based on probabilistic bounds on the noise. $\delta$-exact CKKS is a step towards obtaining practical IND-CPA-D security for CKKS.
+A second approach to achieve IND-CPA<sup>D</sup> secure CKKS is to use a version of CKKS that returns the exact message with probability $\delta$, called $\delta$-exact CKKS and proposed in the recent research paper [Bossuat et al.](https://eprint.iacr.org/2024/853),  The autors achieve this by rounding off the noise after the CKKS decryption, based on probabilistic bounds on the noise. $\delta$-exact CKKS is a step towards obtaining practical IND-CPA-D security for CKKS.
 In Lattigo, we are planning to implement a detailed noise analysis for all basic operations, including bootstrapping, based on the work by [Bossuat et al.](https://eprint.iacr.org/2024/853). To support this, we will provide a noise estimator tool that combines the noise bounds for individual operations, allowing for accurate estimates even for complex circuits. 
 
 # Security of Exact Homomorphic Encryption
 In recent papers [Checri et al.](https://eprint.iacr.org/2024/116) and [Cheon et al.](https://eprint.iacr.org/2024/127), the authors revealed new passive key-recovery attacks targeting also the exact FHE cryptosystems, including BFV, BGV, and TFHE. They exploit imperfect correctness and show that BFV, BGV and TFHE are not protected against IND-CPA<sup>D</sup> attackers.
 
-
 ## IND-CPA<sup>D</sup> Security for Exact Homomorphic Encryption
 Achieving IND-CPA<sup>D</sup> security for the exact homomorphic encryption schemes requires near-perfect correctness, meaning decryption failures must be exceptionally rare, with a probability lower than $2^{−\lambda}$, where $\lambda$ is a user-defined security parameter. Such failures should be so unlikely that finding one is computationally infeasible.
 For exact schemes like BFV and BGV, implemented in Lattigo, near-perfect correctness can be maintained by adjusting scheme parameters to bound decryption noise, though this comes at the cost of performance. The scheme must also control noise growth by limiting the number and type of operations performed at each computation level.
+
+# Security of Multiparty/Threshold Homomorphic Encryption
+Multiparty or Threshold Fully Homomorphic Encryption involve secret-sharing the encryption key among multiple users, requiring their collaboration to decrypt data. The scheme maintains security even if a small number of users are compromised by an attacker. However, since all users receive the decrypted value, and some may be corrupted, the attacker can gain knowledge of the computation's result. This scenario highlights the necessity of IND-CPA<sup>D</sup> security within threshold-FHE. However, it is important to note that IND-CPA<sup>D</sup> security alone is insufficient, as the attacker not only learns the decrypted value but also gains access to shares of the secret key.
+All existing solutions for achieving Multiparty/Threshold Fully Homomorphic Encryption necessitate exponential flooding noise at the end of the evaluation process.
+
+It is important to clarify that, for many applications, IND-CPA is sufficient. However, depending on the specific application and threat model, additional security guarantees may be necessary. In such cases, these enhanced guarantees can often be achieved through supplementary application-specific countermeasures or protocol modifications.
 
 # Recommendation for applicative countermeasures
 1. FHE ciphertexts are inherently malleable, and this malleability, combined with vulnerabilities such as circular security and decision-to-search attacks, can lead to key-recovery attacks. As a foundational principle, it’s crucial that FHE ciphertexts are transmitted only through private and authenticated channels, encapsulated within traditional cryptographic methods.

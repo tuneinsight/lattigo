@@ -2,8 +2,8 @@
 All notable changes to this library are documented in this file.
 
 ## [6.1.0] - 04.10.2024
-- Update of `PrecisionStats` in `ckks/precision.go`:
-  - precision/error stats computed as log2 of min/max/average/... 
+- Update of `PrecisionStats` in `ckks/precision.go`:  
+  - The precision is now computed as the min/max/average/... of the log of the error (instead of the log of the min/max/average/... of the error).
   - fields renamed (`MinPrecision` -> `MINLog2Prec`, `MaxPrecision` -> `MAXLog2Prec`, ...)
   - `rlwe.Scale` has a `.Log2()` method
 - Update of `mod1.Parameters` fields (made public, some removed)

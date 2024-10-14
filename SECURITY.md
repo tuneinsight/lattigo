@@ -26,7 +26,7 @@ Estimating $\text{Pr}[\epsilon < x] \leq 2^{-s}$ of the circuit must be done car
 
 Note that, for composability with differential privacy, the variance of the error introduced by the rounding is $\text{Var}[x - \lfloor x \cdot \epsilon \rceil / \epsilon] = \tfrac{\epsilon^2}{12}$ and therefore $\text{Var}[x -  \lfloor x/(\sigma\sqrt{12})\rceil\cdot(\sigma\sqrt{12})] = \sigma^2$.
 
-A second approach to achieve IND-CPA<sup>D</sup> secure CKKS is to use a version of CKKS that returns the message exactly with probability $\delta$, called $delta$-exact CKKS and proposed in the recent research paper [Bossuat et al.](https://eprint.iacr.org/2024/853),  The autors achieve this by rounding off the noise after the CKKS decryption, based on probabilistic bounds on the noise. $delta$-exact CKKS is a step towards obtaining practical IND-CPA-D security for CKKS.
+A second approach to achieve IND-CPA<sup>D</sup> secure CKKS is to use a version of CKKS that returns the exact message with probability $\delta$, called $delta$-exact CKKS and proposed in the recent research paper [Bossuat et al.](https://eprint.iacr.org/2024/853),  The autors achieve this by rounding off the noise after the CKKS decryption, based on probabilistic bounds on the noise. $\delta$-exact CKKS is a step towards obtaining practical IND-CPA-D security for CKKS.
 In Lattigo, we are planning to implement a detailed noise analysis for all basic operations, including bootstrapping, based on the work by [Bossuat et al.](https://eprint.iacr.org/2024/853). To support this, we will provide a noise estimator tool that combines the noise bounds for individual operations, allowing for accurate estimates even for complex circuits. 
 
 # Security of Exact Homomorphic Encryption
@@ -39,9 +39,9 @@ For exact schemes like BFV and BGV, implemented in Lattigo, near-perfect correct
 
 # Recommendation for applicative countermeasures
 1. FHE ciphertexts are inherently malleable, and this malleability, combined with vulnerabilities such as circular security and decision-to-search attacks, can lead to key-recovery attacks. As a foundational principle, it’s crucial that FHE ciphertexts are transmitted only through private and authenticated channels, encapsulated within traditional cryptographic methods.
-2. Use ephemeral keys or key rotations to bound the number of availab pairss (plantext, ciphertext). Most of the IND-CPA<sup>D</sup> attacks require hundreds of thousands of calls to the evaluation and decryption oracles
-3. A zero-knowledge proof can be used to demonstrate both the correctness of the ciphertext and knowledge of the plaintext.
-4. Independent parties replicate the computation to ensure that the public results are correct.
+2. Most IND-CPA<sup>D</sup> attacks require hundreds of thousands of queries to the evaluation and decryption oracles. By employing ephemeral keys or key rotations, we can limit the number of available plaintext-ciphertext pairs, effectively reducing the attack surface and mitigating these types of attacks.
+3. A zero-knowledge proof can be employed to verify both the correctness of the ciphertext and the prover's knowledge of the corresponding plaintext, without revealing any information about the plaintext itself.
+4. To ensure the accuracy of the public results, it is recommended that independent parties independently replicate the computation.
 5. Circuit Privacy: Ensuring that the output of an FHE computation does not leak any secret information from the evaluator.
 6. other physical limitations: firewall, rate control, enclaves
 

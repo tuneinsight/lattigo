@@ -1,6 +1,7 @@
 package bgv
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/blake2b"
 
 	"github.com/tuneinsight/lattigo/v6/core/rlwe"
 	"github.com/tuneinsight/lattigo/v6/ring"
@@ -869,6 +871,46 @@ func testEvaluatorBfv(tc *TestContext, t *testing.T) {
 			})
 		}
 	})
+}
+
+// TestBGVParamsConstSerialization test detects (fails) if the serialization of [Parameters] has changed.
+// If such a modification is intended, this test must be updated and users notified s.t.
+// old serialized parameters can be converted to the new format.
+func TestBGVParamsConstSerialization(t *testing.T) {
+	const expected = "7aw0pU3xCs2Hu8zHKqkPRUpltHC0+P+UxzMSqKJwSFs="
+	var err error
+	distribs := []ring.DistributionParameters{rlwe.DefaultXe, rlwe.DefaultXs, ring.Ternary{H: 192}}
+	hash, err := blake2b.New(32, nil)
+
+	// Test with different CKKS params, including different plaintext moduli and distributions
+	for _, paramsLit := range []ParametersLiteral{ExampleParameters128BitLogN14LogQP438, testInsecure}[:] {
+		for _, ptMod := range testPlaintextModulus[:] {
+			for _, distXe := range distribs {
+				for _, distXs := range distribs {
+
+					paramsLit.Xe = distXe
+					paramsLit.Xs = distXs
+					paramsLit.PlaintextModulus = ptMod
+					var params Parameters
+					if params, err = NewParametersFromLiteral(paramsLit); err != nil {
+						t.Fatal(err)
+					}
+					paramsBytes, err := params.MarshalBinary()
+					hash.Write(paramsBytes)
+					require.Nil(t, err)
+					paramsBytes, err = params.MarshalJSON()
+					hash.Write(paramsBytes)
+					require.Nil(t, err)
+				}
+			}
+		}
+	}
+	digest := base64.StdEncoding.EncodeToString(hash.Sum(nil))
+
+	// In case the value expected must be updated, uncomment to print the new expected value:
+	// fmt.Println(digest)
+
+	require.Equal(t, expected, digest)
 }
 
 var (

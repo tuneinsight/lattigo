@@ -360,8 +360,8 @@ func verifyTestVectorsBootstrapping(params ckks.Parameters, encoder *ckks.Encode
 		t.Log(precStats.String())
 	}
 
-	rf64, _ := precStats.MeanPrecision.Real.Float64()
-	if64, _ := precStats.MeanPrecision.Imag.Float64()
+	rf64 := precStats.AVGLog2Prec.Real
+	if64 := precStats.AVGLog2Prec.Imag
 
 	minPrec := math.Log2(params.DefaultScale().Float64()) - float64(params.LogN()+2)
 	if minPrec < 0 {

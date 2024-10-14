@@ -59,6 +59,12 @@ func (s Scale) Float64() float64 {
 	return f64
 }
 
+func (s Scale) Log2() float64 {
+	res := new(big.Float).Quo(bignum.Log(&s.Value), bignum.Log2(s.Value.Prec()))
+	f64, _ := res.Float64()
+	return f64
+}
+
 // Uint64 returns the underlying scale as an uint64 value.
 func (s Scale) Uint64() uint64 {
 	u64, _ := s.Value.Uint64()

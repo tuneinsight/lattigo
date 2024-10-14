@@ -115,14 +115,10 @@ type PlaintextMetaData struct {
 	// in such a way that product in R[X]/(X^N+1) acts as a point-wise multiplication
 	// in the plaintext space.
 	IsBatched bool
-}
 
-// CiphertextMetaData is a struct storing metadata related to the ciphertext.
-type CiphertextMetaData struct {
-	// IsNTT is a flag indicating if the ciphertext is in the NTT domain.
-	IsNTT bool
-	// IsMontgomery is a flag indicating if the ciphertext is in the Montgomery domain.
-	IsMontgomery bool
+	// IsBitReversed is a flag indicating if the underlying plaintext is
+	// bit-reversed. This can be true for both batch and non-batched plaintexts.
+	IsBitReversed bool
 }
 
 // Slots returns the total number of slots that the plaintext holds.
@@ -146,20 +142,14 @@ func (m PlaintextMetaData) LogScale() float64 {
 func (m *PlaintextMetaData) Equal(other *PlaintextMetaData) (res bool) {
 	res = cmp.Equal(&m.Scale, &other.Scale)
 	res = res && m.IsBatched == other.IsBatched
+	res = res && m.IsBitReversed == other.IsBitReversed
 	res = res && m.LogDimensions == other.LogDimensions
-	return
-}
-
-// Equal returns true if two [CiphertextMetaData] structs are identical.
-func (m *CiphertextMetaData) Equal(other *CiphertextMetaData) (res bool) {
-	res = m.IsNTT == other.IsNTT
-	res = res && m.IsMontgomery == other.IsMontgomery
 	return
 }
 
 // BinarySize returns the size in bytes that the object once marshalled into a binary form.
 func (m PlaintextMetaData) BinarySize() int {
-	return 61 + m.Scale.BinarySize()
+	return 84 + m.Scale.BinarySize()
 }
 
 // WriteTo writes the object on an [io.Writer]. It implements the [io.WriterTo]
@@ -208,18 +198,24 @@ func (m *PlaintextMetaData) ReadFrom(r io.Reader) (int64, error) {
 func (m PlaintextMetaData) MarshalJSON() (p []byte, err error) {
 
 	var IsBatched uint8
-
 	if m.IsBatched {
 		IsBatched = 1
+	}
+
+	var IsBitReversed uint8
+	if m.IsBitReversed {
+		IsBitReversed = 1
 	}
 
 	aux := &struct {
 		Scale         Scale
 		IsBatched     string
+		IsBitReversed string
 		LogDimensions [2]string
 	}{
 		Scale:         m.Scale,
 		IsBatched:     fmt.Sprintf("0x%02x", IsBatched),
+		IsBitReversed: fmt.Sprintf("0x%02x", IsBitReversed),
 		LogDimensions: [2]string{fmt.Sprintf("0x%02x", uint8(m.LogDimensions.Rows)), fmt.Sprintf("0x%02x", uint8(m.LogDimensions.Cols))},
 	}
 
@@ -237,6 +233,7 @@ func (m *PlaintextMetaData) UnmarshalJSON(p []byte) (err error) {
 	aux := &struct {
 		Scale         Scale
 		IsBatched     string
+		IsBitReversed string
 		LogDimensions [2]string
 	}{}
 
@@ -252,6 +249,14 @@ func (m *PlaintextMetaData) UnmarshalJSON(p []byte) (err error) {
 		m.IsBatched = true
 	} else {
 		m.IsBatched = false
+	}
+
+	if y, err := hexconv(aux.IsBitReversed); err != nil {
+		return err
+	} else if y == 1 {
+		m.IsBitReversed = true
+	} else {
+		m.IsBitReversed = false
 	}
 
 	logRows, err := hexconv(aux.LogDimensions[0])
@@ -275,6 +280,21 @@ func (m *PlaintextMetaData) UnmarshalJSON(p []byte) (err error) {
 // [PlaintextMetaData.MarshalBinary] or [PlaintextMetaData.WriteTo] on the object.
 func (m *PlaintextMetaData) UnmarshalBinary(p []byte) (err error) {
 	return m.UnmarshalJSON(p)
+}
+
+// CiphertextMetaData is a struct storing metadata related to the ciphertext.
+type CiphertextMetaData struct {
+	// IsNTT is a flag indicating if the ciphertext is in the NTT domain.
+	IsNTT bool
+	// IsMontgomery is a flag indicating if the ciphertext is in the Montgomery domain.
+	IsMontgomery bool
+}
+
+// Equal returns true if two MetaData structs are identical.
+func (m *CiphertextMetaData) Equal(other *CiphertextMetaData) (res bool) {
+	res = m.IsNTT == other.IsNTT
+	res = res && m.IsMontgomery == other.IsMontgomery
+	return
 }
 
 // BinarySize returns the size in bytes that the object once marshalled into a binary form.

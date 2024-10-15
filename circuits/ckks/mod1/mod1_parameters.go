@@ -76,13 +76,22 @@ type Parameters struct {
 	LogDefaultScale int                // log2 of the default scaling factor
 	Mod1Type        Type               // type of approximation for the f: x mod 1 function
 	LogMessageRatio int                // Log2 of the ratio between Q0 and m, i.e. Q[0]/|m|
-	doubleAngle     int                // Number of rescale and double angle formula (only applies for cos and is ignored if sin is used)
-	qDiff           float64            // Q / 2^round(Log2(Q))
-	scFac           float64            // 2^doubleAngle
-	sqrt2Pi         float64            // (1/2pi)^(1.0/scFac)
-	mod1Poly        bignum.Polynomial  // Polynomial for f: x mod 1
-	mod1InvPoly     *bignum.Polynomial // Polynomial for f^-1: (x mod 1)^-1
-	k               float64            // interval [-k, k]
+	DoubleAngle     int                // Number of rescale and double angle formula (only applies for cos and is ignored if sin is used)
+	QDiff           float64            // Q / 2^round(Log2(Q))
+	Sqrt2Pi         float64            // (1/2pi)^(1.0/scFac)
+	Mod1Poly        bignum.Polynomial  // Polynomial for f: x mod 1
+	Mod1InvPoly     *bignum.Polynomial // Polynomial for f^-1: (x mod 1)^-1
+	K               float64            // interval [-K, K]
+}
+
+// IntervalShrinkFactor returns 2^{DoubleAngle}
+func (evp Parameters) IntervalShrinkFactor() float64 {
+	return math.Exp2(float64(evp.DoubleAngle))
+}
+
+// KShrinked returns K / IntervalShrinkFactor()
+func (evp Parameters) KShrinked() float64 {
+	return evp.K / evp.IntervalShrinkFactor()
 }
 
 // ScalingFactor returns scaling factor used during the x mod 1.
@@ -90,31 +99,14 @@ func (evp Parameters) ScalingFactor() rlwe.Scale {
 	return rlwe.NewScale(math.Exp2(float64(evp.LogDefaultScale)))
 }
 
-// ScFac returns 1/2^r where r is the number of double angle evaluation.
-func (evp Parameters) ScFac() float64 {
-	return evp.scFac
-}
-
 // MessageRatio returns the pre-set ratio Q[0]/|m|.
 func (evp Parameters) MessageRatio() float64 {
 	return float64(uint(1 << evp.LogMessageRatio))
 }
 
-// K return the sine approximation range.
-func (evp Parameters) K() float64 {
-	return evp.k * evp.scFac
-}
-
-// QDiff return Q[0]/ClosetPow2
-// This is the error introduced by the approximate division by Q[0].
-func (evp Parameters) QDiff() float64 {
-	return evp.qDiff
-}
-
 // NewParametersFromLiteral generates an [Parameters] struct from the [ParametersLiteral] struct.
 // The [Parameters] struct is to instantiates a [Mod1Evaluator], which homomorphically evaluates x mod 1.
 func NewParametersFromLiteral(params ckks.Parameters, evm ParametersLiteral) (Parameters, error) {
-
 	var mod1InvPoly *bignum.Polynomial
 	var mod1Poly bignum.Polynomial
 	var sqrt2pi float64
@@ -220,14 +212,14 @@ func NewParametersFromLiteral(params ckks.Parameters, evm ParametersLiteral) (Pa
 		LogDefaultScale: evm.LogScale,
 		Mod1Type:        evm.Mod1Type,
 		LogMessageRatio: evm.LogMessageRatio,
-		doubleAngle:     doubleAngle,
-		qDiff:           qDiff,
-		scFac:           scFac,
-		sqrt2Pi:         sqrt2pi,
-		mod1Poly:        mod1Poly,
-		mod1InvPoly:     mod1InvPoly,
-		k:               K,
+		DoubleAngle:     doubleAngle,
+		QDiff:           qDiff,
+		Sqrt2Pi:         sqrt2pi,
+		Mod1Poly:        mod1Poly,
+		Mod1InvPoly:     mod1InvPoly,
+		K:               float64(evm.K),
 	}, nil
+
 }
 
 func sin2pi(x *big.Float) (y *big.Float) {

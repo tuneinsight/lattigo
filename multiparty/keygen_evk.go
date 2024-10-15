@@ -75,7 +75,7 @@ func NewEvaluationKeyGenProtocol(params rlwe.ParameterProvider) (evkg Evaluation
 
 // AllocateShare allocates a party's share in the EvaluationKey Generation.
 func (evkg EvaluationKeyGenProtocol) AllocateShare(evkParams ...rlwe.EvaluationKeyParameters) EvaluationKeyGenShare {
-	levelQ, levelP, BaseTwoDecomposition := rlwe.ResolveEvaluationKeyParameters(evkg.params, evkParams)
+	levelQ, levelP, BaseTwoDecomposition, _ := rlwe.ResolveEvaluationKeyParameters(evkg.params, evkParams)
 	return evkg.allocateShare(levelQ, levelP, BaseTwoDecomposition)
 }
 
@@ -86,7 +86,7 @@ func (evkg EvaluationKeyGenProtocol) allocateShare(levelQ, levelP, BaseTwoDecomp
 // SampleCRP samples a common random polynomial to be used in the EvaluationKey Generation from the provided
 // common reference string.
 func (evkg EvaluationKeyGenProtocol) SampleCRP(crs CRS, evkParams ...rlwe.EvaluationKeyParameters) EvaluationKeyGenCRP {
-	levelQ, levelP, BaseTwoDecomposition := rlwe.ResolveEvaluationKeyParameters(evkg.params, evkParams)
+	levelQ, levelP, BaseTwoDecomposition, _ := rlwe.ResolveEvaluationKeyParameters(evkg.params, evkParams)
 	return evkg.sampleCRP(crs, levelQ, levelP, BaseTwoDecomposition)
 }
 

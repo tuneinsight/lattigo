@@ -509,20 +509,20 @@ func reconstructRNSCentered(start, end, x int, p [][]uint64, v *[8]uint64, vi *[
 		qqiinv := qoverqiinvqi[i]
 		qi := Q[j]
 		qHalf := QHalfModqi[i]
-		mredConstant := mredQ[j]
+		mredconstant := mredQ[j]
 		qif := float64(qi)
 
 		/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p[j])%8 != 0 */
 		px := (*[8]uint64)(unsafe.Pointer(&p[j][x]))
 
-		y0[i] = MRed(px[0]+qHalf, qqiinv, qi, mredConstant)
-		y1[i] = MRed(px[1]+qHalf, qqiinv, qi, mredConstant)
-		y2[i] = MRed(px[2]+qHalf, qqiinv, qi, mredConstant)
-		y3[i] = MRed(px[3]+qHalf, qqiinv, qi, mredConstant)
-		y4[i] = MRed(px[4]+qHalf, qqiinv, qi, mredConstant)
-		y5[i] = MRed(px[5]+qHalf, qqiinv, qi, mredConstant)
-		y6[i] = MRed(px[6]+qHalf, qqiinv, qi, mredConstant)
-		y7[i] = MRed(px[7]+qHalf, qqiinv, qi, mredConstant)
+		y0[i] = MRed(px[0]+qHalf, qqiinv, qi, mredconstant)
+		y1[i] = MRed(px[1]+qHalf, qqiinv, qi, mredconstant)
+		y2[i] = MRed(px[2]+qHalf, qqiinv, qi, mredconstant)
+		y3[i] = MRed(px[3]+qHalf, qqiinv, qi, mredconstant)
+		y4[i] = MRed(px[4]+qHalf, qqiinv, qi, mredconstant)
+		y5[i] = MRed(px[5]+qHalf, qqiinv, qi, mredconstant)
+		y6[i] = MRed(px[6]+qHalf, qqiinv, qi, mredconstant)
+		y7[i] = MRed(px[7]+qHalf, qqiinv, qi, mredconstant)
 
 		// Computation of the correction term v * Q%pi
 		vi[0] += float64(y0[i]) / qif

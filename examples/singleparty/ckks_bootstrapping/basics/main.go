@@ -66,7 +66,7 @@ func main() {
 	// which provides parameters which are at least 128-bit if their LogQP <= 1550.
 
 	// For this first example, we do not specify any circuit specific optional field in the bootstrapping parameters literal.
-	// Thus we expect the bootstrapping to give a precision of 27.25 bits with H=192 (and 23.8 with H=N/2)
+	// Thus we expect the bootstrapping to give a average precision of 27.9 bits with H=192 (and 24.4 with H=N/2)
 	// if the plaintext values are uniformly distributed in [-1, 1] for both the real and imaginary part.
 	// See `he/float/bootstrapping/parameters_literal.go` for detailed information about the optional fields.
 	btpParametersLit := bootstrapping.ParametersLiteral{

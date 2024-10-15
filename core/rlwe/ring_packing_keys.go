@@ -64,7 +64,7 @@ func (rpk *RingPackingEvaluationKey) GenRingSwitchingKeys(params ParameterProvid
 		return nil, fmt.Errorf("invalid minLogN: cannot be equal or larger than params.LogN()")
 	}
 
-	LevelQ, LevelP, _ := ResolveEvaluationKeyParameters(p, []EvaluationKeyParameters{evkParams})
+	LevelQ, LevelP, _, _ := ResolveEvaluationKeyParameters(p, []EvaluationKeyParameters{evkParams})
 
 	Q := p.Q()
 	P := p.P()

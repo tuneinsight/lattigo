@@ -39,7 +39,7 @@ func NewEvaluator(params ckks.Parameters, eval *minimax.Evaluator) Evaluator {
 //
 // The user can provide a minimax composite polynomial (signMinimaxPoly) for the sign function in the interval
 // [-1-e, -2^{log2min}] U [2^{log2min}, 1+e] (where e is an upperbound on the scheme error).
-// If no such polynomial is provided, then the DefaultMinimaxCompositePolynomialForSign is used by default.
+// If no such polynomial is provided, then the [DefaultMinimaxCompositePolynomialForSign] is used by default.
 // Note that the precision of the output of sign(x * c) does not impact the circuit precision since this value ends up being both at
 // the numerator and denominator, thus cancelling itself.
 func (eval Evaluator) EvaluateFullDomainNew(ct *rlwe.Ciphertext, log2min, log2max float64, signMinimaxPoly ...minimax.Polynomial) (cInv *rlwe.Ciphertext, err error) {

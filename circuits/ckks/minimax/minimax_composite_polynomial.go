@@ -79,7 +79,7 @@ var CoeffsSignX4Cheby = []string{"0", "1.1962890625", "0", "-0.2392578125", "0",
 //
 // The sign function is defined as: -1 if -1 <= x < 0, 0 if x = 0, 1 if 0 < x <= 1.
 //
-// See GenMinimaxCompositePolynomial for information about how to instantiate and
+// See [GenMinimaxCompositePolynomial] for information about how to instantiate and
 // parameterize each input value of the algorithm.
 func GenMinimaxCompositePolynomialForSign(prec uint, logalpha, logerr int, deg []int) {
 

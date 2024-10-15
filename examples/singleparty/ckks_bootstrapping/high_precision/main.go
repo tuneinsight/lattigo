@@ -83,7 +83,7 @@ func main() {
 	// which provides parameters which are at least 128-bit if their LogQP <= 1550.
 
 	// For this first example, we do not specify any circuit specific optional field in the bootstrapping parameters literal.
-	// Thus we expect the bootstrapping to give a precision of 27.25 bits with H=192 (and 23.8 with H=N/2)
+	// Thus we expect the bootstrapping to give an average precision of 27.9 bits with H=192 (and 24.4 with H=N/2)
 	// if the plaintext values are uniformly distributed in [-1, 1] for both the real and imaginary part.
 	// See `circuits/bootstrapping/parameters_literal.go` for detailed information about the optional fields.
 	btpParametersLit := bootstrapping.ParametersLiteral{
@@ -96,13 +96,13 @@ func main() {
 		LogP: []int{61, 61, 61, 61},
 
 		// Sets the IterationsParameters.
-		// The default bootstrapping parameters have 27.5 bits of average precision and
+		// The default bootstrapping parameters have 27.9 bits of average precision and
 		// ~25 bits of minimum precision, and the maximum precision that can be theoretically
 		// achieved is LogScale - LogN/2.
-		// Therefore we start with 27.5 bits and each can in theory increase the precision an additional 25 bits.
+		// Therefore we start with 27.9 bits and each can in theory increase the precision an additional 25 bits.
 		// However, to achieve the best possible precision, we must carefully adjust each iteration by hand so
 		// that the sum of all the minimum precision is as close as possible
-		// to LogScale - LogN/2. Here 27.5+25+25+5 = 82.5 (for the insecure parameters with LogN=13, with
+		// to LogScale - LogN/2. Here 27.9+25+25+5 ~= 82.5 (for the insecure parameters with LogN=13, with
 		// the secure parameters using LogN=16 achieve 82.5 - (16-13)/2 = 81 bits of precision).
 		IterationsParameters: &bootstrapping.IterationsParameters{
 			BootstrappingPrecision: []float64{25, 25, 5},

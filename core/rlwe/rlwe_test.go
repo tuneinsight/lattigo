@@ -368,7 +368,7 @@ func testKeyGenerator(tc *TestContext, bpw2 int, t *testing.T) {
 			// 1) Decrypting the RNS decomposed input key
 			// 2) Reconstructing the key
 			// 3) Checking that the difference with the input key has a small norm
-			t.Run(testString(params, levelQ, levelP, bpw2, "KeyGenerator/GenEvaluationKey"), func(t *testing.T) {
+			t.Run(testString(params, levelQ, levelP, bpw2, "KeyGenerator/GenEvaluationKey/Compressed=False"), func(t *testing.T) {
 
 				skOut := kgen.GenSecretKeyNew()
 
@@ -384,6 +384,37 @@ func testKeyGenerator(tc *TestContext, bpw2 int, t *testing.T) {
 				for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
 					require.Equal(t, BaseTwoDecompositionVectorSize[i], len(evk.Value[i]))
 				}
+
+				require.GreaterOrEqual(t, math.Log2(math.Sqrt(float64(BaseRNSDecompositionVectorSize))*params.NoiseFreshSK())+1, NoiseEvaluationKey(evk, sk, skOut, params))
+			})
+
+			t.Run(testString(params, levelQ, levelP, bpw2, "KeyGenerator/GenEvaluationKey/Compressed=True"), func(t *testing.T) {
+
+				skOut := kgen.GenSecretKeyNew()
+
+				BaseRNSDecompositionVectorSize := params.BaseRNSDecompositionVectorSize(levelQ, levelP)
+				BaseTwoDecompositionVectorSize := params.BaseTwoDecompositionVectorSize(levelQ, levelP, bpw2)
+
+				evkParamsCompressed := evkParams
+				evkParamsCompressed.Compressed = true
+
+				evk := NewEvaluationKey(params, evkParamsCompressed)
+
+				// Generates Decomp([-asIn + w*P*sOut + e, a])
+				kgen.GenEvaluationKey(sk, skOut, evk)
+
+				require.Equal(t, BaseRNSDecompositionVectorSize, len(evk.Value))
+				for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
+					require.Equal(t, BaseTwoDecompositionVectorSize[i], len(evk.Value[i]))
+				}
+
+				require.True(t, evk.Degree() == 0)
+				require.True(t, evk.IsCompressed())
+
+				require.NoError(t, evk.Expand(tc.params, nil))
+
+				require.True(t, evk.Degree() == 1)
+				require.False(t, evk.IsCompressed())
 
 				require.GreaterOrEqual(t, math.Log2(math.Sqrt(float64(BaseRNSDecompositionVectorSize))*params.NoiseFreshSK())+1, NoiseEvaluationKey(evk, sk, skOut, params))
 			})
@@ -1073,11 +1104,8 @@ func testWriteAndRead(tc *TestContext, bpw2 int, t *testing.T) {
 	})
 
 	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/GadgetCiphertext"), func(t *testing.T) {
-
 		rlk := NewRelinearizationKey(params, EvaluationKeyParameters{BaseTwoDecomposition: utils.Pointy(bpw2)})
-
 		tc.kgen.GenRelinearizationKey(tc.sk, rlk)
-
 		buffer.RequireSerializerCorrect(t, &rlk.GadgetCiphertext)
 	})
 
@@ -1089,7 +1117,7 @@ func testWriteAndRead(tc *TestContext, bpw2 int, t *testing.T) {
 		buffer.RequireSerializerCorrect(t, pk)
 	})
 
-	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/EvaluationKey"), func(t *testing.T) {
+	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/EvaluationKey/Compressed=False"), func(t *testing.T) {
 		buffer.RequireSerializerCorrect(t, tc.kgen.GenEvaluationKeyNew(sk, sk))
 	})
 

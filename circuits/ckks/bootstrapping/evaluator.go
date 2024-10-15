@@ -129,14 +129,30 @@ func NewEvaluator(btpParams Parameters, evk *EvaluationKeys) (eval *Evaluator, e
 // Evaluator can be used concurrently.
 func (eval Evaluator) ShallowCopy() *Evaluator {
 	heEvaluator := eval.Evaluator.ShallowCopy()
-	params := eval.BootstrappingParameters
+
+	paramsN1 := eval.ResidualParameters
+
+	var DomainSwitcher ckks.DomainSwitcher
+	if paramsN1.RingType() == ring.ConjugateInvariant {
+		var err error
+		if DomainSwitcher, err = ckks.NewDomainSwitcher(eval.Parameters.BootstrappingParameters, eval.EvkCmplxToReal, eval.EvkRealToCmplx); err != nil {
+			panic(fmt.Errorf("cannot NewBootstrapper: ckks.NewDomainSwitcher: %w", err))
+		}
+	}
 	return &Evaluator{
+		Parameters:     eval.Parameters,
+		EvaluationKeys: eval.EvaluationKeys,
 		Mod1Parameters: eval.Mod1Parameters,
 		S2CDFTMatrix:   eval.S2CDFTMatrix,
 		C2SDFTMatrix:   eval.C2SDFTMatrix,
 		Evaluator:      heEvaluator,
-		DFTEvaluator:   dft.NewEvaluator(params, heEvaluator),
-		Mod1Evaluator:  mod1.NewEvaluator(heEvaluator, polynomial.NewEvaluator(params, heEvaluator), eval.Mod1Parameters),
+		xPow2N1:        eval.xPow2N1,
+		xPow2N2:        eval.xPow2N2,
+		xPow2InvN2:     eval.xPow2InvN2,
+		DomainSwitcher: DomainSwitcher,
+		DFTEvaluator:   dft.NewEvaluator(paramsN1, heEvaluator),
+		Mod1Evaluator:  mod1.NewEvaluator(heEvaluator, polynomial.NewEvaluator(paramsN1, heEvaluator), eval.Mod1Parameters),
+		SkDebug:        eval.SkDebug,
 	}
 }
 
@@ -165,7 +181,6 @@ func (eval Evaluator) checkKeys(evk *EvaluationKeys) (err error) {
 }
 
 func (eval *Evaluator) initialize(btpParams Parameters) (err error) {
-
 	eval.Parameters = btpParams
 	params := btpParams.BootstrappingParameters
 
@@ -173,12 +188,12 @@ func (eval *Evaluator) initialize(btpParams Parameters) (err error) {
 		return
 	}
 
-	scFac := eval.Mod1Parameters.ScFac()
-	K := eval.Mod1Parameters.K() / scFac
+	// [-K, K]
+	K := eval.Mod1Parameters.K
 
 	// Correcting factor for approximate division by Q
 	// The second correcting factor for approximate multiplication by Q is included in the coefficients of the EvalMod polynomials
-	qDiff := eval.Mod1Parameters.QDiff()
+	qDiff := eval.Mod1Parameters.QDiff
 
 	// If the scale used during the EvalMod step is smaller than Q0, then we cannot increase the scale during
 	// the EvalMod step to get a free division by MessageRatio, and we need to do this division (totally or partly)
@@ -198,19 +213,19 @@ func (eval *Evaluator) initialize(btpParams Parameters) (err error) {
 	scale := eval.BootstrappingParameters.DefaultScale().Float64()
 	offset := eval.Mod1Parameters.ScalingFactor().Float64() / eval.Mod1Parameters.MessageRatio()
 
-	C2SScaling := new(big.Float).SetFloat64(qDiv / (K * scFac * qDiff))
+	C2SScaling := new(big.Float).SetFloat64(qDiv / (K * qDiff))
 	StCScaling := new(big.Float).SetFloat64(scale / offset)
 
-	if eval.CoeffsToSlotsParameters.Scaling == nil {
+	if btpParams.CoeffsToSlotsParameters.Scaling == nil {
 		eval.CoeffsToSlotsParameters.Scaling = C2SScaling
 	} else {
-		eval.CoeffsToSlotsParameters.Scaling.Mul(eval.CoeffsToSlotsParameters.Scaling, C2SScaling)
+		eval.CoeffsToSlotsParameters.Scaling = new(big.Float).Mul(btpParams.CoeffsToSlotsParameters.Scaling, C2SScaling)
 	}
 
-	if eval.SlotsToCoeffsParameters.Scaling == nil {
+	if btpParams.SlotsToCoeffsParameters.Scaling == nil {
 		eval.SlotsToCoeffsParameters.Scaling = StCScaling
 	} else {
-		eval.SlotsToCoeffsParameters.Scaling.Mul(eval.SlotsToCoeffsParameters.Scaling, StCScaling)
+		eval.SlotsToCoeffsParameters.Scaling = new(big.Float).Mul(btpParams.SlotsToCoeffsParameters.Scaling, StCScaling)
 	}
 
 	if eval.C2SDFTMatrix, err = dft.NewMatrixFromLiteral(params, eval.CoeffsToSlotsParameters, encoder); err != nil {
@@ -319,11 +334,11 @@ func (eval Evaluator) MinimumInputLevel() int {
 // can be used to do a scale matching.
 //
 // The circuit consists in 5 steps.
-// 1) ScaleDown: scales the ciphertext to q/|m| and bringing it down to q
-// 2) ModUp: brings the modulus from q to Q
-// 3) CoeffsToSlots: homomorphic encoding
-// 4) EvalMod: homomorphic modular reduction
-// 5) SlotsToCoeffs: homomorphic decoding
+//  1. ScaleDown: scales the ciphertext to q/|m| and bringing it down to q
+//  2. ModUp: brings the modulus from q to Q
+//  3. CoeffsToSlots: homomorphic encoding
+//  4. EvalMod: homomorphic modular reduction
+//  5. SlotsToCoeffs: homomorphic decoding
 func (eval Evaluator) Evaluate(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err error) {
 
 	if eval.IterationsParameters == nil && eval.ResidualParameters.PrecisionMode() != ckks.PREC128 {
@@ -570,8 +585,9 @@ func (eval Evaluator) bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, 
 
 // ScaleDown brings the ciphertext level to zero and scaling factor to Q[0]/MessageRatio
 // It multiplies the ciphertexts by round(currentMessageRatio / targetMessageRatio) where:
-// - currentMessageRatio = Q/ctIn.Scale
-// - targetMessageRatio = q/|m|
+//   - currentMessageRatio = Q/ctIn.Scale
+//   - targetMessageRatio = q/|m|
+//
 // and updates the scale of ctIn accordingly
 // It then rescales the ciphertext down to q if necessary and also returns the rescaling error from this process
 func (eval Evaluator) ScaleDown(ctIn *rlwe.Ciphertext) (*rlwe.Ciphertext, *rlwe.Scale, error) {
@@ -712,6 +728,24 @@ func (eval Evaluator) ModUp(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err 
 
 		ringQ.NTT(ctIn.Value[0], ctIn.Value[0])
 
+		// Scale the message from Q0/|m| to QL/|m|, where QL is the largest modulus used during the bootstrapping.
+		if scale := (eval.Mod1Parameters.ScalingFactor().Float64() / eval.Mod1Parameters.MessageRatio()) / ctIn.Scale.Float64(); scale > 1 {
+
+			scalar := uint64(math.Round(scale))
+
+			for i := len(ks.BuffDecompQP) - 1; i >= 0; i-- {
+				ringQ.MulScalar(ks.BuffDecompQP[0].Q, scalar, ks.BuffDecompQP[i].Q)
+			}
+
+			for i := len(ks.BuffDecompQP) - 1; i >= 0; i-- {
+				ringP.MulScalar(ks.BuffDecompQP[0].P, scalar, ks.BuffDecompQP[i].P)
+			}
+
+			ringQ.MulScalar(ctIn.Value[0], scalar, ctIn.Value[0])
+
+			ctIn.Scale = ctIn.Scale.Mul(rlwe.NewScale(scale))
+		}
+
 		ctTmp := &rlwe.Ciphertext{}
 		ctTmp.Value = []ring.Poly{ks.BuffQP[1].Q, ctIn.Value[1]}
 		ctTmp.MetaData = ctIn.MetaData
@@ -739,17 +773,21 @@ func (eval Evaluator) ModUp(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err 
 
 		ringQ.NTT(ctIn.Value[0], ctIn.Value[0])
 		ringQ.NTT(ctIn.Value[1], ctIn.Value[1])
-	}
 
-	// Scale the message from Q0/|m| to QL/|m|, where QL is the largest modulus used during the bootstrapping.
-	if scale := (eval.Mod1Parameters.ScalingFactor().Float64() / eval.Mod1Parameters.MessageRatio()) / ctIn.Scale.Float64(); scale > 1 {
-		if err = eval.ScaleUp(ctIn, rlwe.NewScale(scale), ctIn); err != nil {
-			return nil, err
+		// Scale the message from Q0/|m| to QL/|m|, where QL is the largest modulus used during the bootstrapping.
+		if scale := (eval.Mod1Parameters.ScalingFactor().Float64() / eval.Mod1Parameters.MessageRatio()) / ctIn.Scale.Float64(); scale > 1 {
+
+			scalar := uint64(math.Round(scale))
+
+			ringQ.MulScalar(ctIn.Value[0], scalar, ctIn.Value[0])
+			ringQ.MulScalar(ctIn.Value[1], scalar, ctIn.Value[1])
+
+			ctIn.Scale = ctIn.Scale.Mul(rlwe.NewScale(scale))
 		}
 	}
 
 	//SubSum X -> (N/dslots) * Y^dslots
-	return ctIn, eval.Trace(ctIn, ctIn.LogDimensions.Cols, ctIn)
+	return ctIn, eval.Trace(ctIn, eval.CoeffsToSlotsParameters.LogSlots, ctIn)
 }
 
 // CoeffsToSlots applies the homomorphic decoding
@@ -759,10 +797,21 @@ func (eval Evaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext) (ctReal, ctImag *rlwe
 
 // EvalMod applies the homomorphic modular reduction by q.
 func (eval Evaluator) EvalMod(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err error) {
-
 	if ctOut, err = eval.Mod1Evaluator.EvaluateNew(ctIn); err != nil {
 		return nil, err
 	}
+
+	ctOut.Scale = eval.BootstrappingParameters.DefaultScale()
+	return
+}
+
+// EvalModAndScale applies the homomorphic modular reduction by q and scales the output value (without
+// consuming an additional level).
+func (eval Evaluator) EvalModAndScale(ctIn *rlwe.Ciphertext, scaling complex128) (ctOut *rlwe.Ciphertext, err error) {
+	if ctOut, err = eval.Mod1Evaluator.EvaluateAndScaleNew(ctIn, scaling); err != nil {
+		return nil, err
+	}
+
 	ctOut.Scale = eval.BootstrappingParameters.DefaultScale()
 	return
 }

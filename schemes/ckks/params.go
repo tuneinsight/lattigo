@@ -78,7 +78,6 @@ func (p ParametersLiteral) GetRLWEParametersLiteral() rlwe.ParametersLiteral {
 // immutable. See [ParametersLiteral] for user-specified parameters.
 type Parameters struct {
 	rlwe.Parameters
-	precisionMode PrecisionMode
 }
 
 // NewParametersFromLiteral instantiate a set of CKKS parameters from a [ParametersLiteral] specification.
@@ -94,16 +93,11 @@ func NewParametersFromLiteral(pl ParametersLiteral) (Parameters, error) {
 		return Parameters{}, fmt.Errorf("cannot NewParametersFromLiteral: %w", err)
 	}
 
-	var precisionMode PrecisionMode
-	if pl.LogDefaultScale <= 64 {
-		precisionMode = PREC64
-	} else if pl.LogDefaultScale <= 128 {
-		precisionMode = PREC128
-	} else {
+	if pl.LogDefaultScale > 128 {
 		return Parameters{}, fmt.Errorf("cannot NewParametersFromLiteral: LogDefaultScale=%d > 128 or < 0", pl.LogDefaultScale)
 	}
 
-	return Parameters{rlweParams, precisionMode}, nil
+	return Parameters{rlweParams}, nil
 }
 
 // StandardParameters returns the CKKS parameters corresponding to the receiver
@@ -115,7 +109,6 @@ func (p Parameters) StandardParameters() (pckks Parameters, err error) {
 	}
 	pckks = p
 	pckks.Parameters, err = pckks.Parameters.StandardParameters()
-	pckks.precisionMode = p.precisionMode
 	return
 }
 
@@ -204,14 +197,17 @@ func (p Parameters) EncodingPrecision() (prec uint) {
 // PrecisionMode returns the precision mode of the parameters.
 // This value can be [ckks.PREC64] or [ckks.PREC128].
 func (p Parameters) PrecisionMode() PrecisionMode {
-	return p.precisionMode
+	if p.LogDefaultScale() <= 64 {
+		return PREC64
+	}
+	return PREC128
 }
 
 // LevelsConsumedPerRescaling returns the number of levels (i.e. primes)
 // consumed per rescaling. This value is 1 if the precision mode is PREC64
 // and is 2 if the precision mode is PREC128.
 func (p Parameters) LevelsConsumedPerRescaling() int {
-	switch p.precisionMode {
+	switch p.PrecisionMode() {
 	case PREC128:
 		return 2
 	default:
@@ -313,7 +309,7 @@ func (p Parameters) GaloisElementsForTrace(logN int) []uint64 {
 
 // Equal compares two sets of parameters for equality.
 func (p Parameters) Equal(other *Parameters) bool {
-	return p.Parameters.Equal(&other.Parameters) && p.precisionMode == other.precisionMode
+	return p.Parameters.Equal(&other.Parameters)
 }
 
 // MarshalBinary returns a []byte representation of the parameter set.

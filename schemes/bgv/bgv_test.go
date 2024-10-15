@@ -881,6 +881,9 @@ func TestBGVParamsConstSerialization(t *testing.T) {
 	var err error
 	distribs := []ring.DistributionParameters{rlwe.DefaultXe, rlwe.DefaultXs, ring.Ternary{H: 192}}
 	hash, err := blake2b.New(32, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Test with different CKKS params, including different plaintext moduli and distributions
 	for _, paramsLit := range []ParametersLiteral{ExampleParameters128BitLogN14LogQP438, testInsecure}[:] {
@@ -896,11 +899,11 @@ func TestBGVParamsConstSerialization(t *testing.T) {
 						t.Fatal(err)
 					}
 					paramsBytes, err := params.MarshalBinary()
-					hash.Write(paramsBytes)
 					require.Nil(t, err)
+					hash.Write(paramsBytes)
 					paramsBytes, err = params.MarshalJSON()
-					hash.Write(paramsBytes)
 					require.Nil(t, err)
+					hash.Write(paramsBytes)
 				}
 			}
 		}

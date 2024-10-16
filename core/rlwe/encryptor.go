@@ -99,6 +99,29 @@ func newEncryptor(params Parameters) *Encryptor {
 	}
 }
 
+// NewTestEncryptorWithPRNG creates a new [Encryptor] that uses the provided prng for randomness.
+// CAUTION: THIS FUNCTION SHOULD BE USED FOR TESTING PURPOSES ONLY.
+func NewTestEncryptorWithPRNG(params ParameterProvider, key EncryptionKey, prng sampling.PRNG) *Encryptor {
+	p := *params.GetRLWEParameters()
+
+	enc := NewEncryptor(params, key)
+	xeSampler, err := ring.NewSampler(prng, p.RingQ(), p.Xe(), false)
+	if err != nil {
+		panic(fmt.Errorf("NewEncryptorWithPRNG: cannot create xeSampler %w", err))
+	}
+	xsSampler, err := ring.NewSampler(prng, p.RingQ(), p.Xs(), false)
+	if err != nil {
+		panic(fmt.Errorf("NewEncryptorWithPRNG: cannot create xsSampler %w", err))
+	}
+	uniformSampler := ringqp.NewUniformSampler(prng, *p.RingQP())
+	enc.prng = prng
+	enc.xeSampler = xeSampler
+	enc.xsSampler = xsSampler
+	enc.uniformSampler = uniformSampler
+
+	return enc
+}
+
 type encryptorBuffers struct {
 	buffQP [3]ringqp.Poly
 }

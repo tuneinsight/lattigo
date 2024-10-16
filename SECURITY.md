@@ -26,8 +26,8 @@ Estimating $\text{Pr}[\epsilon < x] \leq 2^{-s}$ of the circuit must be done car
 
 Note that, for composability with differential privacy, the variance of the error introduced by the rounding is $\text{Var}[x - \lfloor x \cdot \epsilon \rceil / \epsilon] = \tfrac{\epsilon^2}{12}$ and therefore $\text{Var}[x -  \lfloor x/(\sigma\sqrt{12})\rceil\cdot(\sigma\sqrt{12})] = \sigma^2$.
 
-A second approach to achieve IND-CPA<sup>D</sup> secure CKKS is to use a version of CKKS that returns the exact message with probability $\delta$, called $\delta$-exact CKKS and proposed in the recent research paper [Bossuat et al.](https://eprint.iacr.org/2024/853).  The autors achieve this by rounding off the noise after the CKKS decryption, based on probabilistic bounds on the noise. $\delta$-exact CKKS is a step towards obtaining practical IND-CPA-D security for CKKS.
-In Lattigo, we are planning to implement a detailed noise analysis for all basic operations, including bootstrapping, based on the work by [Bossuat et al.](https://eprint.iacr.org/2024/853). To support this, we will provide a noise estimator tool that combines the noise bounds for individual operations, allowing for accurate estimates even for complex circuits. 
+[Bossuat et al.](https://eprint.iacr.org/2024/853) recent research paper provides tight bounds on noise to optimize the rounding process, minimizing loss in both precision and efficiency.
+In Lattigo, we are planning to implement a detailed noise analysis for all basic operations, including bootstrapping, based on this work. To support this, we will provide a noise estimator tool that combines the noise bounds for individual operations, allowing for accurate estimates even for complex circuits. 
 
 # Security of Exact Homomorphic Encryption
 In recent papers [Checri et al.](https://eprint.iacr.org/2024/116) and [Cheon et al.](https://eprint.iacr.org/2024/127), the authors revealed new passive key-recovery attacks targeting also the exact FHE cryptosystems, including BFV, BGV, and TFHE. They exploit imperfect correctness and show that BFV, BGV and TFHE are not protected against IND-CPA<sup>D</sup> attackers.

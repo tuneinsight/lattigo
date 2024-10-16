@@ -99,9 +99,9 @@ func newEncryptor(params Parameters) *Encryptor {
 	}
 }
 
-// NewEncryptorWithPRNG creates a new [Encryptor] that uses the provided prng for randomness.
+// NewTestEncryptorWithPRNG creates a new [Encryptor] that uses the provided prng for randomness.
 // CAUTION: THIS FUNCTION SHOULD BE USED FOR TESTING PURPOSES ONLY.
-func NewEncryptorWithPRNG(params ParameterProvider, key EncryptionKey, prng sampling.PRNG) *Encryptor {
+func NewTestEncryptorWithPRNG(params ParameterProvider, key EncryptionKey, prng sampling.PRNG) *Encryptor {
 	p := *params.GetRLWEParameters()
 
 	enc := NewEncryptor(params, key)

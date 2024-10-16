@@ -312,7 +312,7 @@ func NewDeterministicTestContext(params Parameters, seedKeyGen, seedEnc []byte) 
 		panic(fmt.Errorf("NewDeterministicTestContext: failed to make prngEnc %w", err))
 	}
 	kgen := NewKeyGenerator(params)
-	kgenEncryptor := NewEncryptorWithPRNG(params, nil, prngKGen)
+	kgenEncryptor := NewTestEncryptorWithPRNG(params, nil, prngKGen)
 	kgen.Encryptor = kgenEncryptor
 
 	sk := kgen.GenSecretKeyNew()
@@ -321,7 +321,7 @@ func NewDeterministicTestContext(params Parameters, seedKeyGen, seedEnc []byte) 
 
 	eval := NewEvaluator(params, nil)
 
-	enc := NewEncryptorWithPRNG(params, sk, prngEnc)
+	enc := NewTestEncryptorWithPRNG(params, sk, prngEnc)
 
 	dec := NewDecryptor(params, sk)
 

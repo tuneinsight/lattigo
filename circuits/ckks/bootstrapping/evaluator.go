@@ -254,7 +254,7 @@ func (eval Evaluator) Bootstrap(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, error) {
 	return &cts[0], nil
 }
 
-// BootstrapMany bootstraps a list of ciphertext and returns the list of bootstrapped ciphertexts.
+// BootstrapMany bootstraps a list of ciphertexts and returns the list of bootstrapped ciphertexts.
 func (eval Evaluator) BootstrapMany(cts []rlwe.Ciphertext) ([]rlwe.Ciphertext, error) {
 
 	var err error
@@ -300,7 +300,7 @@ func (eval Evaluator) BootstrapMany(cts []rlwe.Ciphertext) ([]rlwe.Ciphertext, e
 			cts[i] = *ct
 		}
 
-		if cts, err = eval.UnpackAndSwitchN2Tn1(packedCTs); err != nil {
+		if cts, err = eval.UnpackAndSwitchN2ToN1(packedCTs); err != nil {
 			return nil, fmt.Errorf("cannot BootstrapMany: %w", err)
 		}
 	}
@@ -918,9 +918,9 @@ func (eval Evaluator) PackAndSwitchN1ToN2(cts []rlwe.Ciphertext) (PackedCTs, err
 	return PackedCTs{cts, packN1, packN2}, nil
 }
 
-// UnpackAndSwitchN2Tn1 unpacks the ciphertexts into N2 and, if N1 < N2, it switch the ciphertexts
-// to N1 and unpack further into N1
-func (eval Evaluator) UnpackAndSwitchN2Tn1(packedCTs PackedCTs) ([]rlwe.Ciphertext, error) {
+// UnpackAndSwitchN2ToN1 unpacks the ciphertexts into N2 and, if N1 < N2, it switches the ciphertexts
+// to N1 and unpacks further into N1
+func (eval Evaluator) UnpackAndSwitchN2ToN1(packedCTs PackedCTs) ([]rlwe.Ciphertext, error) {
 
 	var ctsOut []rlwe.Ciphertext
 

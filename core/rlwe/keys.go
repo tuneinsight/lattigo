@@ -453,7 +453,7 @@ func (evk EvaluationKey) WriteTo(w io.Writer) (n int64, err error) {
 
 			// Sanity check, should not happen unless the size of the seed has been modified in the code
 			if incInt != 32 {
-				return n + int64(incInt), fmt.Errorf("Writing compressed evaluation key: the size of the seed=%d != 32", incInt)
+				return n + int64(incInt), fmt.Errorf("writing compressed evaluation key: the size of the seed=%d != 32", incInt)
 			}
 
 			n += int64(incInt)

@@ -1121,6 +1121,10 @@ func testWriteAndRead(tc *TestContext, bpw2 int, t *testing.T) {
 		buffer.RequireSerializerCorrect(t, tc.kgen.GenEvaluationKeyNew(sk, sk))
 	})
 
+	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/EvaluationKey/Compressed=True"), func(t *testing.T) {
+		buffer.RequireSerializerCorrect(t, tc.kgen.GenEvaluationKeyNew(sk, sk, EvaluationKeyParameters{Compressed: true}))
+	})
+
 	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/RelinearizationKey"), func(t *testing.T) {
 		buffer.RequireSerializerCorrect(t, tc.kgen.GenRelinearizationKeyNew(tc.sk))
 	})

@@ -438,7 +438,6 @@ func (evk EvaluationKey) WriteTo(w io.Writer) (n int64, err error) {
 	case buffer.Writer:
 
 		var inc int64
-		var incInt int
 
 		if inc, err = evk.GadgetCiphertext.WriteTo(w); err != nil {
 			return n + inc, err
@@ -447,19 +446,21 @@ func (evk EvaluationKey) WriteTo(w io.Writer) (n int64, err error) {
 		n += inc
 
 		if evk.IsCompressed() {
-			if incInt, err = w.Write(evk.Seed); err != nil {
-				return n + int64(incInt), err
+			if inc, err = buffer.Write(w, evk.Seed); err != nil {
+				return n + inc, err
 			}
 
 			// Sanity check, should not happen unless the size of the seed has been modified in the code
-			if incInt != 32 {
-				return n + int64(incInt), fmt.Errorf("writing compressed evaluation key: the size of the seed=%d != 32", incInt)
+			if inc != 32 {
+				return n + inc, fmt.Errorf("writing compressed evaluation key: the size of the seed=%d != 32", inc)
 			}
 
-			n += int64(incInt)
+			n += inc
 		}
 
-		w.Flush()
+		if err = w.Flush(); err != nil {
+			return n, err
+		}
 		return
 
 	default:

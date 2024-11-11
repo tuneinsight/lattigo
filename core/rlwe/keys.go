@@ -292,7 +292,7 @@ func (p *PublicKey) isEncryptionKey() {}
 //     is used to bring it back to its original key.
 type EvaluationKey struct {
 	GadgetCiphertext
-	Seed []byte
+	Seed *[32]byte // Must be != nil iff EvaluationKey.IsCompressed() = true
 }
 
 type EvaluationKeyParameters struct {
@@ -362,7 +362,11 @@ func (evk EvaluationKey) Expand(params ParameterProvider, buffer *GadgetCipherte
 		return fmt.Errorf("evaluation key is not compressed")
 	}
 
-	prng, err := sampling.NewKeyedPRNG(evk.Seed)
+	if evk.Seed == nil {
+		return fmt.Errorf("seed is missing")
+	}
+
+	prng, err := sampling.NewKeyedPRNG((*evk.Seed)[:])
 	if err != nil {
 		panic(fmt.Errorf("sampling.NewKeyedPRNG: %s", err))
 	}
@@ -419,7 +423,10 @@ func (evk EvaluationKey) Expand(params ParameterProvider, buffer *GadgetCipherte
 
 // BinarySize returns the serialized size of the object in bytes.
 func (evk EvaluationKey) BinarySize() (size int) {
-	return evk.GadgetCiphertext.BinarySize() + len(evk.Seed)
+	if evk.Seed != nil {
+		return evk.GadgetCiphertext.BinarySize() + len(*evk.Seed)
+	}
+	return evk.GadgetCiphertext.BinarySize()
 }
 
 // WriteTo writes the object on an [io.Writer]. It implements the [io.WriterTo]
@@ -446,13 +453,14 @@ func (evk EvaluationKey) WriteTo(w io.Writer) (n int64, err error) {
 		n += inc
 
 		if evk.IsCompressed() {
-			if inc, err = buffer.Write(w, evk.Seed); err != nil {
-				return n + inc, err
+
+			// Sanity check, should not happen unless evk has been manually modified
+			if evk.Seed == nil {
+				return n + inc, fmt.Errorf("writing compressed evaluation key: the seed is nil")
 			}
 
-			// Sanity check, should not happen unless the size of the seed has been modified in the code
-			if inc != 32 {
-				return n + inc, fmt.Errorf("writing compressed evaluation key: the size of the seed=%d != 32", inc)
+			if inc, err = buffer.Write(w, (*evk.Seed)[:]); err != nil {
+				return n + inc, err
 			}
 
 			n += inc
@@ -484,7 +492,6 @@ func (evk *EvaluationKey) ReadFrom(r io.Reader) (n int64, err error) {
 	case buffer.Reader:
 
 		var inc int64
-		var incInt int
 
 		if inc, err = evk.GadgetCiphertext.ReadFrom(r); err != nil {
 			return n + inc, err
@@ -493,13 +500,14 @@ func (evk *EvaluationKey) ReadFrom(r io.Reader) (n int64, err error) {
 		n += inc
 
 		if evk.IsCompressed() {
-			seed := make([]byte, 32)
-			if incInt, err = r.Read(seed); err != nil {
-				return n + int64(incInt), err
+			var seed [32]byte
+			if inc, err = buffer.Read(r, seed[:]); err != nil {
+				return n + inc, err
 			}
-			evk.Seed = seed
 
-			n += int64(incInt)
+			evk.Seed = &seed
+
+			n += inc
 		}
 
 		return

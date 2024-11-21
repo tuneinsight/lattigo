@@ -1,6 +1,7 @@
 package ckks
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/blake2b"
 
 	"github.com/tuneinsight/lattigo/v6/core/rlwe"
 	"github.com/tuneinsight/lattigo/v6/ring"
@@ -796,6 +798,49 @@ func testBridge(tc *TestContext, t *testing.T) {
 
 		VerifyTestVectors(tc.Params, tc.Ecd, tc.Dec, values, ciCTHave, tc.Params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
+}
+
+// TestCKKSParamsConstSerialization test detects (fails) if the serialization of [Parameters] has changed.
+// If such a modification is intended, this test must be updated and users notified s.t.
+// old serialized parameters can be converted to the new format.
+func TestCKKSParamsConstSerialization(t *testing.T) {
+	const expected = "Bo962QjkASlly6oMAojaEYOIGTh5v0nhzWvu93XgVRk="
+	var err error
+	distribs := []ring.DistributionParameters{rlwe.DefaultXe, rlwe.DefaultXs, ring.Ternary{H: 192}}
+	hash, err := blake2b.New(32, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test with different CKKS params, including different ringtypes and distributions
+	for _, paramsLit := range testParametersLiteral[:] {
+		for _, ringType := range []ring.Type{ring.Standard, ring.ConjugateInvariant}[:] {
+			for _, distXe := range distribs {
+				for _, distXs := range distribs {
+
+					paramsLit.RingType = ringType
+					paramsLit.Xe = distXe
+					paramsLit.Xs = distXs
+					var params Parameters
+					if params, err = NewParametersFromLiteral(paramsLit); err != nil {
+						t.Fatal(err)
+					}
+					paramsBytes, err := params.MarshalBinary()
+					require.Nil(t, err)
+					hash.Write(paramsBytes)
+					paramsBytes, err = params.MarshalJSON()
+					require.Nil(t, err)
+					hash.Write(paramsBytes)
+				}
+			}
+		}
+	}
+	digest := base64.StdEncoding.EncodeToString(hash.Sum(nil))
+
+	// In case the value expected must be updated, uncomment to print the new expected value:
+	// fmt.Println(digest)
+
+	require.Equal(t, expected, digest)
 }
 
 func name(opname string, tc *TestContext) string {

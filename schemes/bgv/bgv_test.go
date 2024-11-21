@@ -14,6 +14,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v6/core/rlwe"
 	"github.com/tuneinsight/lattigo/v6/ring"
+	"github.com/tuneinsight/lattigo/v6/utils"
 )
 
 var flagPrintNoise = flag.Bool("print-noise", false, "print the residual noise")
@@ -662,6 +663,80 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 
 			} else {
 				require.NotNil(t, tc.Evl.Rescale(ciphertext0, ciphertext0))
+			}
+		})
+	}
+
+	// Naive implementation of the inner sum for reference
+	innersum := func(values []uint64, n, batchSize int) {
+		tmp := make([]uint64, len(values))
+		copy(tmp, values)
+		for i := 1; i < n; i++ {
+			rot := utils.RotateSlice(tmp, i*batchSize)
+			for j := range values {
+				values[j] = (values[j] + rot[j]) % tc.Params.PlaintextModulus()
+			}
+		}
+	}
+
+	for _, N := range []int{tc.Params.N(), tc.Params.MaxSlots()} {
+		for _, lvl := range testLevel {
+			t.Run(name("Evaluator/InnerSum/N slots", tc, lvl), func(t *testing.T) {
+				if lvl == 0 {
+					t.Skip("Skipping: Level = 0")
+				}
+				n := N >> 2
+				batchSize := 1 << 2
+
+				galEls := tc.Params.GaloisElementsForInnerSum(batchSize, n)
+				evl := tc.Evl.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.Kgen.GenGaloisKeysNew(galEls, tc.Sk)...))
+
+				want, _, ciphertext0 := NewTestVector(tc.Params, tc.Ecd, tc.Enc, lvl, tc.Params.NewScale(3))
+
+				innersum(want, n, batchSize)
+
+				receiver := NewCiphertext(tc.Params, 1, lvl)
+
+				require.NoError(t, evl.InnerSum(ciphertext0, batchSize, n, receiver))
+
+				have := make([]uint64, len(want))
+				require.NoError(t, tc.Ecd.Decode(tc.Dec.DecryptNew(receiver), have))
+
+				for i := 0; i < len(want); i += n * batchSize {
+					require.Equal(t, want[i:i+batchSize], have[i:i+batchSize])
+				}
+			})
+		}
+	}
+
+	for _, lvl := range testLevel {
+		t.Run(name("Evaluator/InnerSum/N/2 slots", tc, lvl), func(t *testing.T) {
+			if lvl == 0 {
+				t.Skip("Skipping: Level = 0")
+			}
+			n := 7
+			batchSize := 13
+			l := n * batchSize
+			halfN := tc.Params.MaxSlots() >> 1
+
+			galEls := tc.Params.GaloisElementsForInnerSum(batchSize, n)
+			evl := tc.Evl.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.Kgen.GenGaloisKeysNew(galEls, tc.Sk)...))
+
+			want, _, ciphertext0 := NewTestVector(tc.Params, tc.Ecd, tc.Enc, lvl, tc.Params.NewScale(3))
+
+			innersum(want[:halfN], n, batchSize)
+			innersum(want[halfN:], n, batchSize)
+
+			receiver := NewCiphertext(tc.Params, 1, lvl)
+
+			require.NoError(t, evl.InnerSum(ciphertext0, batchSize, n, receiver))
+
+			have := make([]uint64, len(want))
+			require.NoError(t, tc.Ecd.Decode(tc.Dec.DecryptNew(receiver), have))
+
+			for i, j := 0, halfN; i < halfN; i, j = i+l, j+l {
+				require.Equal(t, want[i:i+batchSize], have[i:i+batchSize])
+				require.Equal(t, want[j:j+batchSize], have[j:j+batchSize])
 			}
 		})
 	}

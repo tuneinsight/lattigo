@@ -1507,20 +1507,14 @@ func (eval Evaluator) RotateHoistedLazyNew(level int, rotations []int, op0 *rlwe
 
 // InnerSum computes the inner sum of the underlying slots (see [rlwe.Evaluator.InnerSum]).
 // NB: in the slot encoding of BGV/BFV, the underlying N slots are arranged as 2 rows of N/2 slots.
-// If n*batchSize < N/2, InnerSum computes the [rlwe.Evaluator.InnerSum] of each row separately.
-// If n*batchSize = N, InnerSum computes the [rlwe.Evaluator.InnerSum] on the concatenation of both rows.
-// NOTE: In this case, InnerSum performs an addition and a [Evaluator.RotateRowsNew] on top
-// Otherwise, InnerSum returns an error.
+// If n*batchSize is a multiple of N, InnerSum computes the [rlwe.Evaluator.InnerSum] on the N slots.
+// NOTE: In this case, InnerSum performs an addition and a [Evaluator.RotateRowsNew] on top.
+// Otherwise, InnerSum computes the [rlwe.Evaluator.InnerSum] of each row separately.
 func (eval Evaluator) InnerSum(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *rlwe.Ciphertext) (err error) {
-	N := eval.parameters.N()
-	halfN := N >> 1
+	N := eval.parameters.MaxSlots()
 	l := n * batchSize
 
-	if l > halfN {
-		if l != N {
-			return fmt.Errorf("innersum: n*batchSize=%d > N/2=%d and n*batchSize != N=%d", l, halfN, N)
-		}
-
+	if l%N == 0 {
 		if err = eval.Evaluator.InnerSum(ctIn, batchSize, n/2, opOut); err != nil {
 			return
 		}

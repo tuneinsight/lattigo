@@ -1515,6 +1515,13 @@ func (eval Evaluator) InnerSum(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *r
 	l := n * batchSize
 
 	if l%N == 0 {
+		if n == 1 {
+			if ctIn != opOut {
+				opOut.Copy(ctIn)
+			}
+			return
+		}
+
 		if err = eval.Evaluator.InnerSum(ctIn, batchSize, n/2, opOut); err != nil {
 			return
 		}

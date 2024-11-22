@@ -1268,6 +1268,54 @@ func (eval Evaluator) RotateHoistedLazyNew(level int, rotations []int, ct *rlwe.
 	return
 }
 
+// InnerSum divides each row of the underlying plaintext in sub-vectors of size batchSize and add n of these together.
+//
+// WARNING: 0 < n*batchSize <= ctIn.Slots() must divide the number of slots ctIn.Slots(). For other parameters, consider using [Evaluator.RotateAndAdd].
+//
+// Example for batchSize=2, n=4 and 16 slots (garbage slots are marked as X):
+//
+// Input:
+//
+// [{a, b}, {c, d}, {e, f}, {g, h}, {i, j}, {k, l}, {m, n}, {o, p}]
+//
+// Output:
+//
+// [{a+c+e+g, b+d+f+h}, {X, X}, {X, X}, {X, X}, {i+k+m+o, j+l+n+p}, {X, X}, {X, X}, {X, X}]
+func (eval Evaluator) InnerSum(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *rlwe.Ciphertext) (err error) {
+	N := ctIn.Slots()
+	l := n * batchSize
+
+	if n <= 0 || batchSize <= 0 {
+		return fmt.Errorf("innersum: invalid parameter (n <= 0 or batchSize <= 0)")
+	}
+	if l > N {
+		return fmt.Errorf("innersum: invalid parameters (n*batchSize=%d > #slots=%d)", l, N)
+	}
+	if l&(l-1) != 0 {
+		return fmt.Errorf("innersum: invalid parameters (n*batchSize=%d does not divide #slots=%d)", l, N)
+	}
+	err = eval.Evaluator.PartialTrace(ctIn, batchSize, n, opOut)
+	return
+}
+
+// RotateAndAdd computes the sum of pt_i, 0 <= i < n, where pt_i is the underlying plaintext rotated ([Evaluator.Rotate]) by batchSize*i slots.
+//
+// Example: for batchSize=3, n=2, ctIn.Slots()=8:
+//
+// Input:
+//
+//	[a, b, c, d, e, f, g, h]
+//
+// Output:
+//
+//	[a, b, c, d, e, f, g, h] + [d, e, f, g, h, a, b, c] = [a+d, b+e, c+f, d+g, e+h, f+a, g+b, h+c]
+//
+// Calling RotateAndAdd(ctIn, 1, n, opOut) can be used to compute the inner sum of the first n slots of a plaintext.
+func (eval Evaluator) RotateAndAdd(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *rlwe.Ciphertext) (err error) {
+	err = eval.Evaluator.PartialTrace(ctIn, batchSize, n, opOut)
+	return
+}
+
 // ShallowCopy creates a shallow copy of this evaluator in which all the read-only data-structures are
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Evaluators can be used concurrently.

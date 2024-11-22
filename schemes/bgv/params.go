@@ -257,7 +257,7 @@ func (p Parameters) GaloisElementForRowRotation() uint64 {
 // InnerSum operation with parameters batch and n.
 func (p Parameters) GaloisElementsForInnerSum(batch, n int) (galEls []uint64) {
 	galEls = rlwe.GaloisElementsForInnerSum(p, batch, n)
-	if n*batch%p.MaxSlots() == 0 {
+	if n*batch > p.MaxSlots()>>1 {
 		galEls = append(galEls, p.GaloisElementForRowRotation())
 	}
 	return

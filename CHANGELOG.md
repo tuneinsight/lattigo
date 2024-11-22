@@ -1,6 +1,12 @@
 # Changelog
 All notable changes to this library are documented in this file.
 
+## [6.x.x] - 16.12.2024
+- Refactoring of the InnerSum methods: 
+  - `rlwe.Evaluator.InnerSum` has been replaced by `rlwe.Evaluator.PartialTrace`
+  - Introduction of the `bgv.Evaluator.InnerSum` and `ckks.Evaluator.InnerSum` methods, which have the same behaviour as the old `InnerSum` method for parameters `n` and `batchSize` s.t. `n*batchSize` divides the number of slots. Parameters not satisfying this condition are rejected.
+  - Introduction of the `bgv.Evaluator.RotateAndAdd` and `ckks.Evaluator.RotateAndAdd` methods, which have the same behaviour as the old `InnerSum` method for all parameters. 
+
 ## [6.1.0] - 04.10.2024
 - Update of `PrecisionStats` in `ckks/precision.go`:  
   - The precision is now computed as the min/max/average/... of the log of the error (instead of the log of the min/max/average/... of the error).

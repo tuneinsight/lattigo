@@ -3,12 +3,67 @@ package bootstrapping
 import (
 	"testing"
 	"time"
+	// "time"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/tuneinsight/lattigo/v6/core/rlwe"
+	"github.com/tuneinsight/lattigo/v6/ring"
+	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
+
 	"github.com/tuneinsight/lattigo/v6/schemes/ckks"
 )
+
+func BenchmarkAlloc(b *testing.B) {
+	b.Skip()
+
+	paramSet := DefaultParametersDense[0]
+
+	params, err := ckks.NewParametersFromLiteral(paramSet.SchemeParams)
+	require.NoError(b, err)
+
+	btpParams, err := NewParametersFromLiteral(params, paramSet.BootstrappingParams)
+	require.Nil(b, err)
+
+	kgen := rlwe.NewKeyGenerator(params)
+	sk := kgen.GenSecretKeyNew()
+
+	evk, _, err := btpParams.GenEvaluationKeys(sk)
+	require.NoError(b, err)
+
+	eval, err := NewEvaluator(btpParams, evk)
+	require.NoError(b, err)
+
+	b.Run("Pool", func(b *testing.B) {
+
+		for i := 0; i < b.N; i++ {
+
+			pol0 := eval.GetBuffQPPool().Get().(*ringqp.Poly)
+			pol1 := eval.GetBuffQPPool().Get().(*ringqp.Poly)
+			// pol0 := ringqp.NewPoly()
+			// pol1 := ringqp.NewPoly()
+			tmpCt := rlwe.Ciphertext{}
+			tmpCt.Value = []ring.Poly{pol0.Q, pol1.Q}
+
+			eval.GetBuffQPPool().Put(pol0)
+			eval.GetBuffQPPool().Put(pol1)
+		}
+	})
+	// b.Run("Buff", func(b *testing.B) {
+	//
+	// 	// var err error
+	//
+	// 	for i := 0; i < b.N; i++ {
+	//
+	// 		pol0 := eval.GetBuffQP()[0]
+	// 		pol1 := eval.GetBuffQP()[1]
+	// 		tmpCt := rlwe.Ciphertext{}
+	// 		tmpCt.Value = []ring.Poly{pol0.Q, pol1.Q}
+	//
+	// 		// ScaleDown
+	// 	}
+	// })
+}
 
 func BenchmarkBootstrap(b *testing.B) {
 

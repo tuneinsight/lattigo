@@ -18,8 +18,13 @@ func (eval Evaluator) GadgetProduct(levelQ int, cx ring.Poly, gadgetCt *GadgetCi
 	levelQ = utils.Min(levelQ, gadgetCt.LevelQ())
 	levelP := gadgetCt.LevelP()
 
+	buffQP1 := eval.BuffQPool.Get().(*ringqp.Poly)
+	defer eval.BuffQPool.Put(buffQP1)
+	buffQP2 := eval.BuffQPool.Get().(*ringqp.Poly)
+	defer eval.BuffQPool.Put(buffQP2)
+
 	ctTmp := &Element[ringqp.Poly]{}
-	ctTmp.Value = []ringqp.Poly{{Q: ct.Value[0], P: eval.BuffQP[0].P}, {Q: ct.Value[1], P: eval.BuffQP[1].P}}
+	ctTmp.Value = []ringqp.Poly{{Q: ct.Value[0], P: (*buffQP1).P}, {Q: ct.Value[1], P: (*buffQP2).P}}
 	ctTmp.MetaData = ct.MetaData
 
 	if err := eval.GadgetProductLazy(levelQ, cx, gadgetCt, ctTmp); err != nil {
@@ -325,10 +330,15 @@ func (eval Evaluator) gadgetProductSinglePAndBitDecompLazy(levelQ int, cx ring.P
 // Result NTT domain is returned according to the NTT flag of ct.
 func (eval Evaluator) GadgetProductHoisted(levelQ int, BuffQPDecompQP []ringqp.Poly, gadgetCt *GadgetCiphertext, ct *Ciphertext) {
 
+	buffQP1 := eval.BuffQPool.Get().(*ringqp.Poly)
+	defer eval.BuffQPool.Put(buffQP1)
+	buffQP2 := eval.BuffQPool.Get().(*ringqp.Poly)
+	defer eval.BuffQPool.Put(buffQP2)
+
 	ctQP := &Element[ringqp.Poly]{}
 	ctQP.Value = []ringqp.Poly{
-		{Q: ct.Value[0], P: eval.BuffQP[0].P},
-		{Q: ct.Value[1], P: eval.BuffQP[1].P},
+		{Q: ct.Value[0], P: (*buffQP1).P},
+		{Q: ct.Value[1], P: (*buffQP2).P},
 	}
 	ctQP.MetaData = ct.MetaData
 

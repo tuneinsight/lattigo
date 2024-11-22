@@ -130,7 +130,13 @@ func (eval Evaluator) EvaluateSequential(ctIn *rlwe.Ciphertext, linearTransforma
 // for matrix of only a few non-zero diagonals but uses more keys.
 func (eval Evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error) {
 
-	BuffQP := eval.GetBuffQP()
+	pool := eval.GetBuffQPPool()
+	buffQP0 := pool.Get().(*ringqp.Poly)
+	buffQP1 := pool.Get().(*ringqp.Poly)
+	buffQP2 := pool.Get().(*ringqp.Poly)
+	buffQP3 := pool.Get().(*ringqp.Poly)
+	buffQP4 := pool.Get().(*ringqp.Poly)
+	buffQP5 := pool.Get().(*ringqp.Poly)
 	BuffCt := eval.GetBuffCt()
 
 	*opOut.MetaData = *ctIn.MetaData
@@ -150,15 +156,15 @@ func (eval Evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearT
 	QiOverF := params.QiOverflowMargin(levelQ)
 	PiOverF := params.PiOverflowMargin(levelP)
 
-	c0OutQP := ringqp.Poly{Q: opOut.Value[0], P: BuffQP[5].Q}
-	c1OutQP := ringqp.Poly{Q: opOut.Value[1], P: BuffQP[5].P}
+	c0OutQP := ringqp.Poly{Q: opOut.Value[0], P: (*buffQP5).Q}
+	c1OutQP := ringqp.Poly{Q: opOut.Value[1], P: (*buffQP5).P}
 
-	ct0TimesP := BuffQP[0].Q // ct0 * P mod Q
-	tmp0QP := BuffQP[1]
-	tmp1QP := BuffQP[2]
+	ct0TimesP := (*buffQP0).Q // ct0 * P mod Q
+	tmp0QP := *buffQP1
+	tmp1QP := *buffQP2
 
 	cQP := &rlwe.Element[ringqp.Poly]{}
-	cQP.Value = []ringqp.Poly{BuffQP[3], BuffQP[4]}
+	cQP.Value = []ringqp.Poly{*buffQP3, *buffQP4}
 	cQP.MetaData = &rlwe.MetaData{}
 	cQP.MetaData.IsNTT = true
 
@@ -257,7 +263,16 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 
 	params := eval.GetRLWEParameters()
 
-	BuffQP := eval.GetBuffQP()
+	pool := eval.GetBuffQPPool()
+	buffQP1 := pool.Get().(*ringqp.Poly)
+	buffQP2 := pool.Get().(*ringqp.Poly)
+	defer pool.Put(buffQP2)
+	buffQP3 := pool.Get().(*ringqp.Poly)
+	defer pool.Put(buffQP3)
+	buffQP4 := pool.Get().(*ringqp.Poly)
+	defer pool.Put(buffQP4)
+	buffQP5 := pool.Get().(*ringqp.Poly)
+	defer pool.Put(buffQP5)
 	BuffCt := eval.GetBuffCt()
 
 	*opOut.MetaData = *ctIn.MetaData
@@ -284,18 +299,18 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 	ctInTmp0, ctInTmp1 := BuffCt.Value[0], BuffCt.Value[1]
 
 	// Accumulator inner loop
-	tmp0QP := BuffQP[1]
-	tmp1QP := BuffQP[2]
+	tmp0QP := (*buffQP1)
+	tmp1QP := (*buffQP2)
 
 	// Accumulator outer loop
 	cQP := &rlwe.Element[ringqp.Poly]{}
-	cQP.Value = []ringqp.Poly{BuffQP[3], BuffQP[4]}
+	cQP.Value = []ringqp.Poly{*buffQP3, *buffQP4}
 	cQP.MetaData = &rlwe.MetaData{}
 	cQP.IsNTT = true
 
 	// Result in QP
-	c0OutQP := ringqp.Poly{Q: opOut.Value[0], P: BuffQP[5].Q}
-	c1OutQP := ringqp.Poly{Q: opOut.Value[1], P: BuffQP[5].P}
+	c0OutQP := ringqp.Poly{Q: opOut.Value[0], P: (*buffQP5).Q}
+	c1OutQP := ringqp.Poly{Q: opOut.Value[1], P: (*buffQP5).P}
 
 	ringQ.MulScalarBigint(ctInTmp0, ringP.ModulusAtLevel[levelP], ctInTmp0) // P*c0
 	ringQ.MulScalarBigint(ctInTmp1, ringP.ModulusAtLevel[levelP], ctInTmp1) // P*c1
@@ -429,5 +444,7 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 	eval.ModDownQPtoQNTT(levelQ, levelP, opOut.Value[0], c0OutQP.P, opOut.Value[0]) // sum(phi(c0 * P + d0_QP))/P
 	eval.ModDownQPtoQNTT(levelQ, levelP, opOut.Value[1], c1OutQP.P, opOut.Value[1]) // sum(phi(d1_QP))/P
 
+	*buffQP1 = tmp0QP
+	pool.Put(buffQP1)
 	return
 }

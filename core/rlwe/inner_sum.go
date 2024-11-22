@@ -74,7 +74,11 @@ func (eval Evaluator) Trace(ctIn *Ciphertext, logN int, opOut *Ciphertext) (err 
 			opOut.IsNTT = true
 		}
 
-		buff, err := NewCiphertextAtLevelFromPoly(level, []ring.Poly{eval.BuffQP[3].Q, eval.BuffQP[4].Q})
+		buffQP1 := eval.BuffQPool.Get().(*ringqp.Poly)
+		defer eval.BuffQPool.Put(buffQP1)
+		buffQP2 := eval.BuffQPool.Get().(*ringqp.Poly)
+		defer eval.BuffQPool.Put(buffQP2)
+		buff, err := NewCiphertextAtLevelFromPoly(level, []ring.Poly{(*buffQP1).Q, (*buffQP2).Q})
 
 		// Sanity check, this error should not happen unless the
 		// evaluator's buffer has been improperly tempered with.
@@ -205,12 +209,21 @@ func (eval Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, opOut *Cipher
 
 		// BuffQP[0:2] are used by AutomorphismHoistedLazy
 
+		buffQP3 := eval.BuffQPool.Get().(*ringqp.Poly)
+		defer eval.BuffQPool.Put(buffQP3)
+		buffQP4 := eval.BuffQPool.Get().(*ringqp.Poly)
+		defer eval.BuffQPool.Put(buffQP4)
+
 		// Accumulator mod QP (i.e. opOut Mod QP)
-		accQP := &Element[ringqp.Poly]{Value: []ringqp.Poly{eval.BuffQP[2], eval.BuffQP[3]}}
+		accQP := &Element[ringqp.Poly]{Value: []ringqp.Poly{*buffQP3, *buffQP4}}
 		accQP.MetaData = ctInNTT.MetaData
 
 		// Buffer mod QP (i.e. to store the result of lazy gadget products)
-		cQP := &Element[ringqp.Poly]{Value: []ringqp.Poly{eval.BuffQP[4], eval.BuffQP[5]}}
+		buffQP5 := eval.BuffQPool.Get().(*ringqp.Poly)
+		defer eval.BuffQPool.Put(buffQP5)
+		buffQP6 := eval.BuffQPool.Get().(*ringqp.Poly)
+		defer eval.BuffQPool.Put(buffQP6)
+		cQP := &Element[ringqp.Poly]{Value: []ringqp.Poly{*buffQP5, *buffQP6}}
 		cQP.MetaData = ctInNTT.MetaData
 
 		// Buffer mod Q (i.e. to store the result of gadget products)

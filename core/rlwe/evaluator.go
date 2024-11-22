@@ -2,6 +2,7 @@ package rlwe
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/tuneinsight/lattigo/v6/ring"
 	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
@@ -29,6 +30,7 @@ type EvaluatorBuffers struct {
 	BuffInvNTT    ring.Poly
 	BuffDecompQP  []ringqp.Poly // Memory Buff for the basis extension in hoisting
 	BuffBitDecomp []uint64
+	BuffQPool     *sync.Pool
 }
 
 func NewEvaluatorBuffers(params Parameters) *EvaluatorBuffers {
@@ -39,15 +41,6 @@ func NewEvaluatorBuffers(params Parameters) *EvaluatorBuffers {
 
 	buff.BuffCt = NewCiphertext(params, 2, params.MaxLevel())
 
-	buff.BuffQP = [6]ringqp.Poly{
-		ringQP.NewPoly(),
-		ringQP.NewPoly(),
-		ringQP.NewPoly(),
-		ringQP.NewPoly(),
-		ringQP.NewPoly(),
-		ringQP.NewPoly(),
-	}
-
 	buff.BuffInvNTT = params.RingQ().NewPoly()
 
 	buff.BuffDecompQP = make([]ringqp.Poly, BaseRNSDecompositionVectorSize)
@@ -56,6 +49,16 @@ func NewEvaluatorBuffers(params Parameters) *EvaluatorBuffers {
 	}
 
 	buff.BuffBitDecomp = make([]uint64, params.RingQ().N())
+	// for i := range buff.BuffQP {
+	// 	buff.BuffQP[i] = ringQP.NewPoly()
+	// }
+
+	buff.BuffQPool = &sync.Pool{
+		New: func() any {
+			poly := ringQP.NewPoly()
+			return &poly
+		},
+	}
 
 	return buff
 }
@@ -285,6 +288,10 @@ func (eval Evaluator) AutomorphismIndex(galEl uint64) []uint64 {
 
 func (eval Evaluator) GetEvaluatorBuffer() *EvaluatorBuffers {
 	return eval.EvaluatorBuffers
+}
+
+func (eval Evaluator) GetBuffQPPool() *sync.Pool {
+	return eval.BuffQPool
 }
 
 func (eval Evaluator) GetBuffQP() [6]ringqp.Poly {

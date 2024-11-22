@@ -44,10 +44,14 @@ func (eval Evaluator) ExternalProduct(op0 *rlwe.Ciphertext, op1 *Ciphertext, opO
 	levelQ, levelP := op1.LevelQ(), op1.LevelP()
 
 	var c0QP, c1QP ringqp.Poly
+	buffQP1 := eval.BuffQPool.Get().(*ringqp.Poly)
+	defer eval.BuffQPool.Put(buffQP1)
+	buffQP2 := eval.BuffQPool.Get().(*ringqp.Poly)
+	defer eval.BuffQPool.Put(buffQP2)
 	if op0 == opOut {
-		c0QP, c1QP = eval.BuffQP[1], eval.BuffQP[2]
+		c0QP, c1QP = *buffQP1, *buffQP2
 	} else {
-		c0QP, c1QP = ringqp.Poly{Q: opOut.Value[0], P: eval.BuffQP[1].P}, ringqp.Poly{Q: opOut.Value[1], P: eval.BuffQP[2].P}
+		c0QP, c1QP = ringqp.Poly{Q: opOut.Value[0], P: (*buffQP1).P}, ringqp.Poly{Q: opOut.Value[1], P: (*buffQP2).P}
 	}
 
 	if levelP < 1 {
@@ -72,7 +76,7 @@ func (eval Evaluator) ExternalProduct(op0 *rlwe.Ciphertext, op1 *Ciphertext, opO
 			}
 		}
 	} else {
-		eval.externalProductInPlaceMultipleP(levelQ, levelP, op0, op1, eval.BuffQP[1].Q, eval.BuffQP[1].P, eval.BuffQP[2].Q, eval.BuffQP[2].P)
+		eval.externalProductInPlaceMultipleP(levelQ, levelP, op0, op1, (*buffQP1).Q, (*buffQP1).P, (*buffQP2).Q, (*buffQP2).P)
 		eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c0QP.Q, c0QP.P, opOut.Value[0])
 		eval.BasisExtender.ModDownQPtoQNTT(levelQ, levelP, c1QP.Q, c1QP.P, opOut.Value[1])
 
@@ -90,7 +94,9 @@ func (eval Evaluator) externalProduct32Bit(ct0 *rlwe.Ciphertext, rgsw *Ciphertex
 	pw2 := rgsw.Value[0].BaseTwoDecomposition
 	mask := uint64(((1 << pw2) - 1))
 
-	cw := eval.BuffQP[0].Q.Coeffs[0]
+	buffQP1 := eval.BuffQPool.Get().(*ringqp.Poly)
+	defer eval.BuffQPool.Put(buffQP1)
+	cw := (*buffQP1).Q.Coeffs[0]
 	cwNTT := eval.BuffBitDecomp
 
 	acc0 := c0.Coeffs[0]
@@ -139,10 +145,12 @@ func (eval Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Cipher
 	BaseRNSDecompositionVectorSize := rgsw.Value[0].BaseRNSDecompositionVectorSize()
 	BaseTwoDecompositionVectorSize := rgsw.Value[0].BaseTwoDecompositionVectorSize()
 
+	buffQP1 := eval.BuffQPool.Get().(*ringqp.Poly)
+	defer eval.BuffQPool.Put(buffQP1)
 	// (a, b) + (c0 * rgsw[k][0], c0 * rgsw[k][1])
 	for k, el := range rgsw.Value {
 		ringQ.INTT(ct0.Value[k], eval.BuffInvNTT)
-		cw := eval.BuffQP[0].Q.Coeffs[0]
+		cw := (*buffQP1).Q.Coeffs[0]
 		cwNTT := eval.BuffBitDecomp
 		for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
 			for j := 0; j < BaseTwoDecompositionVectorSize[i]; j++ {
@@ -193,7 +201,9 @@ func (eval Evaluator) externalProductInPlaceMultipleP(levelQ, levelP int, ct0 *r
 	ringQ := ringQP.RingQ
 	ringP := ringQP.RingP
 
-	c2QP := eval.BuffQP[0]
+	buffQP1 := eval.BuffQPool.Get().(*ringqp.Poly)
+	defer eval.BuffQPool.Put(buffQP1)
+	c2QP := (*buffQP1)
 
 	c0QP := ringqp.Poly{Q: c0OutQ, P: c0OutP}
 	c1QP := ringqp.Poly{Q: c1OutQ, P: c1OutP}

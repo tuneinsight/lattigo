@@ -11,6 +11,7 @@ import (
 	"github.com/tuneinsight/lattigo/v6/circuits/ckks/polynomial"
 	"github.com/tuneinsight/lattigo/v6/core/rlwe"
 	"github.com/tuneinsight/lattigo/v6/ring"
+	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
 	"github.com/tuneinsight/lattigo/v6/schemes/ckks"
 	"github.com/tuneinsight/lattigo/v6/utils"
 	"github.com/tuneinsight/lattigo/v6/utils/bignum"
@@ -746,8 +747,11 @@ func (eval Evaluator) ModUp(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err 
 			ctIn.Scale = ctIn.Scale.Mul(rlwe.NewScale(scale))
 		}
 
+		buffQP1 := ks.BuffQPool.Get().(*ringqp.Poly)
+		defer ks.BuffQPool.Put(buffQP1)
+
 		ctTmp := &rlwe.Ciphertext{}
-		ctTmp.Value = []ring.Poly{ks.BuffQP[1].Q, ctIn.Value[1]}
+		ctTmp.Value = []ring.Poly{(*buffQP1).Q, ctIn.Value[1]}
 		ctTmp.MetaData = ctIn.MetaData
 
 		// Switch back to the dense key

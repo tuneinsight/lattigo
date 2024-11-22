@@ -3,11 +3,14 @@
 package rlwe
 
 import (
+	"sync"
+
 	"github.com/tuneinsight/lattigo/v6/ring"
 	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
 )
 
 type EvaluatorProvider interface {
+	GetBuffQPPool() *sync.Pool
 	GetBuffQP() [6]ringqp.Poly
 	GetBuffCt() *Ciphertext
 	GetBuffDecompQP() []ringqp.Poly

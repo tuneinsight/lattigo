@@ -242,8 +242,8 @@ func (eval Evaluator) ShallowCopy() *Evaluator {
 	return &Evaluator{
 		params:            eval.params,
 		Decomposer:        eval.Decomposer,
-		BasisExtender:     eval.BasisExtender.ShallowCopy(),
-		EvaluatorBuffers:  NewEvaluatorBuffers(eval.params),
+		BasisExtender:     eval.BasisExtender,
+		EvaluatorBuffers:  eval.EvaluatorBuffers,
 		EvaluationKeySet:  eval.EvaluationKeySet,
 		automorphismIndex: eval.automorphismIndex,
 	}

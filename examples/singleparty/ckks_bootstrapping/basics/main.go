@@ -200,7 +200,8 @@ func main() {
 	go func() {
 		defer wg.Done()
 		var err error
-		ciphertext4, err = eval.Bootstrap(ciphertext2)
+		eval2 := eval.ShallowCopy()
+		ciphertext4, err = eval2.Bootstrap(ciphertext2)
 		if err != nil {
 			panic(err)
 		}

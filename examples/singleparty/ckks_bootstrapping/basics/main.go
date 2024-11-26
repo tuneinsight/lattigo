@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"math"
+	"sync"
 
 	"github.com/tuneinsight/lattigo/v6/circuits/ckks/bootstrapping"
 	"github.com/tuneinsight/lattigo/v6/core/rlwe"
@@ -176,6 +177,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	ciphertext2, err := encryptor.EncryptNew(plaintext)
+	if err != nil {
+		panic(err)
+	}
 
 	// Decrypt, print and compare with the plaintext values
 	fmt.Println()
@@ -188,11 +193,23 @@ func main() {
 	// CAUTION: the scale of the ciphertext MUST be equal (or very close) to params.DefaultScale()
 	// To equalize the scale, the function evaluator.SetScale(ciphertext, parameters.DefaultScale()) can be used at the expense of one level.
 	// If the ciphertext is is at level one or greater when given to the bootstrapper, this equalization is automatically done.
+	var wg sync.WaitGroup
+	var ciphertext4 *rlwe.Ciphertext
 	fmt.Println("Bootstrapping...")
-	ciphertext2, err := eval.Bootstrap(ciphertext1)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		var err error
+		ciphertext4, err = eval.Bootstrap(ciphertext2)
+		if err != nil {
+			panic(err)
+		}
+	}()
+	ciphertext3, err := eval.Bootstrap(ciphertext1)
 	if err != nil {
 		panic(err)
 	}
+	wg.Wait()
 	fmt.Println("Done")
 
 	//==================
@@ -202,7 +219,8 @@ func main() {
 	// Decrypt, print and compare with the plaintext values
 	fmt.Println()
 	fmt.Println("Precision of ciphertext vs. Bootstrap(ciphertext)")
-	printDebug(params, ciphertext2, valuesTest1, decryptor, encoder)
+	printDebug(params, ciphertext3, valuesTest1, decryptor, encoder)
+	printDebug(params, ciphertext4, valuesTest1, decryptor, encoder)
 }
 
 func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []complex128, decryptor *rlwe.Decryptor, encoder *ckks.Encoder) (valuesTest []complex128) {

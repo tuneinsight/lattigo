@@ -73,7 +73,9 @@ func (eval Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, o
 
 		level := utils.Min(ctIn.Level(), opOut.Level())
 
-		ctTmp, err := NewCiphertextAtLevelFromPoly(level, eval.BuffCt.Value)
+		buffCt := eval.BuffCtPool.Get().(*Ciphertext)
+		defer eval.BuffCtPool.Put(buffCt)
+		ctTmp, err := NewCiphertextAtLevelFromPoly(level, buffCt.Value)
 
 		// Sanity check, this error should not happen unless the
 		// evaluator's buffer have been improperly tempered with.
@@ -104,10 +106,10 @@ func (eval Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, o
 }
 
 func (eval Evaluator) applyEvaluationKey(level int, ctIn *Ciphertext, evk *EvaluationKey, opOut *Ciphertext) {
-	buffQP1 := eval.BuffQPool.Get().(*ringqp.Poly)
-	defer eval.BuffQPool.Put(buffQP1)
-	buffQP2 := eval.BuffQPool.Get().(*ringqp.Poly)
-	defer eval.BuffQPool.Put(buffQP2)
+	buffQP1 := eval.BuffQPPool.Get().(*ringqp.Poly)
+	defer eval.BuffQPPool.Put(buffQP1)
+	buffQP2 := eval.BuffQPPool.Get().(*ringqp.Poly)
+	defer eval.BuffQPPool.Put(buffQP2)
 
 	ctTmp := &Ciphertext{}
 	ctTmp.Value = []ring.Poly{(*buffQP1).Q, (*buffQP2).Q}
@@ -143,10 +145,10 @@ func (eval Evaluator) Relinearize(ctIn *Ciphertext, opOut *Ciphertext) (err erro
 
 	ringQ := eval.params.RingQ().AtLevel(level)
 
-	buffQP1 := eval.BuffQPool.Get().(*ringqp.Poly)
-	defer eval.BuffQPool.Put(buffQP1)
-	buffQP2 := eval.BuffQPool.Get().(*ringqp.Poly)
-	defer eval.BuffQPool.Put(buffQP2)
+	buffQP1 := eval.BuffQPPool.Get().(*ringqp.Poly)
+	defer eval.BuffQPPool.Put(buffQP1)
+	buffQP2 := eval.BuffQPPool.Get().(*ringqp.Poly)
+	defer eval.BuffQPPool.Put(buffQP2)
 
 	ctTmp := &Ciphertext{}
 	ctTmp.Value = []ring.Poly{(*buffQP1).Q, (*buffQP2).Q}

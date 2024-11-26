@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/tuneinsight/lattigo/v6/ring"
-	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
 	"github.com/tuneinsight/lattigo/v6/utils"
 )
 
@@ -23,37 +22,36 @@ type Evaluator struct {
 }
 
 type EvaluatorBuffers struct {
-	BuffCt *Ciphertext
-	// BuffQP[0-1]: Key-Switch output Key-Switch on the fly decomp(c2)
-	// BuffQP[2-5]: Available
-	BuffQP        [6]ringqp.Poly
-	BuffInvNTT    ring.Poly
-	BuffDecompQP  []ringqp.Poly // Memory Buff for the basis extension in hoisting
-	BuffBitDecomp []uint64
-	BuffQPool     *sync.Pool
+	BuffQPPool  *sync.Pool
+	BuffQPool   *sync.Pool
+	BuffBitPool *sync.Pool
+	BuffCtPool  *sync.Pool
 }
 
 func NewEvaluatorBuffers(params Parameters) *EvaluatorBuffers {
 
 	buff := new(EvaluatorBuffers)
-	BaseRNSDecompositionVectorSize := params.BaseRNSDecompositionVectorSize(params.MaxLevelQ(), 0)
 	ringQP := params.RingQP()
 
-	buff.BuffCt = NewCiphertext(params, 2, params.MaxLevel())
-
-	buff.BuffInvNTT = params.RingQ().NewPoly()
-
-	buff.BuffDecompQP = make([]ringqp.Poly, BaseRNSDecompositionVectorSize)
-	for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
-		buff.BuffDecompQP[i] = ringQP.NewPoly()
-	}
-
-	buff.BuffBitDecomp = make([]uint64, params.RingQ().N())
-	// for i := range buff.BuffQP {
-	// 	buff.BuffQP[i] = ringQP.NewPoly()
-	// }
-
 	buff.BuffQPool = &sync.Pool{
+		New: func() any {
+			poly := params.RingQ().NewPoly()
+			return &poly
+		},
+	}
+	buff.BuffCtPool = &sync.Pool{
+		New: func() any {
+			ct := NewCiphertext(params, 2, params.MaxLevel())
+			return ct
+		},
+	}
+	buff.BuffBitPool = &sync.Pool{
+		New: func() any {
+			buff := make([]uint64, params.RingQ().N())
+			return &buff
+		},
+	}
+	buff.BuffQPPool = &sync.Pool{
 		New: func() any {
 			poly := ringQP.NewPoly()
 			return &poly
@@ -291,19 +289,11 @@ func (eval Evaluator) GetEvaluatorBuffer() *EvaluatorBuffers {
 }
 
 func (eval Evaluator) GetBuffQPPool() *sync.Pool {
-	return eval.BuffQPool
+	return eval.BuffQPPool
 }
 
-func (eval Evaluator) GetBuffQP() [6]ringqp.Poly {
-	return eval.BuffQP
-}
-
-func (eval Evaluator) GetBuffCt() *Ciphertext {
-	return eval.BuffCt
-}
-
-func (eval Evaluator) GetBuffDecompQP() []ringqp.Poly {
-	return eval.BuffDecompQP
+func (eval Evaluator) GetBuffCtPool() *sync.Pool {
+	return eval.BuffCtPool
 }
 
 func (eval Evaluator) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q ring.Poly) {

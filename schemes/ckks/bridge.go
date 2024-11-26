@@ -73,10 +73,10 @@ func (switcher DomainSwitcher) ComplexToReal(eval *Evaluator, ctIn, opOut *rlwe.
 		return fmt.Errorf("cannot ComplexToReal: no realToComplexEvk provided to this DomainSwitcher")
 	}
 
-	buffQP1 := evalRLWE.BuffQPool.Get().(*ringqp.Poly)
-	defer evalRLWE.BuffQPool.Put(buffQP1)
-	buffQP2 := evalRLWE.BuffQPool.Get().(*ringqp.Poly)
-	defer evalRLWE.BuffQPool.Put(buffQP2)
+	buffQP1 := evalRLWE.BuffQPPool.Get().(*ringqp.Poly)
+	defer evalRLWE.BuffQPPool.Put(buffQP1)
+	buffQP2 := evalRLWE.BuffQPPool.Get().(*ringqp.Poly)
+	defer evalRLWE.BuffQPPool.Put(buffQP2)
 
 	ctTmp := &rlwe.Ciphertext{}
 	ctTmp.Value = []ring.Poly{(*buffQP1).Q, (*buffQP2).Q}
@@ -122,10 +122,10 @@ func (switcher DomainSwitcher) RealToComplex(eval *Evaluator, ctIn, opOut *rlwe.
 	switcher.stdRingQ.AtLevel(level).UnfoldConjugateInvariantToStandard(ctIn.Value[0], opOut.Value[0])
 	switcher.stdRingQ.AtLevel(level).UnfoldConjugateInvariantToStandard(ctIn.Value[1], opOut.Value[1])
 
-	buffQP1 := evalRLWE.BuffQPool.Get().(*ringqp.Poly)
-	defer evalRLWE.BuffQPool.Put(buffQP1)
-	buffQP2 := evalRLWE.BuffQPool.Get().(*ringqp.Poly)
-	defer evalRLWE.BuffQPool.Put(buffQP2)
+	buffQP1 := evalRLWE.BuffQPPool.Get().(*ringqp.Poly)
+	defer evalRLWE.BuffQPPool.Put(buffQP1)
+	buffQP2 := evalRLWE.BuffQPPool.Get().(*ringqp.Poly)
+	defer evalRLWE.BuffQPPool.Put(buffQP2)
 
 	ctTmp := &rlwe.Ciphertext{}
 	ctTmp.Value = []ring.Poly{(*buffQP1).Q, (*buffQP2).Q}

@@ -257,6 +257,8 @@ func (eval Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 *rlwe.E
 
 	var err error
 
+	buffCt := eval.BuffCtPool.Get().(*rlwe.Ciphertext)
+	defer eval.BuffCtPool.Put(buffCt)
 	// Checks whether or not the receiver element is the same as one of the input elements
 	// and acts accordingly to avoid unnecessary element creation or element overwriting,
 	// and scales properly the element before the evaluation.
@@ -270,7 +272,7 @@ func (eval Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 *rlwe.E
 
 			if ratioInt.Cmp(new(big.Int).SetUint64(0)) == 1 {
 
-				tmp1, err = rlwe.NewCiphertextAtLevelFromPoly(level, eval.BuffCt.Value[:c1.Degree()+1])
+				tmp1, err = rlwe.NewCiphertextAtLevelFromPoly(level, buffCt.Value[:c1.Degree()+1])
 
 				// Sanity check, this error should not happen unless the evaluator's buffers
 				// were improperly tempered with.
@@ -333,7 +335,7 @@ func (eval Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 *rlwe.E
 
 			if ratioInt.Cmp(new(big.Int).SetUint64(0)) == 1 {
 				// Will avoid resizing on the output
-				tmp0, err = rlwe.NewCiphertextAtLevelFromPoly(level, eval.BuffCt.Value[:c0.Degree()+1])
+				tmp0, err = rlwe.NewCiphertextAtLevelFromPoly(level, buffCt.Value[:c0.Degree()+1])
 
 				// Sanity check, this error should not happen unless the evaluator's buffers
 				// were improperly tempered with.
@@ -363,7 +365,7 @@ func (eval Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 *rlwe.E
 
 			if ratioInt.Cmp(new(big.Int).SetUint64(0)) == 1 {
 				// Will avoid resizing on the output
-				tmp1, err = rlwe.NewCiphertextAtLevelFromPoly(level, eval.BuffCt.Value[:c1.Degree()+1])
+				tmp1, err = rlwe.NewCiphertextAtLevelFromPoly(level, buffCt.Value[:c1.Degree()+1])
 
 				// Sanity check, this error should not happen unless the evaluator's buffers
 				// were improperly tempered with.
@@ -387,7 +389,7 @@ func (eval Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 *rlwe.E
 
 			if ratioInt.Cmp(new(big.Int).SetUint64(0)) == 1 {
 
-				tmp0, err = rlwe.NewCiphertextAtLevelFromPoly(level, eval.BuffCt.Value[:c0.Degree()+1])
+				tmp0, err = rlwe.NewCiphertextAtLevelFromPoly(level, buffCt.Value[:c0.Degree()+1])
 
 				// Sanity check, this error should not happen unless the evaluator's buffers
 				// were improperly tempered with.
@@ -842,10 +844,10 @@ func (eval Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ring.Poly
 				return fmt.Errorf("cannot MulRelin: Relinearize: %w", err)
 			}
 
-			buffQP1 := eval.BuffQPool.Get().(*ringqp.Poly)
-			defer eval.BuffQPool.Put(buffQP1)
-			buffQP2 := eval.BuffQPool.Get().(*ringqp.Poly)
-			defer eval.BuffQPool.Put(buffQP2)
+			buffQP1 := eval.BuffQPPool.Get().(*ringqp.Poly)
+			defer eval.BuffQPPool.Put(buffQP1)
+			buffQP2 := eval.BuffQPPool.Get().(*ringqp.Poly)
+			defer eval.BuffQPPool.Put(buffQP2)
 
 			tmpCt := &rlwe.Ciphertext{}
 			tmpCt.Value = []ring.Poly{(*buffQP1).Q, (*buffQP2).Q}
@@ -1154,10 +1156,10 @@ func (eval Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ri
 
 			ringQ.MulCoeffsMontgomery(c01, tmp1.Value[1], c2) // c2 += c[1]*c[1]
 
-			buffQP1 := eval.BuffQPool.Get().(*ringqp.Poly)
-			defer eval.BuffQPool.Put(buffQP1)
-			buffQP2 := eval.BuffQPool.Get().(*ringqp.Poly)
-			defer eval.BuffQPool.Put(buffQP2)
+			buffQP1 := eval.BuffQPPool.Get().(*ringqp.Poly)
+			defer eval.BuffQPPool.Put(buffQP1)
+			buffQP2 := eval.BuffQPPool.Get().(*ringqp.Poly)
+			defer eval.BuffQPPool.Put(buffQP2)
 
 			tmpCt := &rlwe.Ciphertext{}
 			tmpCt.Value = []ring.Poly{(*buffQP1).Q, (*buffQP2).Q}
@@ -1254,9 +1256,18 @@ func (eval Evaluator) RotateHoistedNew(ctIn *rlwe.Ciphertext, rotations []int) (
 // It is much faster than sequential calls to [Evaluator.Rotate].
 func (eval Evaluator) RotateHoisted(ctIn *rlwe.Ciphertext, rotations []int, opOut map[int]*rlwe.Ciphertext) (err error) {
 	levelQ := ctIn.Level()
-	eval.DecomposeNTT(levelQ, eval.GetParameters().MaxLevelP(), eval.GetParameters().PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
+
+	baseRNSDecompositionVectorSize := eval.GetParameters().BaseRNSDecompositionVectorSize(levelQ, eval.GetParameters().MaxLevelP())
+	buffDecompQP := make([]ringqp.Poly, baseRNSDecompositionVectorSize)
+	for i := 0; i < len(buffDecompQP); i++ {
+		buff := eval.BuffQPPool.Get().(*ringqp.Poly)
+		defer eval.BuffQPPool.Put(buff)
+		buffDecompQP[i] = *buff
+	}
+
+	eval.DecomposeNTT(levelQ, eval.GetParameters().MaxLevelP(), eval.GetParameters().PCount(), ctIn.Value[1], ctIn.IsNTT, buffDecompQP)
 	for _, i := range rotations {
-		if err = eval.AutomorphismHoisted(levelQ, ctIn, eval.BuffDecompQP, eval.GetParameters().GaloisElement(i), opOut[i]); err != nil {
+		if err = eval.AutomorphismHoisted(levelQ, ctIn, buffDecompQP, eval.GetParameters().GaloisElement(i), opOut[i]); err != nil {
 			return fmt.Errorf("cannot RotateHoisted: %w", err)
 		}
 	}

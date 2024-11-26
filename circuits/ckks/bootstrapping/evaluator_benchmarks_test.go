@@ -81,12 +81,11 @@ func BenchmarkBootstrap(b *testing.B) {
 	evk, _, err := btpParams.GenEvaluationKeys(sk)
 	require.NoError(b, err)
 
-	eval, err := NewEvaluator(btpParams, evk)
-	require.NoError(b, err)
-
 	b.Run(ParamsToString(params, btpParams.LogMaxDimensions().Cols, "Bootstrap/"), func(b *testing.B) {
 
 		var err error
+		eval, err := NewEvaluator(btpParams, evk)
+		require.NoError(b, err)
 
 		for i := 0; i < b.N; i++ {
 

@@ -171,13 +171,14 @@ func TestRLWE(t *testing.T) {
 }
 
 type TestContext struct {
-	params Parameters
-	kgen   *KeyGenerator
-	enc    *Encryptor
-	dec    *Decryptor
-	sk     *SecretKey
-	pk     *PublicKey
-	eval   *Evaluator
+	params       Parameters
+	kgen         *KeyGenerator
+	enc          *Encryptor
+	dec          *Decryptor
+	sk           *SecretKey
+	pk           *PublicKey
+	eval         *Evaluator
+	buffDecompQP []ringqp.Poly
 }
 
 func testUserDefinedParameters(t *testing.T) {
@@ -348,14 +349,20 @@ func NewTestContext(params Parameters) (tc *TestContext, err error) {
 
 	dec := NewDecryptor(params, sk)
 
+	size := params.BaseRNSDecompositionVectorSize(params.MaxLevelQ(), 0)
+	buffDecompQP := make([]ringqp.Poly, size)
+	for i := 0; i < size; i++ {
+		buffDecompQP[i] = params.RingQP().NewPoly()
+	}
 	return &TestContext{
-		params: params,
-		kgen:   kgen,
-		sk:     sk,
-		pk:     pk,
-		enc:    enc,
-		dec:    dec,
-		eval:   eval,
+		params:       params,
+		kgen:         kgen,
+		sk:           sk,
+		pk:           pk,
+		enc:          enc,
+		dec:          dec,
+		eval:         eval,
+		buffDecompQP: buffDecompQP,
 	}, nil
 }
 
@@ -769,10 +776,10 @@ func testGadgetProduct(tc *TestContext, levelQ, bpw2 int, t *testing.T) {
 			kgen.GenEvaluationKey(sk, skOut, evk)
 
 			//Decompose the ciphertext
-			eval.DecomposeNTT(levelQ, levelP, levelP+1, a, ct.IsNTT, eval.BuffDecompQP)
+			eval.DecomposeNTT(levelQ, levelP, levelP+1, a, ct.IsNTT, tc.buffDecompQP)
 
 			// Gadget product: ct = [-cs1 + as0 , c]
-			eval.GadgetProductHoisted(levelQ, eval.BuffDecompQP, &evk.GadgetCiphertext, ct)
+			eval.GadgetProductHoisted(levelQ, tc.buffDecompQP, &evk.GadgetCiphertext, ct)
 
 			// pt = as0
 			pt := NewDecryptor(params, skOut).DecryptNew(ct)
@@ -989,10 +996,10 @@ func testAutomorphism(tc *TestContext, level, bpw2 int, t *testing.T) {
 		evk := NewMemEvaluationKeySet(nil, kgen.GenGaloisKeyNew(galEl, sk, evkParams))
 
 		//Decompose the ciphertext
-		eval.DecomposeNTT(level, params.MaxLevelP(), params.MaxLevelP()+1, ct.Value[1], ct.IsNTT, eval.BuffDecompQP)
+		eval.DecomposeNTT(level, params.MaxLevelP(), params.MaxLevelP()+1, ct.Value[1], ct.IsNTT, tc.buffDecompQP)
 
 		// Evaluate the automorphism
-		eval.WithKey(evk).AutomorphismHoisted(level, ct, eval.BuffDecompQP, galEl, ct)
+		eval.WithKey(evk).AutomorphismHoisted(level, ct, tc.buffDecompQP, galEl, ct)
 
 		// Apply the same automorphism on the plaintext
 		ringQ := params.RingQ().AtLevel(level)
@@ -1039,12 +1046,12 @@ func testAutomorphism(tc *TestContext, level, bpw2 int, t *testing.T) {
 		evk := NewMemEvaluationKeySet(nil, kgen.GenGaloisKeyNew(galEl, sk, evkParams))
 
 		//Decompose the ciphertext
-		eval.DecomposeNTT(level, params.MaxLevelP(), params.MaxLevelP()+1, ct.Value[1], ct.IsNTT, eval.BuffDecompQP)
+		eval.DecomposeNTT(level, params.MaxLevelP(), params.MaxLevelP()+1, ct.Value[1], ct.IsNTT, tc.buffDecompQP)
 
 		ctQP := NewElementExtended(params, 1, level, params.MaxLevelP())
 
 		// Evaluate the automorphism
-		eval.WithKey(evk).AutomorphismHoistedLazy(level, ct, eval.BuffDecompQP, galEl, ctQP)
+		eval.WithKey(evk).AutomorphismHoistedLazy(level, ct, tc.buffDecompQP, galEl, ctQP)
 
 		eval.ModDown(level, params.MaxLevelP(), ctQP, ct)
 

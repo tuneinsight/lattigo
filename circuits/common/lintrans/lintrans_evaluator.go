@@ -38,23 +38,30 @@ func (eval Evaluator) EvaluateMany(ctIn *rlwe.Ciphertext, linearTransformations 
 
 	levelQ = utils.Min(levelQ, ctIn.Level())
 
-	BuffDecompQP := eval.GetBuffDecompQP()
+	pool := eval.Evaluator.GetBuffQPPool()
+	baseRNSDecompositionVectorSize := eval.Evaluator.GetRLWEParameters().BaseRNSDecompositionVectorSize(levelQ, levelP)
+	buffDecompQP := make([]ringqp.Poly, baseRNSDecompositionVectorSize)
+	for i := 0; i < len(buffDecompQP); i++ {
+		buff := pool.Get().(*ringqp.Poly)
+		defer pool.Put(buff)
+		buffDecompQP[i] = *buff
+	}
 
-	eval.DecomposeNTT(levelQ, levelP, levelP+1, ctIn.Value[1], ctIn.IsNTT, BuffDecompQP)
+	eval.DecomposeNTT(levelQ, levelP, levelP+1, ctIn.Value[1], ctIn.IsNTT, buffDecompQP)
 
 	ctPreRot := map[int]*rlwe.Element[ringqp.Poly]{}
 
 	for i, lt := range linearTransformations {
 
 		if lt.N1 == 0 {
-			if err = eval.MultiplyByDiagMatrix(ctIn, lt, BuffDecompQP, opOut[i]); err != nil {
+			if err = eval.MultiplyByDiagMatrix(ctIn, lt, buffDecompQP, opOut[i]); err != nil {
 				return
 			}
 		} else {
 
 			_, _, rotN2 := lt.BSGSIndex()
 
-			if err = eval.PreRotatedCiphertextForDiagonalMatrixMultiplication(levelQ, levelP, ctIn, BuffDecompQP, rotN2, ctPreRot); err != nil {
+			if err = eval.PreRotatedCiphertextForDiagonalMatrixMultiplication(levelQ, levelP, ctIn, buffDecompQP, rotN2, ctPreRot); err != nil {
 				return
 			}
 
@@ -132,12 +139,19 @@ func (eval Evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearT
 
 	pool := eval.GetBuffQPPool()
 	buffQP0 := pool.Get().(*ringqp.Poly)
+	defer pool.Put(buffQP0)
 	buffQP1 := pool.Get().(*ringqp.Poly)
+	defer pool.Put(buffQP1)
 	buffQP2 := pool.Get().(*ringqp.Poly)
+	defer pool.Put(buffQP2)
 	buffQP3 := pool.Get().(*ringqp.Poly)
+	defer pool.Put(buffQP3)
 	buffQP4 := pool.Get().(*ringqp.Poly)
+	defer pool.Put(buffQP4)
 	buffQP5 := pool.Get().(*ringqp.Poly)
-	BuffCt := eval.GetBuffCt()
+	defer pool.Put(buffQP5)
+	buffCt := eval.GetBuffCtPool().Get().(*rlwe.Ciphertext)
+	defer eval.GetBuffCtPool().Put(buffCt)
 
 	*opOut.MetaData = *ctIn.MetaData
 	opOut.Scale = opOut.Scale.Mul(matrix.Scale)
@@ -168,10 +182,10 @@ func (eval Evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearT
 	cQP.MetaData = &rlwe.MetaData{}
 	cQP.MetaData.IsNTT = true
 
-	BuffCt.Value[0].CopyLvl(levelQ, ctIn.Value[0])
-	BuffCt.Value[1].CopyLvl(levelQ, ctIn.Value[1])
+	buffCt.Value[0].CopyLvl(levelQ, ctIn.Value[0])
+	buffCt.Value[1].CopyLvl(levelQ, ctIn.Value[1])
 
-	ctInTmp0, ctInTmp1 := BuffCt.Value[0], BuffCt.Value[1]
+	ctInTmp0, ctInTmp1 := buffCt.Value[0], buffCt.Value[1]
 
 	ringQ.MulScalarBigint(ctInTmp0, ringP.ModulusAtLevel[levelP], ct0TimesP) // P*c0
 
@@ -265,6 +279,7 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 
 	pool := eval.GetBuffQPPool()
 	buffQP1 := pool.Get().(*ringqp.Poly)
+	defer pool.Put(buffQP1)
 	buffQP2 := pool.Get().(*ringqp.Poly)
 	defer pool.Put(buffQP2)
 	buffQP3 := pool.Get().(*ringqp.Poly)
@@ -273,7 +288,8 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 	defer pool.Put(buffQP4)
 	buffQP5 := pool.Get().(*ringqp.Poly)
 	defer pool.Put(buffQP5)
-	BuffCt := eval.GetBuffCt()
+	buffCt := eval.GetBuffCtPool().Get().(*rlwe.Ciphertext)
+	defer eval.GetBuffCtPool().Put(buffCt)
 
 	*opOut.MetaData = *ctIn.MetaData
 	opOut.Scale = opOut.Scale.Mul(matrix.Scale)
@@ -293,10 +309,10 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 	// Computes the N2 rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giant-step algorithm
 	index, _, _ := matrix.BSGSIndex()
 
-	BuffCt.Value[0].CopyLvl(levelQ, ctIn.Value[0])
-	BuffCt.Value[1].CopyLvl(levelQ, ctIn.Value[1])
+	buffCt.Value[0].CopyLvl(levelQ, ctIn.Value[0])
+	buffCt.Value[1].CopyLvl(levelQ, ctIn.Value[1])
 
-	ctInTmp0, ctInTmp1 := BuffCt.Value[0], BuffCt.Value[1]
+	ctInTmp0, ctInTmp1 := buffCt.Value[0], buffCt.Value[1]
 
 	// Accumulator inner loop
 	tmp0QP := (*buffQP1)
@@ -444,7 +460,5 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 	eval.ModDownQPtoQNTT(levelQ, levelP, opOut.Value[0], c0OutQP.P, opOut.Value[0]) // sum(phi(c0 * P + d0_QP))/P
 	eval.ModDownQPtoQNTT(levelQ, levelP, opOut.Value[1], c1OutQP.P, opOut.Value[1]) // sum(phi(d1_QP))/P
 
-	*buffQP1 = tmp0QP
-	pool.Put(buffQP1)
 	return
 }

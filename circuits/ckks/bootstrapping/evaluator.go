@@ -697,6 +697,14 @@ func (eval Evaluator) ModUp(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err 
 
 		ks := eval.Evaluator.Evaluator
 
+		size := eval.ResidualParameters.BaseRNSDecompositionVectorSize(eval.BootstrappingParameters.MaxLevelQ(), 0)
+		buffDecompQP := make([]ringqp.Poly, size)
+		for i := 0; i < size; i++ {
+			buff := ks.BuffQPPool.Get().(*ringqp.Poly)
+			defer ks.BuffQPPool.Put(buff)
+			buffDecompQP[i] = *buff
+		}
+
 		// ModUp q->QP for ctIn[1] centered around q
 		for j := 0; j < N; j++ {
 
@@ -709,22 +717,22 @@ func (eval Evaluator) ModUp(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err 
 
 			for i := 0; i < levelQ+1; i++ {
 				tmp = ring.BRedAdd(coeff, Q[i], BRCQ[i])
-				ks.BuffDecompQP[0].Q.Coeffs[i][j] = tmp*pos + (Q[i]-tmp)*neg
+				buffDecompQP[0].Q.Coeffs[i][j] = tmp*pos + (Q[i]-tmp)*neg
 
 			}
 
 			for i := 0; i < levelP+1; i++ {
 				tmp = ring.BRedAdd(coeff, P[i], BRCP[i])
-				ks.BuffDecompQP[0].P.Coeffs[i][j] = tmp*pos + (P[i]-tmp)*neg
+				buffDecompQP[0].P.Coeffs[i][j] = tmp*pos + (P[i]-tmp)*neg
 			}
 		}
 
-		for i := len(ks.BuffDecompQP) - 1; i >= 0; i-- {
-			ringQ.NTT(ks.BuffDecompQP[0].Q, ks.BuffDecompQP[i].Q)
+		for i := len(buffDecompQP) - 1; i >= 0; i-- {
+			ringQ.NTT(buffDecompQP[0].Q, buffDecompQP[i].Q)
 		}
 
-		for i := len(ks.BuffDecompQP) - 1; i >= 0; i-- {
-			ringP.NTT(ks.BuffDecompQP[0].P, ks.BuffDecompQP[i].P)
+		for i := len(buffDecompQP) - 1; i >= 0; i-- {
+			ringP.NTT(buffDecompQP[0].P, buffDecompQP[i].P)
 		}
 
 		ringQ.NTT(ctIn.Value[0], ctIn.Value[0])
@@ -734,12 +742,12 @@ func (eval Evaluator) ModUp(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err 
 
 			scalar := uint64(math.Round(scale))
 
-			for i := len(ks.BuffDecompQP) - 1; i >= 0; i-- {
-				ringQ.MulScalar(ks.BuffDecompQP[0].Q, scalar, ks.BuffDecompQP[i].Q)
+			for i := len(buffDecompQP) - 1; i >= 0; i-- {
+				ringQ.MulScalar(buffDecompQP[0].Q, scalar, buffDecompQP[i].Q)
 			}
 
-			for i := len(ks.BuffDecompQP) - 1; i >= 0; i-- {
-				ringP.MulScalar(ks.BuffDecompQP[0].P, scalar, ks.BuffDecompQP[i].P)
+			for i := len(buffDecompQP) - 1; i >= 0; i-- {
+				ringP.MulScalar(buffDecompQP[0].P, scalar, buffDecompQP[i].P)
 			}
 
 			ringQ.MulScalar(ctIn.Value[0], scalar, ctIn.Value[0])
@@ -747,15 +755,15 @@ func (eval Evaluator) ModUp(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err 
 			ctIn.Scale = ctIn.Scale.Mul(rlwe.NewScale(scale))
 		}
 
-		buffQP1 := ks.BuffQPool.Get().(*ringqp.Poly)
-		defer ks.BuffQPool.Put(buffQP1)
+		buffQP1 := ks.BuffQPPool.Get().(*ringqp.Poly)
+		defer ks.BuffQPPool.Put(buffQP1)
 
 		ctTmp := &rlwe.Ciphertext{}
 		ctTmp.Value = []ring.Poly{(*buffQP1).Q, ctIn.Value[1]}
 		ctTmp.MetaData = ctIn.MetaData
 
 		// Switch back to the dense key
-		ks.GadgetProductHoisted(levelQ, ks.BuffDecompQP, &eval.EvkSparseToDense.GadgetCiphertext, ctTmp)
+		ks.GadgetProductHoisted(levelQ, buffDecompQP, &eval.EvkSparseToDense.GadgetCiphertext, ctTmp)
 		ringQ.Add(ctIn.Value[0], ctTmp.Value[0], ctIn.Value[0])
 
 	} else {

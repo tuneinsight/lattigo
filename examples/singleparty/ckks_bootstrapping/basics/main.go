@@ -193,6 +193,9 @@ func main() {
 	// CAUTION: the scale of the ciphertext MUST be equal (or very close) to params.DefaultScale()
 	// To equalize the scale, the function evaluator.SetScale(ciphertext, parameters.DefaultScale()) can be used at the expense of one level.
 	// If the ciphertext is is at level one or greater when given to the bootstrapper, this equalization is automatically done.
+	for i := range valuesWant {
+		valuesTest1[i] *= valuesTest1[i]
+	}
 	var wg sync.WaitGroup
 	var ciphertext4 *rlwe.Ciphertext
 	fmt.Println("Bootstrapping...")
@@ -202,11 +205,13 @@ func main() {
 		var err error
 		eval2 := eval.ShallowCopy()
 		ciphertext4, err = eval2.Bootstrap(ciphertext2)
+		eval2.MulRelin(ciphertext4, ciphertext4, ciphertext4)
 		if err != nil {
 			panic(err)
 		}
 	}()
 	ciphertext3, err := eval.Bootstrap(ciphertext1)
+	eval.MulRelin(ciphertext3, ciphertext3, ciphertext3)
 	if err != nil {
 		panic(err)
 	}

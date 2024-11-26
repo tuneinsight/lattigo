@@ -131,11 +131,12 @@ func (eval Evaluator) ShallowCopy() *Evaluator {
 	heEvaluator := eval.Evaluator.ShallowCopy()
 
 	paramsN1 := eval.ResidualParameters
+	paramsN2 := eval.BootstrappingParameters
 
 	var DomainSwitcher ckks.DomainSwitcher
 	if paramsN1.RingType() == ring.ConjugateInvariant {
 		var err error
-		if DomainSwitcher, err = ckks.NewDomainSwitcher(eval.Parameters.BootstrappingParameters, eval.EvkCmplxToReal, eval.EvkRealToCmplx); err != nil {
+		if DomainSwitcher, err = ckks.NewDomainSwitcher(paramsN2, eval.EvkCmplxToReal, eval.EvkRealToCmplx); err != nil {
 			panic(fmt.Errorf("cannot NewBootstrapper: ckks.NewDomainSwitcher: %w", err))
 		}
 	}
@@ -150,8 +151,8 @@ func (eval Evaluator) ShallowCopy() *Evaluator {
 		xPow2N2:        eval.xPow2N2,
 		xPow2InvN2:     eval.xPow2InvN2,
 		DomainSwitcher: DomainSwitcher,
-		DFTEvaluator:   dft.NewEvaluator(paramsN1, heEvaluator),
-		Mod1Evaluator:  mod1.NewEvaluator(heEvaluator, polynomial.NewEvaluator(paramsN1, heEvaluator), eval.Mod1Parameters),
+		DFTEvaluator:   dft.NewEvaluator(paramsN2, heEvaluator),
+		Mod1Evaluator:  mod1.NewEvaluator(heEvaluator, polynomial.NewEvaluator(paramsN2, heEvaluator), eval.Mod1Parameters),
 		SkDebug:        eval.SkDebug,
 	}
 }

@@ -1309,7 +1309,7 @@ func (eval Evaluator) RotateHoistedLazyNew(level int, rotations []int, ct *rlwe.
 // Evaluators can be used concurrently.
 func (eval Evaluator) ShallowCopy() *Evaluator {
 	return &Evaluator{
-		Encoder:   eval.Encoder.ShallowCopy(),
+		Encoder:   eval.Encoder,
 		Evaluator: eval.Evaluator,
 	}
 }

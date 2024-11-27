@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"sync"
 
 	"github.com/tuneinsight/lattigo/v6/ring"
 
@@ -55,14 +56,17 @@ type Encoder struct {
 
 	prec uint
 
-	bigintCoeffs []*big.Int
-	qHalf        *big.Int
-	buff         ring.Poly
-	m            int
-	rotGroup     []int
+	// bigintCoeffs []*big.Int
+	// qHalf        *big.Int
+	// buff     ring.Poly
+	m        int
+	rotGroup []int
 
-	roots     interface{}
-	buffCmplx interface{}
+	roots interface{}
+	// buffCmplx       interface{}
+	BuffPolyPool    *sync.Pool
+	BuffBigIntPool  *sync.Pool
+	BuffComplexPool *sync.Pool
 }
 
 // NewEncoder creates a new [Encoder] from the target parameters.
@@ -89,30 +93,58 @@ func NewEncoder(parameters Parameters, precision ...uint) (ecd *Encoder) {
 	}
 
 	ecd = &Encoder{
-		prec:         prec,
-		parameters:   parameters,
-		bigintCoeffs: make([]*big.Int, m>>1),
-		qHalf:        bignum.NewInt(0),
-		buff:         parameters.RingQ().NewPoly(),
-		m:            m,
-		rotGroup:     rotGroup,
+		prec:       prec,
+		parameters: parameters,
+		// bigintCoeffs: make([]*big.Int, m>>1),
+		// qHalf:        bignum.NewInt(0),
+		// buff:     parameters.RingQ().NewPoly(),
+		m:        m,
+		rotGroup: rotGroup,
+	}
+
+	ecd.BuffBigIntPool = &sync.Pool{
+		New: func() any {
+			buff := make([]*big.Int, m>>1)
+			return &buff
+		},
+	}
+	ecd.BuffPolyPool = &sync.Pool{
+		New: func() any {
+			poly := parameters.RingQ().NewPoly()
+			return &poly
+		},
 	}
 
 	if prec <= 53 {
 
 		ecd.roots = GetRootsComplex128(ecd.m)
-		ecd.buffCmplx = make([]complex128, ecd.m>>2)
+		// ecd.buffCmplx = make([]complex128, ecd.m>>2)
+		ecd.BuffComplexPool = &sync.Pool{
+			New: func() any {
+				buff := make([]complex128, ecd.m>>2)
+				return &buff
+			},
+		}
 
 	} else {
 
-		tmp := make([]*bignum.Complex, ecd.m>>2)
-
-		for i := 0; i < ecd.m>>2; i++ {
-			tmp[i] = &bignum.Complex{bignum.NewFloat(0, prec), bignum.NewFloat(0, prec)}
-		}
+		// tmp := make([]*bignum.Complex, ecd.m>>2)
+		//
+		// for i := 0; i < ecd.m>>2; i++ {
+		// 	tmp[i] = &bignum.Complex{bignum.NewFloat(0, prec), bignum.NewFloat(0, prec)}
+		// }
 
 		ecd.roots = GetRootsBigComplex(ecd.m, prec)
-		ecd.buffCmplx = tmp
+		// ecd.buffCmplx = tmp
+		ecd.BuffComplexPool = &sync.Pool{
+			New: func() any {
+				buff := make([]*bignum.Complex, ecd.m>>2)
+				for i := 0; i < ecd.m>>2; i++ {
+					buff[i] = &bignum.Complex{bignum.NewFloat(0, prec), bignum.NewFloat(0, prec)}
+				}
+				return &buff
+			},
+		}
 	}
 
 	return
@@ -207,7 +239,9 @@ func (ecd Encoder) embedDouble(values FloatSlice, metadata *rlwe.MetaData, polyO
 	slots := 1 << metadata.LogDimensions.Cols
 	var lenValues int
 
-	buffCmplx := ecd.buffCmplx.([]complex128)
+	buffRef := ecd.BuffComplexPool.Get().(*[]complex128)
+	defer ecd.BuffComplexPool.Put(buffRef)
+	buffCmplx := *buffRef
 
 	switch values := values.(type) {
 
@@ -328,7 +362,9 @@ func (ecd Encoder) embedArbitrary(values FloatSlice, metadata *rlwe.MetaData, po
 	slots := 1 << metadata.LogDimensions.Cols
 	var lenValues int
 
-	buffCmplx := ecd.buffCmplx.([]*bignum.Complex)
+	buffRef := ecd.BuffComplexPool.Get().(*[]*bignum.Complex)
+	defer ecd.BuffComplexPool.Put(buffRef)
+	buffCmplx := *buffRef
 
 	switch values := values.(type) {
 
@@ -457,7 +493,9 @@ func (ecd Encoder) plaintextToComplex(level int, scale rlwe.Scale, logSlots int,
 	if level == 0 {
 		return polyToComplexNoCRT(p.Coeffs[0], values, scale, logSlots, isreal, ecd.parameters.RingQ().AtLevel(level))
 	}
-	return polyToComplexCRT(p, ecd.bigintCoeffs, values, scale, logSlots, isreal, ecd.parameters.RingQ().AtLevel(level))
+	bigintCoeffs := ecd.BuffBigIntPool.Get().(*[]*big.Int)
+	defer ecd.BuffBigIntPool.Put(bigintCoeffs)
+	return polyToComplexCRT(p, *bigintCoeffs, values, scale, logSlots, isreal, ecd.parameters.RingQ().AtLevel(level))
 }
 
 // plaintextToFloat maps a CRT polynomial to a real valued [FloatSlice].
@@ -479,10 +517,12 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values FloatSlice, logprec f
 		return fmt.Errorf("cannot Decode: ensure that %d <= logSlots (%d) <= %d", 0, logSlots, maxLogCols)
 	}
 
+	buff := ecd.BuffPolyPool.Get().(*ring.Poly)
+	defer ecd.BuffPolyPool.Put(buff)
 	if pt.IsNTT {
-		ecd.parameters.RingQ().AtLevel(pt.Level()).INTT(pt.Value, ecd.buff)
+		ecd.parameters.RingQ().AtLevel(pt.Level()).INTT(pt.Value, *buff)
 	} else {
-		ecd.buff.CopyLvl(pt.Level(), pt.Value)
+		buff.CopyLvl(pt.Level(), pt.Value)
 	}
 
 	switch values.(type) {
@@ -495,9 +535,11 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values FloatSlice, logprec f
 
 		if ecd.prec <= 53 {
 
-			buffCmplx := ecd.buffCmplx.([]complex128)
+			buffRef := ecd.BuffComplexPool.Get().(*[]complex128)
+			defer ecd.BuffComplexPool.Put(buffRef)
+			buffCmplx := *buffRef
 
-			if err = ecd.plaintextToComplex(pt.Level(), pt.Scale, logSlots, ecd.buff, buffCmplx); err != nil {
+			if err = ecd.plaintextToComplex(pt.Level(), pt.Scale, logSlots, *buff, buffCmplx); err != nil {
 				return
 			}
 
@@ -572,9 +614,11 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values FloatSlice, logprec f
 			}
 		} else {
 
-			buffCmplx := ecd.buffCmplx.([]*bignum.Complex)
+			buffRef := ecd.BuffComplexPool.Get().(*[]*bignum.Complex)
+			defer ecd.BuffComplexPool.Put(buffRef)
+			buffCmplx := *buffRef
 
-			if err = ecd.plaintextToComplex(pt.Level(), pt.Scale, logSlots, ecd.buff, buffCmplx[:slots]); err != nil {
+			if err = ecd.plaintextToComplex(pt.Level(), pt.Scale, logSlots, *buff, buffCmplx[:slots]); err != nil {
 				return
 			}
 
@@ -725,7 +769,7 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values FloatSlice, logprec f
 		}
 
 	} else {
-		return ecd.plaintextToFloat(pt.Level(), pt.Scale, logSlots, ecd.buff, values)
+		return ecd.plaintextToFloat(pt.Level(), pt.Scale, logSlots, *buff, values)
 	}
 
 	return
@@ -1008,21 +1052,25 @@ func (ecd *Encoder) polyToFloatCRT(p ring.Poly, values FloatSlice, scale rlwe.Sc
 		slots = utils.Min(len(p.Coeffs[0]), len(values))
 	}
 
-	bigintCoeffs := ecd.bigintCoeffs
+	buffRef := ecd.BuffBigIntPool.Get().(*[]*big.Int)
+	defer ecd.BuffBigIntPool.Put(buffRef)
+	bigintCoeffs := *buffRef
 
-	ecd.parameters.RingQ().PolyToBigint(ecd.buff, 1, bigintCoeffs)
+	// TODO: Double check, was using ecd.buff instead of p, but they are equal?
+	ecd.parameters.RingQ().PolyToBigint(p, 1, bigintCoeffs)
 
 	Q := r.ModulusAtLevel[r.Level()]
 
-	ecd.qHalf.Set(Q)
-	ecd.qHalf.Rsh(ecd.qHalf, 1)
+	qHalf := new(big.Int)
+	qHalf.Set(Q)
+	qHalf.Rsh(qHalf, 1)
 
 	var sign int
 	for i := 0; i < slots; i++ {
 		// Centers the value around the current modulus
 		bigintCoeffs[i].Mod(bigintCoeffs[i], Q)
 
-		sign = bigintCoeffs[i].Cmp(ecd.qHalf)
+		sign = bigintCoeffs[i].Cmp(qHalf)
 		if sign == 1 || sign == 0 {
 			bigintCoeffs[i].Sub(bigintCoeffs[i], Q)
 		}
@@ -1175,29 +1223,32 @@ func (ecd *Encoder) polyToFloatNoCRT(coeffs []uint64, values FloatSlice, scale r
 // that can be used concurrently with the original object.
 func (ecd Encoder) ShallowCopy() *Encoder {
 
-	var buffCmplx interface{}
+	// var buffCmplx interface{}
 
-	if prec := ecd.prec; prec <= 53 {
-		buffCmplx = make([]complex128, ecd.m>>1)
-	} else {
-		tmp := make([]*bignum.Complex, ecd.m>>2)
-
-		for i := 0; i < ecd.m>>2; i++ {
-			tmp[i] = &bignum.Complex{bignum.NewFloat(0, prec), bignum.NewFloat(0, prec)}
-		}
-
-		buffCmplx = tmp
-	}
+	// if prec := ecd.prec; prec <= 53 {
+	// 	buffCmplx = make([]complex128, ecd.m>>1)
+	// } else {
+	// 	tmp := make([]*bignum.Complex, ecd.m>>2)
+	//
+	// 	for i := 0; i < ecd.m>>2; i++ {
+	// 		tmp[i] = &bignum.Complex{bignum.NewFloat(0, prec), bignum.NewFloat(0, prec)}
+	// 	}
+	//
+	// 	buffCmplx = tmp
+	// }
 
 	return &Encoder{
-		prec:         ecd.prec,
-		parameters:   ecd.parameters,
-		bigintCoeffs: make([]*big.Int, len(ecd.bigintCoeffs)),
-		qHalf:        new(big.Int),
-		buff:         *ecd.buff.CopyNew(),
-		m:            ecd.m,
-		rotGroup:     ecd.rotGroup,
-		roots:        ecd.roots,
-		buffCmplx:    buffCmplx,
+		prec:       ecd.prec,
+		parameters: ecd.parameters,
+		// bigintCoeffs: make([]*big.Int, len(ecd.bigintCoeffs)),
+		// qHalf:        new(big.Int),
+		// buff:      *ecd.buff.CopyNew(),
+		m:               ecd.m,
+		rotGroup:        ecd.rotGroup,
+		roots:           ecd.roots,
+		BuffPolyPool:    ecd.BuffPolyPool,
+		BuffBigIntPool:  ecd.BuffBigIntPool,
+		BuffComplexPool: ecd.BuffComplexPool,
+		// buffCmplx:       buffCmplx,
 	}
 }

@@ -129,7 +129,7 @@ func NewEvaluator(btpParams Parameters, evk *EvaluationKeys) (eval *Evaluator, e
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // Evaluator can be used concurrently.
 func (eval Evaluator) ShallowCopy() *Evaluator {
-	heEvaluator := eval.Evaluator.ShallowCopy()
+	heEvaluator := eval.Evaluator
 
 	paramsN1 := eval.ResidualParameters
 	paramsN2 := eval.BootstrappingParameters

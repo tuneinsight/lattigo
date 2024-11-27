@@ -203,15 +203,15 @@ func main() {
 	go func() {
 		defer wg.Done()
 		var err error
-		eval2 := eval.ShallowCopy()
-		ciphertext4, err = eval2.Bootstrap(ciphertext2)
-		eval2.MulRelin(ciphertext4, ciphertext4, ciphertext4)
+		// eval2 := eval.ShallowCopy()
+		ciphertext4, err = eval.Bootstrap(ciphertext2)
+		eval.MulRelin(ciphertext4, valuesWant, ciphertext4)
 		if err != nil {
 			panic(err)
 		}
 	}()
 	ciphertext3, err := eval.Bootstrap(ciphertext1)
-	eval.MulRelin(ciphertext3, ciphertext3, ciphertext3)
+	eval.MulRelin(ciphertext3, valuesWant, ciphertext3)
 	if err != nil {
 		panic(err)
 	}

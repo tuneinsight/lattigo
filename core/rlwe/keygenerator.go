@@ -279,12 +279,13 @@ func (kgen KeyGenerator) genEvaluationKey(skIn ring.Poly, skOut ringqp.Poly, evk
 	// For a compressed evaluation key, a seed is created and stored in the EvaluationKey struct
 	// struct while an uncompressed key uses an ephemeral seed.
 	if evk.IsCompressed() {
-		evk.Seed = make([]byte, 32)
-		if n, err := kgen.prng.Read(evk.Seed); n != 32 || err != nil {
+		var seed [32]byte
+		if n, err := kgen.prng.Read(seed[:]); n != 32 || err != nil {
 			panic(fmt.Errorf("unable to sample evaluation key seed"))
 		}
+		evk.Seed = &seed
 
-		sampler, err := sampling.NewKeyedPRNG(evk.Seed)
+		sampler, err := sampling.NewKeyedPRNG(seed[:])
 		if err != nil {
 			panic(fmt.Errorf("sampling.NewKeyedPRNG: %w", err))
 		}

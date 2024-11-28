@@ -41,7 +41,7 @@ func testString(params Parameters, levelQ, levelP, bpw2 int, opname string) stri
 func TestRLWEConstSerialization(t *testing.T) {
 	// Note: changing nbIteration will change the expected value
 	const nbIteration = 10
-	const expected = "XRdlwx5vEX9qdGY3CeeAxzGHa0gbXghzpLhV0eIgVk8="
+	const expected = "TndfJYM/pj9VuBwmF1UQzn5/D4pzF49UeG9bN1j7TnA="
 	var err error
 	defaultParamsLiteral := testInsecure
 	seedKeyGen := []byte{'l', 'a', 't'}

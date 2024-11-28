@@ -216,6 +216,7 @@ func (m PlaintextMetaData) MarshalJSON() (p []byte, err error) {
 		Scale:         m.Scale,
 		IsBatched:     fmt.Sprintf("0x%02x", IsBatched),
 		IsBitReversed: fmt.Sprintf("0x%02x", IsBitReversed),
+		/* #nosec G115 -- Rows and Cols cannot be negative if valid */
 		LogDimensions: [2]string{fmt.Sprintf("0x%02x", uint8(m.LogDimensions.Rows)), fmt.Sprintf("0x%02x", uint8(m.LogDimensions.Cols))},
 	}
 
@@ -271,6 +272,7 @@ func (m *PlaintextMetaData) UnmarshalJSON(p []byte) (err error) {
 		return err
 	}
 
+	/* #nosec G115 -- logRows and logCols are < 256 if valid */
 	m.LogDimensions = ring.Dimensions{Rows: int(int8(logRows)), Cols: int(int8(logCols))}
 
 	return

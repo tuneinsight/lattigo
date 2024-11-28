@@ -74,6 +74,7 @@ type PatersonStockmeyerPolynomial struct {
 func (p Polynomial) PatersonStockmeyerPolynomial(params rlwe.ParameterProvider, inputLevel int, inputScale, outputScale rlwe.Scale, eval SimEvaluator) PatersonStockmeyerPolynomial {
 
 	// ceil(log2(degree))
+	/* #nosec G115 -- degree cannot be negative */
 	logDegree := bits.Len64(uint64(p.Degree()))
 
 	// optimal ratio between degree(pi(X)) et degree(P(X))
@@ -109,8 +110,10 @@ func recursePS(params rlwe.ParameterProvider, logSplit, targetLevel int, p Polyn
 
 	if p.Degree() < (1 << logSplit) {
 
+		/* #nosec G115 -- MaxDeg cannot be negative */
 		if p.Lead && logSplit > 1 && p.MaxDeg > (1<<bits.Len64(uint64(p.MaxDeg)))-(1<<(logSplit-1)) {
 
+			/* #nosec G115 -- Degree cannot be negative */
 			logDegree := int(bits.Len64(uint64(p.Degree())))
 			logSplit := bignum.OptimalSplit(logDegree)
 

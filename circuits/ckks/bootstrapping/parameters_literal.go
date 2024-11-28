@@ -529,6 +529,7 @@ func (p ParametersLiteral) BitConsumption(LogSlots int) (logQ int, err error) {
 		ReservedPrimeBitSize = Iterations.ReservedPrimeBitSize
 	}
 
+	/* #nosec G115 -- Mod1Degree, Mod1InvDegree cannot be negative */
 	logQ += 1 + EvalModLogPlaintextScale*(bits.Len64(uint64(Mod1Degree))+DoubleAngle+bits.Len64(uint64(Mod1InvDegree))) + ReservedPrimeBitSize
 
 	return

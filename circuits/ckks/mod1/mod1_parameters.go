@@ -57,8 +57,10 @@ func (evm *ParametersLiteral) UnmarshalBinary(data []byte) (err error) {
 func (evm ParametersLiteral) Depth() (depth int) {
 
 	if evm.Mod1Type == CosDiscrete { // this method requires a minimum degree of 2*K-1.
+		/* #nosec G115 -- Mod1Degree cannot be negative */
 		depth += int(bits.Len64(uint64(utils.Max(evm.Mod1Degree, 2*evm.K-1))))
 	} else {
+		/* #nosec G115 -- Mod1Degree cannot be negative */
 		depth += int(bits.Len64(uint64(evm.Mod1Degree)))
 	}
 
@@ -66,6 +68,7 @@ func (evm ParametersLiteral) Depth() (depth int) {
 		depth += evm.DoubleAngle
 	}
 
+	/* #nosec G115 -- Mod1InvDegree cannot be negative */
 	depth += int(bits.Len64(uint64(evm.Mod1InvDegree)))
 	return depth
 }

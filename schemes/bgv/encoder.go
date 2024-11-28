@@ -103,6 +103,7 @@ func permuteMatrix(logN int) (perm []uint64) {
 
 	perm = make([]uint64, N)
 
+	/* #nosec G115 -- library requires 64-bit system -> int = int64 */
 	halfN := int(N >> 1)
 
 	for i, j := 0, halfN; i < halfN; i, j = i+1, j+1 {
@@ -157,7 +158,9 @@ func (ecd Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 
 			var sign, abs uint64
 			for i, c := range values {
+				/* #nosec G115 -- type conversion purposefully used */
 				sign = uint64(c) >> 63
+				/* #nosec G115 -- converted value is ensured to be positive */
 				abs = ring.BRedAdd(uint64(c*((int64(sign)^1)-int64(sign))), T, BRC)
 				ptT[i] = sign*(T-abs) | (sign^1)*abs
 			}
@@ -217,7 +220,9 @@ func (ecd Encoder) EncodeRingT(values IntegerSlice, scale rlwe.Scale, pT ring.Po
 
 		var sign, abs uint64
 		for i, c := range values {
+			/* #nosec G115 -- c cannot be negative */
 			sign = uint64(c) >> 63
+			/* #nosec G115 -- converted value is ensured to be positive */
 			abs = ring.BRedAdd(uint64(c*((int64(sign)^1)-int64(sign))), T, BRC)
 			pt[perm[i]] = sign*(T-abs) | (sign^1)*abs
 		}
@@ -328,10 +333,12 @@ func (ecd Encoder) DecodeRingT(pT ring.Poly, scale rlwe.Scale, values IntegerSli
 			values[i] = tmp[ecd.indexMatrix[i]]
 		}
 	case []int64:
+		/* #nosec G115 -- PlaintextModulus <= 61 bits */
 		modulus := int64(ecd.parameters.PlaintextModulus())
 		modulusHalf := modulus >> 1
 		var value int64
 		for i := range values {
+			/* #nosec G115 -- values <= 61 bits */
 			if value = int64(tmp[ecd.indexMatrix[i]]); value >= modulusHalf {
 				values[i] = value - modulus
 			} else {
@@ -457,11 +464,13 @@ func (ecd Encoder) Decode(pt *rlwe.Plaintext, values interface{}) (err error) {
 			ptT := bufT.Coeffs[0]
 
 			N := ecd.parameters.RingT().N()
+			/* #nosec G115 -- PlaintextModulus <= 61 bits */
 			modulus := int64(ecd.parameters.PlaintextModulus())
 			modulusHalf := modulus >> 1
 
 			var value int64
 			for i := 0; i < N; i++ {
+				/* #nosec G115 -- values <= 61 bits */
 				if value = int64(ptT[i]); value >= modulusHalf {
 					values[i] = value - modulus
 				} else {

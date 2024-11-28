@@ -52,7 +52,7 @@ func (m *Map[K, T]) WriteTo(w io.Writer) (n int64, err error) {
 
 		var inc int64
 
-		if inc, err = buffer.WriteUint32(w, uint32(len(*m))); err != nil {
+		if inc, err = buffer.WriteUint64(w, uint64(len(*m))); err != nil {
 			return n + inc, err
 		}
 		n += inc
@@ -100,8 +100,8 @@ func (m *Map[K, T]) ReadFrom(r io.Reader) (n int64, err error) {
 	case buffer.Reader:
 
 		var inc int64
-		var size uint32
-		if inc, err = buffer.ReadUint32(r, &size); err != nil {
+		var size uint64
+		if inc, err = buffer.ReadUint64(r, &size); err != nil {
 			return n + inc, err
 		}
 		n += inc
@@ -110,6 +110,7 @@ func (m *Map[K, T]) ReadFrom(r io.Reader) (n int64, err error) {
 			*m = make(Map[K, T], size)
 		}
 
+		/* #nosec G115 -- library requires 64-bit system -> int = int64 */
 		for i := 0; i < int(size); i++ {
 
 			var key uint64
@@ -141,7 +142,7 @@ func (m Map[K, T]) BinarySize() (size int) {
 		panic(fmt.Errorf("vector component of type %T does not comply to %T", new(T), s))
 	}
 
-	size = 4 // #Ct
+	size = 8 // #Ct
 
 	for _, v := range m {
 		size += 8

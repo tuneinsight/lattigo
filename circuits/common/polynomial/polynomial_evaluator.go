@@ -57,6 +57,7 @@ func (eval Evaluator[T]) Evaluate(input interface{}, p interface{}, targetScale 
 		return nil, fmt.Errorf("%d levels < %d log(d) -> cannot evaluate poly", level, depth)
 	}
 
+	/* #nosec G115 -- Degree cannot be negative */
 	logDegree := bits.Len64(uint64(polyVec.Value[0].Degree()))
 	logSplit := bignum.OptimalSplit(logDegree)
 
@@ -205,6 +206,7 @@ func (eval Evaluator[T]) EvaluateGianStep(i int, giantSteps []int, babySteps []*
 
 		even, odd := babySteps[i], babySteps[i+1]
 
+		/* #nosec G115 -- Degree cannot be negative */
 		deg := 1 << bits.Len64(uint64(babySteps[i].Degree))
 
 		if err = eval.EvaluateMonomial(even.Value, odd.Value, pb.Value[deg]); err != nil {

@@ -80,6 +80,7 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, testPolyWithSlotIndex map[i
 	tmp1 := acc.Value[1].Coeffs[0]
 	tmp0[0] = tmp1[0]
 	NLWE := ringQLWE.N()
+	/* #nosec G115 -- N cannot be negative */
 	mask := uint64(ringQBR.N()<<1) - 1
 	for j := 1; j < NLWE; j++ {
 		tmp0[j] = -tmp1[ringQLWE.N()-j] & mask
@@ -103,6 +104,7 @@ func (eval *Evaluator) Evaluate(ct *rlwe.Ciphertext, testPolyWithSlotIndex map[i
 
 			// Line 2 of Algorithm 7 of https://eprint.iacr.org/2022/198
 			// Acc = (f(X^{-g}) * X^{-g * b}, 0)
+			/* #nosec G115 -- b is ensured to be small enough */
 			Xb := ringQBR.NewMonomialXi(int(b))
 			ringQBR.NTT(Xb, Xb)
 			ringQBR.MForm(Xb, Xb)
@@ -231,6 +233,7 @@ func getGaloisElementInverseMap(GaloisGen uint64, N int) (GaloisGenDiscreteLog m
 
 	twoN := N << 1
 	NHalf := N >> 1
+	/* #nosec G115 -- twoN cannot be negative */
 	mask := uint64(twoN - 1)
 
 	GaloisGenDiscreteLog = map[uint64]int{}
@@ -238,6 +241,7 @@ func getGaloisElementInverseMap(GaloisGen uint64, N int) (GaloisGenDiscreteLog m
 	var pow uint64 = 1
 	for i := 0; i < NHalf; i++ {
 		GaloisGenDiscreteLog[pow] = i
+		/* #nosec G115 -- twoN cannot be negative */
 		GaloisGenDiscreteLog[uint64(twoN)-pow] = -i
 		pow *= GaloisGen
 		pow &= mask
@@ -282,6 +286,7 @@ func (eval *Evaluator) modSwitchRLWETo2NLvl(level int, polQ, pol2N ring.Poly, ma
 
 	QBig := ringQ.ModulusAtLevel[level]
 
+	/* #nosec G115 -- N cannot be negative */
 	twoN := uint64(eval.paramsBR.N() << 1)
 	twoNBig := bignum.NewInt(twoN)
 	tmp := pol2N.Coeffs[0]

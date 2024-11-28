@@ -288,7 +288,7 @@ func (p Parameters) LogN() int {
 // NthRoot returns the NthRoot of the ring.
 func (p Parameters) NthRoot() int {
 	if p.RingQ() != nil {
-		/* #nosec G115 -- NthRoot of valid [rlwe.Ring] is positive */
+		/* #nosec G115 -- NthRoot of valid [ring.Ring] is positive */
 		return int(p.RingQ().NthRoot())
 	}
 

@@ -55,9 +55,9 @@ checks: check_tools
 
 # gosec rule G115: Is exluded because there are int->uin64 conversions
 # and the rule currently contains false positives
-	@GOSECOUT=$$(gosec -quiet -exclude=G115 ./...); \
+	@GOSECOUT=$$(gosec -quiet ./...); \
 	if [ -z "$$GOSECOUT" ]; then\
-		echo "gosec: OK (excluding G115)";\
+		echo "gosec: OK";\
 	else \
 		echo "gosec: problems in files:";\
 		echo "$$GOSECOUT";\

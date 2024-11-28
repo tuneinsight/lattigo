@@ -314,6 +314,7 @@ func nttUnrolled16Lazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []u
 
 	for m := 2; m < N; m <<= 1 {
 
+		/* #nosec G115 -- m cannot be negative */
 		reduce = (bits.Len64(uint64(m))&1 == 1)
 
 		t >>= 1
@@ -848,6 +849,7 @@ func nttConjugateInvariantLazyUnrolled16(p1, p2 []uint64, N int, Q, MRedConstant
 	// Continue the rest of the second to the n-1 butterflies on p2 with approximate reduction
 	for m := 2; m < 2*N; m <<= 1 {
 
+		/* #nosec G115 -- m cannot be negative */
 		reduce = (bits.Len64(uint64(m))&1 == 1)
 
 		t >>= 1

@@ -18,11 +18,13 @@ const (
 func SpecialIFFTDouble(values []complex128, N, M int, rotGroup []int, roots []complex128) {
 
 	// Sanity check
-	if len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
+	if N < 0 || M < N || len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
 		panic(fmt.Sprintf("invalid call of SpecialIFFTDouble: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
 	}
 
+	/* #nosec G115 -- N cannot be negative */
 	logN := int(bits.Len64(uint64(N))) - 1
+	/* #nosec G115 -- M cannot be negative */
 	logM := int(bits.Len64(uint64(M))) - 1
 	for loglen := logN; loglen > 0; loglen-- {
 		len := 1 << loglen
@@ -48,12 +50,15 @@ func SpecialIFFTDouble(values []complex128, N, M int, rotGroup []int, roots []co
 func SpecialFFTDouble(values []complex128, N, M int, rotGroup []int, roots []complex128) {
 
 	// Sanity check
-	if len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
+	if N < 0 || M < N || len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
 		panic(fmt.Sprintf("invalid call of SpecialFFTDouble: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
 	}
 
 	utils.BitReverseInPlaceSlice(values, N)
+
+	/* #nosec G115 -- N cannot be negative */
 	logN := int(bits.Len64(uint64(N))) - 1
+	/* #nosec G115 -- M cannot be negative */
 	logM := int(bits.Len64(uint64(M))) - 1
 	for loglen := 1; loglen <= logN; loglen++ {
 		len := 1 << loglen
@@ -74,7 +79,7 @@ func SpecialFFTDouble(values []complex128, N, M int, rotGroup []int, roots []com
 func SpecialFFTArbitrary(values []*bignum.Complex, N, M int, rotGroup []int, roots []*bignum.Complex) {
 
 	// Sanity check
-	if len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
+	if N < 0 || M < N || len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
 		panic(fmt.Sprintf("invalid call of SpecialFFTArbitrary: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
 	}
 
@@ -85,7 +90,9 @@ func SpecialFFTArbitrary(values []*bignum.Complex, N, M int, rotGroup []int, roo
 
 	cMul := bignum.NewComplexMultiplier()
 
+	/* #nosec G115 -- N cannot be negative */
 	logN := int(bits.Len64(uint64(N))) - 1
+	/* #nosec G115 -- M cannot be negative */
 	logM := int(bits.Len64(uint64(M))) - 1
 	for loglen := 1; loglen <= logN; loglen++ {
 		len := 1 << loglen
@@ -109,7 +116,7 @@ func SpecialFFTArbitrary(values []*bignum.Complex, N, M int, rotGroup []int, roo
 func SpecialIFFTArbitrary(values []*bignum.Complex, N, M int, rotGroup []int, roots []*bignum.Complex) {
 
 	// Sanity check
-	if len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
+	if N < 0 || M < N || len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
 		panic(fmt.Sprintf("invalid call of SpecialIFFTArbitrary: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
 	}
 
@@ -118,7 +125,9 @@ func SpecialIFFTArbitrary(values []*bignum.Complex, N, M int, rotGroup []int, ro
 
 	cMul := bignum.NewComplexMultiplier()
 
+	/* #nosec G115 -- N cannot be negative */
 	logN := int(bits.Len64(uint64(N))) - 1
+	/* #nosec G115 -- M cannot be negative */
 	logM := int(bits.Len64(uint64(M))) - 1
 	for loglen := logN; loglen > 0; loglen-- {
 		len := 1 << loglen
@@ -156,13 +165,15 @@ func SpecialFFTDoubleUL8(values []complex128, N, M int, rotGroup []int, roots []
 	}
 
 	// Sanity check
-	if len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
+	if N < 0 || M < N || len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
 		panic(fmt.Sprintf("invalid call of SpecialFFTDoubleUL8: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
 	}
 
 	utils.BitReverseInPlaceSlice(values, N)
 
+	/* #nosec G115 -- B cannot be negative */
 	logN := int(bits.Len64(uint64(N))) - 1
+	/* #nosec G115 -- M cannot be negative */
 	logM := int(bits.Len64(uint64(M))) - 1
 
 	for loglen := 1; loglen <= logN; loglen++ {
@@ -337,11 +348,13 @@ func SpecialiFFTDoubleUnrolled8(values []complex128, N, M int, rotGroup []int, r
 	}
 
 	// Sanity check
-	if len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
+	if N < 0 || M < N || len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
 		panic(fmt.Sprintf("invalid call of SpecialiFFTDoubleUnrolled8: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
 	}
 
+	/* #nosec G115 -- N cannot be negative */
 	logN := int(bits.Len64(uint64(N))) - 1
+	/* #nosec G115 -- M cannot be negative */
 	logM := int(bits.Len64(uint64(M))) - 1
 
 	for loglen := logN; loglen > 0; loglen-- {

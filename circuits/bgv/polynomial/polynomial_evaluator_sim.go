@@ -1,6 +1,7 @@
 package polynomial
 
 import (
+	"fmt"
 	"math/big"
 	"math/bits"
 
@@ -25,6 +26,12 @@ func (d simEvaluator) PolynomialDepth(degree int) int {
 	if d.InvariantTensoring {
 		return 0
 	}
+
+	if degree < 0 {
+		panic(fmt.Errorf("invalid degree: cannot be negative"))
+	}
+
+	/* #nosec G115 -- degree cannot be negative */
 	return bits.Len64(uint64(degree)) - 1
 }
 

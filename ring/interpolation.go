@@ -1,6 +1,7 @@
 package ring
 
 import (
+	"fmt"
 	"math/bits"
 	"unsafe"
 )
@@ -17,8 +18,14 @@ type Interpolator struct {
 // prime or not congruent to 1 mod 2N, where N is the next power of two greater
 // than degree+1.
 func NewInterpolator(degree int, T uint64) (itp *Interpolator, err error) {
+
+	if degree < 0 {
+		panic(fmt.Errorf("invalid degree: cannot be negative"))
+	}
+
 	itp = new(Interpolator)
 
+	/* #nosec G115 -- degree cannot be negative */
 	if itp.r, err = NewRing(1<<bits.Len64(uint64(degree)), []uint64{T}); err != nil {
 		return nil, err
 	}
@@ -127,6 +134,7 @@ func (itp *Interpolator) Lagrange(x, y []uint64) (coeffs []uint64, err error) {
 			// TODO: unrol loop and use unsafe
 			coeffs := tmp1.Coeffs[0]
 			for j := 0; j < N; j++ {
+				/* #nosec G115 -- library requires 64-bit system -> int = int64 */
 				coeffs[j] = ModexpMontgomery(coeffs[j], int(T-2), T, mredParams, bredParams)
 			}
 

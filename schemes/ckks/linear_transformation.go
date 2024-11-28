@@ -40,6 +40,7 @@ func (eval Evaluator) Average(ctIn *rlwe.Ciphertext, logBatchSize int, opOut *rl
 	// pre-multiplication by n^-1
 	for i, s := range ringQ.SubRings[:level+1] {
 
+		/* #nosec G115 -- n cannot be negative */
 		invN := ring.ModExp(uint64(n), s.Modulus-2, s.Modulus)
 		invN = ring.MForm(invN, s.Modulus, s.BRedConstant)
 

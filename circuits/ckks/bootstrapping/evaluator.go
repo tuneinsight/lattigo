@@ -923,6 +923,7 @@ func (eval Evaluator) UnPack(cts []rlwe.Ciphertext, params ckks.Parameters, LogS
 
 	N := len(cts)
 
+	/* #nosec G115 -- N cannot be negative */
 	for i := 0; i < utils.Min(bits.Len64(uint64(N-1)), LogGap); i++ {
 
 		step := 1 << (i + 1)

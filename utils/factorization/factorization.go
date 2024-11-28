@@ -107,6 +107,7 @@ func GetFactorPollardRho(m *big.Int) (d *big.Int) {
 
 		x, y, d = new(big.Int).SetUint64(2), new(big.Int).SetUint64(2), new(big.Int).SetUint64(1)
 
+		/* #nosec G115 -- i cannot be negative */
 		c := new(big.Int).SetUint64(uint64(i))
 
 		counter := 0

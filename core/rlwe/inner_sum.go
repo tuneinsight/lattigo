@@ -61,6 +61,7 @@ func (eval Evaluator) Trace(ctIn *Ciphertext, logN int, opOut *Ciphertext) (err 
 			gap >>= 1 // We skip the last step that applies phi(5^{-1})
 		}
 
+		/* #nosec G115 -- gap cannot be negative */
 		NInv := new(big.Int).SetUint64(uint64(gap))
 		NInv.ModInverse(NInv, ringQ.ModulusAtLevel[level])
 

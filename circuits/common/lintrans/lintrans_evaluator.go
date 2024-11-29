@@ -42,7 +42,7 @@ func (eval Evaluator) EvaluateMany(ctIn *rlwe.Ciphertext, linearTransformations 
 	baseRNSDecompositionVectorSize := eval.Evaluator.GetRLWEParameters().BaseRNSDecompositionVectorSize(levelQ, levelP)
 	buffDecompQP := make([]ringqp.Poly, baseRNSDecompositionVectorSize)
 	for i := 0; i < len(buffDecompQP); i++ {
-		buff := pool.Get().(*ringqp.Poly)
+		buff := pool.Get()
 		defer pool.Put(buff)
 		buffDecompQP[i] = *buff
 	}
@@ -138,19 +138,19 @@ func (eval Evaluator) EvaluateSequential(ctIn *rlwe.Ciphertext, linearTransforma
 func (eval Evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error) {
 
 	pool := eval.GetBuffQPPool()
-	buffQP0 := pool.Get().(*ringqp.Poly)
+	buffQP0 := pool.Get()
 	defer pool.Put(buffQP0)
-	buffQP1 := pool.Get().(*ringqp.Poly)
+	buffQP1 := pool.Get()
 	defer pool.Put(buffQP1)
-	buffQP2 := pool.Get().(*ringqp.Poly)
+	buffQP2 := pool.Get()
 	defer pool.Put(buffQP2)
-	buffQP3 := pool.Get().(*ringqp.Poly)
+	buffQP3 := pool.Get()
 	defer pool.Put(buffQP3)
-	buffQP4 := pool.Get().(*ringqp.Poly)
+	buffQP4 := pool.Get()
 	defer pool.Put(buffQP4)
-	buffQP5 := pool.Get().(*ringqp.Poly)
+	buffQP5 := pool.Get()
 	defer pool.Put(buffQP5)
-	buffCt := eval.GetBuffCtPool().Get().(*rlwe.Ciphertext)
+	buffCt := eval.GetBuffCtPool().Get()
 	defer eval.GetBuffCtPool().Put(buffCt)
 
 	*opOut.MetaData = *ctIn.MetaData
@@ -278,17 +278,17 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 	params := eval.GetRLWEParameters()
 
 	pool := eval.GetBuffQPPool()
-	buffQP1 := pool.Get().(*ringqp.Poly)
+	buffQP1 := pool.Get()
 	defer pool.Put(buffQP1)
-	buffQP2 := pool.Get().(*ringqp.Poly)
+	buffQP2 := pool.Get()
 	defer pool.Put(buffQP2)
-	buffQP3 := pool.Get().(*ringqp.Poly)
+	buffQP3 := pool.Get()
 	defer pool.Put(buffQP3)
-	buffQP4 := pool.Get().(*ringqp.Poly)
+	buffQP4 := pool.Get()
 	defer pool.Put(buffQP4)
-	buffQP5 := pool.Get().(*ringqp.Poly)
+	buffQP5 := pool.Get()
 	defer pool.Put(buffQP5)
-	buffCt := eval.GetBuffCtPool().Get().(*rlwe.Ciphertext)
+	buffCt := eval.GetBuffCtPool().Get()
 	defer eval.GetBuffCtPool().Put(buffCt)
 
 	*opOut.MetaData = *ctIn.MetaData

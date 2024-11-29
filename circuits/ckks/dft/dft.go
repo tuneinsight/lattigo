@@ -251,7 +251,7 @@ func (eval *Evaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices Matrix, 
 		if ctImag != nil {
 			tmp = ctImag
 		} else {
-			buffCt := eval.BuffCtPool.Get().(*rlwe.Ciphertext)
+			buffCt := eval.BuffCtPool.Get()
 			defer eval.BuffCtPool.Put(buffCt)
 			tmp, err = rlwe.NewCiphertextAtLevelFromPoly(ctReal.Level(), buffCt.Value[:2])
 

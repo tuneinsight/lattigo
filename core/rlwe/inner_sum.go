@@ -74,9 +74,9 @@ func (eval Evaluator) Trace(ctIn *Ciphertext, logN int, opOut *Ciphertext) (err 
 			opOut.IsNTT = true
 		}
 
-		buffQP1 := eval.BuffQPPool.Get().(*ringqp.Poly)
+		buffQP1 := eval.BuffQPPool.Get()
 		defer eval.BuffQPPool.Put(buffQP1)
-		buffQP2 := eval.BuffQPPool.Get().(*ringqp.Poly)
+		buffQP2 := eval.BuffQPPool.Get()
 		defer eval.BuffQPPool.Put(buffQP2)
 		buff, err := NewCiphertextAtLevelFromPoly(level, []ring.Poly{(*buffQP1).Q, (*buffQP2).Q})
 
@@ -181,7 +181,7 @@ func (eval Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, opOut *Cipher
 	opOut.Resize(opOut.Degree(), levelQ)
 	*opOut.MetaData = *ctIn.MetaData
 
-	buffCt := eval.BuffCtPool.Get().(*Ciphertext)
+	buffCt := eval.BuffCtPool.Get()
 	defer eval.BuffCtPool.Put(buffCt)
 	ctInNTT, err := NewCiphertextAtLevelFromPoly(levelQ, buffCt.Value[:2])
 
@@ -211,9 +211,9 @@ func (eval Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, opOut *Cipher
 
 		// BuffQP[0:2] are used by AutomorphismHoistedLazy
 
-		buffQP3 := eval.BuffQPPool.Get().(*ringqp.Poly)
+		buffQP3 := eval.BuffQPPool.Get()
 		defer eval.BuffQPPool.Put(buffQP3)
-		buffQP4 := eval.BuffQPPool.Get().(*ringqp.Poly)
+		buffQP4 := eval.BuffQPPool.Get()
 		defer eval.BuffQPPool.Put(buffQP4)
 
 		// Accumulator mod QP (i.e. opOut Mod QP)
@@ -221,9 +221,9 @@ func (eval Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, opOut *Cipher
 		accQP.MetaData = ctInNTT.MetaData
 
 		// Buffer mod QP (i.e. to store the result of lazy gadget products)
-		buffQP5 := eval.BuffQPPool.Get().(*ringqp.Poly)
+		buffQP5 := eval.BuffQPPool.Get()
 		defer eval.BuffQPPool.Put(buffQP5)
-		buffQP6 := eval.BuffQPPool.Get().(*ringqp.Poly)
+		buffQP6 := eval.BuffQPPool.Get()
 		defer eval.BuffQPPool.Put(buffQP6)
 		cQP := &Element[ringqp.Poly]{Value: []ringqp.Poly{*buffQP5, *buffQP6}}
 		cQP.MetaData = ctInNTT.MetaData
@@ -242,7 +242,7 @@ func (eval Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, opOut *Cipher
 		baseRNSDecompositionVectorSize := eval.params.BaseRNSDecompositionVectorSize(levelQ, levelP)
 		buffDecompQP := make([]ringqp.Poly, baseRNSDecompositionVectorSize)
 		for i := 0; i < len(buffDecompQP); i++ {
-			buff := eval.BuffQPPool.Get().(*ringqp.Poly)
+			buff := eval.BuffQPPool.Get()
 			defer eval.BuffQPPool.Put(buff)
 			buffDecompQP[i] = *buff
 		}

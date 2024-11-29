@@ -722,9 +722,9 @@ func (eval Evaluator) tensorStandard(op0 *rlwe.Ciphertext, op1 *rlwe.Element[rin
 				return fmt.Errorf("cannot Tensor: cannot Relinearize: %w", err)
 			}
 
-			buffQP1 := eval.BuffQPPool.Get().(*ringqp.Poly)
+			buffQP1 := eval.BuffQPPool.Get()
 			defer eval.BuffQPPool.Put(buffQP1)
-			buffQP2 := eval.BuffQPPool.Get().(*ringqp.Poly)
+			buffQP2 := eval.BuffQPPool.Get()
 			defer eval.BuffQPPool.Put(buffQP2)
 
 			tmpCt := &rlwe.Ciphertext{}
@@ -1026,9 +1026,9 @@ func (eval Evaluator) tensorScaleInvariant(ct0 *rlwe.Ciphertext, ct1 *rlwe.Eleme
 			return fmt.Errorf("cannot TensorInvariant: %w", err)
 		}
 
-		buffQP1 := eval.BuffQPPool.Get().(*ringqp.Poly)
+		buffQP1 := eval.BuffQPPool.Get()
 		defer eval.BuffQPPool.Put(buffQP1)
-		buffQP2 := eval.BuffQPPool.Get().(*ringqp.Poly)
+		buffQP2 := eval.BuffQPPool.Get()
 		defer eval.BuffQPPool.Put(buffQP2)
 
 		tmpCt := &rlwe.Ciphertext{}
@@ -1362,9 +1362,9 @@ func (eval Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ri
 
 			ringQ.MulCoeffsMontgomery(c01, tmp1.Value[1], c2) // c2 += c[1]*c[1]
 
-			buffQP1 := eval.BuffQPPool.Get().(*ringqp.Poly)
+			buffQP1 := eval.BuffQPPool.Get()
 			defer eval.BuffQPPool.Put(buffQP1)
-			buffQP2 := eval.BuffQPPool.Get().(*ringqp.Poly)
+			buffQP2 := eval.BuffQPPool.Get()
 			defer eval.BuffQPPool.Put(buffQP2)
 
 			tmpCt := &rlwe.Ciphertext{}

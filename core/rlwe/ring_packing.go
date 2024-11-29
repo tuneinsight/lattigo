@@ -529,7 +529,7 @@ func (eval RingPackingEvaluator) Expand(ct *Ciphertext, logGap int) (cts map[int
 
 	gap := 1 << logGap
 
-	buffCt := evalN.BuffCtPool.Get().(*Ciphertext)
+	buffCt := evalN.BuffCtPool.Get()
 	defer evalN.BuffCtPool.Put(buffCt)
 	tmp, err := NewCiphertextAtLevelFromPoly(level, []ring.Poly{buffCt.Value[0], buffCt.Value[1]})
 

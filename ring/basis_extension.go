@@ -3,10 +3,10 @@ package ring
 import (
 	"math"
 	"math/bits"
-	"sync"
 	"unsafe"
 
 	"github.com/tuneinsight/lattigo/v6/utils/bignum"
+	"github.com/tuneinsight/lattigo/v6/utils/structs"
 )
 
 // BasisExtender stores the necessary parameters for RNS basis extension.
@@ -19,8 +19,8 @@ type BasisExtender struct {
 	modDownConstantsPtoQ [][]uint64
 	modDownConstantsQtoP [][]uint64
 
-	buffQPool *sync.Pool
-	buffPPool *sync.Pool
+	buffQPool structs.BufferPool[*Poly]
+	buffPPool structs.BufferPool[*Poly]
 }
 
 func genmodDownConstants(ringQ, ringP *Ring) (constants [][]uint64) {
@@ -73,18 +73,14 @@ func NewBasisExtender(ringQ, ringP *Ring) (be *BasisExtender) {
 	be.modDownConstantsPtoQ = genmodDownConstants(ringQ, ringP)
 	be.modDownConstantsQtoP = genmodDownConstants(ringP, ringQ)
 
-	be.buffQPool = &sync.Pool{
-		New: func() any {
-			polyQ := ringQ.NewPoly()
-			return &polyQ
-		},
-	}
-	be.buffPPool = &sync.Pool{
-		New: func() any {
-			polyP := ringP.NewPoly()
-			return &polyP
-		},
-	}
+	be.buffQPool = structs.NewSyncPool(func() *Poly {
+		polyQ := ringQ.NewPoly()
+		return &polyQ
+	})
+	be.buffPPool = structs.NewSyncPool(func() *Poly {
+		polyP := ringP.NewPoly()
+		return &polyP
+	})
 
 	return
 }
@@ -199,7 +195,7 @@ func (be *BasisExtender) ModUpQtoP(levelQ, levelP int, polQ, polP Poly) {
 
 	ringQ := be.ringQ.AtLevel(levelQ)
 	ringP := be.ringP.AtLevel(levelP)
-	buffQ := be.buffQPool.Get().(*Poly)
+	buffQ := be.buffQPool.Get()
 	defer be.buffQPool.Put(buffQ)
 
 	QHalf := bignum.NewInt(ringQ.ModulusAtLevel[levelQ])
@@ -217,7 +213,7 @@ func (be *BasisExtender) ModUpPtoQ(levelP, levelQ int, polP, polQ Poly) {
 
 	ringQ := be.ringQ.AtLevel(levelQ)
 	ringP := be.ringP.AtLevel(levelP)
-	buffP := be.buffPPool.Get().(*Poly)
+	buffP := be.buffPPool.Get()
 	defer be.buffPPool.Put(buffP)
 
 	PHalf := bignum.NewInt(ringP.ModulusAtLevel[levelP])
@@ -236,7 +232,7 @@ func (be *BasisExtender) ModDownQPtoQ(levelQ, levelP int, p1Q, p1P, p2Q Poly) {
 
 	ringQ := be.ringQ.AtLevel(levelQ)
 	modDownConstants := be.modDownConstantsPtoQ[levelP]
-	buffQ := be.buffQPool.Get().(*Poly)
+	buffQ := be.buffQPool.Get()
 	defer be.buffQPool.Put(buffQ)
 
 	be.ModUpPtoQ(levelP, levelQ, p1P, *buffQ)
@@ -256,9 +252,9 @@ func (be *BasisExtender) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q Poly)
 	ringQ := be.ringQ.AtLevel(levelQ)
 	ringP := be.ringP.AtLevel(levelP)
 	modDownConstants := be.modDownConstantsPtoQ[levelP]
-	buffP := be.buffPPool.Get().(*Poly)
+	buffP := be.buffPPool.Get()
 	defer be.buffPPool.Put(buffP)
-	buffQ := be.buffQPool.Get().(*Poly)
+	buffQ := be.buffQPool.Get()
 	defer be.buffQPool.Put(buffQ)
 
 	ringP.INTTLazy(p1P, *buffP)
@@ -280,7 +276,7 @@ func (be *BasisExtender) ModDownQPtoP(levelQ, levelP int, p1Q, p1P, p2P Poly) {
 
 	ringP := be.ringP.AtLevel(levelP)
 	modDownConstants := be.modDownConstantsQtoP[levelQ]
-	buffP := be.buffPPool.Get().(*Poly)
+	buffP := be.buffPPool.Get()
 	defer be.buffPPool.Put(buffP)
 
 	be.ModUpQtoP(levelQ, levelP, p1Q, *buffP)

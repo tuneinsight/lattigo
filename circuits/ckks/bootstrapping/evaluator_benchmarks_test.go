@@ -12,7 +12,6 @@ import (
 
 	"github.com/tuneinsight/lattigo/v6/core/rlwe"
 	"github.com/tuneinsight/lattigo/v6/ring"
-	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
 
 	"github.com/tuneinsight/lattigo/v6/schemes/ckks"
 )
@@ -82,8 +81,8 @@ func BenchmarkAlloc(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 
-			pol0 := eval.GetBuffQPPool().Get().(*ringqp.Poly)
-			pol1 := eval.GetBuffQPPool().Get().(*ringqp.Poly)
+			pol0 := eval.GetBuffQPPool().Get()
+			pol1 := eval.GetBuffQPPool().Get()
 			// pol0 := ringqp.NewPoly()
 			// pol1 := ringqp.NewPoly()
 			tmpCt := rlwe.Ciphertext{}

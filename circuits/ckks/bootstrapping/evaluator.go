@@ -701,7 +701,7 @@ func (eval Evaluator) ModUp(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err 
 		size := eval.ResidualParameters.BaseRNSDecompositionVectorSize(eval.BootstrappingParameters.MaxLevelQ(), 0)
 		buffDecompQP := make([]ringqp.Poly, size)
 		for i := 0; i < size; i++ {
-			buff := ks.BuffQPPool.Get().(*ringqp.Poly)
+			buff := ks.BuffQPPool.Get()
 			defer ks.BuffQPPool.Put(buff)
 			buffDecompQP[i] = *buff
 		}
@@ -756,7 +756,7 @@ func (eval Evaluator) ModUp(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err 
 			ctIn.Scale = ctIn.Scale.Mul(rlwe.NewScale(scale))
 		}
 
-		buffQP1 := ks.BuffQPPool.Get().(*ringqp.Poly)
+		buffQP1 := ks.BuffQPPool.Get()
 		defer ks.BuffQPPool.Put(buffQP1)
 
 		ctTmp := &rlwe.Ciphertext{}

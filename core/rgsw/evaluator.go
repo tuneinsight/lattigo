@@ -44,9 +44,9 @@ func (eval Evaluator) ExternalProduct(op0 *rlwe.Ciphertext, op1 *Ciphertext, opO
 	levelQ, levelP := op1.LevelQ(), op1.LevelP()
 
 	var c0QP, c1QP ringqp.Poly
-	buffQP1 := eval.BuffQPPool.Get().(*ringqp.Poly)
+	buffQP1 := eval.BuffQPPool.Get()
 	defer eval.BuffQPPool.Put(buffQP1)
-	buffQP2 := eval.BuffQPPool.Get().(*ringqp.Poly)
+	buffQP2 := eval.BuffQPPool.Get()
 	defer eval.BuffQPPool.Put(buffQP2)
 	if op0 == opOut {
 		c0QP, c1QP = *buffQP1, *buffQP2
@@ -94,18 +94,18 @@ func (eval Evaluator) externalProduct32Bit(ct0 *rlwe.Ciphertext, rgsw *Ciphertex
 	pw2 := rgsw.Value[0].BaseTwoDecomposition
 	mask := uint64(((1 << pw2) - 1))
 
-	buffQP1 := eval.BuffQPPool.Get().(*ringqp.Poly)
+	buffQP1 := eval.BuffQPPool.Get()
 	defer eval.BuffQPPool.Put(buffQP1)
 	cw := (*buffQP1).Q.Coeffs[0]
 
-	buffBitDecomp := eval.BuffBitPool.Get().(*[]uint64)
+	buffBitDecomp := eval.BuffBitPool.Get()
 	defer eval.BuffBitPool.Put(buffBitDecomp)
 	cwNTT := *buffBitDecomp
 
 	acc0 := c0.Coeffs[0]
 	acc1 := c1.Coeffs[0]
 
-	buffQ := eval.BuffQPool.Get().(*ring.Poly)
+	buffQ := eval.BuffQPool.Get()
 	defer eval.BuffQPool.Put(buffQ)
 
 	// (a, b) + (c0 * rgsw[0][0], c0 * rgsw[0][1])
@@ -151,11 +151,11 @@ func (eval Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Cipher
 	BaseRNSDecompositionVectorSize := rgsw.Value[0].BaseRNSDecompositionVectorSize()
 	BaseTwoDecompositionVectorSize := rgsw.Value[0].BaseTwoDecompositionVectorSize()
 
-	buffQ := eval.BuffQPool.Get().(*ring.Poly)
+	buffQ := eval.BuffQPool.Get()
 	defer eval.BuffQPool.Put(buffQ)
-	buffQP1 := eval.BuffQPPool.Get().(*ringqp.Poly)
+	buffQP1 := eval.BuffQPPool.Get()
 	defer eval.BuffQPPool.Put(buffQP1)
-	buffBitDecomp := eval.BuffBitPool.Get().(*[]uint64)
+	buffBitDecomp := eval.BuffBitPool.Get()
 	defer eval.BuffBitPool.Put(buffBitDecomp)
 	// (a, b) + (c0 * rgsw[k][0], c0 * rgsw[k][1])
 	for k, el := range rgsw.Value {
@@ -211,7 +211,7 @@ func (eval Evaluator) externalProductInPlaceMultipleP(levelQ, levelP int, ct0 *r
 	ringQ := ringQP.RingQ
 	ringP := ringQP.RingP
 
-	buffQP1 := eval.BuffQPPool.Get().(*ringqp.Poly)
+	buffQP1 := eval.BuffQPPool.Get()
 	defer eval.BuffQPPool.Put(buffQP1)
 	c2QP := (*buffQP1)
 
@@ -225,7 +225,7 @@ func (eval Evaluator) externalProductInPlaceMultipleP(levelQ, levelP int, ct0 *r
 
 	var c2NTT, c2InvNTT ring.Poly
 
-	buffQ := eval.BuffQPool.Get().(*ring.Poly)
+	buffQ := eval.BuffQPool.Get()
 	defer eval.BuffQPool.Put(buffQ)
 
 	for k, el := range rgsw.Value {

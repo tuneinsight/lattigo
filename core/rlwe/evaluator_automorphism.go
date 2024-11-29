@@ -34,9 +34,9 @@ func (eval Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, opOut *Cipher
 	opOut.Resize(opOut.Degree(), level)
 
 	ringQ := eval.params.RingQ().AtLevel(level)
-	buffQP1 := eval.BuffQPPool.Get().(*ringqp.Poly)
+	buffQP1 := eval.BuffQPPool.Get()
 	defer eval.BuffQPPool.Put(buffQP1)
-	buffQP2 := eval.BuffQPPool.Get().(*ringqp.Poly)
+	buffQP2 := eval.BuffQPPool.Get()
 	defer eval.BuffQPPool.Put(buffQP2)
 
 	ctTmp := &Ciphertext{Element: Element[ring.Poly]{Value: []ring.Poly{(*buffQP1).Q, (*buffQP2).Q}}}
@@ -85,9 +85,9 @@ func (eval Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1DecompQ
 
 	ringQ := eval.params.RingQ().AtLevel(level)
 
-	buffQP1 := eval.BuffQPPool.Get().(*ringqp.Poly)
+	buffQP1 := eval.BuffQPPool.Get()
 	defer eval.BuffQPPool.Put(buffQP1)
-	buffQP2 := eval.BuffQPPool.Get().(*ringqp.Poly)
+	buffQP2 := eval.BuffQPPool.Get()
 	defer eval.BuffQPPool.Put(buffQP2)
 
 	ctTmp := &Ciphertext{}
@@ -126,9 +126,9 @@ func (eval Evaluator) AutomorphismHoistedLazy(levelQ int, ctIn *Ciphertext, c1De
 		return fmt.Errorf("ctQP.LevelP()=%d < GaloisKey[%d].LevelP()=%d", ctQP.LevelP(), galEl, levelP)
 	}
 
-	buffQP1 := eval.BuffQPPool.Get().(*ringqp.Poly)
+	buffQP1 := eval.BuffQPPool.Get()
 	defer eval.BuffQPPool.Put(buffQP1)
-	buffQP2 := eval.BuffQPPool.Get().(*ringqp.Poly)
+	buffQP2 := eval.BuffQPPool.Get()
 	defer eval.BuffQPPool.Put(buffQP2)
 
 	ctTmp := &Element[ringqp.Poly]{}

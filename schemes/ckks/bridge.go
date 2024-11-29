@@ -5,7 +5,6 @@ import (
 
 	"github.com/tuneinsight/lattigo/v6/core/rlwe"
 	"github.com/tuneinsight/lattigo/v6/ring"
-	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
 	"github.com/tuneinsight/lattigo/v6/utils"
 )
 
@@ -73,9 +72,9 @@ func (switcher DomainSwitcher) ComplexToReal(eval *Evaluator, ctIn, opOut *rlwe.
 		return fmt.Errorf("cannot ComplexToReal: no realToComplexEvk provided to this DomainSwitcher")
 	}
 
-	buffQP1 := evalRLWE.BuffQPPool.Get().(*ringqp.Poly)
+	buffQP1 := evalRLWE.BuffQPPool.Get()
 	defer evalRLWE.BuffQPPool.Put(buffQP1)
-	buffQP2 := evalRLWE.BuffQPPool.Get().(*ringqp.Poly)
+	buffQP2 := evalRLWE.BuffQPPool.Get()
 	defer evalRLWE.BuffQPPool.Put(buffQP2)
 
 	ctTmp := &rlwe.Ciphertext{}
@@ -122,9 +121,9 @@ func (switcher DomainSwitcher) RealToComplex(eval *Evaluator, ctIn, opOut *rlwe.
 	switcher.stdRingQ.AtLevel(level).UnfoldConjugateInvariantToStandard(ctIn.Value[0], opOut.Value[0])
 	switcher.stdRingQ.AtLevel(level).UnfoldConjugateInvariantToStandard(ctIn.Value[1], opOut.Value[1])
 
-	buffQP1 := evalRLWE.BuffQPPool.Get().(*ringqp.Poly)
+	buffQP1 := evalRLWE.BuffQPPool.Get()
 	defer evalRLWE.BuffQPPool.Put(buffQP1)
-	buffQP2 := evalRLWE.BuffQPPool.Get().(*ringqp.Poly)
+	buffQP2 := evalRLWE.BuffQPPool.Get()
 	defer evalRLWE.BuffQPPool.Put(buffQP2)
 
 	ctTmp := &rlwe.Ciphertext{}

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"sync"
 
 	"github.com/tuneinsight/lattigo/v6/ring"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
 	"github.com/tuneinsight/lattigo/v6/utils"
 	"github.com/tuneinsight/lattigo/v6/utils/bignum"
+	"github.com/tuneinsight/lattigo/v6/utils/structs"
 )
 
 type Float interface {
@@ -23,6 +23,10 @@ type Float interface {
 // See Float for information on the type constraint.
 type FloatSlice interface {
 }
+
+// Complex is an empty interface whose goal is to
+// indicate that the expected input should be a complex number.
+type Complex any
 
 // GaloisGen is an integer of order N/2 modulo M and that spans Z_M with the integer -1.
 // The j-th ring automorphism takes the root zeta to zeta^(5j).
@@ -64,9 +68,9 @@ type Encoder struct {
 
 	roots interface{}
 	// buffCmplx       interface{}
-	BuffPolyPool    *sync.Pool
-	BuffBigIntPool  *sync.Pool
-	BuffComplexPool *sync.Pool
+	BuffPolyPool    structs.BufferPool[*ring.Poly]
+	BuffBigIntPool  structs.BufferPool[*[]*big.Int]
+	BuffComplexPool structs.BufferPool[Complex]
 }
 
 // NewEncoder creates a new [Encoder] from the target parameters.
@@ -102,29 +106,23 @@ func NewEncoder(parameters Parameters, precision ...uint) (ecd *Encoder) {
 		rotGroup: rotGroup,
 	}
 
-	ecd.BuffBigIntPool = &sync.Pool{
-		New: func() any {
-			buff := make([]*big.Int, m>>1)
-			return &buff
-		},
-	}
-	ecd.BuffPolyPool = &sync.Pool{
-		New: func() any {
-			poly := parameters.RingQ().NewPoly()
-			return &poly
-		},
-	}
+	ecd.BuffBigIntPool = structs.NewSyncPool(func() *[]*big.Int {
+		buff := make([]*big.Int, m>>1)
+		return &buff
+	})
+	ecd.BuffPolyPool = structs.NewSyncPool(func() *ring.Poly {
+		poly := parameters.RingQ().NewPoly()
+		return &poly
+	})
 
 	if prec <= 53 {
 
 		ecd.roots = GetRootsComplex128(ecd.m)
-		// ecd.buffCmplx = make([]complex128, ecd.m>>2)
-		ecd.BuffComplexPool = &sync.Pool{
-			New: func() any {
-				buff := make([]complex128, ecd.m>>2)
-				return &buff
-			},
-		}
+
+		ecd.BuffComplexPool = structs.NewSyncPool(func() Complex {
+			buff := make([]complex128, ecd.m>>2)
+			return &buff
+		})
 
 	} else {
 
@@ -136,15 +134,13 @@ func NewEncoder(parameters Parameters, precision ...uint) (ecd *Encoder) {
 
 		ecd.roots = GetRootsBigComplex(ecd.m, prec)
 		// ecd.buffCmplx = tmp
-		ecd.BuffComplexPool = &sync.Pool{
-			New: func() any {
-				buff := make([]*bignum.Complex, ecd.m>>2)
-				for i := 0; i < ecd.m>>2; i++ {
-					buff[i] = &bignum.Complex{bignum.NewFloat(0, prec), bignum.NewFloat(0, prec)}
-				}
-				return &buff
-			},
-		}
+		ecd.BuffComplexPool = structs.NewSyncPool(func() Complex {
+			buff := make([]*bignum.Complex, ecd.m>>2)
+			for i := 0; i < ecd.m>>2; i++ {
+				buff[i] = &bignum.Complex{bignum.NewFloat(0, prec), bignum.NewFloat(0, prec)}
+			}
+			return &buff
+		})
 	}
 
 	return
@@ -493,7 +489,7 @@ func (ecd Encoder) plaintextToComplex(level int, scale rlwe.Scale, logSlots int,
 	if level == 0 {
 		return polyToComplexNoCRT(p.Coeffs[0], values, scale, logSlots, isreal, ecd.parameters.RingQ().AtLevel(level))
 	}
-	bigintCoeffs := ecd.BuffBigIntPool.Get().(*[]*big.Int)
+	bigintCoeffs := ecd.BuffBigIntPool.Get()
 	defer ecd.BuffBigIntPool.Put(bigintCoeffs)
 	return polyToComplexCRT(p, *bigintCoeffs, values, scale, logSlots, isreal, ecd.parameters.RingQ().AtLevel(level))
 }
@@ -517,7 +513,7 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values FloatSlice, logprec f
 		return fmt.Errorf("cannot Decode: ensure that %d <= logSlots (%d) <= %d", 0, logSlots, maxLogCols)
 	}
 
-	buff := ecd.BuffPolyPool.Get().(*ring.Poly)
+	buff := ecd.BuffPolyPool.Get()
 	defer ecd.BuffPolyPool.Put(buff)
 	if pt.IsNTT {
 		ecd.parameters.RingQ().AtLevel(pt.Level()).INTT(pt.Value, *buff)
@@ -1052,7 +1048,7 @@ func (ecd *Encoder) polyToFloatCRT(p ring.Poly, values FloatSlice, scale rlwe.Sc
 		slots = utils.Min(len(p.Coeffs[0]), len(values))
 	}
 
-	buffRef := ecd.BuffBigIntPool.Get().(*[]*big.Int)
+	buffRef := ecd.BuffBigIntPool.Get()
 	defer ecd.BuffBigIntPool.Put(buffRef)
 	bigintCoeffs := *buffRef
 

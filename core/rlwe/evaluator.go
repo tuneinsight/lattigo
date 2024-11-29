@@ -2,10 +2,11 @@ package rlwe
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/tuneinsight/lattigo/v6/ring"
+	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
 	"github.com/tuneinsight/lattigo/v6/utils"
+	"github.com/tuneinsight/lattigo/v6/utils/structs"
 )
 
 // Evaluator is a struct that holds the necessary elements to execute general homomorphic
@@ -22,10 +23,10 @@ type Evaluator struct {
 }
 
 type EvaluatorBuffers struct {
-	BuffQPPool  *sync.Pool
-	BuffQPool   *sync.Pool
-	BuffBitPool *sync.Pool
-	BuffCtPool  *sync.Pool
+	BuffQPPool  structs.BufferPool[*ringqp.Poly]
+	BuffQPool   structs.BufferPool[*ring.Poly]
+	BuffBitPool structs.BufferPool[*[]uint64]
+	BuffCtPool  structs.BufferPool[*Ciphertext]
 }
 
 func NewEvaluatorBuffers(params Parameters) *EvaluatorBuffers {
@@ -33,30 +34,21 @@ func NewEvaluatorBuffers(params Parameters) *EvaluatorBuffers {
 	buff := new(EvaluatorBuffers)
 	ringQP := params.RingQP()
 
-	buff.BuffQPool = &sync.Pool{
-		New: func() any {
-			poly := params.RingQ().NewPoly()
-			return &poly
-		},
-	}
-	buff.BuffCtPool = &sync.Pool{
-		New: func() any {
-			ct := NewCiphertext(params, 2, params.MaxLevel())
-			return ct
-		},
-	}
-	buff.BuffBitPool = &sync.Pool{
-		New: func() any {
-			buff := make([]uint64, params.RingQ().N())
-			return &buff
-		},
-	}
-	buff.BuffQPPool = &sync.Pool{
-		New: func() any {
-			poly := ringQP.NewPoly()
-			return &poly
-		},
-	}
+	buff.BuffQPPool = structs.NewSyncPool(func() *ringqp.Poly {
+		poly := ringQP.NewPoly()
+		return &poly
+	})
+	buff.BuffQPool = structs.NewSyncPool(func() *ring.Poly {
+		poly := params.RingQ().NewPoly()
+		return &poly
+	})
+	buff.BuffCtPool = structs.NewSyncPool(func() *Ciphertext {
+		return NewCiphertext(params, 2, params.MaxLevel())
+	})
+	buff.BuffBitPool = structs.NewSyncPool(func() *[]uint64 {
+		buff := make([]uint64, params.RingQ().N())
+		return &buff
+	})
 
 	return buff
 }
@@ -288,11 +280,11 @@ func (eval Evaluator) GetEvaluatorBuffer() *EvaluatorBuffers {
 	return eval.EvaluatorBuffers
 }
 
-func (eval Evaluator) GetBuffQPPool() *sync.Pool {
+func (eval Evaluator) GetBuffQPPool() structs.BufferPool[*ringqp.Poly] {
 	return eval.BuffQPPool
 }
 
-func (eval Evaluator) GetBuffCtPool() *sync.Pool {
+func (eval Evaluator) GetBuffCtPool() structs.BufferPool[*Ciphertext] {
 	return eval.BuffCtPool
 }
 

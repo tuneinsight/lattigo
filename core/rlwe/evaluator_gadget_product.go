@@ -18,9 +18,9 @@ func (eval Evaluator) GadgetProduct(levelQ int, cx ring.Poly, gadgetCt *GadgetCi
 	levelQ = utils.Min(levelQ, gadgetCt.LevelQ())
 	levelP := gadgetCt.LevelP()
 
-	buffQP1 := eval.BuffQPPool.Get().(*ringqp.Poly)
+	buffQP1 := eval.BuffQPPool.Get()
 	defer eval.BuffQPPool.Put(buffQP1)
-	buffQP2 := eval.BuffQPPool.Get().(*ringqp.Poly)
+	buffQP2 := eval.BuffQPPool.Get()
 	defer eval.BuffQPPool.Put(buffQP2)
 
 	ctTmp := &Element[ringqp.Poly]{}
@@ -134,12 +134,12 @@ func (eval Evaluator) gadgetProductMultiplePLazy(levelQ int, cx ring.Poly, gadge
 	ringQ := ringQP.RingQ
 	ringP := ringQP.RingP
 
-	buff := eval.BuffQPPool.Get().(*ringqp.Poly)
+	buff := eval.BuffQPPool.Get()
 	defer eval.BuffQPPool.Put(buff)
 
 	c2QP := *buff
 
-	buffQ := eval.BuffQPool.Get().(*ring.Poly)
+	buffQ := eval.BuffQPool.Get()
 	defer eval.BuffQPool.Put(buffQ)
 	var cxNTT, cxInvNTT ring.Poly
 	if ctQP.IsNTT {
@@ -208,7 +208,7 @@ func (eval Evaluator) gadgetProductSinglePAndBitDecompLazy(levelQ int, cx ring.P
 
 	var cxInvNTT ring.Poly
 	if ctQP.IsNTT {
-		buffQ := eval.BuffQPool.Get().(*ring.Poly)
+		buffQ := eval.BuffQPool.Get()
 		defer eval.BuffQPool.Put(buffQ)
 		cxInvNTT = *buffQ
 		ringQ.INTT(cx, cxInvNTT)
@@ -223,12 +223,12 @@ func (eval Evaluator) gadgetProductSinglePAndBitDecompLazy(levelQ int, cx ring.P
 
 	mask := uint64(((1 << pw2) - 1))
 
-	buff := eval.BuffQPPool.Get().(*ringqp.Poly)
+	buff := eval.BuffQPPool.Get()
 	defer eval.BuffQPPool.Put(buff)
 
 	cw := buff.Q.Coeffs[0]
 
-	buffBitDecomp := eval.BuffBitPool.Get().(*[]uint64)
+	buffBitDecomp := eval.BuffBitPool.Get()
 	defer eval.BuffBitPool.Put(buffBitDecomp)
 	cwNTT := *buffBitDecomp
 
@@ -343,9 +343,9 @@ func (eval Evaluator) gadgetProductSinglePAndBitDecompLazy(levelQ int, cx ring.P
 // Result NTT domain is returned according to the NTT flag of ct.
 func (eval Evaluator) GadgetProductHoisted(levelQ int, BuffQPDecompQP []ringqp.Poly, gadgetCt *GadgetCiphertext, ct *Ciphertext) {
 
-	buffQP1 := eval.BuffQPPool.Get().(*ringqp.Poly)
+	buffQP1 := eval.BuffQPPool.Get()
 	defer eval.BuffQPPool.Put(buffQP1)
-	buffQP2 := eval.BuffQPPool.Get().(*ringqp.Poly)
+	buffQP2 := eval.BuffQPPool.Get()
 	defer eval.BuffQPPool.Put(buffQP2)
 
 	ctQP := &Element[ringqp.Poly]{}
@@ -457,7 +457,7 @@ func (eval Evaluator) DecomposeNTT(levelQ, levelP, nbPi int, c2 ring.Poly, c2IsN
 
 	var polyNTT, polyInvNTT ring.Poly
 
-	buffQ := eval.BuffQPool.Get().(*ring.Poly)
+	buffQ := eval.BuffQPool.Get()
 	defer eval.BuffQPool.Put(buffQ)
 
 	if c2IsNTT {

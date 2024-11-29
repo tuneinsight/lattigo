@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/tuneinsight/lattigo/v6/ring"
-	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
 	"github.com/tuneinsight/lattigo/v6/utils"
 )
 
@@ -73,7 +72,7 @@ func (eval Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, o
 
 		level := utils.Min(ctIn.Level(), opOut.Level())
 
-		buffCt := eval.BuffCtPool.Get().(*Ciphertext)
+		buffCt := eval.BuffCtPool.Get()
 		defer eval.BuffCtPool.Put(buffCt)
 		ctTmp, err := NewCiphertextAtLevelFromPoly(level, buffCt.Value)
 
@@ -106,9 +105,9 @@ func (eval Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, o
 }
 
 func (eval Evaluator) applyEvaluationKey(level int, ctIn *Ciphertext, evk *EvaluationKey, opOut *Ciphertext) {
-	buffQP1 := eval.BuffQPPool.Get().(*ringqp.Poly)
+	buffQP1 := eval.BuffQPPool.Get()
 	defer eval.BuffQPPool.Put(buffQP1)
-	buffQP2 := eval.BuffQPPool.Get().(*ringqp.Poly)
+	buffQP2 := eval.BuffQPPool.Get()
 	defer eval.BuffQPPool.Put(buffQP2)
 
 	ctTmp := &Ciphertext{}
@@ -145,9 +144,9 @@ func (eval Evaluator) Relinearize(ctIn *Ciphertext, opOut *Ciphertext) (err erro
 
 	ringQ := eval.params.RingQ().AtLevel(level)
 
-	buffQP1 := eval.BuffQPPool.Get().(*ringqp.Poly)
+	buffQP1 := eval.BuffQPPool.Get()
 	defer eval.BuffQPPool.Put(buffQP1)
-	buffQP2 := eval.BuffQPPool.Get().(*ringqp.Poly)
+	buffQP2 := eval.BuffQPPool.Get()
 	defer eval.BuffQPPool.Put(buffQP2)
 
 	ctTmp := &Ciphertext{}

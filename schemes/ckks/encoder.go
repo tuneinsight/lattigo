@@ -1052,7 +1052,6 @@ func (ecd *Encoder) polyToFloatCRT(p ring.Poly, values FloatSlice, scale rlwe.Sc
 	defer ecd.BuffBigIntPool.Put(buffRef)
 	bigintCoeffs := *buffRef
 
-	// TODO: Double check, was using ecd.buff instead of p, but they are equal?
 	ecd.parameters.RingQ().PolyToBigint(p, 1, bigintCoeffs)
 
 	Q := r.ModulusAtLevel[r.Level()]

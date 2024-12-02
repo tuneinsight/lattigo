@@ -29,23 +29,30 @@ type EvaluatorBuffers struct {
 	BuffCtPool  structs.BufferPool[*Ciphertext]
 }
 
+func newBuffer[T any](f func() T) structs.BufferPool[T] {
+	// Uncomment to try with free lists instead of sync pool:
+	// nbItemsInPool := 10
+	// return structs.NewFreeList(nbItemsInPool, f)
+	return structs.NewSyncPool(f)
+}
+
 func NewEvaluatorBuffers(params Parameters) *EvaluatorBuffers {
 
 	buff := new(EvaluatorBuffers)
 	ringQP := params.RingQP()
 
-	buff.BuffQPPool = structs.NewSyncPool(func() *ringqp.Poly {
+	buff.BuffQPPool = newBuffer(func() *ringqp.Poly {
 		poly := ringQP.NewPoly()
 		return &poly
 	})
-	buff.BuffQPool = structs.NewSyncPool(func() *ring.Poly {
+	buff.BuffQPool = newBuffer(func() *ring.Poly {
 		poly := params.RingQ().NewPoly()
 		return &poly
 	})
-	buff.BuffCtPool = structs.NewSyncPool(func() *Ciphertext {
+	buff.BuffCtPool = newBuffer(func() *Ciphertext {
 		return NewCiphertext(params, 2, params.MaxLevel())
 	})
-	buff.BuffBitPool = structs.NewSyncPool(func() *[]uint64 {
+	buff.BuffBitPool = newBuffer(func() *[]uint64 {
 		buff := make([]uint64, params.RingQ().N())
 		return &buff
 	})

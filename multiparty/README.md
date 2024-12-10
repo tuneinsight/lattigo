@@ -1,14 +1,92 @@
-# Multi-Party
+# Multiparty Schemes in Lattigo
 
 The `multiparty` package implements several Multiparty Homomorphic Encryption (MHE) primitives based on Ring-Learning-with-Errors (RLWE).
-It provides generic interfaces for the local steps of the MHE-based Secure Multiparty Computation (MHE-MPC) protocol that are common across all the RLWE distributed schemes implemented in Lattigo (e.g., collective key generation).
-The `multiparty/mpbgv` and `multiparty/mpckks` packages provide scheme-specific functionalities (e.g., interactive bootstrapping) by implementing **threshold** versions of the single-party BFV/BGV and CKKS cryptosystems
+It provides the implementation of two core schemes:
+
+1. A $N$-out-of-$N$-threshold scheme
+2. A $t$-out-of-$N$-threshold scheme
+
+We provide more informations about these two core schemes below. Moreover, The `multiparty/mpbgv` and `multiparty/mpckks` packages provide scheme-specific functionalities (e.g., interactive bootstrapping) by implementing **threshold** versions of the single-party BFV/BGV and CKKS cryptosystems
 found in the `schemes` package.
+Note that, as for the single party schemes, most of the operations are generic and can be handled by the core schemes in the `multiparty` package.
 
-This package implements local operations only, hence does not assume or provide any network-layer protocol implementation.
-However, it provides serialization methods for all relevant structures that implement the standard `encoding.BinaryMarshaller` and `encoding.BinaryUnmarshaller` interfaces (see [https://pkg.go.dev/encoding](https://pkg.go.dev/encoding)) as well as the `io.WriterTo` and `io.ReaderFrom` interfaces (see [https://pkg.go.dev/encoding](https://pkg.go.dev/io)).
+The `multiparty` package and its sub-packages provide the **local steps** of the MHE-based Secure Multiparty Computation protocol (MHE-MPC), as described in ["Multiparty Homomorphic Encryption from Ring-Learning-with-Errors"](https://eprint.iacr.org/2020/304.pdf) by Mouchet et al. (2021) (which is an RLWE instantiation of the MPC protocol described in ["Multiparty computation with low communication, computation and interaction via threshold FHE"](https://eprint.iacr.org/2011/613.pdf) by Asharov et al. (2012)).
 
-The MHE-MPC protocol implemented in Lattigo is based on the constructions described in ["Multiparty Homomorphic Encryption from Ring-Learning-with-Errors"](https://eprint.iacr.org/2020/304.pdf) by Mouchet et al. (2021), which is an RLWE instantiation of the MPC protocol described in ["Multiparty computation with low communication, computation and interaction via threshold FHE"](https://eprint.iacr.org/2011/613.pdf) by Asharov et al. (2012).
+Note that this package implements local operations only, hence does not assume or provide any network-layer protocol implementation.
+However:
+- All relevant types provide serialization methods implementing the `encoding.BinaryMarshaller` and `encoding.BinaryUnmarshaller` interfaces (see [https://pkg.go.dev/encoding](https://pkg.go.dev/encoding)) as well as the `io.WriterTo` and `io.ReaderFrom` interfaces (see [https://pkg.go.dev/io](https://pkg.go.dev/io)).
+- The last section of this README provides a detailed overview of the MHE-MPC protocol, its different instantiations, and maps the protocol steps to the relevant Lattigo types and methods.
+- The `examples/multiparty` folder contains example applications for simple MPC tasks. These examples are running all the parties in the same process, but demonstrate the use of the multiparty schemes in the MHE-MPC protocol.
+
+## The $N$-out-of-$N$-Threshold Scheme
+
+Conceptually, the $N$-out-of-$N$-threshold scheme exploits the linearity of RLWE encryption to distribute the secret-key among $N$ parties. More specifically, the core cryptographic operation of (single-party) RLWE-based scheme is to compute functions of the form: $$F(a,s) = as+e$$
+over a ring $R$ where $a \in R$ is public, $s \in R$ is the secret-key of the scheme and $e \in R$ is a small ring element (sampled fresh for each function). For example, notice that generating an RLWE public-key corresponds to exactly this operation. The $N$-out-of-$N$-threshold scheme consists in splitting the secret-key $s$ into $N$ additive shares such that $s=\sum^N_{i=1} s_i$ and that $s_i$ is held by party $i$. 
+In this way, any secret-key operation (especially, decryption) requires the collaboration between **all** the $N$ parties.
+
+Exploiting the linear structure of $s$ and the (almost) linearity of $F$, the latter can be computed piece-wise by the parties, as: 
+
+$$h_i = F(a, s_i) = as_i + e_i.$$
+
+Then $F(a,s)$ can be computed as $h=\sum^N_{i=1}h_i$. The output $h$ is the desired function, only with larger error. Moreover, the following features are relevant:
+
+- Since $F(a, s_i)$ has the form of a RLWE sample, it can be publicly disclosed for aggregation. For example, the parties could use a helper for aggregating their shares $h_i$.
+- Since the secret-key shares $s_i$ are random and never disclosed, they can be sampled locally by the parties (as normal RLWE secret-keys). Hence, no trusted dealer or private channels are necessary between the parties.
+- Obtaining protocols for threshold generation of evaluation-keys and threshold decryption only requires to slightly adapt the function $F$ above. The overall linearity argument remains the same.
+- The threshold decryption protocol can be generalized into a re-encryption protocol (where the actual decryption corresponds to re-encrypting towards the $s=0$ key). It is possible to re-encrypt towards a known public-key (for receivers external to the set of parties).
+- The threshold decryption- and key-switching protocols require *smudging* parameter implementing the noise-flooding technique. This is a statistical security parameter ensuring that no secret value leaks to the decryption receiver through the error. See the SECURITY.md for more discussion on this aspect.
+
+### Implementation
+
+For each secret-key operation in the single party RLWE scheme, the  `multiparty` package provides a "protocol" type implementing the local operations of the parties in the threshold scheme. More specifically, each protocol type provides a `GenShare(*rlwe.SecretKey, [...])` method for generating a party's share (i.e., computing $F(a, s_i)$ above) and a `AggregateShares(share1, share2 [...])` method to aggregate the shares. Moreover:
+
+- For some protocols, $a$ is a *common random polynomial* (CRP) sampled from a common random string (CRS). In this case, the protocol types provide a `SampleCRP(crs CRS)` method to obtain $a$.
+- The protocol types also provide method for converting the final aggregated share into the protocol's output. E.g., the `PublicKeyGenProtocol` provides a `GenPublicKey(aggshare PublicKeyGenShare, [...])` method.
+
+## The $t$-out-of-$N$-Threshold Scheme
+
+There might be settings where an $N$-out-of-$N$-threshold access-structure is too restrictive. For example, when $N$ is large, the probability of a single party being down at a given time increases. In cases where it can be assumed that the adversary cannot corrupt more than $t-1$ out of the $N$ parties, the $t$-out-of-$N$-threshold scheme can be employed to provide better liveness guarantees. More specifically, this scheme ensures that secret-key operations can be performed by any group of at least $t$ parties.
+
+Lattigo provides an implementation of the RLWE-based $t$-out-of-$N$-threshold scheme described in Mouchet et al.'s paper [An Efficient Threshold Access-Structure for RLWE-Based Multiparty Homomorphic Encryption](https://eprint.iacr.org/2022/780). Similarly to many threshold schemes, it relies on Shamir Secret Sharing to distribute the secret-key of the scheme. This is, the secret-key of the scheme is now of the form:
+
+$$S(X) = s + s_1 X + s_2 X^2 + ... + s_t X^{t-1},$$
+
+i.e., a degree-$(t-1)$ polynomial in R[X] for which $s = S(0)$, and party $i$'s secret-key shares is distributed as $S(\alpha_i)$ for $(\alpha_1, \alpha_2, ... \alpha_N)$ $N$ distinct elements of $R$ forming an exceptional sequence.
+Then, observe that $s$ can be reconstructed from any set of $t$ shares via Lagrange interpolation. For example, assuming reconstruction from the first $t$ shares:
+
+$$s = \sum^t_{i=1} S(\alpha_i) \cdot \prod^t_{\substack{j=1\\ i \neq j}} \frac{\alpha_j}{\alpha_j - \alpha_i} = \sum^t_{i=1} S(\alpha_i) \cdot l_i$$
+
+Hence, the structure of $s$ is still linear, and we can again compute the $F$ function above piece-wise. However, the fact that $F(a,s)$ is only **approximately** linear in $s$ poses some challenge in performing the Shamir reconstruction in the "usual" way. 
+More specifically, we cannot compute $h_i = F(a, S(\alpha_i))$ locally and then combine the shares as $\sum^t_{i=1} h_i \cdot l_i$. This is because $l_i$ is a large $R$ element multiplying it with $S(0)a+e_i$ would result in a large error $e_i \cdot l_i$.
+
+The scheme of Mouchet et al. circumvents this issue by directly evaluating $h_i=F(a, S(\alpha_i) \cdot l_i)$ locally. Then the combination of the share is back to being a simple summation over $t$ shares: $h =\sum^t_{i=1} h_i$. This simple trick enables a very efficient and usable $t$-out-of-$N$ scheme:
+
+- $S$ can be generated non-interactively and without a trusted dealer by having each party generating a random degree-$(t-1)$ polynomial $S_i$ with $S_i(0) = s_i$, and by implicitly take $S=\sum^N_{i=1} S_i$. Observe then that $s = S(0) = \sum^N_{i=1} s_i$, which matches the $N$-out-of-$N$-threshold case.
+- Then, party $i$ can obtain its share $S(\alpha_i)$ by:
+    1. having each party $j$ send $S_j(\alpha_i)$ to party $i$ (via a **private** channel),
+    2. having party $i$ compute $S(\alpha_i) = \sum^N_{j=1} S_j(\alpha_i)$.
+- The above protocol is a single-round protocol, and state each party has to keep is then a single ring element $S(\alpha_i)$. 
+- When instantiated as above, the $t$-out-of-$N$-threshold scheme consists in a direct **extension** of the $N$-out-of-$N$-threshold scheme where:
+    1. The parties operate a *re-sharing* of their secret-key $N$-out-of-$N$ secret-key share using the $t$-out-of-$N$ Shamir Secret Sharing scheme. 
+    2. The parties perform the secret-key operations (i.e., the protocols) in the same way as in the $N$-out-of-$N$-threshold scheme, yet among $t$ parties only and with $S(\alpha_i)\cdot l_i$ instead of $s_i$.
+
+However, the scheme has the downside of requiring to know set of parties participating to a given secret-key operation (i.e., evaluation of $F$). This is because evaluating $F(a, S(\alpha_i) \cdot l_i$ requires each party $i$ to compute the Lagrange coefficient $l_i$, which depends on the participating set. 
+Another downside of this scheme is that it requires a round of private, pairwise message exchanges between the parties before the scheme can be used in the $t$-out-of-$N$ regime.
+
+### Implementation
+
+Thanks to the $t$-out-of-$N$-threshold scheme being a direct extension of the $N$-out-of-$N$-threshold scheme (see the discussion above), the implementation of the former consist of two new types: `Thresholdizer` and `Combiner`.
+
+The `Thresholdizer` type implements the secret-key generation and re-sharing steps. This type corresponds to part 1. of the extension as described above. More specifically: 
+- `GenShamirPolynomial(threshold int, sk *rlwe.SecretKey)` generates the random degree-$(t-1)$ polynomial with `sk` as constant coefficient (i.e., $S_i$ above).
+- `GenShamirSecretShare(recipient ShamirPublicPoint, [...])` generates re-sharing for a given recipient by evaluating the secret polynomial (i.e., $S_i(\alpha_j)$ above).
+- `AggregateShares(share1, share2 ShamirSecretShare, [...])` aggregates two received shares (i.e., one addition step in computing $S(\alpha_i)$ above).
+
+The `Combiner` type lets parties obtain $t$-out-of-$t$ additive shares from their $t$-out-of-$N$ Shamir shares. This type corresponds to part 2. of the extension as described above, and is called as a pre-processing before any secret-key operation performed in the $t$-out-of-$N$ regime. More specifically, the `Combiner.GenAdditiveShare` takes as input the $t$-out-of-$N$-threshold secret-share of the party ($S(\alpha_i)$ above) along with the set $L=\{\alpha_1, ..., \alpha_t\}$ of the $t$ parties participating to the protocol, and computes:
+
+$$S(\alpha_i) \cdot l_i = S(\alpha_i) \cdot \prod_{\substack{\alpha_j \in L\\ \alpha_j \neq \alpha_i}} \frac{\alpha_j}{\alpha_j - \alpha_i}.$$
+
+Hence, from the share output by `GenAdditiveShare`, the usual protocols described for the $N$-out-of-$N$-threshold setting (see the previous section) can be used, yet with $N=t$.
 
 ## MHE-MPC Protocol Overview
 

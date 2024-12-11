@@ -14,6 +14,21 @@ type Poly struct {
 	Coeffs structs.Matrix[uint64]
 }
 
+func NewPolyFromUintPool(pool structs.BufferPool[*[]uint64], N, level int) (pol *Poly) {
+	coeffs := make([][]uint64, level+1)
+	for i := range coeffs {
+		coeffs[i] = *pool.Get()
+	}
+	return &Poly{Coeffs: coeffs}
+}
+
+func RecyclePolyInUintPool(pool structs.BufferPool[*[]uint64], pol *Poly) {
+	for i := range pol.Coeffs {
+		pool.Put(&pol.Coeffs[i])
+	}
+	pol = nil
+}
+
 // NewPoly creates a new polynomial with N coefficients set to zero and Level+1 moduli.
 func NewPoly(N, Level int) (pol Poly) {
 	Coeffs := make([][]uint64, Level+1)

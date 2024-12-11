@@ -5,6 +5,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v6/ring"
 	"github.com/tuneinsight/lattigo/v6/utils/sampling"
+	"github.com/tuneinsight/lattigo/v6/utils/structs"
 )
 
 // Ciphertext is a generic type for RLWE ciphertexts.
@@ -68,4 +69,31 @@ func (ct Ciphertext) Copy(ctxCopy *Ciphertext) {
 // Equal performs a deep equal.
 func (ct Ciphertext) Equal(other *Ciphertext) bool {
 	return ct.Element.Equal(&other.Element)
+}
+
+func NewCiphertextFromUintPool(pool structs.BufferPool[*[]uint64], params ParameterProvider, degree int, level int) *Ciphertext {
+	p := params.GetRLWEParameters()
+
+	Value := make([]ring.Poly, degree+1)
+	for i := range Value {
+		Value[i] = *ring.NewPolyFromUintPool(pool, p.N(), level)
+	}
+
+	el := Element[ring.Poly]{
+		Value: Value,
+		MetaData: &MetaData{
+			CiphertextMetaData: CiphertextMetaData{
+				IsNTT: p.NTTFlag(),
+			},
+		},
+	}
+	return &Ciphertext{el}
+}
+
+func RecycleCiphertextInUintPool(pool structs.BufferPool[*[]uint64], ct *Ciphertext) {
+	for i := range ct.Value {
+		ring.RecyclePolyInUintPool(pool, &ct.Value[i])
+	}
+	ct = nil
+	return
 }

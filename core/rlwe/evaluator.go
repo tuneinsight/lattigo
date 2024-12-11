@@ -35,6 +35,42 @@ func newBuffer[T any](f func() T) structs.BufferPool[T] {
 	// return structs.NewFreeList(nbItemsInPool, f)
 	return structs.NewSyncPool(f)
 }
+func NewEvaluatorBuffersWithUintPool(params Parameters) *EvaluatorBuffers {
+	buff := new(EvaluatorBuffers)
+	ringQP := params.RingQP()
+
+	buffUint := newBuffer(func() *[]uint64 {
+		buff := make([]uint64, params.RingQ().N())
+		return &buff
+	})
+
+	buff.BuffQPPool = structs.NewBuffFromUintPool(buffUint,
+		func(bp structs.BufferPool[*[]uint64]) *ringqp.Poly {
+			return ringQP.NewPolyQPFromUintPool(bp)
+		},
+		func(bp structs.BufferPool[*[]uint64], poly *ringqp.Poly) {
+			ringqp.RecyclePolyQPFromUintPool(bp, poly)
+		},
+	)
+	buff.BuffQPool = structs.NewBuffFromUintPool(buffUint,
+		func(bp structs.BufferPool[*[]uint64]) *ring.Poly {
+			return ring.NewPolyFromUintPool(bp, params.ringQ.N(), params.ringQ.Level())
+		},
+		func(bp structs.BufferPool[*[]uint64], poly *ring.Poly) {
+			ring.RecyclePolyInUintPool(bp, poly)
+		},
+	)
+	buff.BuffCtPool = structs.NewBuffFromUintPool(buffUint,
+		func(bp structs.BufferPool[*[]uint64]) *Ciphertext {
+			return NewCiphertextFromUintPool(bp, params, 2, params.MaxLevel())
+		},
+		func(bp structs.BufferPool[*[]uint64], ct *Ciphertext) {
+			RecycleCiphertextInUintPool(bp, ct)
+		},
+	)
+	buff.BuffBitPool = buffUint
+	return buff
+}
 
 func NewEvaluatorBuffers(params Parameters) *EvaluatorBuffers {
 
@@ -56,7 +92,6 @@ func NewEvaluatorBuffers(params Parameters) *EvaluatorBuffers {
 		buff := make([]uint64, params.RingQ().N())
 		return &buff
 	})
-
 	return buff
 }
 
@@ -65,7 +100,10 @@ func NewEvaluator(params ParameterProvider, evk EvaluationKeySet) (eval *Evaluat
 	eval = new(Evaluator)
 	p := params.GetRLWEParameters()
 	eval.params = *p
-	eval.EvaluatorBuffers = NewEvaluatorBuffers(eval.params)
+	// All buffer use the same sync.Pool of *[]uint64
+	eval.EvaluatorBuffers = NewEvaluatorBuffersWithUintPool(eval.params)
+	// Uncomment following line to have one sync.Pool per buffer type
+	// eval.EvaluatorBuffers = NewEvaluatorBuffers(eval.params)
 
 	if p.RingP() != nil {
 		eval.BasisExtender = ring.NewBasisExtender(p.RingQ(), p.RingP())

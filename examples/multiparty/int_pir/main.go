@@ -1,7 +1,41 @@
+// This example demonstrates the use of the [multiparty] package to perform a basic N-party private information retrival (PIR) protocol.
+// This protocol relies on the t-out-of-N-threshold variant of the BGV scheme.
+//
+// In a nutshell, each party uploads an data row to a helper server, as an encrypted integer vector. The result is an encrypted database of N rows. At a later stage,
+// a party queries a row in the database to the helper, without revealing the selector query index. The querier does so by encoding its query as
+// a binary vector with a single 1 component corresponding to the row it wants to retrive, and send this encrypted vector to the helper.
+// The helper can then compute the response (under encryption) by multiplying each row i of the database with the i-th query component, and summing
+// the resulting vectors together. Finally, the result can be decrypted by any group of t parties.
+//
+// Thanks to the t-out-of-N-threshold scheme, only t parties need to be online at query time.
+//
+// For more details about the PIR circuit example see the paper [Multiparty Homomorphic Encryption from Ring-Learning-With-Errors] by Mouchet, Troncoso-Pastoriza, Bossuat, and Hubaux.
+// For more details about the t-out-of-N-threshold scheme, see the paper [An Efficient Threshold Access-Structure for RLWE-Based Multiparty Homomorphic Encryption] by Mouchet, Bertrand and Hubaux.
+//
+// To run the example, use the following command:
+//
+//	go run main.go N T NGoRoutines
+//
+// where N is the number of parties (default:3) T is the threshold (default: 2) and NGoRoutines is the number of Go routines (default: 1) to use during the homomorphic evaluation.
+// All parties are run in the same process.
+//
+// The example demonstrates the following steps:
+//
+//  1. Setup:
+//     a. The parties generate threshold secret key with t-out-of-N access structure.
+//     b. The parties generate a collective public encryption key, a relinearization key, and a set of rotation (or, galois) keys.
+//  2. Database inputs: Each party encrypts its input row vector and send it to a helper server.
+//  3. Query evaluation: A party requests a row in the database. The helper server computes the query output as described above.
+//  4. Query output decryption: the helper, with the help of at least t parties, decrypts the query output.
+//
+// [Multiparty Homomorphic Encryption from Ring-Learning-With-Errors]: https://eprint.iacr.org/2020/304
+// [An Efficient Threshold Access-Structure for RLWE-Based Multiparty Homomorphic Encryption]: https://eprint.iacr.org/2022/780
 package main
 
 import (
+	"errors"
 	"log"
+	"math/rand"
 	"os"
 	"strconv"
 	"sync"
@@ -14,91 +48,78 @@ import (
 	"github.com/tuneinsight/lattigo/v6/utils/sampling"
 )
 
-func check(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
-func runTimed(f func()) time.Duration {
-	start := time.Now()
-	f()
-	return time.Since(start)
-}
-
-func runTimedParty(f func(), N int) time.Duration {
-	start := time.Now()
-	f()
-	return time.Duration(time.Since(start).Nanoseconds() / int64(N))
-}
-
+// party is a type for the parties' state in the protocol, to be kept accross the different phases.
 type party struct {
-	sk         *rlwe.SecretKey
-	rlkEphemSk *rlwe.SecretKey
+	multiparty.Combiner
 
-	ckgShare    multiparty.PublicKeyGenShare
-	rkgShareOne multiparty.RelinearizationKeyGenShare
-	rkgShareTwo multiparty.RelinearizationKeyGenShare
-	gkgShare    multiparty.GaloisKeyGenShare
-	cksShare    multiparty.KeySwitchShare
+	sk         *rlwe.SecretKey // secret key of the party
+	tsk        multiparty.ShamirSecretShare
+	rlkEphemSk *rlwe.SecretKey // ephemeral state to be used in the RKG protocol
 
-	input []uint64
+	shamirPt multiparty.ShamirPublicPoint
+
+	input []uint64 // the input of the party, encoding a set as a binary vector
 }
 
-type maskTask struct {
-	query           *rlwe.Ciphertext
-	mask            *rlwe.Plaintext
-	row             *rlwe.Ciphertext
-	res             *rlwe.Ciphertext
-	elapsedmaskTask time.Duration
+// getOnlineParties is a utility function that returns t random parties from a list of parties.
+// This simulates a dynamic setting where the system rely on any t parties to be online at query time to
+// execute the various protocols.
+func getOnlineParties(t int, parties []party) []party {
+	if t > len(parties) {
+		check(errors.New("t must be less than the number of parties"))
+	}
+	// randomizes a subset of t parties
+	onlineParties := make([]party, len(parties))
+	copy(onlineParties, parties)
+	rand.Shuffle(len(onlineParties), func(i, j int) { onlineParties[i], onlineParties[j] = onlineParties[j], onlineParties[i] })
+	return onlineParties[:t]
 }
 
-var elapsedCKGCloud time.Duration
-var elapsedCKGParty time.Duration
-var elapsedRKGCloud time.Duration
-var elapsedRKGParty time.Duration
-var elapsedGKGCloud time.Duration
-var elapsedGKGParty time.Duration
-var elapsedCKSCloud time.Duration
-var elapsedPCKSParty time.Duration
-var elapsedRequestParty time.Duration
-var elapsedRequestCloud time.Duration
-var elapsedRequestCloudCPU time.Duration
+// getShamirPoints is a utility function that returns the Shamir public points of a group of parties.
+func getShamirPoints(parties []party) []multiparty.ShamirPublicPoint {
+	shamirPoints := make([]multiparty.ShamirPublicPoint, len(parties))
+	for i := range parties {
+		shamirPoints[i] = parties[i].shamirPt
+	}
+	return shamirPoints
+}
+
+var l = log.New(os.Stderr, "", 0)
 
 func main() {
 
-	// This example simulates a SMC instance of a private information retrieval (PIR) problem.
-	// The problem statement is as follows: a cloud stores data of several parties
-	// encrypted under a shared public-key. An external party wants to retrieve
-	// the plaintext content of one of the ciphertexts while ensuring the following
-	// security property: no information other than the fact that a request was made must
-	// be disclosed to the cloud, to the owners of the shared public-key or to anyone else.
-	//
-	// For more details see
-	//    Multiparty Homomorphic Encryption: From Theory to Practice (<https://eprint.iacr.org/2020/304>)
-
-	l := log.New(os.Stderr, "", 0)
-
-	// $go run main.go arg1 arg2
-	// arg1: number of parties
-	// arg2: number of Go routines
-	// MinDelta number of parties for n=8192: 512 parties (this is a memory intensive process)
+	// Parse command line arguments
 
 	N := 3 // Default number of parties
 	var err error
 	if len(os.Args[1:]) >= 1 {
 		N, err = strconv.Atoi(os.Args[1])
 		check(err)
+
+		if N < 3 || N > 128 {
+			l.Fatal("N must be in the range [3, 128]")
+		}
 	}
 
-	NGoRoutine := 1 // Default number of Go routines
+	t := 2 // Default Threshold
 	if len(os.Args[1:]) >= 2 {
-		NGoRoutine, err = strconv.Atoi(os.Args[2])
+		t, err = strconv.Atoi(os.Args[2])
 		check(err)
+
+		if t < 2 || t >= N {
+			l.Fatal("T must be in the range [2, N-1]")
+		}
 	}
 
-	// Index of the ciphertext to retrieve.
-	queryIndex := 2
+	nGoRoutine := 1 // Default number of Go routines
+	if len(os.Args[1:]) >= 3 {
+		nGoRoutine, err = strconv.Atoi(os.Args[2])
+		check(err)
+
+		if nGoRoutine < 1 {
+			l.Fatal("NGoRoutine must be at least 1")
+		}
+	}
 
 	// Creating encryption parameters
 	// LogN = 13 & LogQP = 218
@@ -112,57 +133,87 @@ func main() {
 		panic(err)
 	}
 
-	// Common reference polynomial generator that uses the PRNG
+	// The circuit relies on rotations/automorphisms for computing an inner-sum-like operation.
+	// This obtains the corresponding Galois elements.
+	galEls := append(params.GaloisElementsForInnerSum(1, params.N()>>1), params.GaloisElementForRowRotation())
+
+	// Creates a PRNG that will be used to sample the common reference string (crs)
 	crs, err := sampling.NewKeyedPRNG([]byte{'l', 'a', 't', 't', 'i', 'g', 'o'})
 	if err != nil {
 		panic(err)
 	}
 
-	// Instantiation of each of the protocols needed for the PIR example
+	// Create the N input parties and generate their secret keys and private inputs
+	P := genparties(params, N, t)
 
-	// Create each party, and allocate the memory for all the shares that the protocols will need
-	P := genparties(params, N)
+	l.Println("> Setup phase") // TODO: improve the logging output
 
-	// 1) Collective public key generation
-	pk := ckgphase(params, crs, P)
+	// Step 1.a: Generation of the threshold secret key
 
-	// 2) Collective RelinearizationKey generation
-	RelinearizationKey := rkgphase(params, crs, P)
+	thresholdizer := multiparty.NewThresholdizer(params.Parameters)
 
-	// 3) Collective GaloisKeys generation
-	galKeys := gkgphase(params, crs, P)
+	// Allocates the memory for the parties' shares in the protocol
+	tskShares := make([][]multiparty.ShamirSecretShare, N)
+	for i := range P {
+		tskShares[i] = make([]multiparty.ShamirSecretShare, N)
+		for j := range P {
+			tskShares[i][j] = thresholdizer.AllocateThresholdSecretShare()
+		}
+	}
 
-	// Instantiates EvaluationKeySet
-	evk := rlwe.NewMemEvaluationKeySet(RelinearizationKey, galKeys...)
+	l.Println("> Threshold Secret Key Generation")
+	// The parties generate their shares for the threshold secret key
+	elapsedThresholdParty := runTimedParty(func() {
+		for i, pi := range P {
+			pol, err := thresholdizer.GenShamirPolynomial(t, pi.sk)
+			check(err)
+			for j, pj := range P {
+				thresholdizer.GenShamirSecretShare(pj.shamirPt, pol, &tskShares[i][j])
+			}
+		}
+	}, N)
+
+	// Each party aggregates the shares it has received from the other parties
+	elapsedThresholdParty += runTimedParty(func() {
+		for i := range P {
+			P[i].tsk = thresholdizer.AllocateThresholdSecretShare()
+			for j := range P {
+				err := thresholdizer.AggregateShares(tskShares[j][i], P[i].tsk, &P[i].tsk) // TODO wierd pointer arguments
+				check(err)
+			}
+		}
+	}, N)
+
+	l.Printf("\tdone (cloud: %s, party: %s)\n", time.Duration(0), elapsedThresholdParty)
+
+	// Step 1.b: Setup of the collective public encryption and evaluation keys
+	// Note 1: because we are using the t-out-of-N-threshold scheme, generating a key only requires t parties to be online.
+	// Note 2: the above note means that the workload could be balanced between the online parties whenever more than t parties are online.
+
+	pk := execCKGProtocol(params, crs, getOnlineParties(t, P)) // Collective public key generation
+
+	rlk := execRKGProtocol(params, crs, getOnlineParties(t, P)) // Collective RelinearizationKey generation
+
+	galKeys := execGTGProtocol(params, crs, galEls, getOnlineParties(t, P)) // Collective GaloisKeys generation
+
+	// Creates the evaluation key set from the rlk and the galKeys
+	evk := rlwe.NewMemEvaluationKeySet(rlk, galKeys...)
 
 	l.Printf("\tSetup done (cloud: %s, party: %s)\n",
 		elapsedCKGCloud+elapsedRKGCloud+elapsedGKGCloud,
 		elapsedCKGParty+elapsedRKGParty+elapsedGKGParty)
 
-	// Pre-loading memory
-	encoder := bgv.NewEncoder(params)
-	l.Println("> Memory alloc Phase")
-	encInputs := make([]*rlwe.Ciphertext, N)
-	plainMask := make([]*rlwe.Plaintext, N)
+	// Step 2: Database inputs
 
-	// Ciphertexts to be retrieved
+	// Pre-allocates the encrypted database: one ciphertext per party
+	encInputs := make([]*rlwe.Ciphertext, N)
 	for i := range encInputs {
 		encInputs[i] = bgv.NewCiphertext(params, 1, params.MaxLevel())
 	}
 
-	// Plaintext masks: plainmask[i] = encode([0, ..., 0, 1_i, 0, ..., 0])
-	// (zero with a 1 at the i-th position).
-	for i := range plainMask {
-		maskCoeffs := make([]uint64, params.N())
-		maskCoeffs[i] = 1
-		plainMask[i] = bgv.NewPlaintext(params, params.MaxLevel())
-		if err := encoder.Encode(maskCoeffs, plainMask[i]); err != nil {
-			panic(err)
-		}
-	}
-
-	// Ciphertexts encrypted under collective public key and stored in the cloud
-	l.Println("> Encrypt Phase")
+	// Each party encrypts its input row under the collective public key
+	l.Println("> Database input phase")
+	encoder := bgv.NewEncoder(params)
 	encryptor := rlwe.NewEncryptor(params, pk)
 	pt := bgv.NewPlaintext(params, params.MaxLevel())
 	elapsedEncryptParty := runTimedParty(func() {
@@ -176,21 +227,34 @@ func main() {
 		}
 	}, N)
 
-	elapsedEncryptCloud := time.Duration(0)
 	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedEncryptCloud, elapsedEncryptParty)
 
-	// Request phase
-	encQuery := genquery(params, queryIndex, encoder, encryptor)
+	// Step 3: Query evaluation
 
-	result := requestphase(params, queryIndex, NGoRoutine, encQuery, encInputs, plainMask, evk)
+	l.Println("> Query evaluation phase")
 
-	// Collective (partial) decryption (key switch)
-	encOut := cksphase(params, P, result)
+	queryIndex := 2 // Index of the ciphertext to retrieve.
+	querier := P[0] // Party performing the query
+	others := P[1:] // Other parties
 
-	l.Println("> ResulPlaintextModulus:")
+	// Creates a query ciphertext from the query index
+	encQuery := genQuery(params, queryIndex, encoder, encryptor)
 
-	// Decryption by the external party
-	decryptor := rlwe.NewDecryptor(params, P[0].sk)
+	// Executes the requests
+	encResult := execRequest(params, nGoRoutine, encQuery, encInputs, evk)
+
+	// Step 4: Query output decryption
+
+	// The helper, with the help of at least t parties, performs a re-encryption of the result towards the querier
+	participants := getOnlineParties(t-1, others)
+	encOut := execCKSProtocol(params, participants, querier, encResult)
+
+	// The querier decrypts the final result
+	sk := rlwe.NewSecretKey(params)
+	err = querier.Combiner.GenAdditiveShare(append(getShamirPoints(participants), querier.shamirPt), querier.shamirPt, querier.tsk, sk)
+	check(err)
+
+	decryptor := rlwe.NewDecryptor(params, sk)
 	ptres := bgv.NewPlaintext(params, params.MaxLevel())
 	elapsedDecParty := runTimed(func() {
 		decryptor.Decrypt(encOut, ptres)
@@ -204,95 +268,73 @@ func main() {
 	l.Printf("\t%v...%v\n", res[:8], res[params.N()-8:])
 	l.Printf("> Finished (total cloud: %s, total party: %s)\n",
 		elapsedCKGCloud+elapsedRKGCloud+elapsedGKGCloud+elapsedEncryptCloud+elapsedRequestCloudCPU+elapsedCKSCloud,
-		elapsedCKGParty+elapsedRKGParty+elapsedGKGParty+elapsedEncryptParty+elapsedRequestParty+elapsedPCKSParty+elapsedDecParty)
+		elapsedCKGParty+elapsedRKGParty+elapsedGKGParty+elapsedEncryptParty+elapsedRequestParty+elapsedCKSParty+elapsedDecParty)
 }
 
-func cksphase(params bgv.Parameters, P []*party, result *rlwe.Ciphertext) *rlwe.Ciphertext {
-	l := log.New(os.Stderr, "", 0)
+func genparties(params bgv.Parameters, N, t int) []party {
 
-	l.Println("> KeySwitch Phase")
-
-	cks, err := multiparty.NewKeySwitchProtocol(params, ring.DiscreteGaussian{Sigma: 1 << 30, Bound: 6 * (1 << 30)}) // Collective public-key re-encryption
-	if err != nil {
-		panic(err)
-	}
-
-	for _, pi := range P {
-		pi.cksShare = cks.AllocateShare(params.MaxLevel())
-	}
-
-	zero := rlwe.NewSecretKey(params)
-	cksCombined := cks.AllocateShare(params.MaxLevel())
-	elapsedPCKSParty = runTimedParty(func() {
-		for _, pi := range P[1:] {
-			/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
-			cks.GenShare(pi.sk, zero, result, &pi.cksShare)
-		}
-	}, len(P)-1)
-
-	encOut := bgv.NewCiphertext(params, 1, params.MaxLevel())
-	elapsedCKSCloud = runTimed(func() {
-		for _, pi := range P {
-			if err := cks.AggregateShares(pi.cksShare, cksCombined, &cksCombined); err != nil {
-				panic(err)
-			}
-		}
-		cks.KeySwitch(result, cksCombined, encOut)
-	})
-	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedCKSCloud, elapsedPCKSParty)
-
-	return encOut
-}
-
-func genparties(params bgv.Parameters, N int) []*party {
-
-	P := make([]*party, N)
-
+	P := make([]party, N)
 	kgen := rlwe.NewKeyGenerator(params)
-
 	for i := range P {
-		pi := &party{}
-		pi.sk = kgen.GenSecretKeyNew()
+		P[i].shamirPt = multiparty.ShamirPublicPoint(i + 1)
 
-		pi.input = make([]uint64, params.N())
-		for j := range pi.input {
-			pi.input[j] = uint64(i)
+		P[i].sk = kgen.GenSecretKeyNew()
+
+		P[i].input = make([]uint64, params.N())
+		for j := range P[i].input {
+			P[i].input[j] = uint64(i)
 		}
+	}
 
-		P[i] = pi
+	shamirPts := getShamirPoints(P)
+	for i := range P {
+		P[i].Combiner = multiparty.NewCombiner(params.Parameters, P[i].shamirPt, shamirPts, t) // TODO: NewCombiner takes interface
 	}
 
 	return P
 }
 
-func ckgphase(params bgv.Parameters, crs sampling.PRNG, P []*party) *rlwe.PublicKey {
-
-	l := log.New(os.Stderr, "", 0)
+func execCKGProtocol(params bgv.Parameters, crs sampling.PRNG, participants []party) *rlwe.PublicKey {
 
 	l.Println("> PublicKeyGen Phase")
 
-	ckg := multiparty.NewPublicKeyGenProtocol(params) // Public key generation
+	// Creates a protocol type for the collective public key generation.
+	// The type is stateless and can be used to generate as many public keys as needed.
+	ckg := multiparty.NewPublicKeyGenProtocol(params)
 
-	ckgCombined := ckg.AllocateShare()
-	for _, pi := range P {
-		pi.ckgShare = ckg.AllocateShare()
+	// Allocates the memory for the parties' shares in the protocol
+	ckgShares := make([]multiparty.PublicKeyGenShare, len(participants))
+	tsks := make([]*rlwe.SecretKey, len(participants))
+	for i := range ckgShares {
+		ckgShares[i] = ckg.AllocateShare()  // the public CKG shares
+		tsks[i] = rlwe.NewSecretKey(params) // the t-out-of-t secret keys for group P
 	}
+	ckgCombined := ckg.AllocateShare() // Allocate the memory for the combined share
 
+	// sample the common reference polynomial (crp) common reference string (crs)
 	crp := ckg.SampleCRP(crs)
 
+	// Generate the parties' shares
 	elapsedCKGParty = runTimedParty(func() {
-		for _, pi := range P {
-			/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
-			ckg.GenShare(pi.sk, crp, &pi.ckgShare)
-		}
-	}, len(P))
+		for i, pi := range participants {
+			// Generate the t-out-of-t secret key of the party within the group of participants
+			err := pi.Combiner.GenAdditiveShare(getShamirPoints(participants), pi.shamirPt, pi.tsk, tsks[i]) // TODO: discuss returning the key directly
+			check(err)
 
+			// Generate the public key share of the party from the t-out-of-t secret key
+			ckg.GenShare(tsks[i], crp, &ckgShares[i])
+		}
+	}, len(participants))
+
+	// Aggregate the parties' shares into a collective public key
 	pk := rlwe.NewPublicKey(params)
-
 	elapsedCKGCloud = runTimed(func() {
-		for _, pi := range P {
-			ckg.AggregateShares(pi.ckgShare, ckgCombined, &ckgCombined)
+		// Aggregate the parties' shares into a combined share
+		for i := range participants {
+			ckg.AggregateShares(ckgShares[i], ckgCombined, &ckgCombined)
 		}
+
+		// Generate the public key from the combined share
 		ckg.GenPublicKey(ckgCombined, crp, pk)
 	})
 
@@ -301,47 +343,65 @@ func ckgphase(params bgv.Parameters, crs sampling.PRNG, P []*party) *rlwe.Public
 	return pk
 }
 
-func rkgphase(params bgv.Parameters, crs sampling.PRNG, P []*party) *rlwe.RelinearizationKey {
-	l := log.New(os.Stderr, "", 0)
+func execRKGProtocol(params bgv.Parameters, crs sampling.PRNG, participants []party) *rlwe.RelinearizationKey {
 
 	l.Println("> RelinearizationKeyGen Phase")
 
-	rkg := multiparty.NewRelinearizationKeyGenProtocol(params) // Relineariation key generation
+	// Creates a protocol type for the collective relinearization key generation.
+	// The type is stateless and can be used to generate as many relinearization keys as needed.
+	// The RKG protocol has two rounds. Because the ephemeral secret key is not re-shared,
+	// the same set of participants must participate to the two rounds.
+	rkg := multiparty.NewRelinearizationKeyGenProtocol(params)
 
+	// Allocates the memory for the parties' shares in the protocol
+	rkgSharesRoundOne := make([]multiparty.RelinearizationKeyGenShare, len(participants))
+	rkgSharesRoundTwo := make([]multiparty.RelinearizationKeyGenShare, len(participants))
+	tsks := make([]*rlwe.SecretKey, len(participants))
+	for i := range participants {
+		// the parties have a private ephemeral secret key in the RKGen protocol
+		participants[i].rlkEphemSk, rkgSharesRoundOne[i], rkgSharesRoundTwo[i] = rkg.AllocateShare()
+		tsks[i] = rlwe.NewSecretKey(params)
+	}
+	// Allocate the memory for the combined public shares
 	_, rkgCombined1, rkgCombined2 := rkg.AllocateShare()
 
-	for _, pi := range P {
-		pi.rlkEphemSk, pi.rkgShareOne, pi.rkgShareTwo = rkg.AllocateShare()
-	}
-
+	// Sample the common reference polynomial (crp) common reference string (crs)
 	crp := rkg.SampleCRP(crs)
 
+	// The parties generate their shares for round one
 	elapsedRKGParty = runTimedParty(func() {
-		for _, pi := range P {
-			/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
-			rkg.GenShareRoundOne(pi.sk, crp, pi.rlkEphemSk, &pi.rkgShareOne)
-		}
-	}, len(P))
+		for i, pi := range participants {
 
+			// Generate the t-out-of-t secret key of the party within the group of participants
+			err := pi.Combiner.GenAdditiveShare(getShamirPoints(participants), pi.shamirPt, pi.tsk, tsks[i])
+			check(err)
+
+			// Generate the shares for round one from the t-out-of-t secret key
+			rkg.GenShareRoundOne(tsks[i], crp, pi.rlkEphemSk, &rkgSharesRoundOne[i])
+		}
+	}, len(participants))
+
+	// the helper aggregates the parties' shares for round one
 	elapsedRKGCloud = runTimed(func() {
-		for _, pi := range P {
-			/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
-			rkg.AggregateShares(pi.rkgShareOne, rkgCombined1, &rkgCombined1)
+		for i := range participants {
+			rkg.AggregateShares(rkgSharesRoundOne[i], rkgCombined1, &rkgCombined1)
 		}
 	})
 
+	// The parties generate their shares for round two
 	elapsedRKGParty += runTimedParty(func() {
-		for _, pi := range P {
-			/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
-			rkg.GenShareRoundTwo(pi.rlkEphemSk, pi.sk, rkgCombined1, &pi.rkgShareTwo)
+		for i, pi := range participants {
+			// Generate the shares for round two from the t-out-of-t secret key
+			// Note: the same set of participants must participate to the two rounds, so the same tsk is used.
+			rkg.GenShareRoundTwo(pi.rlkEphemSk, tsks[i], rkgCombined1, &rkgSharesRoundTwo[i])
 		}
-	}, len(P))
+	}, len(participants))
 
+	// the helper aggregates the parties' shares for round two and generates the relinearization key
 	rlk := rlwe.NewRelinearizationKey(params)
 	elapsedRKGCloud += runTimed(func() {
-		for _, pi := range P {
-			/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
-			rkg.AggregateShares(pi.rkgShareTwo, rkgCombined2, &rkgCombined2)
+		for i := range participants {
+			rkg.AggregateShares(rkgSharesRoundTwo[i], rkgCombined2, &rkgCombined2)
 		}
 		rkg.GenRelinearizationKey(rkgCombined1, rkgCombined2, rlk)
 	})
@@ -351,54 +411,59 @@ func rkgphase(params bgv.Parameters, crs sampling.PRNG, P []*party) *rlwe.Reline
 	return rlk
 }
 
-func gkgphase(params bgv.Parameters, crs sampling.PRNG, P []*party) (galKeys []*rlwe.GaloisKey) {
+func execGTGProtocol(params bgv.Parameters, crs sampling.PRNG, galEls []uint64, participants []party) (galKeys []*rlwe.GaloisKey) {
 
-	l := log.New(os.Stderr, "", 0)
+	l.Println("> GKG Phase")
 
-	l.Println("> RTG Phase")
-
+	// Creates a protocol type for the collective galois key generation.
+	// The type is stateless and can be used to generate as many galois keys as needed.
 	gkg := multiparty.NewGaloisKeyGenProtocol(params) // Rotation keys generation
 
-	for _, pi := range P {
-		pi.gkgShare = gkg.AllocateShare()
+	// Allocates the memory for the parties' shares in the protocol
+	gkgShares := make([]multiparty.GaloisKeyGenShare, len(participants))
+	tsks := make([]*rlwe.SecretKey, len(participants))
+	for i := range participants {
+		gkgShares[i] = gkg.AllocateShare()
+		tsks[i] = rlwe.NewSecretKey(params)
 	}
 
-	galEls := append(params.GaloisElementsForInnerSum(1, params.N()>>1), params.GaloisElementForRowRotation())
+	// Allocate a slice for storing the output keys
 	galKeys = make([]*rlwe.GaloisKey, len(galEls))
 
-	gkgShareCombined := gkg.AllocateShare()
+	// Runs the GKG protocol for each required Galois key
+	// Note: this demo re-uses the allocated shares for each execution.
+	for j, galEl := range galEls {
 
-	for i, galEl := range galEls {
-
-		gkgShareCombined.GaloisElement = galEl
-
+		// Sample the common reference polynomial (crp) common reference string (crs)
 		crp := gkg.SampleCRP(crs)
 
+		// The parties generate their shares for the Galois key generation protocol
 		elapsedGKGParty += runTimedParty(func() {
-			for _, pi := range P {
-				/* #nosec G601 -- Implicit memory aliasing in for loop acknowledged */
-				if err := gkg.GenShare(pi.sk, galEl, crp, &pi.gkgShare); err != nil {
-					panic(err)
-				}
+			for i, pi := range participants {
+				// Generate the t-out-of-t secret key of the party within the group of participants
+				err := pi.Combiner.GenAdditiveShare(getShamirPoints(participants), pi.shamirPt, pi.tsk, tsks[i])
+				check(err)
+
+				// Generate the shares for the Galois key generation protocol from the t-out-of-t secret key
+				err = gkg.GenShare(tsks[i], galEl, crp, &gkgShares[i])
+				check(err)
 			}
 
-		}, len(P))
+		}, len(participants))
 
+		// The helper aggregates the parties' shares and generates the Galois key
 		elapsedGKGCloud += runTimed(func() {
 
-			if err := gkg.AggregateShares(P[0].gkgShare, P[1].gkgShare, &gkgShareCombined); err != nil {
-				panic(err)
+			gkgShareCombined := gkg.AllocateShare() // Allocate the memory for the combined share
+			gkgShareCombined.GaloisElement = galEl
+			for i := range participants {
+				err := gkg.AggregateShares(gkgShares[i], gkgShareCombined, &gkgShareCombined)
+				check(err)
 			}
 
-			for _, pi := range P[2:] {
-				if err := gkg.AggregateShares(pi.gkgShare, gkgShareCombined, &gkgShareCombined); err != nil {
-					panic(err)
-				}
-			}
+			galKeys[j] = rlwe.NewGaloisKey(params)
 
-			galKeys[i] = rlwe.NewGaloisKey(params)
-
-			if err := gkg.GenGaloisKey(gkgShareCombined, crp, galKeys[i]); err != nil {
+			if err := gkg.GenGaloisKey(gkgShareCombined, crp, galKeys[j]); err != nil {
 				panic(err)
 			}
 		})
@@ -408,40 +473,67 @@ func gkgphase(params bgv.Parameters, crs sampling.PRNG, P []*party) (galKeys []*
 	return
 }
 
-func genquery(params bgv.Parameters, queryIndex int, encoder *bgv.Encoder, encryptor *rlwe.Encryptor) *rlwe.Ciphertext {
-	// Query ciphertext
+func genQuery(params bgv.Parameters, queryIndex int, encoder *bgv.Encoder, encryptor *rlwe.Encryptor) *rlwe.Ciphertext {
+
+	l.Println("> QueryGen Phase")
+
+	// Creates a query vector from the query index
 	queryCoeffs := make([]uint64, params.N())
 	queryCoeffs[queryIndex] = 1
+
+	// Encrypts the query vector
 	query := bgv.NewPlaintext(params, params.MaxLevel())
 	var encQuery *rlwe.Ciphertext
 	elapsedRequestParty += runTimed(func() {
-		var err error
-		if err = encoder.Encode(queryCoeffs, query); err != nil {
-			panic(err)
-		}
-		if encQuery, err = encryptor.EncryptNew(query); err != nil {
-			panic(err)
-		}
+
+		err := encoder.Encode(queryCoeffs, query)
+		check(err)
+
+		encQuery, err = encryptor.EncryptNew(query)
+		check(err)
 	})
 
 	return encQuery
 }
 
-func requestphase(params bgv.Parameters, queryIndex, NGoRoutine int, encQuery *rlwe.Ciphertext, encInputs []*rlwe.Ciphertext, plainMask []*rlwe.Plaintext, evk rlwe.EvaluationKeySet) *rlwe.Ciphertext {
+func execRequest(params bgv.Parameters, NGoRoutine int, encQuery *rlwe.Ciphertext, encInputs []*rlwe.Ciphertext, evk rlwe.EvaluationKeySet) *rlwe.Ciphertext {
 
-	l := log.New(os.Stderr, "", 0)
+	// First, pre-compute the some plaintext masks for the query evaluation as:
+	// plainmask[i] = encode([0, ..., 0, 1, 0, ..., 0])  (zero with a 1 at the i-th position).
+	// In practice, the masks are pre-computed and reused accross queries.
+	encoder := bgv.NewEncoder(params)
+	plainMask := make([]*rlwe.Plaintext, len(encInputs))
+	for i := range plainMask {
+		maskCoeffs := make([]uint64, params.N())
+		maskCoeffs[i] = 1
+		plainMask[i] = bgv.NewPlaintext(params, params.MaxLevel())
+		if err := encoder.Encode(maskCoeffs, plainMask[i]); err != nil {
+			panic(err)
+		}
+	}
 
 	l.Println("> Request Phase")
 
-	// Buffer for the intermediate computation done by the cloud
+	// Buffer for the intermediate computation done by the helper
 	encPartial := make([]*rlwe.Ciphertext, len(encInputs))
 	for i := range encPartial {
 		encPartial[i] = bgv.NewCiphertext(params, 2, params.MaxLevel())
 	}
 
+	// Creates an evaluator for the homomorphic evaluation
 	evaluator := bgv.NewEvaluator(params, evk)
 
 	// Split the task among the Go routines
+
+	// maskTask is a type for the task to be executed by the Go routines
+	// The task computes the multiplication of the query with a mask, and the multiplication of the result with a row of the database.
+	type maskTask struct {
+		query           *rlwe.Ciphertext
+		mask            *rlwe.Plaintext
+		row             *rlwe.Ciphertext
+		res             *rlwe.Ciphertext
+		elapsedmaskTask time.Duration
+	}
 	tasks := make(chan *maskTask)
 	workers := &sync.WaitGroup{}
 	workers.Add(NGoRoutine)
@@ -475,10 +567,8 @@ func requestphase(params bgv.Parameters, queryIndex, NGoRoutine int, encQuery *r
 					}
 				})
 			}
-			//l.Println("\t evaluator", i, "down")
 			workers.Done()
 		}(i)
-		//l.Println("\t evaluator", i, "started")
 	}
 
 	taskList := make([]*maskTask, 0)
@@ -495,17 +585,21 @@ func requestphase(params bgv.Parameters, queryIndex, NGoRoutine int, encQuery *r
 			tasks <- task
 		}
 		close(tasks)
-		workers.Wait()
+		workers.Wait() // Wait for all the workers to finish
 	})
 
+	// collects the elapsed time for each task
 	for _, t := range taskList {
 		elapsedRequestCloudCPU += t.elapsedmaskTask
 	}
 
-	resultDeg2 := bgv.NewCiphertext(params, 2, params.MaxLevel())
-	result := bgv.NewCiphertext(params, 1, params.MaxLevel())
+	// Creates ciphertexts to store the final result
+	resultDeg2 := bgv.NewCiphertext(params, 2, params.MaxLevel()) // to receive the sum of the partial results.
+	result := bgv.NewCiphertext(params, 1, params.MaxLevel())     // to receive the relinearized final result
 
 	// Summation of all the partial result among the different Go routines
+	// The sum is computed over the degree-2 ciphertexts from the previous step. Then, the result is relinearized.
+	// This avoids performing N relinearizations.
 	finalAddDuration := runTimed(func() {
 		for i := 0; i < len(encInputs); i++ {
 			if err := evaluator.Add(resultDeg2, encPartial[i], resultDeg2); err != nil {
@@ -524,4 +618,89 @@ func requestphase(params bgv.Parameters, queryIndex, NGoRoutine int, encQuery *r
 		elapsedRequestCloud, elapsedRequestCloudCPU, elapsedRequestParty)
 
 	return result
+}
+
+func execCKSProtocol(params bgv.Parameters, participants []party, receiver party, ctIn *rlwe.Ciphertext) *rlwe.Ciphertext {
+
+	l.Println("> KeySwitch Phase")
+
+	// Creates a protocol type for the collective key-switching protocol, with smudging distribution parameter of 2^30.
+	// The type is stateless and can be used to generate as many key-switching keys as needed.
+	cks, err := multiparty.NewKeySwitchProtocol(params, ring.DiscreteGaussian{Sigma: 1 << 30, Bound: 6 * (1 << 30)})
+	check(err)
+
+	// Allocates the memory for the parties' shares in the protocol
+	cksShares := make([]multiparty.KeySwitchShare, len(participants))
+	tsks := make([]*rlwe.SecretKey, len(participants))
+	for i := range participants {
+		cksShares[i] = cks.AllocateShare(params.MaxLevel()) // Allocate the memory for the public share
+		tsks[i] = rlwe.NewSecretKey(params)                 // Allocate the memory for the t-out-of-t secret key
+	}
+	cksCombined := cks.AllocateShare(params.MaxLevel()) // Allocate the memory for the combined share
+
+	// To generate a re-encryption of the result ciphertexts towards the querier,
+	// each party except for the receiver generates a key-switching share towards
+	// secret-key zero (i.e., a decryption share).
+	zero := rlwe.NewSecretKey(params)
+
+	// The parties (except the receiver) generate their shares for the key-switching protocol
+	elapsedCKSParty = runTimedParty(func() {
+		for i, pi := range participants {
+
+			// Generate the t-out-of-t secret key with the reciever and t-1 other parties
+			err := pi.Combiner.GenAdditiveShare(append(getShamirPoints(participants), receiver.shamirPt), pi.shamirPt, pi.tsk, tsks[i])
+			check(err)
+
+			// Generate the key-switching share with the t-out-of-t secret key
+			cks.GenShare(tsks[i], zero, ctIn, &cksShares[i])
+		}
+	}, len(participants))
+
+	// The helper aggregates the parties' shares and generates the key-switching key
+	ctOut := bgv.NewCiphertext(params, 1, params.MaxLevel())
+	elapsedCKSCloud = runTimed(func() {
+		// Aggregate the parties' shares into a combined share
+		for i := range participants {
+			err := cks.AggregateShares(cksShares[i], cksCombined, &cksCombined)
+			check(err)
+		}
+		// Generate the re-encryption from the combined share
+		cks.KeySwitch(ctIn, cksCombined, ctOut)
+	})
+	l.Printf("\tdone (cloud: %s, party: %s)\n", elapsedCKSCloud, elapsedCKSParty)
+
+	return ctOut
+}
+
+var (
+	elapsedCKGCloud        time.Duration
+	elapsedCKGParty        time.Duration
+	elapsedRKGCloud        time.Duration
+	elapsedRKGParty        time.Duration
+	elapsedGKGCloud        time.Duration
+	elapsedGKGParty        time.Duration
+	elapsedCKSCloud        time.Duration
+	elapsedCKSParty        time.Duration
+	elapsedEncryptCloud    time.Duration
+	elapsedRequestParty    time.Duration
+	elapsedRequestCloud    time.Duration
+	elapsedRequestCloudCPU time.Duration
+)
+
+func check(err error) {
+	if err != nil {
+		l.Fatal(err)
+	}
+}
+
+func runTimed(f func()) time.Duration {
+	start := time.Now()
+	f()
+	return time.Since(start)
+}
+
+func runTimedParty(f func(), N int) time.Duration {
+	start := time.Now()
+	f()
+	return time.Duration(time.Since(start).Nanoseconds() / int64(N))
 }

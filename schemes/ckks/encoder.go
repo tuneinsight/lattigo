@@ -110,10 +110,17 @@ func NewEncoder(parameters Parameters, precision ...uint) (ecd *Encoder) {
 		buff := make([]*big.Int, m>>1)
 		return &buff
 	})
-	ecd.BuffPolyPool = structs.NewSyncPool(func() *ring.Poly {
-		poly := parameters.RingQ().NewPoly()
-		return &poly
-	})
+
+	ringQ := parameters.RingQ()
+
+	ecd.BuffPolyPool = structs.NewBuffFromUintPool(
+		func() *ring.Poly {
+			return ringQ.NewPolyFromUintPool()
+		},
+		func(poly *ring.Poly) {
+			ringQ.RecyclePolyInUintPool(poly)
+		},
+	)
 
 	if prec <= 53 {
 

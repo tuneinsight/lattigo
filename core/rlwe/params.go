@@ -15,6 +15,7 @@ import (
 	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
 	"github.com/tuneinsight/lattigo/v6/utils"
 	"github.com/tuneinsight/lattigo/v6/utils/buffer"
+	"github.com/tuneinsight/lattigo/v6/utils/structs"
 )
 
 // MaxLogN is the log2 of the largest supported polynomial modulus degree.
@@ -855,11 +856,16 @@ func GenModuli(LogNthRoot int, logQ, logP []int) (q, p []uint64, err error) {
 }
 
 func (p *Parameters) initRings() (err error) {
-	if p.ringQ, err = ring.NewRingFromType(1<<p.logN, p.qi, p.ringType); err != nil {
+	N := 1 << p.logN
+	buffPool := structs.NewSyncPool(func() *[]uint64 {
+		buff := make([]uint64, N)
+		return &buff
+	})
+	if p.ringQ, err = ring.NewRingFromType(1<<p.logN, p.qi, p.ringType, buffPool); err != nil {
 		return fmt.Errorf("initRings/ringQ: %w", err)
 	}
 	if len(p.pi) != 0 {
-		if p.ringP, err = ring.NewRingFromType(1<<p.logN, p.pi, p.ringType); err != nil {
+		if p.ringP, err = ring.NewRingFromType(1<<p.logN, p.pi, p.ringType, buffPool); err != nil {
 			return fmt.Errorf("initRings/ringP: %w", err)
 		}
 	}

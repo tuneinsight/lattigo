@@ -14,7 +14,7 @@ type Poly struct {
 	Coeffs structs.Matrix[uint64]
 }
 
-func NewPolyFromUintPool(pool structs.BufferPool[*[]uint64], N, level int) (pol *Poly) {
+func NewPolyFromUintPool(pool structs.BufferPool[*[]uint64], level int) (pol *Poly) {
 	coeffs := make([][]uint64, level+1)
 	for i := range coeffs {
 		coeffs[i] = *pool.Get()

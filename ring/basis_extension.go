@@ -73,14 +73,22 @@ func NewBasisExtender(ringQ, ringP *Ring) (be *BasisExtender) {
 	be.modDownConstantsPtoQ = genmodDownConstants(ringQ, ringP)
 	be.modDownConstantsQtoP = genmodDownConstants(ringP, ringQ)
 
-	be.buffQPool = structs.NewSyncPool(func() *Poly {
-		polyQ := ringQ.NewPoly()
-		return &polyQ
-	})
-	be.buffPPool = structs.NewSyncPool(func() *Poly {
-		polyP := ringP.NewPoly()
-		return &polyP
-	})
+	be.buffQPool = structs.NewBuffFromUintPool(
+		func() *Poly {
+			return ringQ.NewPolyFromUintPool()
+		},
+		func(poly *Poly) {
+			ringQ.RecyclePolyInUintPool(poly)
+		},
+	)
+	be.buffPPool = structs.NewBuffFromUintPool(
+		func() *Poly {
+			return ringP.NewPolyFromUintPool()
+		},
+		func(poly *Poly) {
+			ringP.RecyclePolyInUintPool(poly)
+		},
+	)
 
 	return
 }

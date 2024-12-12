@@ -7,7 +7,6 @@ import (
 
 	"github.com/tuneinsight/lattigo/v6/ring"
 	"github.com/tuneinsight/lattigo/v6/utils/bignum"
-	"github.com/tuneinsight/lattigo/v6/utils/structs"
 )
 
 // Ring is a structure that implements the operation in the ring R_QP.
@@ -221,18 +220,19 @@ func (r Ring) NewPoly() Poly {
 	return Poly{Q, P}
 }
 
-func (r Ring) NewPolyQPFromUintPool(pool structs.BufferPool[*[]uint64]) *Poly {
+// NewPolyQPFromUintPool creates a new polynomial using the *[]uint64 BufferPool for backing arrays.
+func (r Ring) NewPolyQPFromUintPool() *Poly {
 	var Q, P *ring.Poly
 	if r.RingQ != nil {
-		Q = ring.NewPolyFromUintPool(pool, r.RingQ.N(), r.RingQ.Level())
+		Q = r.RingQ.NewPolyFromUintPool()
 	}
 	if r.RingP != nil {
-		P = ring.NewPolyFromUintPool(pool, r.RingP.N(), r.RingP.Level())
+		P = r.RingP.NewPolyFromUintPool()
 	}
 	return &Poly{*Q, *P}
 }
 
-func RecyclePolyQPFromUintPool(pool structs.BufferPool[*[]uint64], poly *Poly) {
-	ring.RecyclePolyInUintPool(pool, &poly.Q)
-	ring.RecyclePolyInUintPool(pool, &poly.P)
+func (r Ring) RecyclePolyQPFromUintPool(poly *Poly) {
+	r.RingQ.RecyclePolyInUintPool(&poly.Q)
+	r.RingP.RecyclePolyInUintPool(&poly.P)
 }

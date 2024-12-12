@@ -5,7 +5,6 @@ import (
 
 	"github.com/tuneinsight/lattigo/v6/ring"
 	"github.com/tuneinsight/lattigo/v6/utils/sampling"
-	"github.com/tuneinsight/lattigo/v6/utils/structs"
 )
 
 // Ciphertext is a generic type for RLWE ciphertexts.
@@ -71,12 +70,14 @@ func (ct Ciphertext) Equal(other *Ciphertext) bool {
 	return ct.Element.Equal(&other.Element)
 }
 
-func NewCiphertextFromUintPool(pool structs.BufferPool[*[]uint64], params ParameterProvider, degree int, level int) *Ciphertext {
+func NewCiphertextFromUintPool(params ParameterProvider, degree int, levelQ int) *Ciphertext {
 	p := params.GetRLWEParameters()
+
+	ringQ := p.RingQ().AtLevel(levelQ)
 
 	Value := make([]ring.Poly, degree+1)
 	for i := range Value {
-		Value[i] = *ring.NewPolyFromUintPool(pool, p.N(), level)
+		Value[i] = *ringQ.NewPolyFromUintPool()
 	}
 
 	el := Element[ring.Poly]{
@@ -90,9 +91,10 @@ func NewCiphertextFromUintPool(pool structs.BufferPool[*[]uint64], params Parame
 	return &Ciphertext{el}
 }
 
-func RecycleCiphertextInUintPool(pool structs.BufferPool[*[]uint64], ct *Ciphertext) {
+func RecycleCiphertextInUintPool(params ParameterProvider, ct *Ciphertext) {
+	ringQ := params.GetRLWEParameters().ringQ
 	for i := range ct.Value {
-		ring.RecyclePolyInUintPool(pool, &ct.Value[i])
+		ringQ.RecyclePolyInUintPool(&ct.Value[i])
 	}
 	ct = nil
 	return

@@ -38,37 +38,33 @@ func newBuffer[T any](f func() T) structs.BufferPool[T] {
 func NewEvaluatorBuffersWithUintPool(params Parameters) *EvaluatorBuffers {
 	buff := new(EvaluatorBuffers)
 	ringQP := params.RingQP()
+	ringQ := params.ringQ
 
-	buffUint := newBuffer(func() *[]uint64 {
-		buff := make([]uint64, params.RingQ().N())
-		return &buff
-	})
-
-	buff.BuffQPPool = structs.NewBuffFromUintPool(buffUint,
-		func(bp structs.BufferPool[*[]uint64]) *ringqp.Poly {
-			return ringQP.NewPolyQPFromUintPool(bp)
+	buff.BuffQPPool = structs.NewBuffFromUintPool(
+		func() *ringqp.Poly {
+			return ringQP.NewPolyQPFromUintPool()
 		},
-		func(bp structs.BufferPool[*[]uint64], poly *ringqp.Poly) {
-			ringqp.RecyclePolyQPFromUintPool(bp, poly)
+		func(poly *ringqp.Poly) {
+			ringQP.RecyclePolyQPFromUintPool(poly)
 		},
 	)
-	buff.BuffQPool = structs.NewBuffFromUintPool(buffUint,
-		func(bp structs.BufferPool[*[]uint64]) *ring.Poly {
-			return ring.NewPolyFromUintPool(bp, params.ringQ.N(), params.ringQ.Level())
+	buff.BuffQPool = structs.NewBuffFromUintPool(
+		func() *ring.Poly {
+			return ringQ.NewPolyFromUintPool()
 		},
-		func(bp structs.BufferPool[*[]uint64], poly *ring.Poly) {
-			ring.RecyclePolyInUintPool(bp, poly)
-		},
-	)
-	buff.BuffCtPool = structs.NewBuffFromUintPool(buffUint,
-		func(bp structs.BufferPool[*[]uint64]) *Ciphertext {
-			return NewCiphertextFromUintPool(bp, params, 2, params.MaxLevel())
-		},
-		func(bp structs.BufferPool[*[]uint64], ct *Ciphertext) {
-			RecycleCiphertextInUintPool(bp, ct)
+		func(poly *ring.Poly) {
+			ringQ.RecyclePolyInUintPool(poly)
 		},
 	)
-	buff.BuffBitPool = buffUint
+	buff.BuffCtPool = structs.NewBuffFromUintPool(
+		func() *Ciphertext {
+			return NewCiphertextFromUintPool(params, 2, params.MaxLevel())
+		},
+		func(ct *Ciphertext) {
+			RecycleCiphertextInUintPool(params, ct)
+		},
+	)
+	buff.BuffBitPool = ringQ.BufferPool()
 	return buff
 }
 

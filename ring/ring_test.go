@@ -35,10 +35,14 @@ func genTestParams(defaultParams Parameters) (tc *testParams, err error) {
 
 	tc = new(testParams)
 
-	if tc.ringQ, err = NewRing(1<<defaultParams.logN, defaultParams.qi); err != nil {
+	pool := structs.NewSyncPool(func() *[]uint64 {
+		buff := make([]uint64, 1<<defaultParams.logN)
+		return &buff
+	})
+	if tc.ringQ, err = NewRing(1<<defaultParams.logN, defaultParams.qi, pool); err != nil {
 		return nil, err
 	}
-	if tc.ringP, err = NewRing(1<<defaultParams.logN, defaultParams.pi); err != nil {
+	if tc.ringP, err = NewRing(1<<defaultParams.logN, defaultParams.pi, pool); err != nil {
 		return nil, err
 	}
 	if tc.prng, err = sampling.NewPRNG(); err != nil {
@@ -90,7 +94,7 @@ func testNTTConjugateInvariant(tc *testParams, t *testing.T) {
 		Q := ringQ.ModuliChain()
 		N := ringQ.N()
 		ringQ2N, _ := NewRing(N<<1, Q)
-		ringQConjugateInvariant, _ := NewRingFromType(N, Q, ConjugateInvariant)
+		ringQConjugateInvariant, _ := NewRingFromType(N, Q, ConjugateInvariant, nil)
 
 		sampler := NewUniformSampler(tc.prng, ringQ)
 		p1 := sampler.ReadNew()

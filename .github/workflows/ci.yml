@@ -25,7 +25,7 @@ jobs:
       run: make get_tools
 
     - name: Run Makefile checks
-      run: make static_check
+      run: make checks
 
   tests:
     name: Run Go ${{ matrix.go }} tests

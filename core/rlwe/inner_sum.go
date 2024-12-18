@@ -144,26 +144,14 @@ func GaloisElementsForTrace(params ParameterProvider, logN int) (galEls []uint64
 	return
 }
 
-// InnerSum applies an optimized inner sum on the Ciphertext (log2(n) + HW(n) rotations with double hoisting).
-// The operation assumes that `ctIn` encrypts Slots/`batchSize` sub-vectors of size `batchSize` and will add them together (in parallel) in groups of `n`.
-// It outputs in opOut a [Ciphertext] for which the "leftmost" sub-vector of each group is equal to the sum of the group.
-//
-// The inner sum is computed in a tree fashion. Example for batchSize=2 & n=4 (garbage slots are marked by 'x'):
-//
-//  1. [{a, b}, {c, d}, {e, f}, {g, h}, {a, b}, {c, d}, {e, f}, {g, h}]
-//
-//  2. [{a, b}, {c, d}, {e, f}, {g, h}, {a, b}, {c, d}, {e, f}, {g, h}]
-//     +
-//     [{c, d}, {e, f}, {g, h}, {x, x}, {c, d}, {e, f}, {g, h}, {x, x}] (rotate batchSize * 2^{0})
-//     =
-//     [{a+c, b+d}, {x, x}, {e+g, f+h}, {x, x}, {a+c, b+d}, {x, x}, {e+g, f+h}, {x, x}]
-//
-//  3. [{a+c, b+d}, {x, x}, {e+g, f+h}, {x, x}, {a+c, b+d}, {x, x}, {e+g, f+h}, {x, x}] (rotate batchSize * 2^{1})
-//     +
-//     [{e+g, f+h}, {x, x}, {x, x}, {x, x}, {e+g, f+h}, {x, x}, {x, x}, {x, x}] =
-//     =
-//     [{a+c+e+g, b+d+f+h}, {x, x}, {x, x}, {x, x}, {a+c+e+g, b+d+f+h}, {x, x}, {x, x}, {x, x}]
-func (eval Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, opOut *Ciphertext) (err error) {
+// PartialTracesSum applies a set of automorphisms on the input ciphertext and sum the results.
+// The automorphisms are of the form phi(i*offset, X), 0 <= i < n, where phi(k, X): X -> X^{5^k}
+// i.e. opOut = \sum_{i = 0}^{n-1} phi(i*offset, ctIn).
+// At the scheme level, this function is used to perform inner sums or efficiently replicate slots.
+func (eval Evaluator) PartialTracesSum(ctIn *Ciphertext, offset, n int, opOut *Ciphertext) (err error) {
+	if n == 0 || offset == 0 {
+		return fmt.Errorf("partialtrace: invalid parameter (n = 0 or batchSize = 0)")
+	}
 
 	params := eval.GetRLWEParameters()
 
@@ -236,7 +224,7 @@ func (eval Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, opOut *Cipher
 			if j&1 == 1 {
 
 				k := n - (n & ((2 << i) - 1))
-				k *= batchSize
+				k *= offset
 
 				// If the rotation is not zero
 				if k != 0 {
@@ -281,7 +269,7 @@ func (eval Evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, opOut *Cipher
 
 			if !state {
 
-				rot := params.GaloisElement((1 << i) * batchSize)
+				rot := params.GaloisElement((1 << i) * offset)
 
 				// ctInNTT = ctInNTT + Rotate(ctInNTT, 2^i)
 				if err = eval.AutomorphismHoisted(levelQ, ctInNTT, eval.BuffDecompQP, rot, cQ); err != nil {
@@ -486,7 +474,7 @@ func GaloisElementsForInnerSum(params ParameterProvider, batch, n int) (galEls [
 // two consecutive sub-vectors to replicate.
 // This method is faster than Replicate when the number of rotations is large and it uses log2(n) + HW(n) instead of n.
 func (eval Evaluator) Replicate(ctIn *Ciphertext, batchSize, n int, opOut *Ciphertext) (err error) {
-	return eval.InnerSum(ctIn, -batchSize, n, opOut)
+	return eval.PartialTracesSum(ctIn, -batchSize, n, opOut)
 }
 
 // GaloisElementsForReplicate returns the list of Galois elements necessary to perform the

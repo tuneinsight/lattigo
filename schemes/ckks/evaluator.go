@@ -1294,7 +1294,7 @@ func (eval Evaluator) InnerSum(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *r
 	if l&(l-1) != 0 {
 		return fmt.Errorf("innersum: invalid parameters (n*batchSize=%d does not divide #slots=%d)", l, N)
 	}
-	err = eval.Evaluator.PartialTrace(ctIn, batchSize, n, opOut)
+	err = eval.Evaluator.PartialTracesSum(ctIn, batchSize, n, opOut)
 	return
 }
 
@@ -1312,7 +1312,7 @@ func (eval Evaluator) InnerSum(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *r
 //
 // Calling RotateAndAdd(ctIn, 1, n, opOut) can be used to compute the inner sum of the first n slots of a plaintext.
 func (eval Evaluator) RotateAndAdd(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *rlwe.Ciphertext) (err error) {
-	err = eval.Evaluator.PartialTrace(ctIn, batchSize, n, opOut)
+	err = eval.Evaluator.PartialTracesSum(ctIn, batchSize, n, opOut)
 	return
 }
 

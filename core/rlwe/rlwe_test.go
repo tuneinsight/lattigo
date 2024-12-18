@@ -1103,7 +1103,7 @@ func testSlotOperations(tc *TestContext, level, bpw2 int, t *testing.T) {
 		// Galois Keys
 		evk := NewMemEvaluationKeySet(nil, kgen.GenGaloisKeysNew(GaloisElementsForInnerSum(params, batch, n), sk)...)
 
-		require.NoError(t, eval.WithKey(evk).PartialTrace(ct, batch, n, ct))
+		require.NoError(t, eval.WithKey(evk).PartialTracesSum(ct, batch, n, ct))
 
 		dec.Decrypt(ct, pt)
 

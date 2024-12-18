@@ -144,10 +144,11 @@ func GaloisElementsForTrace(params ParameterProvider, logN int) (galEls []uint64
 	return
 }
 
-// PartialTrace applies a partial trace on the input ciphertext with the automorphisms phi(i*offset, X), 0 <= i < n, where phi(k, X): X -> X^{5^k}
+// PartialTracesSum applies a set of automorphisms on the input ciphertext and sum the results.
+// The automorphisms are of the form phi(i*offset, X), 0 <= i < n, where phi(k, X): X -> X^{5^k}
 // i.e. opOut = \sum_{i = 0}^{n-1} phi(i*offset, ctIn).
 // At the scheme level, this function is used to perform inner sums or efficiently replicate slots.
-func (eval Evaluator) PartialTrace(ctIn *Ciphertext, offset, n int, opOut *Ciphertext) (err error) {
+func (eval Evaluator) PartialTracesSum(ctIn *Ciphertext, offset, n int, opOut *Ciphertext) (err error) {
 	if n == 0 || offset == 0 {
 		return fmt.Errorf("partialtrace: invalid parameter (n = 0 or batchSize = 0)")
 	}
@@ -473,7 +474,7 @@ func GaloisElementsForInnerSum(params ParameterProvider, batch, n int) (galEls [
 // two consecutive sub-vectors to replicate.
 // This method is faster than Replicate when the number of rotations is large and it uses log2(n) + HW(n) instead of n.
 func (eval Evaluator) Replicate(ctIn *Ciphertext, batchSize, n int, opOut *Ciphertext) (err error) {
-	return eval.PartialTrace(ctIn, -batchSize, n, opOut)
+	return eval.PartialTracesSum(ctIn, -batchSize, n, opOut)
 }
 
 // GaloisElementsForReplicate returns the list of Galois elements necessary to perform the

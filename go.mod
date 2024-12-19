@@ -1,3 +1,4 @@
+// Deprecated: the latest supported version is github.com/tuneinsight/lattigo/v6
 module github.com/tuneinsight/lattigo/v4
 
 go 1.13

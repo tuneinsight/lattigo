@@ -146,7 +146,7 @@ func main() {
 	// Create the N input parties and generate their secret keys and private inputs
 	P := genparties(params, N, t)
 
-	l.Println("> Setup phase") // TODO: improve the logging output
+	l.Printf("========= Setup phase =========")
 
 	// Step 1.a: Generation of the threshold secret key
 
@@ -199,7 +199,7 @@ func main() {
 	// Creates the evaluation key set from the rlk and the galKeys
 	evk := rlwe.NewMemEvaluationKeySet(rlk, galKeys...)
 
-	l.Printf("\tSetup done (cloud: %s, party: %s)\n",
+	l.Printf("Setup done (cloud: %s, party: %s)\n",
 		elapsedCKGCloud+elapsedRKGCloud+elapsedGKGCloud,
 		elapsedCKGParty+elapsedRKGParty+elapsedGKGParty)
 
@@ -212,7 +212,8 @@ func main() {
 	}
 
 	// Each party encrypts its input row under the collective public key
-	l.Println("> Database input phase")
+	l.Println("========= Database input phase ==========")
+	l.Println("> Input Encryption")
 	encoder := bgv.NewEncoder(params)
 	encryptor := rlwe.NewEncryptor(params, pk)
 	pt := bgv.NewPlaintext(params, params.MaxLevel())
@@ -231,7 +232,7 @@ func main() {
 
 	// Step 3: Query evaluation
 
-	l.Println("> Query evaluation phase")
+	l.Println("========= Query evaluation phase =========")
 
 	queryIndex := 2 // Index of the ciphertext to retrieve.
 	querier := P[0] // Party performing the query
@@ -265,10 +266,11 @@ func main() {
 		panic(err)
 	}
 
-	l.Printf("\t%v...%v\n", res[:8], res[params.N()-8:])
 	l.Printf("> Finished (total cloud: %s, total party: %s)\n",
 		elapsedCKGCloud+elapsedRKGCloud+elapsedGKGCloud+elapsedEncryptCloud+elapsedRequestCloudCPU+elapsedCKSCloud,
 		elapsedCKGParty+elapsedRKGParty+elapsedGKGParty+elapsedEncryptParty+elapsedRequestParty+elapsedCKSParty+elapsedDecParty)
+
+	l.Printf("Result: %v...%v\n", res[:8], res[params.N()-8:])
 }
 
 func genparties(params bgv.Parameters, N, t int) []party {
@@ -296,7 +298,7 @@ func genparties(params bgv.Parameters, N, t int) []party {
 
 func execCKGProtocol(params bgv.Parameters, crs sampling.PRNG, participants []party) *rlwe.PublicKey {
 
-	l.Println("> PublicKeyGen Phase")
+	l.Println("> Public Encryption Generation")
 
 	// Creates a protocol type for the collective public key generation.
 	// The type is stateless and can be used to generate as many public keys as needed.
@@ -345,7 +347,7 @@ func execCKGProtocol(params bgv.Parameters, crs sampling.PRNG, participants []pa
 
 func execRKGProtocol(params bgv.Parameters, crs sampling.PRNG, participants []party) *rlwe.RelinearizationKey {
 
-	l.Println("> RelinearizationKeyGen Phase")
+	l.Println("> Relinearization Key Generation")
 
 	// Creates a protocol type for the collective relinearization key generation.
 	// The type is stateless and can be used to generate as many relinearization keys as needed.
@@ -413,7 +415,7 @@ func execRKGProtocol(params bgv.Parameters, crs sampling.PRNG, participants []pa
 
 func execGTGProtocol(params bgv.Parameters, crs sampling.PRNG, galEls []uint64, participants []party) (galKeys []*rlwe.GaloisKey) {
 
-	l.Println("> GKG Phase")
+	l.Println("> Galois Automorphism-Keys Generation")
 
 	// Creates a protocol type for the collective galois key generation.
 	// The type is stateless and can be used to generate as many galois keys as needed.
@@ -475,7 +477,7 @@ func execGTGProtocol(params bgv.Parameters, crs sampling.PRNG, galEls []uint64, 
 
 func genQuery(params bgv.Parameters, queryIndex int, encoder *bgv.Encoder, encryptor *rlwe.Encryptor) *rlwe.Ciphertext {
 
-	l.Println("> QueryGen Phase")
+	l.Println("> Query Generation")
 
 	// Creates a query vector from the query index
 	queryCoeffs := make([]uint64, params.N())
@@ -493,10 +495,14 @@ func genQuery(params bgv.Parameters, queryIndex int, encoder *bgv.Encoder, encry
 		check(err)
 	})
 
+	l.Printf("\tdone (cloud: %d, party %s)\n", 0, elapsedRequestParty)
+
 	return encQuery
 }
 
 func execRequest(params bgv.Parameters, NGoRoutine int, encQuery *rlwe.Ciphertext, encInputs []*rlwe.Ciphertext, evk rlwe.EvaluationKeySet) *rlwe.Ciphertext {
+
+	l.Println("> Query Evaluation")
 
 	// First, pre-compute the some plaintext masks for the query evaluation as:
 	// plainmask[i] = encode([0, ..., 0, 1, 0, ..., 0])  (zero with a 1 at the i-th position).
@@ -511,8 +517,6 @@ func execRequest(params bgv.Parameters, NGoRoutine int, encQuery *rlwe.Ciphertex
 			panic(err)
 		}
 	}
-
-	l.Println("> Request Phase")
 
 	// Buffer for the intermediate computation done by the helper
 	encPartial := make([]*rlwe.Ciphertext, len(encInputs))
@@ -622,7 +626,7 @@ func execRequest(params bgv.Parameters, NGoRoutine int, encQuery *rlwe.Ciphertex
 
 func execCKSProtocol(params bgv.Parameters, participants []party, receiver party, ctIn *rlwe.Ciphertext) *rlwe.Ciphertext {
 
-	l.Println("> KeySwitch Phase")
+	l.Println("> Query Result Re-Encryption")
 
 	// Creates a protocol type for the collective key-switching protocol, with smudging distribution parameter of 2^30.
 	// The type is stateless and can be used to generate as many key-switching keys as needed.

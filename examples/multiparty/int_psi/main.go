@@ -93,6 +93,7 @@ func main() {
 	P := genparties(params, N)
 
 	// Step 1: Setup of the collective public key and relinearization key
+	l.Printf("========= Setup Phase =========")
 
 	pk := execCKGProtocol(params, crs, P) // generates the collective public key
 
@@ -100,12 +101,12 @@ func main() {
 
 	evk := rlwe.NewMemEvaluationKeySet(rlk) // creates the evaluation key from the relinearization key
 
-	l.Printf("\tdone (cloud: %s, party: %s)\n",
-		elapsedRKGCloud, elapsedRKGParty)
-	l.Printf("\tSetup done (cloud: %s, party: %s)\n",
+	l.Printf("Setup done (cloud: %s, party: %s)\n",
 		elapsedRKGCloud+elapsedCKGCloud, elapsedRKGParty+elapsedCKGParty)
 
 	// Step 2: Each party encrypts its input vector
+	l.Printf("========= Computation Phase =========")
+
 	expRes := genInputs(params, P) // generates the input vectors and the expected result
 
 	encoder := bgv.NewEncoder(params)
@@ -118,19 +119,20 @@ func main() {
 	encOut := execPCKSProtocol(params, tpk, encRes, P)
 
 	// Step 5: The target party decrypts the result with its secret key
-	l.Println("> ResulPlaintextModulus:")
+	l.Println("> Result Decryption")
 	decryptor := rlwe.NewDecryptor(params, tsk)
 	ptres := bgv.NewPlaintext(params, params.MaxLevel())
 	elapsedDecParty := runTimed(func() {
 		decryptor.Decrypt(encOut, ptres)
 	})
+	l.Printf("\tdone (cloud: %s, party: %s)\n", time.Duration(0), elapsedDecParty)
 
 	// Check the result
 	res := make([]uint64, params.MaxSlots())
 	err = encoder.Decode(ptres, res)
 	check(err)
 
-	l.Printf("\t%v\n", res[:16])
+	l.Printf("\tResult: %v\n", res[:16])
 	for i := range expRes {
 		if expRes[i] != res[i] {
 			//l.Printf("\t%v\n", expRes)
@@ -138,8 +140,8 @@ func main() {
 			return
 		}
 	}
-	l.Println("\tcorrect")
-	l.Printf("> Finished (total cloud: %s, total party: %s)\n",
+	l.Println("\tCorrect")
+	l.Printf("Finished (total cloud: %s, total party: %s)\n",
 		elapsedCKGCloud+elapsedRKGCloud+elapsedEncryptCloud+elapsedEvalCloud+elapsedPCKSCloud,
 		elapsedCKGParty+elapsedRKGParty+elapsedEncryptParty+elapsedEvalParty+elapsedPCKSParty+elapsedDecParty)
 }
@@ -157,7 +159,7 @@ func genparties(params bgv.Parameters, N int) []party {
 
 func execCKGProtocol(params bgv.Parameters, crs sampling.PRNG, P []party) *rlwe.PublicKey {
 
-	l.Println("> PublicKeyGen Phase")
+	l.Println("> Public Enryption Key Generation")
 
 	// Creates a protocol type for the collective public key generation.
 	// The type is stateless and can be used to generate as many public keys as needed.
@@ -199,7 +201,7 @@ func execCKGProtocol(params bgv.Parameters, crs sampling.PRNG, P []party) *rlwe.
 
 func execRKGProtocol(params bgv.Parameters, crs sampling.PRNG, P []party) *rlwe.RelinearizationKey {
 
-	l.Println("> RelinearizationKeyGen Phase")
+	l.Println("> Relinearization Key Generation")
 
 	// Creates a protocol type for the collective relinearization key generation.
 	// The type is stateless and can be used to generate as many relinearization keys as needed.
@@ -285,7 +287,7 @@ func inputPhase(params bgv.Parameters, P []party, pk *rlwe.PublicKey, encoder *b
 	}
 
 	// Each party encrypts its input vector
-	l.Println("> Encrypt Phase")
+	l.Println("> Input Encryption")
 	encryptor := rlwe.NewEncryptor(params, pk)
 
 	pt := bgv.NewPlaintext(params, params.MaxLevel())
@@ -358,7 +360,7 @@ func evalPhase(params bgv.Parameters, NGoRoutine int, encInputs []*rlwe.Cipherte
 
 	// Start the tasks
 	taskList := make([]*multTask, 0)
-	l.Println("> Eval Phase")
+	l.Println("> Circuit Evaluation")
 	elapsedEvalCloud = runTimed(func() {
 		for i, lvl := range encLvls[:len(encLvls)-1] {
 			nextLvl := encLvls[i+1]
@@ -392,7 +394,7 @@ func execPCKSProtocol(params bgv.Parameters, tpk *rlwe.PublicKey, encRes *rlwe.C
 
 	// Collective key switching from the collective secret key to
 	// the target public key
-	l.Println("> PublicKeySwitch Phase")
+	l.Println("> Output Re-Encryption")
 
 	// Creates a protocol type for the collective public key switch.
 	// The type is stateless and can be used to generate as many public key switches as needed.

@@ -290,7 +290,7 @@ func genparties(params bgv.Parameters, N, t int) []party {
 
 	shamirPts := getShamirPoints(P)
 	for i := range P {
-		P[i].Combiner = multiparty.NewCombiner(params.Parameters, P[i].shamirPt, shamirPts, t) // TODO: NewCombiner takes interface
+		P[i].Combiner = multiparty.NewCombiner(params, P[i].shamirPt, shamirPts, t)
 	}
 
 	return P

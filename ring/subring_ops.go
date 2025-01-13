@@ -236,7 +236,7 @@ func (s *SubRing) NTT(p1, p2 []uint64) {
 	s.ntt.Forward(p1, p2)
 }
 
-// NTTLazy evaluates p2 = NTT(p1) with p2 in [0, 2*modulus-1].
+// NTTLazy evaluates p2 = NTT(p1) with p2 in [0, 6*modulus-2].
 func (s *SubRing) NTTLazy(p1, p2 []uint64) {
 	s.ntt.ForwardLazy(p1, p2)
 }

@@ -36,10 +36,10 @@ func main() {
 	// All objects that are not specific to the CKKS scheme will be imported from the `rlwe` package.
 	// Such objects notably `rlwe.Plaintext`, `rlwe.Ciphertext`, `rlwe.SecretKey`, `rlwe.PublicKey` and `rlwe.EvaluationKey`.
 	// But also an `rlwe.Evaluator` for all operations that are not scheme specific, such as gadget product and automorphisms,
-	// but also more advanced  operations such as the `Trace`.
+	// but also more advanced operations such as the `Trace`.
 	//
 	// The top layer is the `ckks` package.
-	// This package implements the CKKS scheme, and mostly consist in defining the encoding and scheme specific homomorphic operations.
+	// This package implements the CKKS scheme, and mostly consists in defining the encoding and scheme specific homomorphic operations.
 	//
 
 	// =======================================================
@@ -52,7 +52,7 @@ func main() {
 	//    - `Scale`: the scaling factor. This field is updated dynamically during computations.
 	//    - `EncodingDomain`:
 	//        - `SlotsDomain`: the usual encoding that provides SIMD operations over the slots.
-	//        - `CoefficientDomain`: plain encoding in the RING. Addition behaves as usual, but multiplication will result in negacyclic convolution over the slots.
+	//        - `CoefficientDomain`: plain encoding in the RING. Addition behaves as usual, but multiplication will result in a negacyclic convolution over the slots.
 	//    - `LogSlots`: the log2 of the number of slots. Note that if a ciphertext with n slots is multiplied with a ciphertext of 2n slots, the resulting ciphertext
 	//                  will have 2n slots. Because a message `m` of n slots is identical to the message `m|m` of 2n slots.
 	//
@@ -131,7 +131,7 @@ func main() {
 	}
 
 	// The ratio between the first prime of size ~2^{55} and the scaling factor 2^{45} is ~2^{10}.
-	// This means that these parameter can accommodate for values as large as 2^{9} (signed values).
+	// This means that these parameters can accommodate for values as large as 2^{9} (signed values).
 	// To be able to store larger values, either the scale has to be reduced or the first prime increased.
 	// Because the maximum size for the primes of the modulus Q is 60, if we want to store larger values
 	// with precision, we will need to reserve the first two primes.
@@ -175,11 +175,11 @@ func main() {
 	// ====================
 	//
 	// We use the default number of slots, which is N/2.
-	// It is possible to use less slots, however it most situations, there is no reason to do so.
+	// It is possible to use less slots, however in most situations, there is no reason to do so.
 	LogSlots := params.LogMaxSlots()
 	Slots := 1 << LogSlots
 
-	// We generate a vector of `[]complex128` with both the real and imaginary part uniformly distributed in [-1, 1]
+	// We generate a vector of `[]complex128` with both the real and imaginary parts uniformly distributed in [-1, 1]
 	/* #nosec G404 -- this is a plaintext vector  */
 	r := rand.New(rand.NewSource(0))
 	values1 := make([]complex128, Slots)
@@ -227,7 +227,7 @@ func main() {
 	}
 
 	// It is also possible to first allocate the ciphertext the same way it was done
-	// for the plaintext with with `ct := ckks.NewCiphertext(params, 1, pt.Level())`,
+	// for the plaintext with `ct := ckks.NewCiphertext(params, 1, pt.Level())`,
 	// enabling allocation free encryptions (for example if the ciphertext has to be
 	// serialized right away).
 
@@ -276,11 +276,11 @@ func main() {
 	// The rescaling operation divides a ciphertext by the prime of its current level and
 	// returns a new ciphertext with one less level and scaling factor divided by this prime.
 	//
-	// The main  difficulty arises from the primes used for the rescaling, since they do not
+	// The main difficulty arises from the primes used for rescaling as they do not
 	// divide the scaling factor.
 	//
-	// Throughout this example we will show ways to properly manage this scaling factor to both
-	// keep it as close as possible to the default scaling factor (in this example 2^{45}) and
+	// Throughout this example we will show ways to properly manage this scaling factor to
+	// keep it as close as possible to the default scaling factor (in this example 2^{45}) while
 	// minimizing the error.
 	// In fact we will show that it is usually possible to keep the scaling factor always at 2^{45},
 	// even though the primes are not powers of two.
@@ -289,10 +289,10 @@ func main() {
 	fmt.Printf("ADDITION\n")
 	fmt.Printf("========\n")
 	fmt.Printf("\n")
-	// Additions are often seen as a trivial operation.
+	// Addition is often seen as a trivial operation.
 	// However in the case of the full-RNS implementation we have to be careful.
 	// Indeed, we must ensure that when adding two ciphertexts, those ciphertexts have the same exact scale,
-	// else an error proportional to the difference of the scale will be introduced.
+	// else an error proportional to the difference of the scales will be introduced.
 	//
 	// The evaluator will try to compensate if the ciphertexts do not have the same scale,
 	// but only up to an integer multiplication (which is "free").
@@ -300,7 +300,7 @@ func main() {
 	// then the evaluator will take that into account and properly operate the addition.
 	//
 	// However, if one of the scales is a fraction of the other (e.g. 2^{45} * q0 and 2^{45} * q1),
-	// the evaluator isn't able to reconciliate the scales and will treat the ciphertext with the
+	// the evaluator isn't able to reconcile the scales and will treat the ciphertext with the
 	// smallest scale as being at the scale of the largest one.
 	//
 	// This will introduce an approximation error proportional to q^{45} * q0 / 2^{45} * q1 = q0/q1 in the addition.
@@ -325,7 +325,7 @@ func main() {
 
 	// A small comment about the precision stats.
 	// Theses stats show the -log2 of the matching bits on the right side of the decimal point.
-	// Because values are not normalized, large values will show as having a low precision, even if left side of of the decimal point (integer part) is correct.
+	// Because values are not normalized, large values will show as having a low precision, even if left side of the decimal point (integer part) is correct.
 	// Eventually this will be fixed, by normalizing with the maximum value decrypted.
 	ct3, err := eval.AddNew(ct1, ct2)
 	if err != nil {
@@ -370,7 +370,7 @@ func main() {
 		want[i] = values1[i] * values2[i]
 	}
 
-	// We could simply call the multiplication on ct1 and ct2, however since a rescaling is needed afterward,
+	// We could simply call the multiplication on ct1 and ct2, however since a rescaling is needed afterwards,
 	// we also want to properly control the scale of the result.
 	// Our goal is to keep the scale to the default one, i.e. 2^{45} in this example.
 	// However, the rescaling operation divides by one (or multiple) primes qi,
@@ -391,7 +391,7 @@ func main() {
 		panic(err)
 	}
 
-	// and we encrypt (recall that the metadata of the plaintext are copied on the created ciphertext)
+	// and we encrypt (recall that the metadata of the plaintext are copied on the created ciphertext).
 	if err := enc.Encrypt(pt2, ct2); err != nil {
 		panic(err)
 	}
@@ -401,8 +401,8 @@ func main() {
 		panic(err)
 	}
 
-	// The scaling factor of res should be equal to ct1.Scale * ct2.Scale
-	ctScale := &res.Scale.Value // We need to access the pointer to have it display correctly in the command line
+	// The scaling factor of res should be equal to ct1.Scale * ct2.Scale.
+	ctScale := &res.Scale.Value // We need to access the pointer in order for it to display correctly in the command line.
 	fmt.Printf("Scale before rescaling: %f\n", ctScale)
 
 	// To control the growth of the scaling factor, we call the rescaling operation.
@@ -416,7 +416,7 @@ func main() {
 
 	Scale := params.DefaultScale().Value
 
-	// And we check that we are back on our feet with a scale of 2^{45} but with one less level
+	// And we check that we are back on our feet with a scale of 2^{45} but with one less level.
 	fmt.Printf("Scale after rescaling: %f == %f: %t and %d == %d+1: %t\n", ctScale, &Scale, ctScale.Cmp(&Scale) == 0, ct1.Level(), res.Level(), ct1.Level() == res.Level()+1)
 	fmt.Printf("\n")
 
@@ -434,7 +434,7 @@ func main() {
 
 	// ciphertext + vector
 	// Note that when giving non-encoded vectors, the evaluator will internally encode this vector with the appropriate scale that ensure that
-	// the following rescaling operation will make the resulting ciphertext fall back on it's previous scale.
+	// the following rescaling operation will make the resulting ciphertext fall back on its previous scale.
 	ct3, err = eval.MulRelinNew(ct1, values2)
 	if err != nil {
 		panic(err)
@@ -448,7 +448,7 @@ func main() {
 
 	// Similarly, when giving a scalar, the scalar is encoded with the appropriate scale to get back to the original ciphertext scale after the rescaling.
 	// Additionally, the multiplication with a Gaussian integer does not increase the scale of the ciphertext, thus does not require rescaling and does not consume a level.
-	// For example, multiplication/division by the imaginary unit `i` is free in term of level consumption and can be used without moderation.
+	// For example, multiplication/division by the imaginary unit `i` is free in terms of level consumption and can be used without moderation.
 	ct3, err = eval.MulRelinNew(ct1, scalar)
 	if err != nil {
 		panic(err)
@@ -460,14 +460,14 @@ func main() {
 	fmt.Printf("======================\n")
 	fmt.Printf("\n")
 
-	// Before being able to do any rotations, we need to generate the corresponding Galois keys.
-	// A Galois key is a special type of `rlwe.EvaluationKey` that enables automorphisms X^{i} -> X^{i*k mod 2N} mod X^{N} + 1 on ciphertext
+	// Before being able to do any rotation, we need to generate the corresponding Galois keys.
+	// A Galois key is a special type of `rlwe.EvaluationKey` that enables automorphisms X^{i} -> X^{i*k mod 2N} mod X^{N} + 1 on ciphertexts.
 	// Some of these automorphisms act like cyclic rotations on plaintext encoded in the `SlotsDomain`.
 	//
 	// Galois keys can be large depending on the parameters, and one Galois key is needed per automorphism.
 	// Therefore it is important to design circuits that minimize the numbers of these keys.
 	//
-	// In this example we will rotate a ciphertext by 5 positions to the left, as well as get the complex conjugate.
+	// In this example we will rotate a ciphertext by 5 positions to the left and get its complex conjugate as well.
 	// This corresponds to the following values for k which we call "galois elements":
 	rot := 5
 	galEls := []uint64{
@@ -505,7 +505,7 @@ func main() {
 
 	// Note that rotations and conjugation only add a fixed additive noise independent of the ciphertext noise.
 	// If the parameters are set correctly, this noise can be rounding error (thus negligible).
-	// It is recommended apply the rescaling operation after such operations rather than before.
+	// It is recommended to apply the rescaling operation after such operations rather than before.
 	// This way, the noise is added in the lower bits of the ciphertext and gets erased by the rescaling.
 
 	fmt.Printf("=====================\n")
@@ -530,7 +530,7 @@ func main() {
 	// With 7 levels, we can evaluate a polynomial of degree up to 127.
 	// However, since we will be in the Chebyshev basis, we must also take into consideration the change of basis
 	// y = (2*x - a - b)/(b-a), which will usually consume a level.
-	// Often it is however possible to include this linear transformation in previous step of a circuit, to save a level.
+	// Often it is however possible to include this linear transformation in a previous step of the circuit, to save a level.
 	// Since we do not have any previous operation in this example, we will have to operate the change of basis, thus
 	// the maximum polynomial degree for depth 6 is 63.
 
@@ -540,16 +540,16 @@ func main() {
 		B:     *bignum.NewFloat(8, prec),
 	}
 
-	// We generate the `bignum.Polynomial` which stores the degree 63 Chevyshev approximation of the SiLU function in the interval [-8, 8]
+	// We generate the `bignum.Polynomial` which stores the degree 63 Chevyshev approximation of the SiLU function in the interval [-8, 8].
 	poly := bignum.ChebyshevApproximation(SiLU, interval)
 
-	// The struct `bignum.Polynomial` comes with an handy evaluation method
+	// The struct `bignum.Polynomial` comes with an handy evaluation method.
 	tmp := bignum.NewComplex().SetPrec(prec)
 	for i := 0; i < Slots; i++ {
 		want[i] = poly.Evaluate(tmp.SetComplex128(values1[i])).Complex128()
 	}
 
-	// First, we must operate the change of basis for the Chebyshev evaluation y = (2*x-a-b)/(b-a) = scalarmul * x + scalaradd
+	// First, we must operate the change of basis for the Chebyshev evaluation y = (2*x-a-b)/(b-a) = scalarmul * x + scalaradd.
 	scalarmul, scalaradd := poly.ChangeOfBasis()
 
 	res, err = eval.MulNew(ct1, scalarmul)
@@ -567,7 +567,7 @@ func main() {
 
 	polyEval := polynomial.NewEvaluator(params, eval)
 
-	// And we evaluate this polynomial on the ciphertext
+	// And we evaluate this polynomial on the ciphertext.
 	// The last argument, `params.DefaultScale()` is the scale that we want the ciphertext
 	// to have after the evaluation, which is usually the default scale, 2^{45} in this example.
 	// Other values can be specified, but they should be close to the default scale, else the
@@ -588,17 +588,17 @@ func main() {
 	fmt.Printf("======================\n")
 	fmt.Printf("\n")
 
-	// The `circuits/lintrans` package provides a multiple handy linear transformations.
+	// The `circuits/lintrans` package provides several handy linear transformations.
 	// We will start with the inner sum.
 	// Thus method allows to aggregate `n` sub-vectors of size `batch`.
 	// For example given a vector [x0, x1, x2, x3, x4, x5, x6, x7], batch = 2 and n = 3
-	// it will return the vector [x0+x2+x4, x1+x3+x5, x2+x4+x6, x3+x5+x7, x4+x6+x0, x5+x7+x1, x6+x0+x2, x7+x1+x3]
+	// it will return the vector [x0+x2+x4, x1+x3+x5, x2+x4+x6, x3+x5+x7, x4+x6+x0, x5+x7+x1, x6+x0+x2, x7+x1+x3].
 	// Observe that the inner sum wraps around the vector, this behavior must be taken into account.
 
 	batch := 37
 	n := 127
 
-	// The innersum operations is carried out with log2(n) + HW(n) automorphisms and we need to
+	// The innersum operation is carried out with log2(n) + HW(n) automorphisms and we need to
 	// generate the corresponding Galois keys and provide them to the `Evaluator`.
 	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, kgen.GenGaloisKeysNew(params.GaloisElementsForInnerSum(batch, n), sk)...))
 
@@ -619,7 +619,7 @@ func main() {
 	// apply the innersum and then only apply the rescaling.
 	fmt.Printf("Innersum %s", ckks.GetPrecisionStats(params, ecd, dec, want, res, 0, false).String())
 
-	// The replicate operation is exactly the same as the innersum operation, but in reverse
+	// The replicate operation is exactly the same as the innersum operation, but in reverse:
 	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, kgen.GenGaloisKeysNew(params.GaloisElementsForReplicate(batch, n), sk)...))
 
 	// Plaintext circuit
@@ -641,8 +641,8 @@ func main() {
 	// What matters is not the size of the matrix, but the number of non-zero diagonals, as
 	// the complexity of this operation is 2sqrt(#non-zero-diags).
 	//
-	// First lets explain what we mean by non-zero diagonal.
-	// As an example, lets take the following 4x4 matrix:
+	// First, let's explain what we mean by non-zero diagonal.
+	// As an example, let's take the following 4x4 matrix:
 	//   0 1 2 3 (diagonal index)
 	// | 1 2 3 0 |
 	// | 0 1 2 3 |
@@ -688,7 +688,7 @@ func main() {
 	lt := lintrans.NewTransformation(params, ltparams)
 
 	// We encode our linear transformation on the allocated rlwe.LinearTransformation.
-	// Not that trying to encode a linear transformation with different non-zero diagonals,
+	// Note that trying to encode a linear transformation with different non-zero diagonals,
 	// plaintext dimensions or baby-step giant-step ratio than the one used to allocate the
 	// rlwe.LinearTransformation will return an error.
 	if err := lintrans.Encode(ecd, diagonals, lt); err != nil {
@@ -702,17 +702,17 @@ func main() {
 
 	ltEval := lintrans.NewEvaluator(eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, kgen.GenGaloisKeysNew(galEls, sk)...)))
 
-	// And we valuate the linear transform
+	// And we evaluate the linear transform
 	if err := ltEval.Evaluate(ct1, lt, res); err != nil {
 		panic(err)
 	}
 
-	// Result is not returned rescaled
+	// Result is not returned rescaled.
 	if err = eval.Rescale(res, res); err != nil {
 		panic(err)
 	}
 
-	// We evaluate the same circuit in plaintext
+	// We evaluate the same circuit in plaintext.
 	want = diagonals.Evaluate(values1, newVec, add, muladd)
 
 	fmt.Printf("vector x matrix %s", ckks.GetPrecisionStats(params, ecd, dec, want, res, 0, false).String())
@@ -736,7 +736,7 @@ func main() {
 	//
 	// By design, structs outside of the parameters are not thread safe.
 	// For example, one cannot use an encoder to encode concurrently on different plaintexts.
-	// However, all structs (for which it makes sens) have the method `ShallowCopy`, which creates
+	// However, all structs (for which it makes sense) have the method `ShallowCopy`, which creates
 	// a copy of the original struct with new internal buffers, that is safe to use concurrently.
 
 }

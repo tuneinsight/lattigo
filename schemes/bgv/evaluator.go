@@ -1505,8 +1505,8 @@ func (eval Evaluator) RotateHoistedLazyNew(level int, rotations []int, op0 *rlwe
 	return
 }
 
-// MatchScalesAndLevel updates the both input ciphertexts to ensures that their scale matches.
-// To do so it computes t0 * a = opOut * b such that:
+// MatchScalesAndLevel updates both input ciphertexts to ensure that their scale matches.
+// To do so it computes ct0 * a = opOut * b such that:
 //   - ct0.Scale * a = opOut.Scale: make the scales match.
 //   - gcd(a, PlaintextModulus) == gcd(b, PlaintextModulus) == 1: ensure that the new scale is not a zero divisor if PlaintextModulus is not prime.
 //   - |a+b| is minimal: minimize the added noise by the procedure.

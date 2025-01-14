@@ -21,7 +21,7 @@ type IntegerSlice interface {
 }
 
 // GaloisGen is an integer of order N=2^d modulo M=2N and that spans Z_M with the integer -1.
-// The j-th ring automorphism takes the root zeta to zeta^(5j).
+// The j-th ring automorphism takes the root zeta to zeta^(5^j).
 const GaloisGen uint64 = ring.GaloisGen
 
 // Encoder is a structure that stores the parameters to encode values on a plaintext in a SIMD (Single-Instruction Multiple-Data) fashion.

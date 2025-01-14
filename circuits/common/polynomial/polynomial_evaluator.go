@@ -129,7 +129,7 @@ func (eval Evaluator[T]) EvaluatePatersonStockmeyerPolynomialVector(poly Paterso
 		for i := 0; i < len(babySteps); i++ {
 
 			// eval is not thread-safe
-			if err = eval.EvaluateGianStep(i, giantsteps, babySteps, pb); err != nil {
+			if err = eval.EvaluateGiantStep(i, giantsteps, babySteps, pb); err != nil {
 				return nil, err
 			}
 		}
@@ -187,9 +187,9 @@ func (eval Evaluator[T]) EvaluateBabyStep(i int, poly PatersonStockmeyerPolynomi
 	return ct, nil
 }
 
-// EvaluateGianStep evaluates a giant-step of the PatersonStockmeyer polynomial evaluation algorithm, which consists
+// EvaluateGiantStep evaluates a giant-step of the PatersonStockmeyer polynomial evaluation algorithm, which consists
 // in combining the baby-steps <[1, T, T^2, ..., T^{n-1}], [ci0, ci1, ci2, ..., ci{n-1}]> together with powers T^{2^k}.
-func (eval Evaluator[T]) EvaluateGianStep(i int, giantSteps []int, babySteps []*BabyStep, pb PowerBasis) (err error) {
+func (eval Evaluator[T]) EvaluateGiantStep(i int, giantSteps []int, babySteps []*BabyStep, pb PowerBasis) (err error) {
 
 	// If we reach the end of the list it means we weren't able to combine
 	// the last two sub-polynomials which necessarily implies that that the

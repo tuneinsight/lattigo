@@ -11,7 +11,7 @@ import (
 	"github.com/tuneinsight/lattigo/v6/utils/bignum"
 )
 
-// simEvaluator is a struct used to pre-computed the scaling
+// simEvaluator is a struct used to pre-compute the scaling
 // factors of the polynomial coefficients used by the inlined
 // polynomial evaluation by running the polynomial evaluation
 // with dummy operands.

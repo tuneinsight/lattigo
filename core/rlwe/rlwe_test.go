@@ -41,7 +41,7 @@ func testString(params Parameters, levelQ, levelP, bpw2 int, opname string) stri
 func TestRLWEConstSerialization(t *testing.T) {
 	// Note: changing nbIteration will change the expected value
 	const nbIteration = 10
-	const expected = "XRdlwx5vEX9qdGY3CeeAxzGHa0gbXghzpLhV0eIgVk8="
+	const expected = "/mTt2kB+03NdOMoI1msW+glCZmrF1sxEGQkFsC6P1SA="
 	var err error
 	defaultParamsLiteral := testInsecure
 	seedKeyGen := []byte{'l', 'a', 't'}
@@ -77,16 +77,20 @@ func TestRLWEConstSerialization(t *testing.T) {
 					hash.Write(pkBytes)
 
 					// Add marshalled GaloisKey to the hash input
-					galEl := params.GaloisElement(-1)
+					galEl1 := params.GaloisElement(-1)
 					galEl2 := params.GaloisElement(3)
-					galKey := detTC.kgen.GenGaloisKeysNew([]uint64{galEl, galEl2}, sk)
-					galKeyBytes, err := galKey[0].MarshalBinary()
+					galKey1 := detTC.kgen.GenGaloisKeyNew(galEl1, sk)
+					galKey2 := detTC.kgen.GenGaloisKeyNew(galEl2, sk, EvaluationKeyParameters{Compressed: true})
+					galKeyBytes, err := galKey1.MarshalBinary()
+					require.Nil(t, err)
+					hash.Write(galKeyBytes)
+					galKeyBytes, err = galKey2.MarshalBinary()
 					require.Nil(t, err)
 					hash.Write(galKeyBytes)
 
 					// Add marshalled MemEvaluationKeySet to the hash input
 					relinKey := detTC.kgen.GenRelinearizationKeyNew(sk)
-					evk := NewMemEvaluationKeySet(relinKey, galKey...)
+					evk := NewMemEvaluationKeySet(relinKey, galKey1, galKey2)
 					evkBytes, err := evk.MarshalBinary()
 					require.Nil(t, err)
 					hash.Write(evkBytes)
@@ -1236,6 +1240,10 @@ func testWriteAndRead(tc *TestContext, bpw2 int, t *testing.T) {
 
 	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/EvaluationKey/Compressed=False"), func(t *testing.T) {
 		buffer.RequireSerializerCorrect(t, tc.kgen.GenEvaluationKeyNew(sk, sk))
+	})
+
+	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/EvaluationKey/Compressed=True"), func(t *testing.T) {
+		buffer.RequireSerializerCorrect(t, tc.kgen.GenEvaluationKeyNew(sk, sk, EvaluationKeyParameters{Compressed: true}))
 	})
 
 	t.Run(testString(params, levelQ, levelP, bpw2, "WriteAndRead/RelinearizationKey"), func(t *testing.T) {

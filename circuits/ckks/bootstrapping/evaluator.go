@@ -287,12 +287,12 @@ func (eval Evaluator) BootstrapMany(cts []rlwe.Ciphertext) ([]rlwe.Ciphertext, e
 
 	default:
 
-		packedCTs, err := eval.PackAndSwitchN1ToN2(cts)
+		ctsPacked, ctxt1, ctxt2, err := eval.PackAndSwitchN1ToN2(cts)
 		if err != nil {
 			return nil, fmt.Errorf("cannot BootstrapMany: %w", err)
 		}
 
-		cts = packedCTs.CTs
+		cts = ctsPacked
 		for i := range cts {
 			var ct *rlwe.Ciphertext
 			if ct, err = eval.Evaluate(&cts[i]); err != nil {
@@ -301,7 +301,7 @@ func (eval Evaluator) BootstrapMany(cts []rlwe.Ciphertext) ([]rlwe.Ciphertext, e
 			cts[i] = *ct
 		}
 
-		if cts, err = eval.UnpackAndSwitchN2ToN1(packedCTs); err != nil {
+		if cts, err = eval.UnpackAndSwitchN2ToN1(cts, ctxt1, ctxt2); err != nil {
 			return nil, fmt.Errorf("cannot BootstrapMany: %w", err)
 		}
 	}
@@ -867,17 +867,8 @@ func (eval Evaluator) RealToComplexNew(ctReal *rlwe.Ciphertext) (ctCmplx *rlwe.C
 	return
 }
 
-// PackedCTs represents the list of ciphertexts to be bootstrapped.
-// Each of these ciphertexts might pack sparse ciphertexts.
-// PackN1/PackN2 contain the parameters needed to unpack once the bootstrapping is done.
-type PackedCTs struct {
-	CTs    []rlwe.Ciphertext
-	PackN1 PackingContext // empty if N1 = N2
-	PackN2 PackingContext
-}
-
-// PackingContext contains the parameters used when packing (with Pack())
-type PackingContext struct {
+// packingContext contains the parameters used when packing (with Pack())
+type packingContext struct {
 	Params           *ckks.Parameters // Parameters of the ring we are packing to or unpacking from
 	LogMaxDimensions ring.Dimensions  // maximum dimension of a packed ciphertext (logMaxDimensions <= params.LogMaxDimensions())
 	LogSlots         int              // number of slots in a ct before packing (resp. after unpacking)
@@ -886,22 +877,22 @@ type PackingContext struct {
 
 // PackAndSwitchN1ToN2 packs the ciphertexts into N1 and switch to N2 if N1 < N2
 // then it packs the ciphertexts into N2.
-func (eval Evaluator) PackAndSwitchN1ToN2(cts []rlwe.Ciphertext) (PackedCTs, error) {
+func (eval Evaluator) PackAndSwitchN1ToN2(cts []rlwe.Ciphertext) ([]rlwe.Ciphertext, *packingContext, *packingContext, error) {
 
 	var err error
-	var packN1, packN2 PackingContext
+	var packN1, packN2 *packingContext
 
 	// If N1 < N2, we pack ciphertexts into N1 and then switch to N2
 	if eval.ResidualParameters.N() != eval.BootstrappingParameters.N() {
 
-		packN1 = PackingContext{&eval.ResidualParameters, eval.ResidualParameters.LogMaxDimensions(), cts[0].LogSlots(), len(cts)}
+		packN1 = &packingContext{&eval.ResidualParameters, eval.ResidualParameters.LogMaxDimensions(), cts[0].LogSlots(), len(cts)}
 
 		// If the bootstrapping max slots are smaller than the max slots of N1, we only pack up to the former
 		if eval.Parameters.LogMaxSlots() < eval.ResidualParameters.LogMaxSlots() {
 			packN1.LogMaxDimensions = eval.Parameters.LogMaxDimensions()
 		}
-		if cts, err = eval.pack(cts, packN1, eval.xPow2N1); err != nil {
-			return PackedCTs{}, fmt.Errorf("cannot PackAndSwitchN1ToN2: PackN1: %w", err)
+		if cts, err = eval.pack(cts, *packN1, eval.xPow2N1); err != nil {
+			return nil, nil, nil, fmt.Errorf("cannot PackAndSwitchN1ToN2: PackN1: %w", err)
 		}
 
 		for i := range cts {
@@ -910,52 +901,52 @@ func (eval Evaluator) PackAndSwitchN1ToN2(cts []rlwe.Ciphertext) (PackedCTs, err
 	}
 
 	// Packing ciphertexts into N2 (up to eval.Parameters.LogMaxDimensions())
-	packN2 = PackingContext{&eval.BootstrappingParameters, eval.Parameters.LogMaxDimensions(), cts[0].LogSlots(), len(cts)}
+	packN2 = &packingContext{&eval.BootstrappingParameters, eval.Parameters.LogMaxDimensions(), cts[0].LogSlots(), len(cts)}
 
-	if cts, err = eval.pack(cts, packN2, eval.xPow2N2); err != nil {
-		return PackedCTs{}, fmt.Errorf("cannot PackAndSwitchN1ToN2: PackN2: %w", err)
+	if cts, err = eval.pack(cts, *packN2, eval.xPow2N2); err != nil {
+		return nil, nil, nil, fmt.Errorf("cannot PackAndSwitchN1ToN2: PackN1: %w", err)
 	}
 
-	return PackedCTs{cts, packN1, packN2}, nil
+	return cts, packN1, packN2, nil
 }
 
 // UnpackAndSwitchN2ToN1 unpacks the ciphertexts into N2 and, if N1 < N2, it switches the ciphertexts
 // to N1 and unpacks further into N1
-func (eval Evaluator) UnpackAndSwitchN2ToN1(packedCTs PackedCTs) ([]rlwe.Ciphertext, error) {
+func (eval Evaluator) UnpackAndSwitchN2ToN1(cts []rlwe.Ciphertext, ctxtN1, ctxtN2 *packingContext) ([]rlwe.Ciphertext, error) {
 
 	var ctsOut []rlwe.Ciphertext
 
-	logSlots := packedCTs.PackN2.LogSlots
+	logSlots := ctxtN2.LogSlots
 
 	// Unpack ciphertexts in N2
-	for _, ct := range packedCTs.CTs {
-		ctsUnpack, err := eval.unpack(&ct, packedCTs.PackN2, eval.xPow2InvN2)
+	for _, ct := range cts {
+		ctsUnpack, err := eval.unpack(&ct, *ctxtN2, eval.xPow2InvN2)
 
 		if err != nil {
 			return nil, fmt.Errorf("cannot UnpackAndSwitchN2Tn1: UnpackN2: %w", err)
 		}
 
 		ctsOut = append(ctsOut, ctsUnpack...)
-		packedCTs.PackN2.NbPackedCTs -= len(ctsUnpack)
+		ctxtN2.NbPackedCTs -= len(ctsUnpack)
 	}
 
-	// If N1 != N2: 1) switch cts to N1 2) unpack the cts in N1
-	if eval.ResidualParameters.N() != eval.BootstrappingParameters.N() {
+	// If N1 != N2 (i.e. ctxtN1 != nil): 1) switch cts to N1 2) unpack the cts in N1
+	if ctxtN1 != nil {
 		var ctsN1 []rlwe.Ciphertext
-		logSlots = packedCTs.PackN1.LogSlots
+		logSlots = ctxtN1.LogSlots
 
 		for i := range ctsOut {
 			ctsOut[i] = *eval.switchRingDegreeN2ToN1New(&ctsOut[i])
 		}
 
 		for _, ct := range ctsOut {
-			ctsUnpack, err := eval.unpack(&ct, packedCTs.PackN1, eval.xPow2InvN1)
+			ctsUnpack, err := eval.unpack(&ct, *ctxtN1, eval.xPow2InvN1)
 			if err != nil {
 				return nil, fmt.Errorf("cannot UnpackAndSwitchN2Tn1: UnpackN1: %w", err)
 			}
 
 			ctsN1 = append(ctsN1, ctsUnpack...)
-			packedCTs.PackN1.NbPackedCTs -= len(ctsUnpack)
+			ctxtN1.NbPackedCTs -= len(ctsUnpack)
 		}
 
 		ctsOut = ctsN1
@@ -971,7 +962,7 @@ func (eval Evaluator) UnpackAndSwitchN2ToN1(packedCTs PackedCTs) ([]rlwe.Ciphert
 
 // unpack unpacks one sparse ciphertext of (log) dimension ctxt.logMaxDimensions
 // into ctxt.NbPackedCTs ciphertexts of (log) dimension {0, ctxt.LogSlots}
-func (eval Evaluator) unpack(ct *rlwe.Ciphertext, ctxt PackingContext, xPow2Inv []ring.Poly) ([]rlwe.Ciphertext, error) {
+func (eval Evaluator) unpack(ct *rlwe.Ciphertext, ctxt packingContext, xPow2Inv []ring.Poly) ([]rlwe.Ciphertext, error) {
 	logPackCTs := ctxt.LogMaxDimensions.Cols - ctxt.LogSlots // log of number of CTs that can be packed in one ct
 
 	cts := []rlwe.Ciphertext{*ct}
@@ -1013,7 +1004,7 @@ func (eval Evaluator) unpack(ct *rlwe.Ciphertext, ctxt PackingContext, xPow2Inv 
 
 // pack packs ctxt.NbPackedCTs sparse ciphertexts of (log) dimension {0, ctxt.LogSlots}
 // into one ciphertext of (log) dimension ctxt.logMaxDimensions
-func (eval Evaluator) pack(cts []rlwe.Ciphertext, ctxt PackingContext, xPow2 []ring.Poly) ([]rlwe.Ciphertext, error) {
+func (eval Evaluator) pack(cts []rlwe.Ciphertext, ctxt packingContext, xPow2 []ring.Poly) ([]rlwe.Ciphertext, error) {
 
 	var logSlots = ctxt.LogSlots
 	var logMaxSlots = ctxt.LogMaxDimensions.Cols

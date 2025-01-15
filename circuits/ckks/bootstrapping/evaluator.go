@@ -919,8 +919,8 @@ func (eval Evaluator) UnpackAndSwitchN2ToN1(cts []rlwe.Ciphertext, ctxtN1, ctxtN
 	logSlots := ctxtN2.LogSlots
 
 	// Unpack ciphertexts in N2
-	for _, ct := range cts {
-		ctsUnpack, err := eval.unpack(&ct, *ctxtN2, eval.xPow2InvN2)
+	for i := range cts {
+		ctsUnpack, err := eval.unpack(&cts[i], *ctxtN2, eval.xPow2InvN2)
 
 		if err != nil {
 			return nil, fmt.Errorf("cannot UnpackAndSwitchN2Tn1: UnpackN2: %w", err)
@@ -939,8 +939,8 @@ func (eval Evaluator) UnpackAndSwitchN2ToN1(cts []rlwe.Ciphertext, ctxtN1, ctxtN
 			ctsOut[i] = *eval.switchRingDegreeN2ToN1New(&ctsOut[i])
 		}
 
-		for _, ct := range ctsOut {
-			ctsUnpack, err := eval.unpack(&ct, *ctxtN1, eval.xPow2InvN1)
+		for i := range ctsOut {
+			ctsUnpack, err := eval.unpack(&ctsOut[i], *ctxtN1, eval.xPow2InvN1)
 			if err != nil {
 				return nil, fmt.Errorf("cannot UnpackAndSwitchN2Tn1: UnpackN1: %w", err)
 			}

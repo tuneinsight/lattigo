@@ -394,6 +394,17 @@ func (r Ring) RecyclePolyInUintPool(pol *Poly) {
 	RecyclePolyInUintPool(r.bufferPool, pol)
 }
 
+func (r Ring) NewBuffFromUintPool() *structs.BuffFromUintPool[*Poly] {
+	return structs.NewBuffFromUintPool(
+		func() *Poly {
+			return r.NewPolyFromUintPool()
+		},
+		func(poly *Poly) {
+			r.RecyclePolyInUintPool(poly)
+		},
+	)
+}
+
 // NewMonomialXi returns a polynomial X^{i}.
 func (r Ring) NewMonomialXi(i int) (p Poly) {
 

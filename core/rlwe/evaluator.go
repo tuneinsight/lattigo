@@ -29,33 +29,15 @@ type EvaluatorBuffers struct {
 	BuffCtPool  structs.BufferPool[*Ciphertext]
 }
 
-func newBuffer[T any](f func() T) structs.BufferPool[T] {
-	// Uncomment to try with free lists instead of sync pool:
-	// nbItemsInPool := 10
-	// return structs.NewFreeList(nbItemsInPool, f)
-	return structs.NewSyncPool(f)
-}
-func NewEvaluatorBuffersWithUintPool(params Parameters) *EvaluatorBuffers {
+// NewEvaluatorBuffers creates the buffers that are used to recycle large obejcts instead of instantiating new ones.
+// Under the hood, all buffers use the same sync.Pool of *[]uint64.
+func NewEvaluatorBuffers(params Parameters) *EvaluatorBuffers {
 	buff := new(EvaluatorBuffers)
 	ringQP := params.RingQP()
 	ringQ := params.ringQ
 
-	buff.BuffQPPool = structs.NewBuffFromUintPool(
-		func() *ringqp.Poly {
-			return ringQP.NewPolyQPFromUintPool()
-		},
-		func(poly *ringqp.Poly) {
-			ringQP.RecyclePolyQPFromUintPool(poly)
-		},
-	)
-	buff.BuffQPool = structs.NewBuffFromUintPool(
-		func() *ring.Poly {
-			return ringQ.NewPolyFromUintPool()
-		},
-		func(poly *ring.Poly) {
-			ringQ.RecyclePolyInUintPool(poly)
-		},
-	)
+	buff.BuffQPPool = ringQP.NewBuffFromUintPool()
+	buff.BuffQPool = ringQ.NewBuffFromUintPool()
 	buff.BuffCtPool = structs.NewBuffFromUintPool(
 		func() *Ciphertext {
 			return NewCiphertextFromUintPool(params, 2, params.MaxLevel())
@@ -68,38 +50,14 @@ func NewEvaluatorBuffersWithUintPool(params Parameters) *EvaluatorBuffers {
 	return buff
 }
 
-func NewEvaluatorBuffers(params Parameters) *EvaluatorBuffers {
-
-	buff := new(EvaluatorBuffers)
-	ringQP := params.RingQP()
-
-	buff.BuffQPPool = newBuffer(func() *ringqp.Poly {
-		poly := ringQP.NewPoly()
-		return &poly
-	})
-	buff.BuffQPool = newBuffer(func() *ring.Poly {
-		poly := params.RingQ().NewPoly()
-		return &poly
-	})
-	buff.BuffCtPool = newBuffer(func() *Ciphertext {
-		return NewCiphertext(params, 2, params.MaxLevel())
-	})
-	buff.BuffBitPool = newBuffer(func() *[]uint64 {
-		buff := make([]uint64, params.RingQ().N())
-		return &buff
-	})
-	return buff
-}
-
 // NewEvaluator creates a new [Evaluator].
 func NewEvaluator(params ParameterProvider, evk EvaluationKeySet) (eval *Evaluator) {
 	eval = new(Evaluator)
 	p := params.GetRLWEParameters()
 	eval.params = *p
+
 	// All buffer use the same sync.Pool of *[]uint64
-	eval.EvaluatorBuffers = NewEvaluatorBuffersWithUintPool(eval.params)
-	// Uncomment following line to have one sync.Pool per buffer type
-	// eval.EvaluatorBuffers = NewEvaluatorBuffers(eval.params)
+	eval.EvaluatorBuffers = NewEvaluatorBuffers(eval.params)
 
 	if p.RingP() != nil {
 		eval.BasisExtender = ring.NewBasisExtender(p.RingQ(), p.RingP())

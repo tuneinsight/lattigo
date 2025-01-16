@@ -67,7 +67,8 @@ type Encoder struct {
 	rotGroup []int
 
 	roots interface{}
-	// buffCmplx       interface{}
+
+	// Pools used to recycle large objects.
 	BuffPolyPool    structs.BufferPool[*ring.Poly]
 	BuffBigIntPool  structs.BufferPool[*[]*big.Int]
 	BuffComplexPool structs.BufferPool[Complex]
@@ -112,15 +113,7 @@ func NewEncoder(parameters Parameters, precision ...uint) (ecd *Encoder) {
 	})
 
 	ringQ := parameters.RingQ()
-
-	ecd.BuffPolyPool = structs.NewBuffFromUintPool(
-		func() *ring.Poly {
-			return ringQ.NewPolyFromUintPool()
-		},
-		func(poly *ring.Poly) {
-			ringQ.RecyclePolyInUintPool(poly)
-		},
-	)
+	ecd.BuffPolyPool = ringQ.NewBuffFromUintPool()
 
 	if prec <= 53 {
 
@@ -133,14 +126,8 @@ func NewEncoder(parameters Parameters, precision ...uint) (ecd *Encoder) {
 
 	} else {
 
-		// tmp := make([]*bignum.Complex, ecd.m>>2)
-		//
-		// for i := 0; i < ecd.m>>2; i++ {
-		// 	tmp[i] = &bignum.Complex{bignum.NewFloat(0, prec), bignum.NewFloat(0, prec)}
-		// }
-
 		ecd.roots = GetRootsBigComplex(ecd.m, prec)
-		// ecd.buffCmplx = tmp
+
 		ecd.BuffComplexPool = structs.NewSyncPool(func() Complex {
 			buff := make([]*bignum.Complex, ecd.m>>2)
 			for i := 0; i < ecd.m>>2; i++ {

@@ -350,7 +350,7 @@ func testMarshalBinary(tc *testParams, t *testing.T) {
 			t.Fatal(err)
 		}
 
-		require.Equal(t, ringQTest, tc.ringQ)
+		require.Equal(t, ringQTest.parametersLiteral(), tc.ringQ.parametersLiteral())
 	})
 
 	t.Run(testString("MarshalBinary/Poly", tc.ringQ), func(t *testing.T) {

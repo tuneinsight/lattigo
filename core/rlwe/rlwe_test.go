@@ -1271,7 +1271,7 @@ func testMarshaller(tc *TestContext, t *testing.T) {
 		require.Nil(t, err)
 		var p Parameters
 		require.Nil(t, p.UnmarshalBinary(bytes))
-		require.Equal(t, params, p)
+		require.Equal(t, params.ParametersLiteral(), p.ParametersLiteral())
 	})
 
 	t.Run("Marshaller/MetaData", func(t *testing.T) {

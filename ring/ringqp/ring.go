@@ -223,19 +223,25 @@ func (r Ring) NewPoly() Poly {
 
 // NewPolyQPFromUintPool creates a new polynomial using the *[]uint64 BufferPool for backing arrays.
 func (r Ring) NewPolyQPFromUintPool() *Poly {
-	var Q, P *ring.Poly
+	var Q, P ring.Poly
 	if r.RingQ != nil {
-		Q = r.RingQ.NewPolyFromUintPool()
+		buffQ := r.RingQ.NewPolyFromUintPool()
+		Q = *buffQ
 	}
 	if r.RingP != nil {
-		P = r.RingP.NewPolyFromUintPool()
+		buffP := r.RingP.NewPolyFromUintPool()
+		P = *buffP
 	}
-	return &Poly{*Q, *P}
+	return &Poly{Q, P}
 }
 
 func (r Ring) RecyclePolyQPFromUintPool(poly *Poly) {
-	r.RingQ.RecyclePolyInUintPool(&poly.Q)
-	r.RingP.RecyclePolyInUintPool(&poly.P)
+	if r.RingQ != nil {
+		r.RingQ.RecyclePolyInUintPool(&poly.Q)
+	}
+	if r.RingP != nil {
+		r.RingP.RecyclePolyInUintPool(&poly.P)
+	}
 }
 
 func (r Ring) NewBuffFromUintPool() *structs.BuffFromUintPool[*Poly] {

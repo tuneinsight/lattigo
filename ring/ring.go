@@ -639,7 +639,10 @@ func newRingFromparametersLiteral(p ringParametersLiteral) (r *Ring, err error) 
 	}
 
 	r.RescaleConstants = rewRescaleConstants(r.SubRings)
-
+	r.bufferPool = structs.NewSyncPool(func() *[]uint64 {
+		buff := make([]uint64, r.SubRings[0].N)
+		return &buff
+	})
 	return
 }
 

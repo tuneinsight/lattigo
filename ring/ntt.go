@@ -61,7 +61,7 @@ func (rntt NumberTheoreticTransformerStandard) Forward(p1, p2 []uint64) {
 }
 
 // ForwardLazy writes the forward NTT in Z[X]/(X^N+1) of p1 on p2.
-// Returns values in the range [0, 2q-1].
+// Returns values in the range [0, 6q-2].
 func (rntt NumberTheoreticTransformerStandard) ForwardLazy(p1, p2 []uint64) {
 	NTTStandardLazy(p1, p2, rntt.N, rntt.Modulus, rntt.MRedConstant, rntt.RootsForward)
 }
@@ -130,7 +130,7 @@ func (r Ring) NTT(p1, p2 Poly) {
 	}
 }
 
-// NTTLazy evaluates p2 = NTT(p1) with p2 in [0, 2*modulus-1].
+// NTTLazy evaluates p2 = NTT(p1) with p2 in [0, 6*modulus-2].
 func (r Ring) NTTLazy(p1, p2 Poly) {
 	for i, s := range r.SubRings[:r.level+1] {
 		s.NTTLazy(p1.Coeffs[i], p2.Coeffs[i])
@@ -176,7 +176,7 @@ func NTTStandard(p1, p2 []uint64, N int, Q, MRedConstant uint64, BRedConstant [2
 	reducevec(p2, p2, Q, BRedConstant)
 }
 
-// NTTStandardLazy computes the NTTStandard in the given SubRing with p2 in [0, 2*modulus-1].
+// NTTStandardLazy computes the NTTStandard in the given SubRing with p2 in [0, 6*modulus-2].
 func NTTStandardLazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []uint64) {
 	nttCoreLazy(p1, p2, N, Q, MRedConstant, roots)
 }
@@ -205,7 +205,7 @@ func INTTStandardLazy(p1, p2 []uint64, N int, NInv, Q, MRedConstant uint64, root
 	}
 }
 
-// nttCoreLazy computes the NTT on the input coefficients using the input parameters with output values in the range [0, 2*modulus-1].
+// nttCoreLazy computes the NTT on the input coefficients using the input parameters with output values in the range [0, 6*modulus-2].
 func nttCoreLazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []uint64) {
 
 	// Sanity check
@@ -718,7 +718,7 @@ func NTTConjugateInvariant(p1, p2 []uint64, N int, Q, MRedConstant uint64, BRedC
 	reducevec(p2, p2, Q, BRedConstant)
 }
 
-// NTTConjugateInvariantLazy evaluates p2 = NTT(p1) in the sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1) with p2 in the range [0, 2*modulus-1].
+// NTTConjugateInvariantLazy evaluates p2 = NTT(p1) in the sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1) with p2 in the range [0, 6*modulus-2].
 func NTTConjugateInvariantLazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []uint64) {
 	nttCoreConjugateInvariantLazy(p1, p2, N, Q, MRedConstant, roots)
 }
@@ -735,7 +735,7 @@ func INTTConjugateInvariantLazy(p1, p2 []uint64, N int, NInv, Q, MRedConstant ui
 	mulscalarmontgomerylazyvec(p2, NInv, p2, Q, MRedConstant)
 }
 
-// nttCoreConjugateInvariantLazy evaluates p2 = NTT(p1) in the sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1) with p2 [0, 2*modulus-1].
+// nttCoreConjugateInvariantLazy evaluates p2 = NTT(p1) in the sub-ring Z[X + X^-1]/(X^2N +1) of Z[X]/(X^2N+1) with p2 [0, 6*modulus-2].
 func nttCoreConjugateInvariantLazy(p1, p2 []uint64, N int, Q, MRedConstant uint64, roots []uint64) {
 
 	// Sanity check

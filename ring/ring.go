@@ -249,17 +249,10 @@ func (r Ring) BRedConstants() (BRC [][2]uint64) {
 
 // NewRing creates a new RNS Ring with degree N and coefficient moduli Moduli with Standard NTT. N must be a power of two larger than 8. Moduli should be
 // a non-empty []uint64 with distinct prime elements. All moduli must also be equal to 1 modulo 2*N.
+// A pool implementing BufferPool[*[]uint64] will be stored in the returned Ring and will be used to efficiently instantiate large objects.
 // An error is returned with a nil *Ring in the case of non NTT-enabling parameters.
-func NewRing(N int, Moduli []uint64, pool ...structs.BufferPool[*[]uint64]) (r *Ring, err error) {
-	var bp structs.BufferPool[*[]uint64]
-	switch len(pool) {
-	case 0:
-	case 1:
-		bp = pool[0]
-	default:
-		return nil, fmt.Errorf("cannot create new ring: more than 1 buffer pools provided")
-	}
-	return NewRingWithCustomNTT(N, Moduli, NewNumberTheoreticTransformerStandard, 2*N, bp)
+func NewRing(N int, Moduli []uint64, pool structs.BufferPool[*[]uint64]) (r *Ring, err error) {
+	return NewRingWithCustomNTT(N, Moduli, NewNumberTheoreticTransformerStandard, 2*N, pool)
 }
 
 // NewRingConjugateInvariant creates a new RNS Ring with degree N and coefficient moduli Moduli with Conjugate Invariant NTT. N must be a power of two larger than 8. Moduli should be
@@ -333,6 +326,19 @@ func NewRingWithCustomNTT(N int, ModuliChain []uint64, ntt func(*SubRing, int) N
 	r.level = len(ModuliChain) - 1
 
 	r.bufferPool = pool
+
+	if r.bufferPool != nil { // Check that provided pool returns slices of length N
+		arr := r.bufferPool.Get()
+		if len(*arr) != N {
+			return nil, fmt.Errorf("invalid pool: pool must return []uint64 of length=%d != %d", N, len(*arr))
+		}
+		r.bufferPool.Put(arr)
+	} else { // If no pool provided: create one
+		r.bufferPool = structs.NewSyncPool(func() *[]uint64 {
+			arr := make([]uint64, N)
+			return &arr
+		})
+	}
 
 	return r, r.generateNTTConstants(nil, nil)
 }

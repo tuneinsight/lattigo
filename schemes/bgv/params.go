@@ -103,7 +103,7 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 	if err != nil {
 		return Parameters{}, err
 	}
-	// One can reuse the pool from rlweParams as the ring dimension N is the same
+	// One can reuse the pool from rlweParams.ringQ as the ring dimension N is the same
 	poolQMul := rlweParams.RingQ().BufferPool()
 	if ringQMul, err = ring.NewRing(rlweParams.N(), primes, poolQMul); err != nil {
 		return Parameters{}, err

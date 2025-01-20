@@ -101,5 +101,4 @@ func RecycleCiphertextInUintPool(params ParameterProvider, ct *Ciphertext) {
 		ringQ.RecyclePolyInUintPool(&ct.Value[i])
 	}
 	ct = nil
-	return
 }

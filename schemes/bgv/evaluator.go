@@ -83,7 +83,7 @@ type evaluatorBuffers struct {
 	buffQMulPool structs.BufferPool[*ring.Poly]
 }
 
-// BuffQ returns a pointer to the internal memory buffer buffQ.
+// BuffQPool returns a pointer to the internal memory buffer buffQPool.
 func (eval Evaluator) BuffQPool() structs.BufferPool[*ring.Poly] {
 	return eval.buffQPool
 }

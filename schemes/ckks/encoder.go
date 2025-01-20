@@ -100,11 +100,8 @@ func NewEncoder(parameters Parameters, precision ...uint) (ecd *Encoder) {
 	ecd = &Encoder{
 		prec:       prec,
 		parameters: parameters,
-		// bigintCoeffs: make([]*big.Int, m>>1),
-		// qHalf:        bignum.NewInt(0),
-		// buff:     parameters.RingQ().NewPoly(),
-		m:        m,
-		rotGroup: rotGroup,
+		m:          m,
+		rotGroup:   rotGroup,
 	}
 
 	ecd.BuffBigIntPool = structs.NewSyncPool(func() *[]*big.Int {
@@ -1212,32 +1209,14 @@ func (ecd *Encoder) polyToFloatNoCRT(coeffs []uint64, values FloatSlice, scale r
 // that can be used concurrently with the original object.
 func (ecd Encoder) ShallowCopy() *Encoder {
 
-	// var buffCmplx interface{}
-
-	// if prec := ecd.prec; prec <= 53 {
-	// 	buffCmplx = make([]complex128, ecd.m>>1)
-	// } else {
-	// 	tmp := make([]*bignum.Complex, ecd.m>>2)
-	//
-	// 	for i := 0; i < ecd.m>>2; i++ {
-	// 		tmp[i] = &bignum.Complex{bignum.NewFloat(0, prec), bignum.NewFloat(0, prec)}
-	// 	}
-	//
-	// 	buffCmplx = tmp
-	// }
-
 	return &Encoder{
-		prec:       ecd.prec,
-		parameters: ecd.parameters,
-		// bigintCoeffs: make([]*big.Int, len(ecd.bigintCoeffs)),
-		// qHalf:        new(big.Int),
-		// buff:      *ecd.buff.CopyNew(),
+		prec:            ecd.prec,
+		parameters:      ecd.parameters,
 		m:               ecd.m,
 		rotGroup:        ecd.rotGroup,
 		roots:           ecd.roots,
 		BuffPolyPool:    ecd.BuffPolyPool,
 		BuffBigIntPool:  ecd.BuffBigIntPool,
 		BuffComplexPool: ecd.BuffComplexPool,
-		// buffCmplx:       buffCmplx,
 	}
 }

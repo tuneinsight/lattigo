@@ -79,23 +79,15 @@ func newEvaluatorPrecomp(parameters Parameters) *evaluatorBase {
 }
 
 type evaluatorBuffers struct {
-	buffQPool    structs.BufferPool[*ring.Poly]
-	buffQMulPool structs.BufferPool[*ring.Poly]
-}
-
-// BuffQPool returns a pointer to the internal memory buffer buffQPool.
-func (eval Evaluator) BuffQPool() structs.BufferPool[*ring.Poly] {
-	return eval.buffQPool
+	BuffQMulPool structs.BufferPool[*ring.Poly]
 }
 
 func newEvaluatorBuffer(params Parameters) *evaluatorBuffers {
 
-	ringQ := params.RingQ()
 	ringQMul := params.RingQMul()
 
 	return &evaluatorBuffers{
-		buffQMulPool: ringQMul.NewBuffFromUintPool(),
-		buffQPool:    ringQ.NewBuffFromUintPool(),
+		BuffQMulPool: ringQMul.NewBuffFromUintPool(),
 	}
 }
 
@@ -225,8 +217,8 @@ func (eval Evaluator) Add(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 		opOut.Resize(op0.Degree(), level)
 
 		// Instantiates new plaintext from buffer
-		buffQ := eval.buffQPool.Get()
-		defer eval.buffQPool.Put(buffQ)
+		buffQ := eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(buffQ)
 		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, *buffQ)
 
 		// This error should not happen, unless the evaluator's buffer were
@@ -368,8 +360,8 @@ func (eval Evaluator) Sub(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 		opOut.Resize(op0.Degree(), level)
 
 		// Instantiates new plaintext from buffer
-		buffQ := eval.buffQPool.Get()
-		defer eval.buffQPool.Put(buffQ)
+		buffQ := eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(buffQ)
 		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, *buffQ)
 
 		// This error should not happen, unless the evaluator's buffer were
@@ -503,8 +495,8 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 		}
 
 		// Instantiates new plaintext from buffer
-		buffQ := eval.buffQPool.Get()
-		defer eval.buffQPool.Put(buffQ)
+		buffQ := eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(buffQ)
 		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, *buffQ)
 
 		// This error should not happen, unless the evaluator's buffer were
@@ -665,10 +657,10 @@ func (eval Evaluator) tensorStandard(op0 *rlwe.Ciphertext, op1 *rlwe.Element[rin
 	// Case Ciphertext (x) Ciphertext
 	if op0.Degree() == 1 && op1.Degree() == 1 {
 
-		c00 = eval.buffQPool.Get()
-		defer eval.buffQPool.Put(c00)
-		c01 = eval.buffQPool.Get()
-		defer eval.buffQPool.Put(c01)
+		c00 = eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(c00)
+		c01 = eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(c01)
 
 		c0 = opOut.Value[0]
 		c1 = opOut.Value[1]
@@ -678,8 +670,8 @@ func (eval Evaluator) tensorStandard(op0 *rlwe.Ciphertext, op1 *rlwe.Element[rin
 			c2 = opOut.Value[2]
 		} else {
 			opOut.Resize(1, opOut.Level())
-			buffq := eval.buffQPool.Get()
-			defer eval.buffQPool.Put(buffq)
+			buffq := eval.BuffQPool.Get()
+			defer eval.BuffQPool.Put(buffq)
 			c2 = *buffq
 		}
 
@@ -737,8 +729,8 @@ func (eval Evaluator) tensorStandard(op0 *rlwe.Ciphertext, op1 *rlwe.Element[rin
 
 		opOut.Resize(op0.Degree(), level)
 
-		c00 = eval.buffQPool.Get()
-		defer eval.buffQPool.Put(c00)
+		c00 = eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(c00)
 
 		// Multiply by T * 2^{64} * 2^{64} -> result multipled by T and switched in the Montgomery domain
 		ringQ.MulRNSScalarMontgomery(op1.El().Value[0], eval.tMontgomery, *c00)
@@ -801,8 +793,8 @@ func (eval Evaluator) MulScaleInvariant(op0 *rlwe.Ciphertext, op1 rlwe.Operand, 
 		opOut.Resize(op0.Degree(), level)
 
 		// Instantiates new plaintext from buffer
-		buffQ := eval.buffQPool.Get()
-		defer eval.buffQPool.Put(buffQ)
+		buffQ := eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(buffQ)
 		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, *buffQ)
 
 		// This error should not happen, unless the evaluator's buffer were
@@ -911,8 +903,8 @@ func (eval Evaluator) MulRelinScaleInvariant(op0 *rlwe.Ciphertext, op1 rlwe.Oper
 		opOut.Resize(op0.Degree(), level)
 
 		// Instantiates new plaintext from buffer
-		buffQ := eval.buffQPool.Get()
-		defer eval.buffQPool.Put(buffQ)
+		buffQ := eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(buffQ)
 		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, *buffQ)
 
 		// This error should not happen, unless the evaluator's buffer were
@@ -990,16 +982,16 @@ func (eval Evaluator) tensorScaleInvariant(ct0 *rlwe.Ciphertext, ct1 *rlwe.Eleme
 		tmp0Q0, tmp1Q0 = ct0.El(), ct1
 	}
 
-	buffQ0 := eval.buffQPool.Get()
-	defer eval.buffQPool.Put(buffQ0)
-	buffQ1 := eval.buffQPool.Get()
-	defer eval.buffQPool.Put(buffQ1)
-	buffQ2 := eval.buffQPool.Get()
-	defer eval.buffQPool.Put(buffQ2)
-	buffQ3 := eval.buffQPool.Get()
-	defer eval.buffQPool.Put(buffQ3)
-	buffQ4 := eval.buffQPool.Get()
-	defer eval.buffQPool.Put(buffQ4)
+	buffQ0 := eval.BuffQMulPool.Get()
+	defer eval.BuffQMulPool.Put(buffQ0)
+	buffQ1 := eval.BuffQMulPool.Get()
+	defer eval.BuffQMulPool.Put(buffQ1)
+	buffQ2 := eval.BuffQMulPool.Get()
+	defer eval.BuffQMulPool.Put(buffQ2)
+	buffQ3 := eval.BuffQMulPool.Get()
+	defer eval.BuffQMulPool.Put(buffQ3)
+	buffQ4 := eval.BuffQMulPool.Get()
+	defer eval.BuffQMulPool.Put(buffQ4)
 	tmp0Q1 := &rlwe.Element[ring.Poly]{Value: []ring.Poly{*buffQ0, *buffQ1, *buffQ2}}
 	tmp1Q1 := &rlwe.Element[ring.Poly]{Value: []ring.Poly{*buffQ3, *buffQ4}}
 	tmp2Q1 := tmp0Q1
@@ -1016,8 +1008,8 @@ func (eval Evaluator) tensorScaleInvariant(ct0 *rlwe.Ciphertext, ct1 *rlwe.Eleme
 		c2 = opOut.Value[2]
 	} else {
 		opOut.Resize(1, opOut.Level())
-		buffQ := eval.buffQPool.Get()
-		defer eval.buffQPool.Put(buffQ)
+		buffQ := eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(buffQ)
 		c2 = *buffQ
 	}
 
@@ -1073,8 +1065,8 @@ func MulScaleInvariant(params Parameters, a, b rlwe.Scale, level int) (c rlwe.Sc
 
 func (eval Evaluator) modUpAndNTT(level, levelQMul int, ctQ0, ctQ1 *rlwe.Element[ring.Poly]) {
 	ringQ, ringQMul := eval.parameters.RingQ().AtLevel(level), eval.parameters.RingQMul().AtLevel(levelQMul)
-	buffQ := eval.buffQPool.Get()
-	defer eval.buffQPool.Put(buffQ)
+	buffQ := eval.BuffQPool.Get()
+	defer eval.BuffQPool.Put(buffQ)
 	for i := range ctQ0.Value {
 		ringQ.INTT(ctQ0.Value[i], *buffQ)
 		eval.basisExtenderQ1toQ2.ModUpQtoP(level, levelQMul, *buffQ, ctQ1.Value[i])
@@ -1086,18 +1078,18 @@ func (eval Evaluator) tensorLowDeg(level, levelQMul int, ct0Q0, ct1Q0, ct2Q0, ct
 
 	ringQ, ringQMul := eval.parameters.RingQ().AtLevel(level), eval.parameters.RingQMul().AtLevel(levelQMul)
 
-	c00 := eval.buffQPool.Get()
-	defer eval.buffQPool.Put(c00)
-	c01 := eval.buffQPool.Get()
-	defer eval.buffQPool.Put(c01)
+	c00 := eval.BuffQPool.Get()
+	defer eval.BuffQPool.Put(c00)
+	c01 := eval.BuffQPool.Get()
+	defer eval.BuffQPool.Put(c01)
 
 	ringQ.MForm(ct0Q0.Value[0], *c00)
 	ringQ.MForm(ct0Q0.Value[1], *c01)
 
-	c00M := eval.buffQPool.Get()
-	defer eval.buffQPool.Put(c00M)
-	c01M := eval.buffQPool.Get()
-	defer eval.buffQPool.Put(c01M)
+	c00M := eval.BuffQMulPool.Get()
+	defer eval.BuffQMulPool.Put(c00M)
+	c01M := eval.BuffQMulPool.Get()
+	defer eval.BuffQMulPool.Put(c01M)
 
 	ringQMul.MForm(ct0Q1.Value[0], *c00M)
 	ringQMul.MForm(ct0Q1.Value[1], *c01M)
@@ -1237,8 +1229,8 @@ func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *
 		opOut.Resize(op0.Degree(), opOut.Level())
 
 		// Instantiates new plaintext from buffer
-		buffQ := eval.buffQPool.Get()
-		defer eval.buffQPool.Put(buffQ)
+		buffQ := eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(buffQ)
 		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, *buffQ)
 
 		// This error should not happen, unless the evaluator's buffer were
@@ -1328,10 +1320,10 @@ func (eval Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ri
 	// Case Ciphertext (x) Ciphertext
 	if op0.Degree() == 1 && op1.Degree() == 1 {
 
-		c00 = eval.buffQPool.Get()
-		defer eval.buffQPool.Put(c00)
-		c01 = eval.buffQPool.Get()
-		defer eval.buffQPool.Put(c01)
+		c00 = eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(c00)
+		c01 = eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(c01)
 
 		c0 = opOut.Value[0]
 		c1 = opOut.Value[1]
@@ -1341,8 +1333,8 @@ func (eval Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ri
 			c2 = opOut.Value[2]
 		} else {
 			opOut.Resize(utils.Max(1, opOut.Degree()), level)
-			buffQ := eval.buffQPool.Get()
-			defer eval.buffQPool.Put(buffQ)
+			buffQ := eval.BuffQPool.Get()
+			defer eval.BuffQPool.Put(buffQ)
 			c2 = *buffQ
 		}
 
@@ -1410,8 +1402,8 @@ func (eval Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ri
 
 		opOut.Resize(utils.Max(op0.Degree(), opOut.Degree()), level)
 
-		c00 := eval.buffQPool.Get()
-		defer eval.buffQPool.Put(c00)
+		c00 := eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(c00)
 
 		// Multiply by T * 2^{64} * 2^{64} -> result multipled by T and switched in the Montgomery domain
 		ringQ.MulRNSScalarMontgomery(op1.El().Value[0], eval.tMontgomery, *c00)
@@ -1473,8 +1465,8 @@ func (eval Evaluator) Rescale(op0, opOut *rlwe.Ciphertext) (err error) {
 	level := op0.Level()
 	ringQ := eval.parameters.RingQ().AtLevel(level)
 
-	buffQ := eval.buffQPool.Get()
-	defer eval.buffQPool.Put(buffQ)
+	buffQ := eval.BuffQPool.Get()
+	defer eval.BuffQPool.Put(buffQ)
 	for i := range opOut.Value {
 		ringQ.DivRoundByLastModulusNTT(op0.Value[i], *buffQ, opOut.Value[i])
 	}

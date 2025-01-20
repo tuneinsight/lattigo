@@ -1,17 +1,12 @@
 package bootstrapping
 
 import (
-	"fmt"
-	"sync"
 	"testing"
 	"time"
-
-	// "time"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/tuneinsight/lattigo/v6/core/rlwe"
-	"github.com/tuneinsight/lattigo/v6/ring"
 
 	"github.com/tuneinsight/lattigo/v6/schemes/ckks"
 )
@@ -33,79 +28,17 @@ func BenchmarkConcurrentBootstrap(b *testing.B) {
 
 	b.Run(ParamsToString(params, btpParams.LogMaxDimensions().Cols, "Bootstrap/"), func(b *testing.B) {
 		var err error
-		var ctBtp1, ctBtp2 *rlwe.Ciphertext
-		var wg sync.WaitGroup
 		eval, err := NewEvaluator(btpParams, evk)
-		for i := 0; i < b.N; i++ {
-			b.StopTimer()
-			ct1 := ckks.NewCiphertext(params, 1, 0)
-			ct2 := ckks.NewCiphertext(params, 1, 0)
-			b.StartTimer()
-			wg.Add(1)
-			go func(ctIn *rlwe.Ciphertext) {
-				var err error
-				defer wg.Done()
-				ctBtp2, err = eval.Bootstrap(ctIn)
-				require.NoError(b, err)
-			}(ct2)
-			ctBtp1, err = eval.Bootstrap(ct1)
-			require.NoError(b, err)
-			wg.Wait()
-			fmt.Println(ctBtp1.Level(), ctBtp2.Level())
-		}
+		require.NoError(b, err)
+		ct1 := ckks.NewCiphertext(params, 1, 0)
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				_, err = eval.Bootstrap(ct1)
+			}
+		})
 	})
 
-}
-
-func BenchmarkAlloc(b *testing.B) {
-	b.Skip()
-
-	paramSet := DefaultParametersDense[0]
-
-	params, err := ckks.NewParametersFromLiteral(paramSet.SchemeParams)
-	require.NoError(b, err)
-
-	btpParams, err := NewParametersFromLiteral(params, paramSet.BootstrappingParams)
-	require.Nil(b, err)
-
-	kgen := rlwe.NewKeyGenerator(params)
-	sk := kgen.GenSecretKeyNew()
-
-	evk, _, err := btpParams.GenEvaluationKeys(sk)
-	require.NoError(b, err)
-
-	eval, err := NewEvaluator(btpParams, evk)
-	require.NoError(b, err)
-
-	b.Run("Pool", func(b *testing.B) {
-
-		for i := 0; i < b.N; i++ {
-
-			pol0 := eval.GetBuffQPPool().Get()
-			pol1 := eval.GetBuffQPPool().Get()
-			// pol0 := ringqp.NewPoly()
-			// pol1 := ringqp.NewPoly()
-			tmpCt := rlwe.Ciphertext{}
-			tmpCt.Value = []ring.Poly{pol0.Q, pol1.Q}
-
-			eval.GetBuffQPPool().Put(pol0)
-			eval.GetBuffQPPool().Put(pol1)
-		}
-	})
-	// b.Run("Buff", func(b *testing.B) {
-	//
-	// 	// var err error
-	//
-	// 	for i := 0; i < b.N; i++ {
-	//
-	// 		pol0 := eval.GetBuffQP()[0]
-	// 		pol1 := eval.GetBuffQP()[1]
-	// 		tmpCt := rlwe.Ciphertext{}
-	// 		tmpCt.Value = []ring.Poly{pol0.Q, pol1.Q}
-	//
-	// 		// ScaleDown
-	// 	}
-	// })
 }
 
 func BenchmarkBootstrap(b *testing.B) {

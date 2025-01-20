@@ -23,8 +23,8 @@ func BenchmarkCKKS(b *testing.B) {
 	default:
 		testParams = []ParametersLiteral{
 			{
-				LogN:            16,
-				LogQ:            []int{50, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40},
+				LogN:            14,
+				LogQ:            []int{50, 40, 40, 40, 40, 40, 40, 40},
 				LogP:            []int{60},
 				LogDefaultScale: 40,
 				RingType:        ring.Standard,
@@ -37,8 +37,8 @@ func BenchmarkCKKS(b *testing.B) {
 		tc := NewTestContext(paramsLiteral)
 
 		for _, testSet := range []func(tc *TestContext, b *testing.B){
-			// benchEncoder,
-			// benchEvaluator,
+			benchEncoder,
+			benchEvaluator,
 			benchEvaluatorParallel,
 		} {
 			testSet(tc, b)

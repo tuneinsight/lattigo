@@ -50,8 +50,8 @@ func NewSubRingWithCustomNTT(N int, Modulus uint64, ntt func(*SubRing, int) Numb
 		return nil, fmt.Errorf("invalid ring degree: must be a power of 2 greater than %d", MinimumRingDegreeForLoopUnrolledOperations)
 	}
 
-	if NthRoot < 0 {
-		panic(fmt.Errorf("invalid NthRoot: cannot be negative"))
+	if NthRoot <= 0 {
+		panic(fmt.Errorf("invalid NthRoot: NthRoot=%d should be greater than 0", NthRoot))
 	}
 
 	s = &SubRing{}
@@ -59,7 +59,7 @@ func NewSubRingWithCustomNTT(N int, Modulus uint64, ntt func(*SubRing, int) Numb
 	s.N = N
 
 	s.Modulus = Modulus
-	/* #nosec G115 -- Modulus-1 cannot be negative */
+	/* #nosec G115 -- Modulus is ensured to be greater than 0 */
 	s.Mask = (1 << uint64(bits.Len64(Modulus-1))) - 1
 
 	// Computes the fast modular reduction constants for the Ring
@@ -72,7 +72,6 @@ func NewSubRingWithCustomNTT(N int, Modulus uint64, ntt func(*SubRing, int) Numb
 	}
 
 	s.NTTTable = new(NTTTable)
-	/* #nosec G115 -- NthRoot cannot be negative */
 	s.NthRoot = uint64(NthRoot)
 
 	s.ntt = ntt(s, N)

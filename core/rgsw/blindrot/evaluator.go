@@ -231,9 +231,13 @@ func (eval *Evaluator) evaluateFromDiscreteLogSets(GaloisElement func(k int) (ga
 // getGaloisElementInverseMap generates a map [(+/-) g^{k} mod 2N] = +/- k
 func getGaloisElementInverseMap(GaloisGen uint64, N int) (GaloisGenDiscreteLog map[uint64]int) {
 
+	if N <= 0 {
+		panic(fmt.Errorf("invalid N: N=%d should be greater than zero", N))
+	}
+
 	twoN := N << 1
 	NHalf := N >> 1
-	/* #nosec G115 -- twoN cannot be negative */
+	/* #nosec G115 -- previous check ensures twoN is greater than zero */
 	mask := uint64(twoN - 1)
 
 	GaloisGenDiscreteLog = map[uint64]int{}

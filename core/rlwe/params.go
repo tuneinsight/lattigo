@@ -297,7 +297,7 @@ func (p Parameters) NthRoot() int {
 
 // LogNthRoot returns the log2(NthRoot) of the ring.
 func (p Parameters) LogNthRoot() int {
-	/* #nosec G115 -- NthRoot cannot be negative */
+	/* #nosec G115 -- NthRoot is ensured to be greater than 0 */
 	return bits.Len64(uint64(p.NthRoot() - 1))
 }
 

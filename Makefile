@@ -53,8 +53,6 @@ checks: check_tools
 		false;\
 	fi
 
-# gosec rule G115: Is exluded because there are int->uin64 conversions
-# and the rule currently contains false positives
 	@GOSECOUT=$$(gosec -quiet ./...); \
 	if [ -z "$$GOSECOUT" ]; then\
 		echo "gosec: OK";\

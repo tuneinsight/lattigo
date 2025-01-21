@@ -25,11 +25,10 @@ type simEvaluator struct {
 // PolynomialDepth returns the depth of the polynomial.
 func (d simEvaluator) PolynomialDepth(degree int) int {
 
-	if degree < 0 {
-		panic(fmt.Errorf("invalid degree: cannot be negative"))
+	if degree <= 0 {
+		panic(fmt.Errorf("invalid degree: degree=%d should be greater than zero", degree))
 	}
 
-	/* #nosec G115 -- degree cannot be negative */
 	return d.levelsConsumedPerRescaling * (bits.Len64(uint64(degree)) - 1)
 }
 

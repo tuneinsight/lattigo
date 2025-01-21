@@ -19,13 +19,12 @@ type Interpolator struct {
 // than degree+1.
 func NewInterpolator(degree int, T uint64) (itp *Interpolator, err error) {
 
-	if degree < 0 {
-		panic(fmt.Errorf("invalid degree: cannot be negative"))
+	if degree <= 0 {
+		panic(fmt.Errorf("invalid degree: degree=%d should be greater than zero", degree))
 	}
 
 	itp = new(Interpolator)
 
-	/* #nosec G115 -- degree cannot be negative */
 	if itp.r, err = NewRing(1<<bits.Len64(uint64(degree)), []uint64{T}); err != nil {
 		return nil, err
 	}

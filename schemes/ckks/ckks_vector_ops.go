@@ -18,13 +18,11 @@ const (
 func SpecialIFFTDouble(values []complex128, N, M int, rotGroup []int, roots []complex128) {
 
 	// Sanity check
-	if N < 0 || M < N || len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
+	if N <= 0 || M <= 0 || M < N || len(values) < N || len(rotGroup) < N || len(roots) < M+1 {
 		panic(fmt.Sprintf("invalid call of SpecialIFFTDouble: len(values)=%d or len(rotGroup)=%d < N=%d or len(roots)=%d < M+1=%d", len(values), len(rotGroup), N, len(roots), M))
 	}
 
-	/* #nosec G115 -- N cannot be negative */
 	logN := int(bits.Len64(uint64(N))) - 1
-	/* #nosec G115 -- M cannot be negative */
 	logM := int(bits.Len64(uint64(M))) - 1
 	for loglen := logN; loglen > 0; loglen-- {
 		len := 1 << loglen

@@ -27,11 +27,10 @@ func (d simEvaluator) PolynomialDepth(degree int) int {
 		return 0
 	}
 
-	if degree < 0 {
-		panic(fmt.Errorf("invalid degree: cannot be negative"))
+	if degree <= 0 {
+		panic(fmt.Errorf("invalid degree: degree=%d should be greater than zero", degree))
 	}
 
-	/* #nosec G115 -- degree cannot be negative */
 	return bits.Len64(uint64(degree)) - 1
 }
 

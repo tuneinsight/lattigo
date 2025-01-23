@@ -136,7 +136,7 @@ func main() {
 	// Because the maximum size for the primes of the modulus Q is 60, if we want to store larger values
 	// with precision, we will need to reserve the first two primes.
 
-	// We get the encoding precision of the parameters in bits, which is min(53, log2(DefaultScale)).
+	// We get the encoding precision of the parameters in bits, which is max(53, log2(DefaultScale)).
 	// It is always at least 53 (double float precision).
 	// This precision is notably the precision used by the encoder to encode/decode values.
 	prec := params.EncodingPrecision() // we will need this value later

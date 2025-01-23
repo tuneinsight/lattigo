@@ -164,7 +164,9 @@ func (ecd Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 			return fmt.Errorf("cannot Encode: supported values.(type) for IsBatched=False is []float64 or []*big.Float, but %T was given", values)
 		}
 
-		ecd.parameters.RingQ().AtLevel(pt.Level()).NTT(pt.Value, pt.Value)
+		if pt.IsNTT {
+			ecd.parameters.RingQ().AtLevel(pt.Level()).NTT(pt.Value, pt.Value)
+		}
 	}
 
 	return

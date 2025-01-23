@@ -590,13 +590,13 @@ func main() {
 
 	// The `circuits/lintrans` package provides a multiple handy linear transformations.
 	// We will start with the inner sum.
-	// Thus method allows to aggregate `n` sub-vectors of size `batch`.
-	// For example given a vector [x0, x1, x2, x3, x4, x5, x6, x7], batch = 2 and n = 3
-	// it will return the vector [x0+x2+x4, x1+x3+x5, x2+x4+x6, x3+x5+x7, x4+x6+x0, x5+x7+x1, x6+x0+x2, x7+x1+x3]
-	// Observe that the inner sum wraps around the vector, this behavior must be taken into account.
+	// This method allows to aggregate `n` sub-vectors of size `batch` and it stores the result in the leftmost sub-vector of each "group".
+	// For example given a vector [x0, x1, x2, x3, x4, x5, x6, x7], batch = 2 and n = 4
+	// it will return the vector [x0+x2+x4+x6, x1+x3+x5+x7, X, X, X, X, X, X], where X marks garbage slots.
+	// Note that n*batch must divide the length of the vector (i.e. the number of slots).
 
-	batch := 37
-	n := 127
+	batch := 32
+	n := 128
 
 	// The innersum operations is carried out with log2(n) + HW(n) automorphisms and we need to
 	// generate the corresponding Galois keys and provide them to the `Evaluator`.
@@ -619,7 +619,35 @@ func main() {
 	// apply the innersum and then only apply the rescaling.
 	fmt.Printf("Innersum %s", ckks.GetPrecisionStats(params, ecd, dec, want, res, 0, false).String())
 
-	// The replicate operation is exactly the same as the innersum operation, but in reverse
+	// Sometimes we wish to compute an inner sum on the first values of the vector only.
+	// In this case, n*batch does not necessarily divide the length of the vector and the RotateAndAdd function must be used instead.
+	// This method allows to repeatedly shift the vector by batch values and add (i.e. \sum_{i=0}^{n-1} v << (i*batch), where v is the input vector).
+	// For example given a vector [x0, x1, x2, x3, x4, x5, x6, x7], batch = 2 and n = 3
+	// it will return the vector [x0+x2+x4, x1+x3+x5, x2+x4+x6, x3+x5+x7, x4+x6+x0, x5+x7+x1, x6+x0+x2, x7+x1+x3].
+	// Observe that the inner sum wraps around the vector, this behavior must be taken into account.
+
+	batch = 37
+	n = 127
+	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, kgen.GenGaloisKeysNew(params.GaloisElementsForInnerSum(batch, n), sk)...))
+
+	// Plaintext circuit
+	copy(want, values1)
+	for i := 1; i < n; i++ {
+		for j, vi := range utils.RotateSlice(values1, i*batch) {
+			want[j] += vi
+		}
+	}
+
+	if err := eval.RotateAndAdd(ct1, batch, n, res); err != nil {
+		panic(err)
+	}
+
+	// Note that this method can obviously be used to average values.
+	// For a good noise management, it is recommended to first multiply the values by 1/n, then
+	// apply the inner sum and then only apply the rescaling.
+	fmt.Printf("RotateAndAdd %s", ckks.GetPrecisionStats(params, ecd, dec, want, res, 0, false).String())
+
+	// The replicate operation is exactly the same as the rotate and add operation, but in reverse
 	eval = eval.WithKey(rlwe.NewMemEvaluationKeySet(rlk, kgen.GenGaloisKeysNew(params.GaloisElementsForReplicate(batch, n), sk)...))
 
 	// Plaintext circuit

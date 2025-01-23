@@ -193,25 +193,19 @@ func main() {
 	// CAUTION: the scale of the ciphertext MUST be equal (or very close) to params.DefaultScale()
 	// To equalize the scale, the function evaluator.SetScale(ciphertext, parameters.DefaultScale()) can be used at the expense of one level.
 	// If the ciphertext is is at level one or greater when given to the bootstrapper, this equalization is automatically done.
-	for i := range valuesWant {
-		valuesTest1[i] *= valuesTest1[i]
-	}
+	// Here we bootstrap two ciphertexts in parallel to demonstrate that evaluators are thread-safe.
 	var wg sync.WaitGroup
-	var ciphertext4 *rlwe.Ciphertext
+	var res1, res2 *rlwe.Ciphertext
 	fmt.Println("Bootstrapping...")
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		var err error
-		// eval2 := eval.ShallowCopy()
-		ciphertext4, err = eval.Bootstrap(ciphertext2)
-		eval.MulRelin(ciphertext4, valuesWant, ciphertext4)
+		res2, err = eval.Bootstrap(ciphertext2)
 		if err != nil {
 			panic(err)
 		}
 	}()
-	ciphertext3, err := eval.Bootstrap(ciphertext1)
-	eval.MulRelin(ciphertext3, valuesWant, ciphertext3)
+	res1, err = eval.Bootstrap(ciphertext1)
 	if err != nil {
 		panic(err)
 	}
@@ -225,8 +219,8 @@ func main() {
 	// Decrypt, print and compare with the plaintext values
 	fmt.Println()
 	fmt.Println("Precision of ciphertext vs. Bootstrap(ciphertext)")
-	printDebug(params, ciphertext3, valuesTest1, decryptor, encoder)
-	printDebug(params, ciphertext4, valuesTest1, decryptor, encoder)
+	printDebug(params, res1, valuesTest1, decryptor, encoder)
+	printDebug(params, res2, valuesTest1, decryptor, encoder)
 }
 
 func printDebug(params ckks.Parameters, ciphertext *rlwe.Ciphertext, valuesWant []complex128, decryptor *rlwe.Decryptor, encoder *ckks.Encoder) (valuesTest []complex128) {

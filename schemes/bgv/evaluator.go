@@ -1582,7 +1582,11 @@ func (eval Evaluator) InnerSum(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *r
 			return
 		}
 
-		ctTmp := &rlwe.Ciphertext{Element: rlwe.Element[ring.Poly]{Value: []ring.Poly{eval.BuffQP[2].Q, eval.BuffQP[3].Q}}}
+		polyTmp0 := eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(polyTmp0)
+		polyTmp1 := eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(polyTmp1)
+		ctTmp := &rlwe.Ciphertext{Element: rlwe.Element[ring.Poly]{Value: []ring.Poly{*polyTmp0, *polyTmp1}}}
 		ctTmp.MetaData = opOut.MetaData
 		if err = eval.RotateRows(opOut, ctTmp); err != nil {
 			return

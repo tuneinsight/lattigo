@@ -22,6 +22,18 @@ type KeyedPRNG struct {
 	xof blake2b.XOF
 }
 
+type ThreadSafePRNG struct {
+}
+
+// Read reads bytes from the KeyedPRNG on sum.
+func (prng *ThreadSafePRNG) Read(sum []byte) (n int, err error) {
+	tmpPRNG, err := NewPRNG()
+	if err != nil {
+		return 0, fmt.Errorf("crypto rand error: %w", err)
+	}
+	return tmpPRNG.Read(sum)
+}
+
 // NewKeyedPRNG creates a new instance of KeyedPRNG.
 // Accepts an optional key, else set key=nil which is treated as key=[]byte{}
 // WARNING: A PRNG INITIALISED WITH key=nil IS INSECURE!

@@ -79,17 +79,6 @@ type baseSampler struct {
 	baseRing *Ring
 }
 
-type randomBuffer struct {
-	randomBufferN []byte
-	ptr           int
-}
-
-func newRandomBuffer() *randomBuffer {
-	return &randomBuffer{
-		randomBufferN: make([]byte, 1024),
-	}
-}
-
 // AtLevel returns an instance of the target base sampler that operates at the target level.
 // This instance is not thread safe and cannot be used concurrently to the base instance.
 func (b baseSampler) AtLevel(level int) *baseSampler {

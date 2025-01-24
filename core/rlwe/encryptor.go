@@ -46,7 +46,6 @@ func NewEncryptor(params ParameterProvider, key EncryptionKey) *Encryptor {
 
 type Encryptor struct {
 	params Parameters
-	*encryptorBuffers
 
 	encKey         EncryptionKey
 	prng           sampling.PRNG
@@ -63,11 +62,7 @@ func (enc Encryptor) GetRLWEParameters() *Parameters {
 
 func newEncryptor(params Parameters) *Encryptor {
 
-	prng, err := sampling.NewPRNG()
-	if err != nil {
-		// Sanity check, this error should not happen.
-		panic(err)
-	}
+	prng := &sampling.ThreadSafePRNG{}
 
 	var bc *ring.BasisExtender
 	if params.PCount() != 0 {
@@ -89,13 +84,13 @@ func newEncryptor(params Parameters) *Encryptor {
 	}
 
 	return &Encryptor{
-		params:           params,
-		prng:             prng,
-		xeSampler:        xeSampler,
-		xsSampler:        xsSampler,
-		encryptorBuffers: newEncryptorBuffers(params),
-		uniformSampler:   ringqp.NewUniformSampler(prng, *params.RingQP()),
-		basisextender:    bc,
+		params:    params,
+		prng:      prng,
+		xeSampler: xeSampler,
+		xsSampler: xsSampler,
+		// encryptorBuffers: newEncryptorBuffers(params),
+		uniformSampler: ringqp.NewUniformSampler(prng, *params.RingQP()),
+		basisextender:  bc,
 	}
 }
 
@@ -122,19 +117,19 @@ func NewTestEncryptorWithPRNG(params ParameterProvider, key EncryptionKey, prng 
 	return enc
 }
 
-type encryptorBuffers struct {
-	buffQP [3]ringqp.Poly
-}
+// type encryptorBuffers struct {
+// 	buffQP [3]ringqp.Poly
+// }
 
-func newEncryptorBuffers(params Parameters) *encryptorBuffers {
-	return &encryptorBuffers{
-		buffQP: [3]ringqp.Poly{
-			params.RingQP().NewPoly(),
-			params.RingQP().NewPoly(),
-			params.RingQP().NewPoly(),
-		},
-	}
-}
+// func newEncryptorBuffers(params Parameters) *encryptorBuffers {
+// 	return &encryptorBuffers{
+// 		buffQP: [3]ringqp.Poly{
+// 			params.RingQP().NewPoly(),
+// 			params.RingQP().NewPoly(),
+// 			params.RingQP().NewPoly(),
+// 		},
+// 	}
+// }
 
 // Encrypt encrypts the input plaintext using the stored encryption key and writes the result on ct.
 // The method currently accepts only *[Ciphertext] as ct.
@@ -230,8 +225,9 @@ func (enc Encryptor) encryptZeroPk(pk *PublicKey, ct interface{}) (err error) {
 		levelQ = ct.Level()
 		levelP = 0
 
-		ct0QP = ringqp.Poly{Q: ct.Value[0], P: enc.buffQP[0].Q}
-		ct1QP = ringqp.Poly{Q: ct.Value[1], P: enc.buffQP[0].P}
+		tmpPolyQP := enc.params.RingQP().NewPoly()
+		ct0QP = ringqp.Poly{Q: ct.Value[0], P: tmpPolyQP.Q}
+		ct1QP = ringqp.Poly{Q: ct.Value[1], P: tmpPolyQP.P}
 	case Element[ringqp.Poly]:
 
 		levelQ = ct.LevelQ()
@@ -245,7 +241,7 @@ func (enc Encryptor) encryptZeroPk(pk *PublicKey, ct interface{}) (err error) {
 
 	ringQP := enc.params.RingQP().AtLevel(levelQ, levelP)
 
-	u := enc.buffQP[1]
+	u := enc.params.RingQP().NewPoly()
 
 	// We sample a RLWE instance (encryption of zero) over the extended ring (ciphertext ring + special prime)
 	enc.xsSampler.AtLevel(levelQ).Read(u.Q)
@@ -313,7 +309,7 @@ func (enc Encryptor) encryptZeroPkNoP(pk *PublicKey, ct Element[ring.Poly]) (err
 
 	ringQ := enc.params.RingQ().AtLevel(levelQ)
 
-	buffQ0 := enc.buffQP[0].Q
+	buffQ0 := enc.params.ringQ.NewPoly()
 
 	enc.xsSampler.AtLevel(levelQ).Read(buffQ0)
 	ringQ.NTT(buffQ0, buffQ0)
@@ -361,7 +357,7 @@ func (enc Encryptor) encryptZeroSk(sk *SecretKey, ct interface{}) (err error) {
 		if ct.Degree() == 1 {
 			c1 = ct.Value[1]
 		} else {
-			c1 = enc.buffQP[1].Q
+			c1 = enc.params.ringQ.NewPoly()
 		}
 
 		enc.uniformSampler.AtLevel(ct.Level(), -1).Read(ringqp.Poly{Q: c1})
@@ -379,7 +375,7 @@ func (enc Encryptor) encryptZeroSk(sk *SecretKey, ct interface{}) (err error) {
 		if ct.Degree() == 1 {
 			c1 = ct.Value[1]
 		} else {
-			c1 = enc.buffQP[1]
+			c1 = enc.params.RingQP().NewPoly()
 		}
 
 		// ct = (e, a)
@@ -407,7 +403,7 @@ func (enc Encryptor) encryptZeroSkFromC1(sk *SecretKey, ct Element[ring.Poly], c
 	ringQ.Neg(c0, c0)
 
 	if ct.IsNTT {
-		e := enc.buffQP[0].Q
+		e := ringQ.NewPoly()
 		enc.xeSampler.AtLevel(levelQ).Read(e)
 		ringQ.NTT(e, e)
 		ringQ.Add(c0, e, c0)
@@ -517,12 +513,12 @@ func (enc Encryptor) addPtToCt(level int, pt *Plaintext, ct *Ciphertext) {
 		if ct.IsNTT {
 			buff = pt.Value
 		} else {
-			buff = enc.buffQP[0].Q
+			buff = ringQ.NewPoly()
 			ringQ.NTT(pt.Value, buff)
 		}
 	} else {
 		if ct.IsNTT {
-			buff = enc.buffQP[0].Q
+			buff = ringQ.NewPoly()
 			ringQ.INTT(pt.Value, buff)
 		} else {
 			buff = pt.Value

@@ -2,10 +2,13 @@ package sampling
 
 import (
 	"crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"io"
+	"sync/atomic"
 
 	"golang.org/x/crypto/blake2b"
+	"golang.org/x/crypto/sha3"
 )
 
 // PRNG is an interface for secure (keyed) deterministic generation of random bytes
@@ -23,11 +26,36 @@ type KeyedPRNG struct {
 }
 
 type ThreadSafePRNG struct {
+	key       []byte
+	atomicCnt atomic.Uint64
+}
+
+func NewThreadSafePRNG() (*ThreadSafePRNG, error) {
+	key := make([]byte, 64)
+	if _, err := rand.Read(key); err != nil {
+		return nil, fmt.Errorf("crypto rand error: %w", err)
+	}
+	return &ThreadSafePRNG{
+		atomicCnt: atomic.Uint64{},
+		key:       key,
+	}, nil
+}
+
+func uint64ToByte(n uint64) []byte {
+	arr := make([]byte, 8)
+	binary.LittleEndian.PutUint64(arr, n)
+	return arr
 }
 
 // Read reads bytes from the KeyedPRNG on sum.
 func (prng *ThreadSafePRNG) Read(sum []byte) (n int, err error) {
-	tmpPRNG, err := NewPRNG()
+	tmpPRNG := sha3.NewShake256()
+	_, err = tmpPRNG.Write(prng.key)
+	if err != nil {
+		return 0, fmt.Errorf("crypto rand error: %w", err)
+	}
+	cnt := prng.atomicCnt.Add(1)
+	_, err = tmpPRNG.Write(uint64ToByte(cnt))
 	if err != nil {
 		return 0, fmt.Errorf("crypto rand error: %w", err)
 	}

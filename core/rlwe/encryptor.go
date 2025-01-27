@@ -62,7 +62,10 @@ func (enc Encryptor) GetRLWEParameters() *Parameters {
 
 func newEncryptor(params Parameters) *Encryptor {
 
-	prng := &sampling.ThreadSafePRNG{}
+	prng, err := sampling.NewThreadSafePRNG()
+	if err != nil {
+		panic(fmt.Errorf("newEncryptor: %w", err))
+	}
 
 	var bc *ring.BasisExtender
 	if params.PCount() != 0 {

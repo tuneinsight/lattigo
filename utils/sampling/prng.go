@@ -26,7 +26,7 @@ type KeyedPRNG struct {
 }
 
 type ThreadSafePRNG struct {
-	key       []byte
+	xof       sha3.ShakeHash
 	atomicCnt atomic.Uint64
 }
 
@@ -35,9 +35,14 @@ func NewThreadSafePRNG() (*ThreadSafePRNG, error) {
 	if _, err := rand.Read(key); err != nil {
 		return nil, fmt.Errorf("crypto rand error: %w", err)
 	}
+	tmpPRNG := sha3.NewShake256()
+	_, err := tmpPRNG.Write(key)
+	if err != nil {
+		return nil, fmt.Errorf("crypto rand error: %w", err)
+	}
 	return &ThreadSafePRNG{
 		atomicCnt: atomic.Uint64{},
-		key:       key,
+		xof:       tmpPRNG,
 	}, nil
 }
 
@@ -49,11 +54,7 @@ func uint64ToByte(n uint64) []byte {
 
 // Read reads bytes from the KeyedPRNG on sum.
 func (prng *ThreadSafePRNG) Read(sum []byte) (n int, err error) {
-	tmpPRNG := sha3.NewShake256()
-	_, err = tmpPRNG.Write(prng.key)
-	if err != nil {
-		return 0, fmt.Errorf("crypto rand error: %w", err)
-	}
+	tmpPRNG := prng.xof.Clone()
 	cnt := prng.atomicCnt.Add(1)
 	_, err = tmpPRNG.Write(uint64ToByte(cnt))
 	if err != nil {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v6/utils/bignum"
+	"github.com/tuneinsight/lattigo/v6/utils/sampling"
 )
 
 func BenchmarkRing(b *testing.B) {
@@ -87,6 +88,108 @@ func benchSampling(tc *testParams, b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			sampler.Read(pol)
 		}
+	})
+	b.Run(testString("Sampling/ThreadSafePRNGNaive/Gaussian", tc.ringQ), func(b *testing.B) {
+
+		prng := &sampling.ThreadSafePRNGNaive{}
+		sampler, err := NewSampler(prng, tc.ringQ, DiscreteGaussian{Sigma: DefaultSigma, Bound: DefaultBound}, false)
+		require.NoError(b, err)
+
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				sampler.Read(pol)
+			}
+		})
+	})
+	b.Run(testString("Sampling/ThreadSafeShallowCopy/Gaussian", tc.ringQ), func(b *testing.B) {
+
+		b.RunParallel(func(pb *testing.PB) {
+			prng, _ := sampling.NewPRNG()
+			sampler, _ := NewSampler(prng, tc.ringQ, DiscreteGaussian{Sigma: DefaultSigma, Bound: DefaultBound}, false)
+			for pb.Next() {
+				sampler.Read(pol)
+			}
+		})
+	})
+	b.Run(testString("Sampling/ThreadSafePRNG/Gaussian", tc.ringQ), func(b *testing.B) {
+
+		prng, err := sampling.NewThreadSafePRNG()
+		sampler, err := NewSampler(prng, tc.ringQ, DiscreteGaussian{Sigma: DefaultSigma, Bound: DefaultBound}, false)
+		require.NoError(b, err)
+
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				sampler.Read(pol)
+			}
+		})
+	})
+	b.Run(testString("Sampling/ThreadSafePRNGNaive/Uniform", tc.ringQ), func(b *testing.B) {
+
+		prng := &sampling.ThreadSafePRNGNaive{}
+		sampler, err := NewSampler(prng, tc.ringQ, Uniform{}, true)
+		require.NoError(b, err)
+
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				sampler.Read(pol)
+			}
+		})
+	})
+	b.Run(testString("Sampling/ThreadSafeShallowCopy/Uniform", tc.ringQ), func(b *testing.B) {
+
+		b.RunParallel(func(pb *testing.PB) {
+			prng, _ := sampling.NewPRNG()
+			sampler, _ := NewSampler(prng, tc.ringQ, Uniform{}, true)
+			for pb.Next() {
+				sampler.Read(pol)
+			}
+		})
+	})
+	b.Run(testString("Sampling/ThreadSafePRNG/Uniform", tc.ringQ), func(b *testing.B) {
+
+		prng, err := sampling.NewThreadSafePRNG()
+		sampler, err := NewSampler(prng, tc.ringQ, Uniform{}, true)
+		require.NoError(b, err)
+
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				sampler.Read(pol)
+			}
+		})
+	})
+	b.Run(testString("Sampling/ThreadSafePRNGNaive/Ternary/0.3", tc.ringQ), func(b *testing.B) {
+
+		prng := &sampling.ThreadSafePRNGNaive{}
+		sampler, err := NewSampler(prng, tc.ringQ, Ternary{P: 1.0 / 3}, true)
+		require.NoError(b, err)
+
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				sampler.Read(pol)
+			}
+		})
+	})
+	b.Run(testString("Sampling/ThreadSafeShallowCopy/Ternary/0.3", tc.ringQ), func(b *testing.B) {
+
+		b.RunParallel(func(pb *testing.PB) {
+			prng, _ := sampling.NewPRNG()
+			sampler, _ := NewSampler(prng, tc.ringQ, Ternary{P: 1.0 / 3}, true)
+			for pb.Next() {
+				sampler.Read(pol)
+			}
+		})
+	})
+	b.Run(testString("Sampling/ThreadSafePRNG/Ternary/0.3", tc.ringQ), func(b *testing.B) {
+
+		prng, err := sampling.NewThreadSafePRNG()
+		sampler, err := NewSampler(prng, tc.ringQ, Ternary{P: 1.0 / 3}, true)
+		require.NoError(b, err)
+
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				sampler.Read(pol)
+			}
+		})
 	})
 
 	b.Run(testString("Sampling/Ternary/0.3", tc.ringQ), func(b *testing.B) {

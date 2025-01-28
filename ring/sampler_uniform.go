@@ -45,14 +45,14 @@ func (u *UniformSampler) read(pol Poly, f func(a, b, c uint64) uint64) {
 	level := u.baseRing.Level()
 
 	var randomUint, mask, qi uint64
-	var buffer [1024]byte
+	buffer := make([]byte, 1024)
 
 	prng := u.prng
 	N := u.baseRing.N()
 	byteArrayLength := len(buffer)
 
 	var ptr int
-	if _, err := prng.Read(buffer[:]); err != nil {
+	if _, err := prng.Read(buffer); err != nil {
 		// Sanity check, this error should not happen.
 		panic(err)
 	}
@@ -74,7 +74,7 @@ func (u *UniformSampler) read(pol Poly, f func(a, b, c uint64) uint64) {
 
 				// Refills the buff if it runs empty
 				if ptr == byteArrayLength {
-					if _, err := u.prng.Read(buffer[:]); err != nil {
+					if _, err := u.prng.Read(buffer); err != nil {
 						// Sanity check, this error should not happen.
 						panic(err)
 					}

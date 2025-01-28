@@ -25,6 +25,26 @@ type KeyedPRNG struct {
 	xof blake2b.XOF
 }
 
+type ThreadSafePRNGNaive struct {
+}
+
+func NewThreadSafePRNGNaive() (*ThreadSafePRNGNaive, error) {
+	return &ThreadSafePRNGNaive{}, nil
+}
+
+func (prng *ThreadSafePRNGNaive) Read(sum []byte) (n int, err error) {
+	key := make([]byte, 64)
+	if _, err := rand.Read(key); err != nil {
+		return 0, fmt.Errorf("crypto rand error: %w", err)
+	}
+	tmpPRNG := sha3.NewShake256()
+	_, err = tmpPRNG.Write(key)
+	if err != nil {
+		return 0, fmt.Errorf("crypto rand error: %w", err)
+	}
+	return tmpPRNG.Read(sum)
+}
+
 type ThreadSafePRNG struct {
 	xof       sha3.ShakeHash
 	atomicCnt atomic.Uint64

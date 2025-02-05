@@ -20,7 +20,6 @@
 //  5. Decryption: The target party decrypts the result with its secret key.
 //
 // [Multiparty Homomorphic Encryption from Ring-Learning-With-Errors]: https://eprint.iacr.org/2020/304
-// TODO: do we want a README version of this docstring ?
 package main
 
 import (

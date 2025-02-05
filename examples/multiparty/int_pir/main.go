@@ -178,7 +178,7 @@ func main() {
 		for i := range P {
 			P[i].tsk = thresholdizer.AllocateThresholdSecretShare()
 			for j := range P {
-				err := thresholdizer.AggregateShares(tskShares[j][i], P[i].tsk, &P[i].tsk) // TODO wierd pointer arguments
+				err := thresholdizer.AggregateShares(tskShares[j][i], P[i].tsk, &P[i].tsk)
 				check(err)
 			}
 		}
@@ -320,7 +320,7 @@ func execCKGProtocol(params bgv.Parameters, crs sampling.PRNG, participants []pa
 	elapsedCKGParty = runTimedParty(func() {
 		for i, pi := range participants {
 			// Generate the t-out-of-t secret key of the party within the group of participants
-			err := pi.Combiner.GenAdditiveShare(getShamirPoints(participants), pi.shamirPt, pi.tsk, tsks[i]) // TODO: discuss returning the key directly
+			err := pi.Combiner.GenAdditiveShare(getShamirPoints(participants), pi.shamirPt, pi.tsk, tsks[i])
 			check(err)
 
 			// Generate the public key share of the party from the t-out-of-t secret key

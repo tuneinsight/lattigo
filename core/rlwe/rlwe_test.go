@@ -1087,7 +1087,7 @@ func testSlotOperations(tc *TestContext, level, bpw2 int, t *testing.T) {
 	enc := tc.enc
 	dec := tc.dec
 
-	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/InnerSum"), func(t *testing.T) {
+	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Evaluator/PartialTrace"), func(t *testing.T) {
 
 		if params.MaxLevelP() == -1 {
 			t.Skip("test requires #P > 0")
@@ -1099,6 +1099,7 @@ func testSlotOperations(tc *TestContext, level, bpw2 int, t *testing.T) {
 		ringQ := tc.params.RingQ().AtLevel(level)
 
 		pt := genPlaintext(params, level, 1<<30)
+		pt.LogDimensions = ring.Dimensions{Rows: 1, Cols: params.logN - 1}
 		ptInnerSum := *pt.Value.CopyNew()
 		ct, err := enc.EncryptNew(pt)
 		require.NoError(t, err)
@@ -1106,7 +1107,7 @@ func testSlotOperations(tc *TestContext, level, bpw2 int, t *testing.T) {
 		// Galois Keys
 		evk := NewMemEvaluationKeySet(nil, kgen.GenGaloisKeysNew(GaloisElementsForInnerSum(params, batch, n), sk)...)
 
-		require.NoError(t, eval.WithKey(evk).InnerSum(ct, batch, n, ct))
+		require.NoError(t, eval.WithKey(evk).PartialTracesSum(ct, batch, n, ct))
 
 		dec.Decrypt(ct, pt)
 

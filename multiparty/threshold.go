@@ -114,9 +114,9 @@ func (thr Thresholdizer) AggregateShares(share1, share2 ShamirSecretShare, outSh
 
 // NewCombiner creates a new [Combiner] struct from the parameters and the set of [ShamirPublicPoints]. Note that the other
 // parameter may contain the instantiator's own [ShamirPublicPoint].
-func NewCombiner(params rlwe.Parameters, own ShamirPublicPoint, others []ShamirPublicPoint, threshold int) Combiner {
+func NewCombiner(params rlwe.ParameterProvider, own ShamirPublicPoint, others []ShamirPublicPoint, threshold int) Combiner {
 	cmb := Combiner{}
-	cmb.ringQP = params.RingQP()
+	cmb.ringQP = params.GetRLWEParameters().RingQP()
 	cmb.threshold = threshold
 	cmb.tmp1, cmb.tmp2 = cmb.ringQP.NewRNSScalar(), cmb.ringQP.NewRNSScalar()
 	cmb.one = cmb.ringQP.NewRNSScalarFromUInt64(1)

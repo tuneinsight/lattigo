@@ -14,7 +14,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.23.5'
+        go-version: '1.23.6'
 
     - uses: actions/cache@v4
       with:
@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: ['1.23.5', '1.22.11', '1.21.13']
+        go: ['1.23.6', '1.22.11', '1.21.13']
 
     steps:
       - uses: actions/checkout@v4

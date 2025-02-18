@@ -107,6 +107,7 @@ func (op Element[T]) N() int {
 
 // LogN returns the log2 of the ring degree used by the target element.
 func (op Element[T]) LogN() int {
+	/* #nosec G115 -- N is ensured to be greater than 0 */
 	return bits.Len64(uint64(op.N() - 1))
 }
 

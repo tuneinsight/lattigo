@@ -981,6 +981,7 @@ func (eval Evaluator) unpack(ct *rlwe.Ciphertext, ctxt packingContext, xPow2Inv 
 
 	logGap := (ctxt.Params.LogMaxSlots() - ctxt.LogSlots) - 1 // log gap of CTs with params.N (minus one)
 
+	/* #nosec G115 -- n-1 cannot be negative */
 	for i := 0; i < utils.Min(bits.Len64(uint64(n-1)), logPackCTs); i++ {
 
 		step := 1 << (i + 1)

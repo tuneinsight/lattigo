@@ -291,7 +291,7 @@ func (kgen KeyGenerator) genEvaluationKey(skIn ring.Poly, skOut ringqp.Poly, evk
 			panic(fmt.Errorf("sampling.NewKeyedPRNG: %w", err))
 		}
 
-		enc = enc.WithPRNG(sampler)
+		enc = enc.withKeyedUniformSampling(sampler)
 	}
 
 	// Samples an encryption of zero for each element of the EvaluationKey.

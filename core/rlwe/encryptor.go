@@ -94,9 +94,10 @@ func newEncryptor(params Parameters) *Encryptor {
 	}
 }
 
-// NewTestEncryptorWithPRNG creates a new [Encryptor] that uses the provided prng for randomness.
+// newTestEncryptorWithKeyedPRNG creates a new [Encryptor] that uses the provided prng for randomness.
 // CAUTION: THIS FUNCTION SHOULD BE USED FOR TESTING PURPOSES ONLY.
-func NewTestEncryptorWithPRNG(params ParameterProvider, key EncryptionKey, prng sampling.PRNG) *Encryptor {
+// WARNING: The resulting encryptor is not meant to be used concurrently.
+func newTestEncryptorWithKeyedPRNG(params ParameterProvider, key EncryptionKey, prng *sampling.KeyedPRNG) *Encryptor {
 	p := *params.GetRLWEParameters()
 
 	enc := NewEncryptor(params, key)
@@ -455,10 +456,10 @@ func (enc Encryptor) encryptZeroSkFromC1QP(sk *SecretKey, ct Element[ringqp.Poly
 	return
 }
 
-// WithPRNG returns this encryptor with prng as its source of randomness for the uniform
+// withKeyedUniformSampling returns this encryptor with a keyed prng as its source of randomness for the uniform
 // element c1.
-// The returned encryptor isn't safe to use concurrently with the original encryptor.
-func (enc Encryptor) WithPRNG(prng sampling.PRNG) *Encryptor {
+// The returned encryptor is not thread safe (sampling will not be deterministic).
+func (enc Encryptor) withKeyedUniformSampling(prng *sampling.KeyedPRNG) *Encryptor {
 	enc.uniformSampler = ringqp.NewUniformSampler(prng, *enc.params.RingQP())
 	return &enc
 }

@@ -33,11 +33,16 @@ func NewPowerBasis(ct *rlwe.Ciphertext, basis bignum.Basis) (p PowerBasis) {
 // with a and/or b odd if possible.
 func SplitDegree(n int) (a, b int) {
 
+	if n <= 0 {
+		panic(fmt.Errorf("invalid n: n=%d should be greater than zero", n))
+	}
+
 	if n&(n-1) == 0 {
 		a, b = n/2, n/2 //Necessary for optimal depth
 	} else {
 		// [Lee et al. 2020] : High-Precision and Low-Complexity Approximate Homomorphic Encryption by Error Variance Minimization
 		// Maximize the number of odd terms of Chebyshev basis
+		/* #nosec G115 -- previous check ensures n is greater than 0 */
 		k := bits.Len64(uint64(n-1)) - 1
 		a = (1 << k) - 1
 		b = n + 1 - (1 << k)
@@ -199,6 +204,7 @@ func (p PowerBasis) WriteTo(w io.Writer) (n int64, err error) {
 
 		var inc int64
 
+		/* #nosec G115 -- Basis cannot be negative if receiver is valid */
 		if inc, err = buffer.WriteUint8(w, uint8(p.Basis)); err != nil {
 			return n + inc, err
 		}

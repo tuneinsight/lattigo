@@ -98,6 +98,7 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 
 	var ringQMul *ring.Ring
 	nbQiMul := int(math.Ceil(float64(rlweParams.RingQ().ModulusAtLevel[rlweParams.MaxLevel()].BitLen()+rlweParams.LogN()) / 61.0))
+	/* #nosec G115 -- NthRoot cannot be negative */
 	g := ring.NewNTTFriendlyPrimesGenerator(61, uint64(rlweParams.NthRoot()))
 	primes, err := g.NextDownstreamPrimes(nbQiMul)
 	if err != nil {
@@ -119,6 +120,7 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 	}
 
 	var ringT *ring.Ring
+	/* #nosec G115 -- library requires 64-bit system -> int = int64 */
 	dimRingT := utils.Min(rlweParams.N(), int(order>>1))
 	poolT := poolQMul
 	// If dimRingT != N, both rings use different pools

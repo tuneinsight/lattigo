@@ -62,7 +62,10 @@ func (enc Encryptor) GetRLWEParameters() *Parameters {
 
 func newEncryptor(params Parameters) *Encryptor {
 
-	prng := &sampling.ThreadSafePRNG{}
+	prng, err := sampling.NewPRNG()
+	if err != nil {
+		panic(fmt.Errorf("newEncryptor: %w", err))
+	}
 
 	var bc *ring.BasisExtender
 	if params.PCount() != 0 {
@@ -84,11 +87,10 @@ func newEncryptor(params Parameters) *Encryptor {
 	}
 
 	return &Encryptor{
-		params:    params,
-		prng:      prng,
-		xeSampler: xeSampler,
-		xsSampler: xsSampler,
-		// encryptorBuffers: newEncryptorBuffers(params),
+		params:         params,
+		prng:           prng,
+		xeSampler:      xeSampler,
+		xsSampler:      xsSampler,
 		uniformSampler: ringqp.NewUniformSampler(prng, *params.RingQP()),
 		basisextender:  bc,
 	}
@@ -117,20 +119,6 @@ func newTestEncryptorWithKeyedPRNG(params ParameterProvider, key EncryptionKey, 
 
 	return enc
 }
-
-// type encryptorBuffers struct {
-// 	buffQP [3]ringqp.Poly
-// }
-
-// func newEncryptorBuffers(params Parameters) *encryptorBuffers {
-// 	return &encryptorBuffers{
-// 		buffQP: [3]ringqp.Poly{
-// 			params.RingQP().NewPoly(),
-// 			params.RingQP().NewPoly(),
-// 			params.RingQP().NewPoly(),
-// 		},
-// 	}
-// }
 
 // Encrypt encrypts the input plaintext using the stored encryption key and writes the result on ct.
 // The method currently accepts only *[Ciphertext] as ct.

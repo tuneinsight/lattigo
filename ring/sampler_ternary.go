@@ -22,6 +22,7 @@ type TernarySampler struct {
 
 // NewTernarySampler creates a new instance of TernarySampler from a PRNG, the ring definition and the distribution
 // parameters (see type Ternary). If "montgomery" is set to true, polynomials read from this sampler are in Montgomery form.
+// WARNING: If the PRNG is deterministic/keyed (of type [sampling.KeyedPRNG]), *concurrent* calls to the sampler will not necessarily result in a deterministic output.
 func NewTernarySampler(prng sampling.PRNG, baseRing *Ring, X Ternary, montgomery bool) (ts *TernarySampler, err error) {
 	ts = new(TernarySampler)
 	ts.baseSampler = &baseSampler{}

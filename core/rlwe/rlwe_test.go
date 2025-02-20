@@ -39,10 +39,9 @@ func testString(params Parameters, levelQ, levelP, bpw2 int, opname string) stri
 // If such a modification is intended, this test must be updated and users notified s.t.
 // old serialized objects can be converted to the new format.
 func TestRLWEConstSerialization(t *testing.T) {
-	t.Skip()
 	// Note: changing nbIteration will change the expected value
 	const nbIteration = 10
-	const expected = "/mTt2kB+03NdOMoI1msW+glCZmrF1sxEGQkFsC6P1SA="
+	const expected = "rlzKK0ti5MY4b2nJ9iPKFGHVoZI2w9Hr9doLdIreahM="
 	var err error
 	defaultParamsLiteral := testInsecure
 	seedKeyGen := []byte{'l', 'a', 't'}

@@ -72,7 +72,7 @@ func (g *GaussianSampler) read(pol Poly, f func(a, b, c uint64) uint64) {
 
 	r := g.baseRing
 
-	randomBufferN := make([]byte, 4*r.N())
+	randomBufferN := make([]byte, 1024)
 	var ptr int
 
 	level := r.level

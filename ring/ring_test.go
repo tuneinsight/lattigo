@@ -35,10 +35,14 @@ func genTestParams(defaultParams Parameters) (tc *testParams, err error) {
 
 	tc = new(testParams)
 
-	if tc.ringQ, err = NewRing(1<<defaultParams.logN, defaultParams.qi); err != nil {
+	pool := structs.NewSyncPool(func() *[]uint64 {
+		buff := make([]uint64, 1<<defaultParams.logN)
+		return &buff
+	})
+	if tc.ringQ, err = NewRing(1<<defaultParams.logN, defaultParams.qi, pool); err != nil {
 		return nil, err
 	}
-	if tc.ringP, err = NewRing(1<<defaultParams.logN, defaultParams.pi); err != nil {
+	if tc.ringP, err = NewRing(1<<defaultParams.logN, defaultParams.pi, pool); err != nil {
 		return nil, err
 	}
 	if tc.prng, err = sampling.NewPRNG(); err != nil {
@@ -89,8 +93,8 @@ func testNTTConjugateInvariant(tc *testParams, t *testing.T) {
 		ringQ := tc.ringQ
 		Q := ringQ.ModuliChain()
 		N := ringQ.N()
-		ringQ2N, _ := NewRing(N<<1, Q)
-		ringQConjugateInvariant, _ := NewRingFromType(N, Q, ConjugateInvariant)
+		ringQ2N, _ := NewRing(N<<1, Q, nil)
+		ringQConjugateInvariant, _ := NewRingFromType(N, Q, ConjugateInvariant, nil)
 
 		sampler := NewUniformSampler(tc.prng, ringQ)
 		p1 := sampler.ReadNew()
@@ -127,42 +131,53 @@ func testNTTConjugateInvariant(tc *testParams, t *testing.T) {
 
 func testNewRing(t *testing.T) {
 	t.Run("NewRing", func(t *testing.T) {
-		r, err := NewRing(0, nil)
+		r, err := NewRing(0, nil, nil)
 		require.Nil(t, r)
 		require.Error(t, err)
 
-		r, err = NewRing(0, []uint64{})
+		r, err = NewRing(0, []uint64{}, nil)
 		require.Nil(t, r)
 		require.Error(t, err)
 
-		r, err = NewRing(4, []uint64{})
+		r, err = NewRing(4, []uint64{}, nil)
 		require.Nil(t, r)
 		require.Error(t, err)
 
-		r, err = NewRing(8, []uint64{})
+		r, err = NewRing(8, []uint64{}, nil)
 		require.Nil(t, r)
 		require.Error(t, err)
 
-		r, err = NewRing(16, []uint64{7}) // Passing non NTT-enabling coeff modulus
-		require.NotNil(t, r)              // Should still return a Ring instance
-		require.Error(t, err)             // Should also return an error due to non NTT
+		r, err = NewRing(16, []uint64{7}, nil) // Passing non NTT-enabling coeff modulus
+		require.NotNil(t, r)                   // Should still return a Ring instance
+		require.Error(t, err)                  // Should also return an error due to non NTT
 
-		r, err = NewRing(16, []uint64{4}) // Passing non prime moduli
-		require.NotNil(t, r)              // Should still return a Ring instance
-		require.Error(t, err)             // Should also return an error due to non NTT
+		r, err = NewRing(16, []uint64{4}, nil) // Passing non prime moduli
+		require.NotNil(t, r)                   // Should still return a Ring instance
+		require.Error(t, err)                  // Should also return an error due to non NTT
 
-		r, err = NewRing(16, []uint64{97, 7}) // Passing a NTT-enabling and a non NTT-enabling coeff modulus
-		require.NotNil(t, r)                  // Should still return a Ring instance
-		require.Error(t, err)                 // Should also return an error due to non NTT
+		r, err = NewRing(16, []uint64{97, 7}, nil) // Passing a NTT-enabling and a non NTT-enabling coeff modulus
+		require.NotNil(t, r)                       // Should still return a Ring instance
+		require.Error(t, err)                      // Should also return an error due to non NTT
 
-		r, err = NewRing(16, []uint64{97, 97}) // Passing non CRT-enabling coeff modulus
-		require.Nil(t, r)                      // Should not return a Ring instance
+		r, err = NewRing(16, []uint64{97, 97}, nil) // Passing non CRT-enabling coeff modulus
+		require.Nil(t, r)                           // Should not return a Ring instance
 		require.Error(t, err)
 
-		r, err = NewRing(16, []uint64{97}) // Passing NTT-enabling coeff modulus
+		r, err = NewRing(16, []uint64{97}, nil) // Passing NTT-enabling coeff modulus
 		require.NotNil(t, r)
 		require.NoError(t, err)
 
+		pool := structs.NewSyncPool(func() *[]uint64 {
+			arr := make([]uint64, 16)
+			return &arr
+		})
+
+		r, err = NewRing(16, []uint64{97}, pool) // Passing NTT-enabling coeff modulus
+		require.NotNil(t, r)
+		require.NoError(t, err)
+		r, err = NewRing(32, []uint64{97}, pool) // Passing NTT-enabling coeff modulus
+		require.Nil(t, r)
+		require.Error(t, err)
 	})
 }
 
@@ -346,7 +361,7 @@ func testMarshalBinary(tc *testParams, t *testing.T) {
 			t.Fatal(err)
 		}
 
-		require.Equal(t, ringQTest, tc.ringQ)
+		require.Equal(t, ringQTest.parametersLiteral(), tc.ringQ.parametersLiteral())
 	})
 
 	t.Run(testString("MarshalBinary/Poly", tc.ringQ), func(t *testing.T) {
@@ -903,7 +918,7 @@ func testMultByMonomial(tc *testParams, t *testing.T) {
 
 func testShift(t *testing.T) {
 
-	r, _ := NewRing(16, []uint64{97})
+	r, _ := NewRing(16, []uint64{97}, nil)
 	p1, p2 := r.NewPoly(), r.NewPoly()
 
 	for i := range p1.Coeffs[0] {

@@ -92,7 +92,7 @@ func TestNTT(t *testing.T) {
 
 	for _, tv := range testVector[:] {
 
-		ringQ, err := NewRing(tv.N, tv.Qis)
+		ringQ, err := NewRing(tv.N, tv.Qis, nil)
 
 		if err != nil {
 			t.Fatal(err)

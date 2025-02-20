@@ -69,3 +69,36 @@ func (ct Ciphertext) Copy(ctxCopy *Ciphertext) {
 func (ct Ciphertext) Equal(other *Ciphertext) bool {
 	return ct.Element.Equal(&other.Element)
 }
+
+// NewCiphertextFromUintPool returns a new [*Ciphertext], built from backing []uint64 arrays obtained from the pool stored in the ring passed with the params.
+// After use, the [Ciphertext] should be recycled using the [RecycleCiphertextInUintPool] method.
+func NewCiphertextFromUintPool(params ParameterProvider, degree int, levelQ int) *Ciphertext {
+	p := params.GetRLWEParameters()
+
+	ringQ := p.RingQ().AtLevel(levelQ)
+
+	Value := make([]ring.Poly, degree+1)
+	for i := range Value {
+		Value[i] = *ringQ.NewPolyFromUintPool()
+	}
+
+	el := Element[ring.Poly]{
+		Value: Value,
+		MetaData: &MetaData{
+			CiphertextMetaData: CiphertextMetaData{
+				IsNTT: p.NTTFlag(),
+			},
+		},
+	}
+	return &Ciphertext{el}
+}
+
+// RecycleCiphertextInUintPool takes a reference to a [Ciphertext] and recycles its backing []uint64 arrays
+// (i.e. they are returned to a pool). The input [Ciphertext] must not be used after calling this method.
+func RecycleCiphertextInUintPool(params ParameterProvider, ct *Ciphertext) {
+	ringQ := params.GetRLWEParameters().ringQ
+	for i := range ct.Value {
+		ringQ.RecyclePolyInUintPool(&ct.Value[i])
+	}
+	ct = nil
+}

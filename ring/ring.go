@@ -103,6 +103,7 @@ func (r Ring) ConjugateInvariantRing() (*Ring, error) {
 
 	for i, s := range r.SubRings {
 
+		/* #nosec G115 -- library requires 64-bit system -> int = int64 */
 		if cr.SubRings[i], err = NewSubRingWithCustomNTT(s.N>>1, s.Modulus, NewNumberTheoreticTransformerConjugateInvariant, int(s.NthRoot)); err != nil {
 			return nil, err
 		}
@@ -133,6 +134,7 @@ func (r Ring) StandardRing() (*Ring, error) {
 
 	for i, s := range r.SubRings {
 
+		/* #nosec G115 -- library requires 64-bit system -> int = int64 */
 		if sr.SubRings[i], err = NewSubRingWithCustomNTT(s.N<<1, s.Modulus, NewNumberTheoreticTransformerStandard, int(s.NthRoot)); err != nil {
 			return nil, err
 		}
@@ -150,6 +152,7 @@ func (r Ring) N() int {
 
 // LogN returns log2(ring degree).
 func (r Ring) LogN() int {
+	/* #nosec G115 -- N cannot be negative */
 	return bits.Len64(uint64(r.N() - 1))
 }
 

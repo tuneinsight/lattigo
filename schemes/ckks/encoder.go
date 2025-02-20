@@ -80,6 +80,7 @@ type Encoder struct {
 // perform the encoding. Else *[big.Float] and *[bignum.Complex] will be used.
 func NewEncoder(parameters Parameters, precision ...uint) (ecd *Encoder) {
 
+	/* #nosec G115 -- library requires 64-bit system -> int = int64 */
 	m := int(parameters.RingQ().NthRoot())
 
 	rotGroup := make([]int, m>>2)
@@ -824,6 +825,7 @@ func (ecd Encoder) FFT(values FloatSlice, logN int) (err error) {
 func polyToComplexNoCRT(coeffs []uint64, values FloatSlice, scale rlwe.Scale, logSlots int, isreal bool, ringQ *ring.Ring) (err error) {
 
 	slots := 1 << logSlots
+	/* #nosec G115 -- library requires 64-bit system -> int = int64 */
 	maxCols := int(ringQ.NthRoot() >> 2)
 	gap := maxCols / slots
 	Q := ringQ.SubRings[0].Modulus
@@ -875,8 +877,10 @@ func polyToComplexNoCRT(coeffs []uint64, values FloatSlice, scale rlwe.Scale, lo
 			}
 
 			if c = coeffs[idx]; c >= Q>>1 {
+				/* #nosec G115 -- Q - c <= 61 bits */
 				values[i][0].SetInt64(-int64(Q - c))
 			} else {
+				/* #nosec G115 -- c <= 61 bits */
 				values[i][0].SetInt64(int64(c))
 			}
 		}
@@ -889,8 +893,10 @@ func polyToComplexNoCRT(coeffs []uint64, values FloatSlice, scale rlwe.Scale, lo
 				}
 
 				if c = coeffs[idx]; c >= Q>>1 {
+					/* #nosec G115 -- Q - c <= 61 bits */
 					values[i][1].SetInt64(-int64(Q - c))
 				} else {
+					/* #nosec G115 -- c <= 61 bits */
 					values[i][1].SetInt64(int64(c))
 				}
 			}
@@ -919,6 +925,7 @@ func polyToComplexNoCRT(coeffs []uint64, values FloatSlice, scale rlwe.Scale, lo
 // polyToComplexNoCRT decodes a multiple-level CRT poly on a complex valued [FloatSlice].
 func polyToComplexCRT(poly ring.Poly, bigintCoeffs []*big.Int, values FloatSlice, scale rlwe.Scale, logSlots int, isreal bool, ringQ *ring.Ring) (err error) {
 
+	/* #nosec G115 -- library requires 64-bit system -> int = int64 */
 	maxCols := int(ringQ.NthRoot() >> 2)
 	slots := 1 << logSlots
 	gap := maxCols / slots
@@ -1164,8 +1171,10 @@ func (ecd *Encoder) polyToFloatNoCRT(coeffs []uint64, values FloatSlice, scale r
 			}
 
 			if coeffs[i] >= Q>>1 {
+				/* #nosec G115 -- Q - coeffs[i] <= 61 bits */
 				values[i].SetInt64(-int64(Q - coeffs[i]))
 			} else {
+				/* #nosec G115 -- coeffs[i] <= 61 bits */
 				values[i].SetInt64(int64(coeffs[i]))
 			}
 
@@ -1190,8 +1199,10 @@ func (ecd *Encoder) polyToFloatNoCRT(coeffs []uint64, values FloatSlice, scale r
 			}
 
 			if coeffs[i] >= Q>>1 {
+				/* #nosec G115 -- Q - coeffs[i] <= 61 bits */
 				values[i][0].SetInt64(-int64(Q - coeffs[i]))
 			} else {
+				/* #nosec G115 -- coeffs[i] <= 61 bits */
 				values[i][0].SetInt64(int64(coeffs[i]))
 			}
 

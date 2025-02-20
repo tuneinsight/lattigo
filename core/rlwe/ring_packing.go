@@ -545,6 +545,7 @@ func (eval RingPackingEvaluator) Expand(ct *Ciphertext, logGap int) (cts map[int
 
 		n := 1 << i
 
+		/* #nosec G115 -- N and/or n cannot be negative */
 		galEl := uint64(ringQ.N()/n + 1)
 
 		for j := 0; j < n; j += gap {

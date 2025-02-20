@@ -90,6 +90,7 @@ func newvOLErings(params parameters) *vOLErings {
 
 	rings := new(vOLErings)
 
+	/* #nosec G115 -- logQ and N expected to not be negative */
 	g := ring.NewNTTFriendlyPrimesGenerator(uint64(params.logQ[1]), uint64(2*N))
 
 	// Generate logQ[0] NTT-friendly primes each close to 2^logQ[1]

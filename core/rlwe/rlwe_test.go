@@ -41,7 +41,7 @@ func testString(params Parameters, levelQ, levelP, bpw2 int, opname string) stri
 func TestRLWEConstSerialization(t *testing.T) {
 	// Note: changing nbIteration will change the expected value
 	const nbIteration = 10
-	const expected = "/mTt2kB+03NdOMoI1msW+glCZmrF1sxEGQkFsC6P1SA="
+	const expected = "1MTZP69YciXe+YjFnQbiUJIz7/d/h78atA/jaGKQhhc="
 	var err error
 	defaultParamsLiteral := testInsecure
 	seedKeyGen := []byte{'l', 'a', 't'}
@@ -317,7 +317,7 @@ func NewDeterministicTestContext(params Parameters, seedKeyGen, seedEnc []byte) 
 		panic(fmt.Errorf("NewDeterministicTestContext: failed to make prngEnc %w", err))
 	}
 	kgen := NewKeyGenerator(params)
-	kgenEncryptor := NewTestEncryptorWithPRNG(params, nil, prngKGen)
+	kgenEncryptor := newTestEncryptorWithKeyedPRNG(params, nil, prngKGen)
 	kgen.Encryptor = kgenEncryptor
 
 	sk := kgen.GenSecretKeyNew()
@@ -326,7 +326,7 @@ func NewDeterministicTestContext(params Parameters, seedKeyGen, seedEnc []byte) 
 
 	eval := NewEvaluator(params, nil)
 
-	enc := NewTestEncryptorWithPRNG(params, sk, prngEnc)
+	enc := newTestEncryptorWithKeyedPRNG(params, sk, prngEnc)
 
 	dec := NewDecryptor(params, sk)
 
@@ -621,7 +621,6 @@ func testEncryptor(tc *TestContext, level, bpw2 int, t *testing.T) {
 		require.True(t, pkEnc1.params.Equal(&pkEnc2.params))
 		require.True(t, pkEnc1.encKey == pkEnc2.encKey)
 		require.False(t, (pkEnc1.basisextender == pkEnc2.basisextender) && (pkEnc1.basisextender != nil) && (pkEnc2.basisextender != nil))
-		require.False(t, pkEnc1.encryptorBuffers == pkEnc2.encryptorBuffers)
 		require.False(t, pkEnc1.xsSampler == pkEnc2.xsSampler)
 		require.False(t, pkEnc1.xeSampler == pkEnc2.xeSampler)
 	})
@@ -653,7 +652,7 @@ func testEncryptor(tc *TestContext, level, bpw2 int, t *testing.T) {
 		prng1, _ := sampling.NewKeyedPRNG([]byte{'a', 'b', 'c'})
 		prng2, _ := sampling.NewKeyedPRNG([]byte{'a', 'b', 'c'})
 
-		enc.WithPRNG(prng1).Encrypt(pt, ct)
+		enc.withKeyedUniformSampling(prng1).Encrypt(pt, ct)
 
 		samplerQ := ring.NewUniformSampler(prng2, ringQ)
 
@@ -675,7 +674,6 @@ func testEncryptor(tc *TestContext, level, bpw2 int, t *testing.T) {
 		require.True(t, skEnc1.params.Equal(&skEnc2.params))
 		require.True(t, skEnc1.encKey == skEnc2.encKey)
 		require.False(t, (skEnc1.basisextender == skEnc2.basisextender) && (skEnc1.basisextender != nil) && (skEnc2.basisextender != nil))
-		require.False(t, skEnc1.encryptorBuffers == skEnc2.encryptorBuffers)
 		require.False(t, skEnc1.xsSampler == skEnc2.xsSampler)
 		require.False(t, skEnc1.xeSampler == skEnc2.xeSampler)
 	})
@@ -688,7 +686,6 @@ func testEncryptor(tc *TestContext, level, bpw2 int, t *testing.T) {
 		require.True(t, skEnc1.encKey == sk)
 		require.True(t, skEnc2.encKey == sk2)
 		require.True(t, skEnc1.basisextender == skEnc2.basisextender)
-		require.True(t, skEnc1.encryptorBuffers == skEnc2.encryptorBuffers)
 		require.True(t, skEnc1.xsSampler == skEnc2.xsSampler)
 		require.True(t, skEnc1.xeSampler == skEnc2.xeSampler)
 	})

@@ -139,6 +139,7 @@ func (g *GaussianSampler) read(pol Poly, f func(a, b, c uint64) uint64) {
 					normInt.Add(normInt, bignum.RandInt(g.prng, normIntLowBits))
 				}
 
+				/* #nosec G115 -- sign is 0 or 1 */
 				normInt.Mul(normInt, bignum.NewInt(2*int64(sign)-1))
 
 				if normInt.Cmp(boundInt) < 1 {
@@ -222,6 +223,7 @@ func (g *GaussianSampler) normFloat64() (float64, uint64) {
 
 		juint32 := randU32()
 
+		/* #nosec G115 -- juint32 is masked to 31 bits */
 		j := int32(juint32 & 0x7fffffff)
 		sign := uint64(juint32 >> 31)
 
@@ -230,6 +232,7 @@ func (g *GaussianSampler) normFloat64() (float64, uint64) {
 		x := float64(j) * float64(wn[i])
 
 		// 1 (>99%)
+		/* #nosec G115 -- j cannot be negative */
 		if uint32(j) < kn[i] {
 			g.ptr = ptr
 			return x, sign

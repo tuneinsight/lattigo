@@ -288,6 +288,7 @@ func (p Parameters) LogN() int {
 // NthRoot returns the NthRoot of the ring.
 func (p Parameters) NthRoot() int {
 	if p.RingQ() != nil {
+		/* #nosec G115 -- NthRoot of valid [ring.Ring] is positive */
 		return int(p.RingQ().NthRoot())
 	}
 
@@ -296,6 +297,7 @@ func (p Parameters) NthRoot() int {
 
 // LogNthRoot returns the log2(NthRoot) of the ring.
 func (p Parameters) LogNthRoot() int {
+	/* #nosec G115 -- NthRoot is ensured to be greater than 0 */
 	return bits.Len64(uint64(p.NthRoot() - 1))
 }
 
@@ -576,6 +578,7 @@ func (p Parameters) GaloisElements(k []int) (galEls []uint64) {
 
 // GaloisElement takes an integer k and returns GaloisGen^{k} mod NthRoot.
 func (p Parameters) GaloisElement(k int) uint64 {
+	/* #nosec G115 -- implicit reduction modulo 2^64 */
 	return ring.ModExp(GaloisGen, uint64(k)&(p.ringQ.NthRoot()-1), p.ringQ.NthRoot())
 }
 
@@ -609,6 +612,7 @@ func (p Parameters) SolveDiscreteLogGaloisElement(galEl uint64) (k int) {
 		}
 
 		if x == 1 {
+			/* #nosec G115 -- kuint is ensured to be smaller than NthRoot */
 			return int(kuint)
 		}
 
@@ -732,6 +736,7 @@ func (p Parameters) BinarySize() int {
 func CheckModuli(q, p []uint64) error {
 
 	for i, qi := range q {
+		/* #nosec G115 -- error is returned if integer overflow conversion */
 		if uint64(bits.Len64(qi)-1) > MaxModuliSize+1 {
 			return fmt.Errorf("a Qi bit-size (i=%d) is larger than %d", i, MaxModuliSize)
 		}
@@ -746,6 +751,7 @@ func CheckModuli(q, p []uint64) error {
 	if p != nil {
 
 		for i, pi := range p {
+			/* #nosec G115 -- error is triggered if integer overflow conversion */
 			if uint64(bits.Len64(pi)-1) > MaxModuliSize+2 {
 				return fmt.Errorf("a Pi bit-size (i=%d) is larger than %d", i, MaxModuliSize)
 			}
@@ -826,6 +832,7 @@ func GenModuli(LogNthRoot int, logQ, logP []int) (q, p []uint64, err error) {
 	primes := make(map[int][]uint64)
 	for bitsize, value := range primesbitlen {
 
+		/* #nosec G115 -- bitsize cannot be negative */
 		g := ring.NewNTTFriendlyPrimesGenerator(uint64(bitsize), uint64(1<<LogNthRoot))
 
 		if bitsize == 61 {

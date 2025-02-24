@@ -1,6 +1,7 @@
 package bgv
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -9,9 +10,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/blake2b"
 
 	"github.com/tuneinsight/lattigo/v6/core/rlwe"
 	"github.com/tuneinsight/lattigo/v6/ring"
+	"github.com/tuneinsight/lattigo/v6/utils"
 )
 
 var flagPrintNoise = flag.Bool("print-noise", false, "print the residual noise")
@@ -663,6 +666,95 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 			}
 		})
 	}
+
+	// Naive implementation of the inner sum for reference
+	innersum := func(values []uint64, n, batchSize int, rotateAndAdd bool) {
+		aggregate := false
+		if n*batchSize == len(values) && !rotateAndAdd {
+			aggregate = true
+			n = n / 2
+		}
+		halfN := len(values) >> 1
+		tmp1 := make([]uint64, halfN)
+		tmp2 := make([]uint64, halfN)
+		copy(tmp1, values[:halfN])
+		copy(tmp2, values[halfN:])
+		for i := 1; i < n; i++ {
+			rot1 := utils.RotateSlice(tmp1, i*batchSize)
+			rot2 := utils.RotateSlice(tmp2, i*batchSize)
+			for j := range rot1 {
+				values[j] = (values[j] + rot1[j]) % tc.Params.PlaintextModulus()
+				values[j+halfN] = (values[j+halfN] + rot2[j]) % tc.Params.PlaintextModulus()
+			}
+		}
+		if aggregate {
+			for i := range tmp1 {
+				values[i] = (values[i] + values[i+halfN]) % tc.Params.PlaintextModulus()
+			}
+		}
+	}
+
+	for _, i := range []int{0, 1, 2} {
+		// n*batchSize = N, N/2, N/8
+		for _, offset := range []int{0, 1, 3} {
+			for _, lvl := range testLevel {
+				t.Run(name("Evaluator/InnerSum/", tc, lvl), func(t *testing.T) {
+					if lvl == 0 {
+						t.Skip("Skipping: Level = 0")
+					}
+					n := tc.Params.MaxSlots() >> (i + offset)
+					batchSize := 1 << i
+
+					galEls := tc.Params.GaloisElementsForInnerSum(batchSize, n)
+					evl := tc.Evl.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.Kgen.GenGaloisKeysNew(galEls, tc.Sk)...))
+
+					want, _, ciphertext0 := NewTestVector(tc.Params, tc.Ecd, tc.Enc, lvl, tc.Params.NewScale(3))
+
+					innersum(want, n, batchSize, false)
+
+					receiver := NewCiphertext(tc.Params, 1, lvl)
+
+					require.NoError(t, evl.InnerSum(ciphertext0, batchSize, n, receiver))
+
+					have := make([]uint64, len(want))
+					require.NoError(t, tc.Ecd.Decode(tc.Dec.DecryptNew(receiver), have))
+
+					for i := 0; i < len(want); i += n * batchSize {
+						require.Equal(t, want[i:i+batchSize], have[i:i+batchSize])
+					}
+				})
+			}
+		}
+
+		// Test RotateAndAdd with n*batchSize dividing and not dividing #slots
+		for _, n := range []int{tc.Params.MaxSlots() >> 3, 7} {
+			for _, batchSize := range []int{8, 3} {
+				for _, lvl := range testLevel {
+					t.Run(name("Evaluator/RotateAndAdd/", tc, lvl), func(t *testing.T) {
+						if lvl == 0 {
+							t.Skip("Skipping: Level = 0")
+						}
+
+						galEls := tc.Params.GaloisElementsForInnerSum(batchSize, n)
+						evl := tc.Evl.WithKey(rlwe.NewMemEvaluationKeySet(nil, tc.Kgen.GenGaloisKeysNew(galEls, tc.Sk)...))
+
+						want, _, ciphertext0 := NewTestVector(tc.Params, tc.Ecd, tc.Enc, lvl, tc.Params.NewScale(3))
+
+						innersum(want, n, batchSize, true)
+
+						receiver := NewCiphertext(tc.Params, 1, lvl)
+
+						require.NoError(t, evl.RotateAndAdd(ciphertext0, batchSize, n, receiver))
+
+						have := make([]uint64, len(want))
+						require.NoError(t, tc.Ecd.Decode(tc.Dec.DecryptNew(receiver), have))
+
+						require.Equal(t, want, have)
+					})
+				}
+			}
+		}
+	}
 }
 
 func testEvaluatorBfv(tc *TestContext, t *testing.T) {
@@ -869,6 +961,49 @@ func testEvaluatorBfv(tc *TestContext, t *testing.T) {
 			})
 		}
 	})
+}
+
+// TestBGVParamsConstSerialization test detects (fails) if the serialization of [Parameters] has changed.
+// If such a modification is intended, this test must be updated and users notified s.t.
+// old serialized parameters can be converted to the new format.
+func TestBGVParamsConstSerialization(t *testing.T) {
+	const expected = "7aw0pU3xCs2Hu8zHKqkPRUpltHC0+P+UxzMSqKJwSFs="
+	var err error
+	distribs := []ring.DistributionParameters{rlwe.DefaultXe, rlwe.DefaultXs, ring.Ternary{H: 192}}
+	hash, err := blake2b.New(32, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test with different CKKS params, including different plaintext moduli and distributions
+	for _, paramsLit := range []ParametersLiteral{ExampleParameters128BitLogN14LogQP438, testInsecure}[:] {
+		for _, ptMod := range testPlaintextModulus[:] {
+			for _, distXe := range distribs {
+				for _, distXs := range distribs {
+
+					paramsLit.Xe = distXe
+					paramsLit.Xs = distXs
+					paramsLit.PlaintextModulus = ptMod
+					var params Parameters
+					if params, err = NewParametersFromLiteral(paramsLit); err != nil {
+						t.Fatal(err)
+					}
+					paramsBytes, err := params.MarshalBinary()
+					require.Nil(t, err)
+					hash.Write(paramsBytes)
+					paramsBytes, err = params.MarshalJSON()
+					require.Nil(t, err)
+					hash.Write(paramsBytes)
+				}
+			}
+		}
+	}
+	digest := base64.StdEncoding.EncodeToString(hash.Sum(nil))
+
+	// In case the value expected must be updated, uncomment to print the new expected value:
+	// fmt.Println(digest)
+
+	require.Equal(t, expected, digest)
 }
 
 var (

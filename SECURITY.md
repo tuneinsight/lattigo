@@ -2,7 +2,7 @@
 To report a vulnerability please contact us directly using the following email: lattigo@tuneinsight.com.
 
 # Code Review
-Lattigo 2.0.0 has been code-reviewed by ELCA in November 2020 and, within the allocated time for the code review, no critical or high-risk issues were found.
+Lattigo 2.0.0 was code-reviewed by ELCA in November 2020 and, within the allocated time for the code review, no critical or high-risk issues were found.
 
 # IND-CPA Security
 
@@ -11,12 +11,13 @@ Notably, all widely used FHE schemes —such as BFV, BGV, CKKS (implemented in t
 
 
 # IND-CPA-D Security 
+IND-CPA-D security strengthens IND-CPA by granting the attacker access to a decryption oracle for ciphertexts where the plaintext is known. This includes ciphertexts the attacker encrypted legitimately, as well as those derived by evaluating circuits of their choosing.
 ## Approximate Homomorphic Encryption Scheme (CKKS)
 Classified as an *approximate decryption* scheme, the CKKS scheme is secure as long as the plaintext result of a decryption is only revealed to entities with knowledge of the secret-key. This is because, given a ciphertext 
 $(-as +m + e, a)$
 , the decryption outputs a plaintext $m + e$. [Li and Micciancio](https://eprint.iacr.org/2020/1533) show that using this plaintext, it is possible to recover the secret-key with $((- a s + m + e ) - ( m + e ) ) \cdot a^{-1} = a s a^{-1} = s$ (the probability of $a$ being invertible is overwhelming, and if $a$ is not invertible, only a few more samples are required).
 
-This attack demonstrates that, when using an approximate homomorphic encryption scheme, the usual CPA security may not be sufficient depending on the application setting. Many applications do not require to share the result with external parties and are not affected by this attack, but the ones that do must take the appropriate steps to ensure that no key-dependent information is leaked. A homomorphic encryption scheme that provides such functionality and that can be secure when releasing decrypted plaintext to external parties is defined to be CPA-D secure. The corresponding indistinguishability notion (IND-CPA-D) is defined as "indistinguishability under chosen plaintext attacks with decryption oracles".
+This attack demonstrates that, when using an approximate homomorphic encryption scheme, the usual CPA security may not be sufficient depending on the application setting. Many applications do not require sharing the result with external parties and are not affected by this attack, but the ones that do must take the appropriate steps to ensure that no key-dependent information is leaked. A homomorphic encryption scheme that provides such functionality and that can be secure when releasing decrypted plaintext to external parties is defined to be CPA-D secure. The corresponding indistinguishability notion (IND-CPA-D) is defined as "indistinguishability under chosen plaintext attacks with decryption oracles".
 
 The Lattigo API does _not_ provide automatic IND-CPA-D security. However, Lattigo implements the necessary API to mitigate _Li and Micciancio_'s attack. In particular, the decoding step of CKKS (and its real-number variant R-CKKS) allows the user to specify the desired fixed-point bit-precision.
 
@@ -42,7 +43,7 @@ For exact schemes like BFV and BGV, implemented in Lattigo, near-perfect correct
 
 ## Multiparty/Threshold Homomorphic Encryption
 
-Multiparty or Threshold Fully Homomorphic Encryption involves secret-sharing the encryption key among multiple users, requiring their collaboration to decrypt data. The scheme maintains security even if a defined threshold number of users are compromised by an attacker. However, when decrypting, a party has access to the raw decrypted value before rounding, even with exact schemes. Since the receiver(s) (i.e. the decrypting party) may be corrupted, the attacker can mount the same kind of attacks, as described by [Checri et al.](https://eprint.iacr.org/2024/116) Fortunately, proper noise flooding as described by [Mouchet et al.](https://eprint.iacr.org/2020/304) (Section IV.E) thwarts these attacks. However, such methods require exponential noise, which will affect performances and/or correctness of the protocol.
+Multiparty or Threshold Fully Homomorphic Encryption involves secret-sharing the encryption key among multiple users, requiring their collaboration to decrypt data. The scheme maintains security even if a defined threshold number of users are compromised by an attacker. However, when decrypting, a party has access to the raw decrypted value before rounding, even with exact schemes. Since the receiver(s) (i.e. the decrypting party) may be corrupted, the attacker can mount the same kind of attacks, as described by [Checri et al.](https://eprint.iacr.org/2024/116) Fortunately, proper noise flooding as described by [Mouchet et al.](https://eprint.iacr.org/2020/304) (Section IV.E) thwarts these attacks. However, such methods require exponential noise, which will affect the performance and/or the correctness of the protocol.
 
 
 ## Limitations of the IND-CPA-D model

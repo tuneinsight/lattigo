@@ -251,7 +251,9 @@ func (eval *Evaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices Matrix, 
 		if ctImag != nil {
 			tmp = ctImag
 		} else {
-			tmp, err = rlwe.NewCiphertextAtLevelFromPoly(ctReal.Level(), eval.GetBuffCt().Value[:2])
+			buffCt := eval.BuffCtPool.Get()
+			defer eval.BuffCtPool.Put(buffCt)
+			tmp, err = rlwe.NewCiphertextAtLevelFromPoly(ctReal.Level(), buffCt.Value[:2])
 
 			// This error cannot happen unless the user improperly tempered the evaluators
 			// buffer. If it were to happen in that case, there is no way to recover from

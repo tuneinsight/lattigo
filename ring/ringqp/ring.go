@@ -7,6 +7,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v6/ring"
 	"github.com/tuneinsight/lattigo/v6/utils/bignum"
+	"github.com/tuneinsight/lattigo/v6/utils/structs"
 )
 
 // Ring is a structure that implements the operation in the ring R_QP.
@@ -218,4 +219,43 @@ func (r Ring) NewPoly() Poly {
 		P = r.RingP.NewPoly()
 	}
 	return Poly{Q, P}
+}
+
+// NewPolyQPFromUintPool returns a new [Poly], built from backing []uint64 arrays obtained from a pool.
+// After use, the [Poly] should be recycled using the [Ring.RecyclePolyQPInUintPool] method.
+func (r Ring) NewPolyQPFromUintPool() *Poly {
+	var Q, P ring.Poly
+	if r.RingQ != nil {
+		buffQ := r.RingQ.NewPolyFromUintPool()
+		Q = *buffQ
+	}
+	if r.RingP != nil {
+		buffP := r.RingP.NewPolyFromUintPool()
+		P = *buffP
+	}
+	return &Poly{Q, P}
+}
+
+// RecyclePolyQPInUintPool takes a reference to a [Poly] and recycles its backing []uint64 arrays
+// (i.e. they are returned to a pool). The input [Poly] must not be used after calling this method.
+func (r Ring) RecyclePolyQPInUintPool(poly *Poly) {
+	if r.RingQ != nil {
+		r.RingQ.RecyclePolyInUintPool(&poly.Q)
+	}
+	if r.RingP != nil {
+		r.RingP.RecyclePolyInUintPool(&poly.P)
+	}
+}
+
+// NewBuffFromUintPool returns a [structs.BuffFromUintPool] that implements the [structs.BufferPool] interface.
+// Temporary buffers of type [Poly] can be obtained (resp. recycled) using the Get (resp. Put) methods of the returned object.
+func (r Ring) NewBuffFromUintPool() *structs.BuffFromUintPool[*Poly] {
+	return structs.NewBuffFromUintPool(
+		func() *Poly {
+			return r.NewPolyQPFromUintPool()
+		},
+		func(poly *Poly) {
+			r.RecyclePolyQPInUintPool(poly)
+		},
+	)
 }

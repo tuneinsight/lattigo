@@ -5,12 +5,12 @@ package rlwe
 import (
 	"github.com/tuneinsight/lattigo/v6/ring"
 	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
+	"github.com/tuneinsight/lattigo/v6/utils/structs"
 )
 
 type EvaluatorProvider interface {
-	GetBuffQP() [6]ringqp.Poly
-	GetBuffCt() *Ciphertext
-	GetBuffDecompQP() []ringqp.Poly
+	GetBuffQPPool() structs.BufferPool[*ringqp.Poly]
+	GetBuffCtPool() structs.BufferPool[*Ciphertext]
 	DecomposeNTT(level, levelP, pCount int, c1 ring.Poly, isNTT bool, BuffDecompQP []ringqp.Poly)
 	CheckAndGetGaloisKey(galEl uint64) (evk *GaloisKey, err error)
 	GadgetProductLazy(levelQ int, cx ring.Poly, gadgetCt *GadgetCiphertext, ct *Element[ringqp.Poly]) (err error)

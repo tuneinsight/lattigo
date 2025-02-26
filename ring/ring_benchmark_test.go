@@ -40,7 +40,7 @@ func benchGenRing(tc *testParams, b *testing.B) {
 
 	b.Run(testString("GenRing", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			if _, err := NewRing(tc.ringQ.N(), tc.ringQ.ModuliChain()); err != nil {
+			if _, err := NewRing(tc.ringQ.N(), tc.ringQ.ModuliChain(), tc.ringQ.bufferPool); err != nil {
 				b.Error(err)
 			}
 		}

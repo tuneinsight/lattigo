@@ -213,7 +213,7 @@ func (kgen KeyGenerator) GenEvaluationKeysForRingSwapNew(skStd, skConjugateInvar
 	kgen.params.RingQ().AtLevel(levelQ).UnfoldConjugateInvariantToStandard(skConjugateInvariant.Value.Q, skCIMappedToStandard.Value.Q)
 
 	if kgen.params.PCount() != 0 {
-		ExtendBasisSmallNormAndCenterNTTMontgomery(kgen.params.RingQ(), kgen.params.RingP(), skCIMappedToStandard.Value.Q, kgen.buffQP[0].Q, skCIMappedToStandard.Value.P)
+		ExtendBasisSmallNormAndCenterNTTMontgomery(kgen.params.RingQ(), kgen.params.RingP(), skCIMappedToStandard.Value.Q, kgen.params.ringQ.NewPoly(), skCIMappedToStandard.Value.P)
 	}
 
 	levelQ, levelP, BaseTwoDecomposition, compressed := ResolveEvaluationKeyParameters(kgen.params, evkParams)
@@ -261,13 +261,14 @@ func (kgen KeyGenerator) GenEvaluationKey(skInput, skOutput *SecretKey, evk *Eva
 	ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.Q, kgen.bufSkOut.Q)
 
 	// Extends the modulus P of skOutput to the one of skInput
+	buffQ := ringQ.AtLevel(0).NewPoly()
 	if levelP := evk.LevelP(); levelP != -1 {
-		ExtendBasisSmallNormAndCenterNTTMontgomery(ringQ, ringP.AtLevel(levelP), kgen.bufSkOut.Q, kgen.buffQP[0].Q, kgen.bufSkOut.P)
+		ExtendBasisSmallNormAndCenterNTTMontgomery(ringQ, ringP.AtLevel(levelP), kgen.bufSkOut.Q, buffQ, kgen.bufSkOut.P)
 	}
 
 	// Maps the smaller key to the largest dimension with Y = X^{N/n}.
 	ring.MapSmallDimensionToLargerDimensionNTT(skInput.Value.Q, kgen.bufSkIn)
-	ExtendBasisSmallNormAndCenterNTTMontgomery(ringQ, ringQ.AtLevel(skOutput.Value.Q.Level()), kgen.bufSkIn, kgen.buffQP[0].Q, kgen.bufSkIn)
+	ExtendBasisSmallNormAndCenterNTTMontgomery(ringQ, ringQ.AtLevel(skOutput.Value.Q.Level()), kgen.bufSkIn, buffQ, kgen.bufSkIn)
 
 	kgen.genEvaluationKey(kgen.bufSkIn, kgen.bufSkOut, evk)
 }
@@ -308,7 +309,8 @@ func (kgen KeyGenerator) genEvaluationKey(skIn ring.Poly, skOut ringqp.Poly, evk
 	}
 
 	// Adds the plaintext (input-key) to the EvaluationKey.
-	if err := AddPolyTimesGadgetVectorToGadgetCiphertext(skIn, []GadgetCiphertext{evk.GadgetCiphertext}, *kgen.params.RingQP(), kgen.buffQP[0].Q); err != nil {
+	buffQ := kgen.params.ringQ.AtLevel(evk.GadgetCiphertext.LevelQ()).NewPoly()
+	if err := AddPolyTimesGadgetVectorToGadgetCiphertext(skIn, []GadgetCiphertext{evk.GadgetCiphertext}, *kgen.params.RingQP(), buffQ); err != nil {
 		// Sanity check, this error should not happen.
 		panic(err)
 	}

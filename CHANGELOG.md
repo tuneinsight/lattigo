@@ -1,6 +1,9 @@
 # Changelog
 All notable changes to this library are documented in this file.
 
+## [6.1.1] - 17.03.2025
+- Security fix: the evaluation key for switching from dense to sparse key must be generated at the lowest level.
+
 ## [6.1.0] - 04.10.2024
 - Update of `PrecisionStats` in `ckks/precision.go`:  
   - The precision is now computed as the min/max/average/... of the log of the error (instead of the log of the min/max/average/... of the error).

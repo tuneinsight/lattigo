@@ -227,7 +227,8 @@ func (kgen KeyGenerator) GenEvaluationKeysForRingSwapNew(skStd, skConjugateInvar
 // If the ringDegree(skOutput) > ringDegree(skInput),  generates [-a*SkOut + w*P*skIn_{Y^{N/n}} + e, a] in X^{N}.
 // If the ringDegree(skOutput) < ringDegree(skInput),  generates [-a*skOut_{Y^{N/n}} + w*P*skIn + e_{N}, a_{N}] in X^{N}.
 // Else generates [-a*skOut + w*P*skIn + e, a] in X^{N}.
-// The output [EvaluationKey] is always given in max(N, n) and in the moduli of the output [EvaluationKey].
+// The output [EvaluationKey] is always given in max(N, n).
+// If evkParams is void, the output [EvaluationKey] will be in the moduli given by the parameters stored in the [KeyGenerator] kgen.
 // When re-encrypting a [Ciphertext] from Y^{N/n} to X^{N}, the Ciphertext must first be mapped to X^{N}
 // using [SwitchCiphertextRingDegreeNTT](ctSmallDim, nil, ctLargeDim).
 // When re-encrypting a [Ciphertext] from X^{N} to Y^{N/n}, the output of the re-encryption is in still X^{N} and

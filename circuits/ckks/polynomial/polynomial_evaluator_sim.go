@@ -1,6 +1,7 @@
 package polynomial
 
 import (
+	"fmt"
 	"math/big"
 	"math/bits"
 
@@ -23,6 +24,11 @@ type simEvaluator struct {
 
 // PolynomialDepth returns the depth of the polynomial.
 func (d simEvaluator) PolynomialDepth(degree int) int {
+
+	if degree <= 0 {
+		panic(fmt.Errorf("invalid degree: degree=%d should be greater than zero", degree))
+	}
+
 	return d.levelsConsumedPerRescaling * (bits.Len64(uint64(degree)) - 1)
 }
 

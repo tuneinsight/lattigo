@@ -1,20 +1,22 @@
 name: CI Checks
 on:
   push:
+  pull_request:
+  workflow_dispatch:
 jobs:
   checks:
     name: Run static checks
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 1
     - name: Setup Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
-        go-version: '1.22.2'
+        go-version: '1.23.6'
 
-    - uses: actions/cache@v3
+    - uses: actions/cache@v4
       with:
         path: ~/go/pkg/mod
         key: ${{ runner.os }}-go-tools-${{ hashFiles('**/go.sum') }}
@@ -32,17 +34,17 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: ['1.22.2', '1.21.9']
+        go: ['1.23.6', '1.22.11', '1.21.13']
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cache/go-build

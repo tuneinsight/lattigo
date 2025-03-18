@@ -256,6 +256,7 @@ func genparties(params bgv.Parameters, N int) []*party {
 
 		pi.input = make([]uint64, params.N())
 		for j := range pi.input {
+			/* #nosec G115 -- i cannot be negative */
 			pi.input[j] = uint64(i)
 		}
 

@@ -1505,6 +1505,86 @@ func (eval Evaluator) RotateHoistedLazyNew(level int, rotations []int, op0 *rlwe
 	return
 }
 
+// InnerSum divides each row of the underlying plaintext in sub-vectors of size batchSize and add n of these together.
+// If n*batchSize = ctIn.Slots(), the inner sum is computed as if the plaintext was a 1-D vector of dimension ctIn.Slots()
+// (we recall that a BGV/BFV plaintext is represented as a 2 x ctIn.Slots()/2 matrix).
+//
+// WARNING: 0 < n*batchSize <= ctIn.Slots() must divide the number of slots ctIn.Slots(). For other parameters, consider using [Evaluator.RotateAndAdd].
+//
+// Example for batchSize=2, n=4 and 32 slots (garbage slots are marked as X):
+//
+// Input:
+//
+// [[{a1, b1}, {c1, d1}, {e1, f1}, {g1, h1}, {i1, j1}, {k1, l1}, {m1, n1}, {o1, p1}]
+//
+//	[{a2, b2}, {c2, d2}, {e2, f2}, {g2, h2}, {i2, j2}, {k2, l2}, {m2, n2}, {o2, p2}]]
+//
+// Output:
+//
+// [[{a1+c1+e1+g1, b1+d1+f1+h1}, {X, X}, {X, X}, {X, X}, {i1+k1+m1+o1, j1+l1+n1+p1}, {X, X}, {X, X}, {X, X}]
+//
+//	[{a2+c2+e2+g2, b2+d2+f2+h2}, {X, X}, {X, X}, {X, X}, {i2+k2+m2+o2, j2+l2+n2+p2}, {X, X}, {X, X}, {X, X}]]
+func (eval Evaluator) InnerSum(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *rlwe.Ciphertext) (err error) {
+	N := ctIn.Slots()
+	l := n * batchSize
+
+	if n <= 0 || batchSize <= 0 {
+		return fmt.Errorf("innersum: invalid parameter (n <= 0 or batchSize <= 0)")
+	}
+	if l > N {
+		return fmt.Errorf("innersum: invalid parameters (n*batchSize=%d > #slots=%d)", l, N)
+	}
+	if l&(l-1) != 0 {
+		return fmt.Errorf("innersum: invalid parameters (n*batchSize=%d does not divide #slots=%d)", l, N)
+	}
+
+	if l == N {
+		if n == 1 {
+			opOut.Copy(ctIn)
+			return
+		}
+
+		if err = eval.Evaluator.PartialTracesSum(ctIn, batchSize, n/2, opOut); err != nil {
+			return
+		}
+
+		ctTmp := &rlwe.Ciphertext{Element: rlwe.Element[ring.Poly]{Value: []ring.Poly{eval.BuffQP[2].Q, eval.BuffQP[3].Q}}}
+		ctTmp.MetaData = opOut.MetaData
+		if err = eval.RotateRows(opOut, ctTmp); err != nil {
+			return
+		}
+
+		if err = eval.Add(opOut, ctTmp, opOut); err != nil {
+			return
+		}
+
+		return
+	}
+
+	err = eval.Evaluator.PartialTracesSum(ctIn, batchSize, n, opOut)
+	return
+}
+
+// RotateAndAdd computes the sum of pt_i, 0 <= i < n, where pt_i is the underlying plaintext rotated ([Evaluator.RotateRows]) by batchSize*i slots.
+//
+// Example: for batchSize=3, n=2, ctIn.Slots()=16:
+//
+// Input (recall that a BGV/BFV plaintext is represented as a 2 x ctIn.Slots()/2 matrix):
+//
+//	[[a, b, c, d, e, f, g, h]
+//	[i, j, k, l, m, n, o, p]]
+//
+// Output:
+//
+//	[[a, b, c, d, e, f, g, h] + [[d, e, f, g, h, a, b, c] = [[a+d, b+e, c+f, d+g, e+h, f+a, g+b, h+c]
+//	[i, j, k, l, m, n, o, p]]   [l, m, n, o, p, i, j, k]]   [i+l, j+m, k+n, l+o, m+p, n+i, o+j, p+k]]
+//
+// Calling RotateAndAdd(ctIn, 1, n, opOut) can be used to compute the inner sum of the first n slots of a plaintext.
+func (eval Evaluator) RotateAndAdd(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *rlwe.Ciphertext) (err error) {
+	err = eval.Evaluator.PartialTracesSum(ctIn, batchSize, n, opOut)
+	return
+}
+
 // MatchScalesAndLevel updates both input ciphertexts to ensure that their scale matches.
 // To do so it computes ct0 * a = opOut * b such that:
 //   - ct0.Scale * a = opOut.Scale: make the scales match.

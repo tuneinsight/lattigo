@@ -111,6 +111,7 @@ func (ts *TernarySampler) computeMatrixTernary(p float64) {
 	x = uint64(g)
 
 	for j := uint64(0); j < ternarySamplerPrecision-1; j++ {
+		/* #nosec G115 -- value is 1 bit */
 		ts.matrixProba[0][j] = uint8((x >> (ternarySamplerPrecision - j - 1)) & 1)
 	}
 
@@ -119,6 +120,7 @@ func (ts *TernarySampler) computeMatrixTernary(p float64) {
 	x = uint64(g)
 
 	for j := uint64(0); j < ternarySamplerPrecision-1; j++ {
+		/* #nosec G115 -- value is 1 bit */
 		ts.matrixProba[1][j] = uint8((x >> (ternarySamplerPrecision - j - 1)) & 1)
 	}
 
@@ -223,9 +225,11 @@ func (ts *TernarySampler) sampleSparse(pol Poly, f func(a, b, c uint64) uint64) 
 	m := ts.matrixValues
 
 	for i := 0; i < ts.hw; i++ {
+		/* #nosec G115 -- N-i and bits(N-i) cannot be negative */
 		mask = (1 << uint64(bits.Len64(uint64(N-i)))) - 1 // rejection sampling of a random variable between [0, len(index)]
 
 		j = randInt32(ts.prng, mask)
+		/* #nosec G115 -- N-i cannot be negative */
 		for j >= uint64(N-i) {
 			j = randInt32(ts.prng, mask)
 		}
@@ -307,6 +311,7 @@ func (ts *TernarySampler) kysampling(prng sampling.PRNG, randomBytes []byte, poi
 						sign = uint8(randomBytes[bytePointer]>>(i+1)) & 1
 					}
 
+					/* #nosec G115 -- row and sign cannot be negative */
 					return uint64(row), uint64(sign), randomBytes, pointer + 1, bytePointer
 				}
 			}

@@ -166,6 +166,9 @@ func (mltp MaskedLinearTransformationProtocol) GenShare(skIn, skOut *rlwe.Secret
 	}
 
 	mask := make([]*big.Int, dslots)
+	for i := range mask {
+		mask[i] = new(big.Int)
+	}
 
 	// Generates the decryption share
 	// Returns [M_i] on mltp.tmpMask and [a*s_i -M_i + e] on EncToShareShare
@@ -239,6 +242,9 @@ func (mltp MaskedLinearTransformationProtocol) Transform(ct *rlwe.Ciphertext, tr
 	}
 
 	mask := make([]*big.Int, dslots)
+	for i := range mask {
+		mask[i] = new(big.Int)
+	}
 
 	// Returns -sum(M_i) + x (outside of the NTT domain)
 	mltp.e2s.GetShare(nil, share.EncToShareShare, ct, &multiparty.AdditiveShareBigint{Value: mask})

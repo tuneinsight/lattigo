@@ -156,6 +156,9 @@ func (e2s EncToShareProtocol) GetShare(secretShare *multiparty.AdditiveShareBigi
 	gap := ringQ.N() / dslots
 
 	maskBigint := make([]*big.Int, ringQ.N())
+	for i := range maskBigint {
+		maskBigint[i] = new(big.Int)
+	}
 	ringQ.PolyToBigintCentered(buffQ, gap, maskBigint)
 
 	// Subtracts the last mask

@@ -16,7 +16,6 @@ import (
 // EvaluationKeyGenProtocol is the structure storing the parameters for the collective EvaluationKey generation.
 type EvaluationKeyGenProtocol struct {
 	params           rlwe.Parameters
-	buff             [2]ringqp.Poly
 	gaussianSamplerQ ring.Sampler
 }
 
@@ -31,8 +30,6 @@ func (evkg EvaluationKeyGenProtocol) ShallowCopy() EvaluationKeyGenProtocol {
 		panic(err)
 	}
 
-	params := evkg.params
-
 	Xe, err := ring.NewSampler(prng, evkg.params.RingQ(), evkg.params.Xe(), false)
 
 	// Sanity check, this error should not happen.
@@ -42,7 +39,6 @@ func (evkg EvaluationKeyGenProtocol) ShallowCopy() EvaluationKeyGenProtocol {
 
 	return EvaluationKeyGenProtocol{
 		params:           evkg.params,
-		buff:             [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()},
 		gaussianSamplerQ: Xe,
 	}
 }
@@ -69,7 +65,6 @@ func NewEvaluationKeyGenProtocol(params rlwe.ParameterProvider) (evkg Evaluation
 	return EvaluationKeyGenProtocol{
 		params:           pRLWE,
 		gaussianSamplerQ: Xe,
-		buff:             [2]ringqp.Poly{pRLWE.RingQP().NewPoly(), pRLWE.RingQP().NewPoly()},
 	}
 }
 
@@ -138,12 +133,14 @@ func (evkg EvaluationKeyGenProtocol) GenShare(skIn, skOut *rlwe.SecretKey, crp E
 
 	var hasModulusP bool
 
+	buffQ := ringQ.NewPoly()
+
 	if levelP > -1 {
 		hasModulusP = true
-		ringQ.MulScalarBigint(skIn.Value.Q, ringQP.RingP.ModulusAtLevel[levelP], evkg.buff[0].Q)
+		ringQ.MulScalarBigint(skIn.Value.Q, ringQP.RingP.ModulusAtLevel[levelP], buffQ)
 	} else {
 		levelP = 0
-		evkg.buff[0].Q.CopyLvl(levelQ, skIn.Value.Q)
+		buffQ.CopyLvl(levelQ, skIn.Value.Q)
 	}
 
 	m := shareOut.Value
@@ -190,7 +187,7 @@ func (evkg EvaluationKeyGenProtocol) GenShare(skIn, skOut *rlwe.SecretKey, crp E
 					}
 
 					qi := ringQ.SubRings[index].Modulus
-					tmp0 := evkg.buff[0].Q.Coeffs[index]
+					tmp0 := buffQ.Coeffs[index]
 					tmp1 := mij.Q.Coeffs[index]
 
 					for w := 0; w < N; w++ {
@@ -203,7 +200,7 @@ func (evkg EvaluationKeyGenProtocol) GenShare(skIn, skOut *rlwe.SecretKey, crp E
 			}
 		}
 
-		ringQ.MulScalar(evkg.buff[0].Q, 1<<shareOut.BaseTwoDecomposition, evkg.buff[0].Q)
+		ringQ.MulScalar(buffQ, 1<<shareOut.BaseTwoDecomposition, buffQ)
 	}
 
 	return

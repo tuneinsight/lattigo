@@ -214,9 +214,8 @@ func (enc Encryptor) encryptZeroPk(pk *PublicKey, ct interface{}) (err error) {
 		levelQ = ct.Level()
 		levelP = 0
 
-		tmpPolyQP := enc.params.RingQP().NewPoly()
-		ct0QP = ringqp.Poly{Q: ct.Value[0], P: tmpPolyQP.Q}
-		ct1QP = ringqp.Poly{Q: ct.Value[1], P: tmpPolyQP.P}
+		ct0QP = ringqp.Poly{Q: ct.Value[0], P: enc.params.ringQ.NewPoly()}
+		ct1QP = ringqp.Poly{Q: ct.Value[1], P: enc.params.ringP.NewPoly()}
 	case Element[ringqp.Poly]:
 
 		levelQ = ct.LevelQ()
@@ -346,7 +345,7 @@ func (enc Encryptor) encryptZeroSk(sk *SecretKey, ct interface{}) (err error) {
 		if ct.Degree() == 1 {
 			c1 = ct.Value[1]
 		} else {
-			c1 = enc.params.ringQ.NewPoly()
+			c1 = enc.params.ringQ.AtLevel(ct.Level()).NewPoly()
 		}
 
 		enc.uniformSampler.AtLevel(ct.Level(), -1).Read(ringqp.Poly{Q: c1})
@@ -364,7 +363,7 @@ func (enc Encryptor) encryptZeroSk(sk *SecretKey, ct interface{}) (err error) {
 		if ct.Degree() == 1 {
 			c1 = ct.Value[1]
 		} else {
-			c1 = enc.params.RingQP().NewPoly()
+			c1 = enc.params.RingQP().AtLevel(ct.LevelQ(), ct.LevelP()).NewPoly()
 		}
 
 		// ct = (e, a)
@@ -392,7 +391,7 @@ func (enc Encryptor) encryptZeroSkFromC1(sk *SecretKey, ct Element[ring.Poly], c
 	ringQ.Neg(c0, c0)
 
 	if ct.IsNTT {
-		e := ringQ.NewPoly()
+		e := enc.params.ringQ.NewPoly()
 		enc.xeSampler.AtLevel(levelQ).Read(e)
 		ringQ.NTT(e, e)
 		ringQ.Add(c0, e, c0)

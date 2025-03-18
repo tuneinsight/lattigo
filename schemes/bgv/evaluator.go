@@ -18,7 +18,7 @@ import (
 // version of the evaluator.
 type Evaluator struct {
 	*evaluatorBase
-	*evaluatorBuffers
+	*evaluatorPool
 	*rlwe.Evaluator
 	*Encoder
 
@@ -78,15 +78,15 @@ func newEvaluatorPrecomp(parameters Parameters) *evaluatorBase {
 	}
 }
 
-type evaluatorBuffers struct {
+type evaluatorPool struct {
 	BuffQMulPool structs.BufferPool[*ring.Poly]
 }
 
-func newEvaluatorBuffer(params Parameters) *evaluatorBuffers {
+func newEvaluatorPool(params Parameters) *evaluatorPool {
 
 	ringQMul := params.RingQMul()
 
-	return &evaluatorBuffers{
+	return &evaluatorPool{
 		BuffQMulPool: ringQMul.NewBuffFromUintPool(),
 	}
 }
@@ -100,7 +100,7 @@ func newEvaluatorBuffer(params Parameters) *evaluatorBuffers {
 func NewEvaluator(parameters Parameters, evk rlwe.EvaluationKeySet, scaleInvariant ...bool) *Evaluator {
 	ev := new(Evaluator)
 	ev.evaluatorBase = newEvaluatorPrecomp(parameters)
-	ev.evaluatorBuffers = newEvaluatorBuffer(parameters)
+	ev.evaluatorPool = newEvaluatorPool(parameters)
 	ev.Evaluator = rlwe.NewEvaluator(parameters.Parameters, evk)
 	ev.Encoder = NewEncoder(parameters)
 	ev.ScaleInvariant = len(scaleInvariant) > 0 && scaleInvariant[0]
@@ -117,11 +117,11 @@ func (eval Evaluator) GetParameters() *Parameters {
 // shared with the receiver.
 func (eval Evaluator) ShallowCopy() *Evaluator {
 	return &Evaluator{
-		evaluatorBase:    eval.evaluatorBase.ShallowCopy(),
-		Evaluator:        eval.Evaluator.ShallowCopy(),
-		evaluatorBuffers: newEvaluatorBuffer(*eval.GetParameters()),
-		Encoder:          eval.Encoder.ShallowCopy(),
-		ScaleInvariant:   eval.ScaleInvariant,
+		evaluatorBase:  eval.evaluatorBase.ShallowCopy(),
+		Evaluator:      eval.Evaluator.ShallowCopy(),
+		evaluatorPool:  newEvaluatorPool(*eval.GetParameters()),
+		Encoder:        eval.Encoder.ShallowCopy(),
+		ScaleInvariant: eval.ScaleInvariant,
 	}
 }
 
@@ -129,10 +129,10 @@ func (eval Evaluator) ShallowCopy() *Evaluator {
 // shared with the receiver but the evaluation key is set to the provided [rlwe.EvaluationKeySet].
 func (eval Evaluator) WithKey(evk rlwe.EvaluationKeySet) *Evaluator {
 	return &Evaluator{
-		evaluatorBase:    eval.evaluatorBase,
-		Evaluator:        eval.Evaluator.WithKey(evk),
-		evaluatorBuffers: eval.evaluatorBuffers,
-		Encoder:          eval.Encoder,
+		evaluatorBase: eval.evaluatorBase,
+		Evaluator:     eval.Evaluator.WithKey(evk),
+		evaluatorPool: eval.evaluatorPool,
+		Encoder:       eval.Encoder,
 	}
 }
 

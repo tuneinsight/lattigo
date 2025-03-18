@@ -134,7 +134,7 @@ func main() {
 	encOut := pcksPhase(params, tpk, encRes, P)
 
 	// Decrypt the result with the target secret key
-	l.Println("> ResulPlaintextModulus:")
+	l.Println("> ResultPlaintextModulus:")
 	decryptor := rlwe.NewDecryptor(params, tsk)
 	ptres := bgv.NewPlaintext(params, params.MaxLevel())
 	elapsedDecParty := runTimed(func() {

@@ -71,7 +71,7 @@ type Parameters struct {
 	// the SIMD packed matrix.
 	LogDimensions ring.Dimensions
 
-	// LogBabyStepGianStepRatio is the log2 of the ratio n1/n2 for n = n1 * n2 and
+	// LogBabyStepGiantStepRatio is the log2 of the ratio n1/n2 for n = n1 * n2 and
 	// n is the dimension of the linear transformation. The number of Galois keys required
 	// is minimized when this value is 0 but the overall complexity of the homomorphic evaluation
 	// can be reduced by increasing the ratio (at the expanse of increasing the number of keys required).

@@ -102,7 +102,7 @@ func (eval Evaluator) ModDown(levelQ, levelP int, ctQP *Element[ringqp.Poly], ct
 func (eval Evaluator) GadgetProductLazy(levelQ int, cx ring.Poly, gadgetCt *GadgetCiphertext, ctQP *Element[ringqp.Poly]) (err error) {
 
 	if ctQP.LevelP() < gadgetCt.LevelP() {
-		return fmt.Errorf("ctQP.LevelP()=%d < gadgetCt.LevelP()=%d", ctQP.Level(), gadgetCt.LevelP())
+		return fmt.Errorf("ctQP.LevelP()=%d < gadgetCt.LevelP()=%d", ctQP.LevelP(), gadgetCt.LevelP())
 	}
 
 	if gadgetCt.LevelP() > 0 {

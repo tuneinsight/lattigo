@@ -12,7 +12,7 @@ import (
 	"github.com/tuneinsight/lattigo/v6/utils/sampling"
 )
 
-// KeySwitchProtocol is the structure storing the parameters and and precomputations for the collective key-switching protocol.
+// KeySwitchProtocol is the structure storing the parameters and precomputations for the collective key-switching protocol.
 type KeySwitchProtocol struct {
 	params       rlwe.Parameters
 	noise        ring.DistributionParameters

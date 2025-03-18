@@ -253,7 +253,6 @@ func (kgen KeyGenerator) GenEvaluationKey(skInput, skOutput *SecretKey, evk *Eva
 
 	ringQ := kgen.params.RingQ()
 	ringP := kgen.params.RingP()
-	tmpPoly := ringQ.NewPoly()
 
 	buffSkOut := kgen.params.RingQP().NewPoly()
 	buffSkIn := kgen.params.RingQ().NewPoly()

@@ -1,5 +1,9 @@
 # Report a Vulnerability
 To report a vulnerability please contact us directly using the following email: lattigo@tuneinsight.com.
+Please include as much detail as possible in your report, including: 
+   - Affected version. 
+   - Steps to reproduce.
+   - Potential impact of the vulnerability. 
 
 # Past Vulnerabilities
 ### Wrong level for DenseToSparse Evaluation Key

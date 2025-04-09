@@ -282,10 +282,9 @@ func genparties(params bgv.Parameters, N, t int) []party {
 
 		P[i].sk = kgen.GenSecretKeyNew()
 
-
 		P[i].input = make([]uint64, params.N())
 		for j := range P[i].input {
-      /* #nosec G115 -- i cannot be negative */
+			/* #nosec G115 -- i cannot be negative */
 			P[i].input[j] = uint64(i)
 		}
 	}

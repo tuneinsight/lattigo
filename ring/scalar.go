@@ -70,6 +70,7 @@ func (r *Ring) MulRNSScalar(s1, s2, sout RNSScalar) {
 // The inversion is done in-place and assumes that a is in Montgomery form.
 func (r *Ring) Inverse(a RNSScalar) {
 	for i, s := range r.SubRings[:r.level+1] {
+		/* #nosec G115 -- library requires 64-bit system -> int = int64 */
 		a[i] = ModexpMontgomery(a[i], int(s.Modulus-2), s.Modulus, s.MRedConstant, s.BRedConstant)
 	}
 }

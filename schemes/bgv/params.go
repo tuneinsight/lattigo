@@ -97,6 +97,7 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 
 	var ringQMul *ring.Ring
 	nbQiMul := int(math.Ceil(float64(rlweParams.RingQ().ModulusAtLevel[rlweParams.MaxLevel()].BitLen()+rlweParams.LogN()) / 61.0))
+	/* #nosec G115 -- NthRoot cannot be negative */
 	g := ring.NewNTTFriendlyPrimesGenerator(61, uint64(rlweParams.NthRoot()))
 	primes, err := g.NextDownstreamPrimes(nbQiMul)
 	if err != nil {
@@ -116,6 +117,7 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 	}
 
 	var ringT *ring.Ring
+	/* #nosec G115 -- library requires 64-bit system -> int = int64 */
 	if ringT, err = ring.NewRing(utils.Min(rlweParams.N(), int(order>>1)), []uint64{t}); err != nil {
 		return Parameters{}, fmt.Errorf("provided plaintext modulus t is invalid: %w", err)
 	}
@@ -257,7 +259,7 @@ func (p Parameters) GaloisElementForRowRotation() uint64 {
 // InnerSum operation with parameters batch and n.
 func (p Parameters) GaloisElementsForInnerSum(batch, n int) (galEls []uint64) {
 	galEls = rlwe.GaloisElementsForInnerSum(p, batch, n)
-	if n > p.N()>>1 {
+	if n*batch > p.MaxSlots()>>1 {
 		galEls = append(galEls, p.GaloisElementForRowRotation())
 	}
 	return

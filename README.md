@@ -94,7 +94,7 @@ Lattigo package organization is given in the Figure above.
                       subpackage includes test files that further demonstrate the use of Lattigo
                       primitives.
 
-- `lattigo/utils`: Generic utility methods. This package also contains the following sub-pacakges:
+- `lattigo/utils`: Generic utility methods. This package also contains the following sub-packages:
   - `bignum`: Arbitrary precision linear algebra and polynomial approximation.
   - `buffer`: Efficient methods to write/read on `io.Writer` and `io.Reader`.
   - `factorization`: Various factorization algorithms for medium-sized integers.

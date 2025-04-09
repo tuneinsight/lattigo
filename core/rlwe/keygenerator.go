@@ -231,7 +231,8 @@ func (kgen KeyGenerator) GenEvaluationKeysForRingSwapNew(skStd, skConjugateInvar
 // If the ringDegree(skOutput) > ringDegree(skInput),  generates [-a*SkOut + w*P*skIn_{Y^{N/n}} + e, a] in X^{N}.
 // If the ringDegree(skOutput) < ringDegree(skInput),  generates [-a*skOut_{Y^{N/n}} + w*P*skIn + e_{N}, a_{N}] in X^{N}.
 // Else generates [-a*skOut + w*P*skIn + e, a] in X^{N}.
-// The output [EvaluationKey] is always given in max(N, n) and in the moduli of the output [EvaluationKey].
+// The output [EvaluationKey] is always given in max(N, n).
+// If evkParams is void, the output [EvaluationKey] will be in the moduli given by the parameters stored in the [KeyGenerator] kgen.
 // When re-encrypting a [Ciphertext] from Y^{N/n} to X^{N}, the Ciphertext must first be mapped to X^{N}
 // using [SwitchCiphertextRingDegreeNTT](ctSmallDim, nil, ctLargeDim).
 // When re-encrypting a [Ciphertext] from X^{N} to Y^{N/n}, the output of the re-encryption is in still X^{N} and
@@ -279,12 +280,13 @@ func (kgen KeyGenerator) genEvaluationKey(skIn ring.Poly, skOut ringqp.Poly, evk
 	// For a compressed evaluation key, a seed is created and stored in the EvaluationKey struct
 	// struct while an uncompressed key uses an ephemeral seed.
 	if evk.IsCompressed() {
-		evk.Seed = make([]byte, 32)
-		if n, err := kgen.prng.Read(evk.Seed); n != 32 || err != nil {
+		var seed [32]byte
+		if n, err := kgen.prng.Read(seed[:]); n != 32 || err != nil {
 			panic(fmt.Errorf("unable to sample evaluation key seed"))
 		}
+		evk.Seed = &seed
 
-		sampler, err := sampling.NewKeyedPRNG(evk.Seed)
+		sampler, err := sampling.NewKeyedPRNG(seed[:])
 		if err != nil {
 			panic(fmt.Errorf("sampling.NewKeyedPRNG: %w", err))
 		}

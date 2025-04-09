@@ -35,7 +35,7 @@ checks: check_tools
 		false;\
     fi
 	
-	@STATICCHECKOUT=$$(staticcheck -go 1.22 -checks all ./...); \
+	@STATICCHECKOUT=$$(staticcheck -go 1.23 -checks all ./...); \
 	if [ -z "$$STATICCHECKOUT" ]; then\
         echo "staticcheck: OK";\
 	else \
@@ -53,11 +53,9 @@ checks: check_tools
 		false;\
 	fi
 
-# gosec rule G115: Is exluded because there are int->uin64 conversions
-# and the rule currently contains false positives
-	@GOSECOUT=$$(gosec -quiet -exclude=G115 ./...); \
+	@GOSECOUT=$$(gosec -quiet ./...); \
 	if [ -z "$$GOSECOUT" ]; then\
-		echo "gosec: OK (excluding G115)";\
+		echo "gosec: OK";\
 	else \
 		echo "gosec: problems in files:";\
 		echo "$$GOSECOUT";\
@@ -78,7 +76,7 @@ EXECUTABLES = goimports staticcheck govulncheck gosec
 .PHONY: get_tools
 get_tools:
 	go install golang.org/x/tools/cmd/goimports@latest
-	go install honnef.co/go/tools/cmd/staticcheck@2023.1.7
+	go install honnef.co/go/tools/cmd/staticcheck@2024.1.1
 	go install golang.org/x/vuln/cmd/govulncheck@latest
 	go install github.com/securego/gosec/v2/cmd/gosec@latest
 

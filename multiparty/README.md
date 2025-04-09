@@ -108,9 +108,10 @@ $$S(X) = s + s_1 X + s_2 X^2 + ... + s_t X^{t-1},$$
 
 i.e., a degree- $(t-1)$ polynomial in R[X] for which $s = S(0)$, and party $i$'s secret-key
 shares is distributed as $S(\alpha_i)$ for $(\alpha_1, \alpha_2, ... \alpha_N)$ $N$
-distinct elements of $R$ forming an exceptional sequence. Then, observe that $s$ can be
-reconstructed from any set of $t$ shares via Lagrange interpolation. For example, assuming
-reconstruction from the first $t$ shares:
+distinct elements of $R$ forming an exceptional sequence (i.e., all their non-zero pairwise
+differences are invertible in the ring). Then, observe that $s$ can be reconstructed from 
+any set of $t$ shares via Lagrange interpolation. For example, assuming reconstruction from
+the first $t$ shares:
 
 $$s = \sum^t_{i=1} S(\alpha_i) \cdot \prod^t_{\substack{j=1\\ i \neq j}}
 \frac{\alpha_j}{\alpha_j - \alpha_i} = \sum^t_{i=1} S(\alpha_i) \cdot l_i$$

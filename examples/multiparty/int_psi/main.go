@@ -171,7 +171,7 @@ func execCKGProtocol(params bgv.Parameters, crs sampling.PRNG, P []party) *rlwe.
 	}
 	ckgCombined := ckg.AllocateShare() // Allocate the memory for the combined share
 
-	// sample the common reference polynomial (crp) common reference string (crs)
+	// sample the common reference polynomial (crp) from the common reference string (crs)
 	crp := ckg.SampleCRP(crs)
 
 	// Generate the parties' shares
@@ -217,7 +217,7 @@ func execRKGProtocol(params bgv.Parameters, crs sampling.PRNG, P []party) *rlwe.
 	// Allocate the memory for the combined public shares
 	_, rkgCombined1, rkgCombined2 := rkg.AllocateShare()
 
-	// Sample the common reference polynomial (crp) common reference string (crs)
+	// Sample the common reference polynomial (crp) from the common reference string (crs)
 	crp := rkg.SampleCRP(crs)
 
 	// The parties generate their shares for round one

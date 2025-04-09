@@ -7,7 +7,7 @@ two core schemes:
 1. A $N$-out-of- $N$-threshold scheme
 2. A $t$-out-of- $N$-threshold scheme
 
-We provide more informations about these two core schemes below. Moreover, The
+We provide more informations about these two core schemes below. Moreover, the
 `multiparty/mpbgv` and `multiparty/mpckks` packages provide scheme-specific
 functionalities (e.g., interactive bootstrapping) by implementing **threshold** versions
 of the single-party BFV/BGV and CKKS cryptosystems found in the `schemes` package. Note
@@ -123,7 +123,7 @@ shares as $\sum^t_{i=1} h_i \cdot l_i$. This is because $l_i$ is a large $R$ ele
 multiplying it with $S(0)a+e_i$ would result in a large error $e_i \cdot l_i$.
 
 The scheme of Mouchet et al. circumvents this issue by directly evaluating $h_i=F(a,
-S(\alpha_i) \cdot l_i)$ locally. Then the combination of the share is back to being a
+S(\alpha_i) \cdot l_i)$ locally. Then the combination of the shares is back to being a
 simple summation over $t$ shares: $h =\sum^t_{i=1} h_i$. This simple trick enables a very
 efficient and usable $t$-out-of- $N$ scheme:
 
@@ -135,7 +135,7 @@ efficient and usable $t$-out-of- $N$ scheme:
     1. having each party $j$ send $S_j(\alpha_i)$ to party $i$ (via a **private**
        channel),
     2. having party $i$ compute $S(\alpha_i) = \sum^N_{j=1} S_j(\alpha_i)$.
-- The above protocol is a single-round protocol, and state each party has to keep is then
+- The above protocol is a single-round protocol, and the state each party has to keep is then
   a single ring element $S(\alpha_i)$. 
 - When instantiated as above, the $t$-out-of- $N$-threshold scheme consists in a direct
   **extension** of the $N$-out-of- $N$-threshold scheme where:
@@ -418,14 +418,14 @@ The parties perform a re-encryption of the desired ciphertext(s) from being encr
 under the _ideal secret-key_ to being encrypted under the receiver's secret-key. There are
 two instantiations of the Collective Key-Switching protocol:
 - Collective Key-Switching (KeySwitch), implemented as the `multiparty.KeySwitchProtocol`
-  interface: it enables the parties to switch from their _ideal secret-key_ _s_ to another
-  _ideal secret-key_ _s'_ when s' is collectively known by the parties. In the case where
-  _s' = 0_, this is equivalent to a collective decryption protocol that can be used when
+  interface: it enables the parties to switch from their _ideal secret-key_ $s$ to another
+  _ideal secret-key_ $s'$ when $s'$ is collectively known by the parties. In the case where
+  $s' = 0$, this is equivalent to a collective decryption protocol that can be used when
   the receiver is one of the input-parties. 
 - Collective Public-Key Switching (PublicKeySwitch), implemented as the
   `multiparty.PublicKeySwitchProtocol` interface, enables parties to switch from their
-  _ideal secret-key_ _s_ to an arbitrary key _s'_ when provided with a public
-  encryption-key for _s'_. Hence, this enables key-switching to a secret-key that is not
+  _ideal secret-key_ $s$ to an arbitrary key $s'$ when provided with a public
+  encryption-key for $s'$. Hence, this enables key-switching to a secret-key that is not
   known to the input parties, which enables external receivers.
 
 While both protocol variants have slightly different local operations, their steps are the
@@ -439,7 +439,7 @@ same:
 - Each party discloses its `multiparty.KeySwitchShare` over the public channel. The shares
   are aggregated with the `(Public)KeySwitchProtocol.AggregateShares` method.
 - From the aggregated `multiparty.KeySwitchShare`, any party can derive the ciphertext
-  re-encrypted under _s'_ by using the `(Public)KeySwitchProtocol.KeySwitch` method.
+  re-encrypted under $s'$ by using the `(Public)KeySwitchProtocol.KeySwitch` method.
 
 ##### 2.iii.b Decryption
 Once the receivers have obtained the ciphertext re-encrypted under their respective keys,

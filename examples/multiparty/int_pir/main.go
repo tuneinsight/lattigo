@@ -1,9 +1,9 @@
-// This example demonstrates the use of the [multiparty] package to perform a basic N-party private information retrival (PIR) protocol.
+// This example demonstrates the use of the [multiparty] package to perform a basic N-party private information retrieval (PIR) protocol.
 // This protocol relies on the t-out-of-N-threshold variant of the BGV scheme.
 //
 // In a nutshell, each party uploads an data row to a helper server, as an encrypted integer vector. The result is an encrypted database of N rows. At a later stage,
-// a party queries a row in the database to the helper, without revealing the selector query index. The querier does so by encoding its query as
-// a binary vector with a single 1 component corresponding to the row it wants to retrive, and send this encrypted vector to the helper.
+// a party queries a row in the database to the helper, without revealing the selector query index. The querying party does so by encoding its query as
+// a binary vector with a single 1 component corresponding to the row it wants to retrieve, and send this encrypted vector to the helper.
 // The helper can then compute the response (under encryption) by multiplying each row i of the database with the i-th query component, and summing
 // the resulting vectors together. Finally, the result can be decrypted by any group of t parties.
 //
@@ -313,7 +313,7 @@ func execCKGProtocol(params bgv.Parameters, crs sampling.PRNG, participants []pa
 	}
 	ckgCombined := ckg.AllocateShare() // Allocate the memory for the combined share
 
-	// sample the common reference polynomial (crp) common reference string (crs)
+	// sample the common reference polynomial (crp) from the common reference string (crs)
 	crp := ckg.SampleCRP(crs)
 
 	// Generate the parties' shares
@@ -504,7 +504,7 @@ func execRequest(params bgv.Parameters, NGoRoutine int, encQuery *rlwe.Ciphertex
 
 	l.Println("> Query Evaluation")
 
-	// First, pre-compute the some plaintext masks for the query evaluation as:
+	// First, pre-compute the plaintext masks for the query evaluation as:
 	// plainmask[i] = encode([0, ..., 0, 1, 0, ..., 0])  (zero with a 1 at the i-th position).
 	// In practice, the masks are pre-computed and reused accross queries.
 	encoder := bgv.NewEncoder(params)

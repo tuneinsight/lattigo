@@ -278,6 +278,7 @@ func genparties(params bgv.Parameters, N, t int) []party {
 	P := make([]party, N)
 	kgen := rlwe.NewKeyGenerator(params)
 	for i := range P {
+		/* #nosec G115 -- i cannot be negative */
 		P[i].shamirPt = multiparty.ShamirPublicPoint(i + 1)
 
 		P[i].sk = kgen.GenSecretKeyNew()

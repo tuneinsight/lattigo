@@ -4,8 +4,8 @@ The `multiparty` package implements several Multiparty Homomorphic Encryption (M
 primitives based on Ring-Learning-with-Errors (RLWE). It provides the implementation of
 two core schemes:
 
-1. A $N$-out-of- $N$-threshold scheme
-2. A $t$-out-of- $N$-threshold scheme
+1. A $N\text{-out-of-}N$-threshold scheme
+2. A $t\text{-out-of-}N$-threshold scheme
 
 We provide more informations about these two core schemes below. Moreover, the
 `multiparty/mpbgv` and `multiparty/mpckks` packages provide scheme-specific
@@ -34,15 +34,15 @@ any network-layer protocol implementation. However:
   These examples are running all the parties in the same process, but demonstrate the use
   of the multiparty schemes in the MHE-MPC protocol.
 
-## The $N$-out-of- $N$-Threshold Scheme
+## The $N\text{-out-of-}N$-Threshold Scheme
 
-Conceptually, the $N$-out-of- $N$-threshold scheme exploits the linearity of RLWE
+Conceptually, the $N\text{-out-of-}N$-threshold scheme exploits the linearity of RLWE
 encryption to distribute the secret-key among $N$ parties. More specifically, the core
 cryptographic operation of (single-party) RLWE-based scheme is to compute functions of the
 form: $$F(a,s) = as+e$$ over a ring $R$ where $a \in R$ is public, $s \in R$ is the
 secret-key of the scheme and $e \in R$ is a small ring element (sampled fresh for each
 function). For example, notice that generating an RLWE public-key corresponds to exactly
-this operation. The $N$-out-of- $N$-threshold scheme consists in splitting the secret-key
+this operation. The $N\text{-out-of-}N$-threshold scheme consists in splitting the secret-key
 $s$ into $N$ additive shares such that $s=\sum^N_{i=1} s_i$ and that $s_i$ is held by
 party $i$. In this way, any secret-key operation (especially, decryption) requires the
 collaboration between **all** the $N$ parties.
@@ -89,16 +89,16 @@ shares. Moreover:
   the protocol's output. E.g., the `PublicKeyGenProtocol` provides a
   `GenPublicKey(aggshare PublicKeyGenShare, [...])` method.
 
-## The $t$-out-of- $N$-Threshold Scheme
+## The $t\text{-out-of-}N$-Threshold Scheme
 
-There might be settings where an $N$-out-of- $N$-threshold access-structure is too
+There might be settings where an $N\text{-out-of-}N$-threshold access-structure is too
 restrictive. For example, when $N$ is large, the probability of a single party being down
 at a given time increases. In cases where it can be assumed that the adversary cannot
-corrupt more than $t-1$ out of the $N$ parties, the $t$-out-of- $N$-threshold scheme can be
+corrupt more than $t-1$ out of the $N$ parties, the $t\text{-out-of-}N$-threshold scheme can be
 employed to provide better liveness guarantees. More specifically, this scheme ensures
 that secret-key operations can be performed by any group of at least $t$ parties.
 
-Lattigo provides an implementation of the RLWE-based $t$-out-of- $N$-threshold scheme
+Lattigo provides an implementation of the RLWE-based $t\text{-out-of-}N$-threshold scheme
 described in Mouchet et al.'s paper [An Efficient Threshold Access-Structure for
 RLWE-Based Multiparty Homomorphic Encryption](https://eprint.iacr.org/2022/780). Similarly
 to many threshold schemes, it relies on Shamir Secret Sharing to distribute the secret-key
@@ -126,24 +126,24 @@ multiplying it with $S(0)a+e_i$ would result in a large error $e_i \cdot l_i$.
 The scheme of Mouchet et al. circumvents this issue by directly evaluating $h_i=F(a,
 S(\alpha_i) \cdot l_i)$ locally. Then the combination of the shares is back to being a
 simple summation over $t$ shares: $h =\sum^t_{i=1} h_i$. This simple trick enables a very
-efficient and usable $t$-out-of- $N$ scheme:
+efficient and usable $t\text{-out-of-}N$ scheme:
 
 - $S$ can be generated non-interactively and without a trusted dealer by having each party
   generating a random degree- $(t-1)$ polynomial $S_i$ with $S_i(0) = s_i$, and by
   implicitly take $S=\sum^N_{i=1} S_i$. Observe then that $s = S(0) = \sum^N_{i=1} s_i$,
-  which matches the $N$-out-of- $N$-threshold case.
+  which matches the $N\text{-out-of-}N$-threshold case.
 - Then, party $i$ can obtain its share $S(\alpha_i)$ by:
     1. having each party $j$ send $S_j(\alpha_i)$ to party $i$ (via a **private**
        channel),
     2. having party $i$ compute $S(\alpha_i) = \sum^N_{j=1} S_j(\alpha_i)$.
 - The above protocol is a single-round protocol, and the state each party has to keep is then
   a single ring element $S(\alpha_i)$. 
-- When instantiated as above, the $t$-out-of- $N$-threshold scheme consists in a direct
-  **extension** of the $N$-out-of- $N$-threshold scheme where:
-    1. The parties operate a *re-sharing* of their secret-key $N$-out-of- $N$ secret-key
-       share using the $t$-out-of- $N$ Shamir Secret Sharing scheme. 
+- When instantiated as above, the $t\text{-out-of-}N$-threshold scheme consists in a direct
+  **extension** of the $N\text{-out-of-}N$-threshold scheme where:
+    1. The parties operate a *re-sharing* of their secret-key $N\text{-out-of-}N$ secret-key
+       share using the $t\text{-out-of-}N$ Shamir Secret Sharing scheme. 
     2. The parties perform the secret-key operations (i.e., the protocols) in the same way
-       as in the $N$-out-of- $N$-threshold scheme, yet among $t$ parties only and with
+       as in the $N\text{-out-of-}N$-threshold scheme, yet among $t$ parties only and with
        $S(\alpha_i)\cdot l_i$ instead of $s_i$.
 
 However, the scheme has the downside of requiring to know set of parties participating to
@@ -151,12 +151,12 @@ a given secret-key operation (i.e., evaluation of $F$). This is because evaluati
 S(\alpha_i) \cdot l_i$ requires each party $i$ to compute the Lagrange coefficient $l_i$,
 which depends on the participating set. Another downside of this scheme is that it
 requires a round of private, pairwise message exchanges between the parties before the
-scheme can be used in the $t$-out-of- $N$ regime.
+scheme can be used in the $t\text{-out-of-}N$ regime.
 
 ### Implementation
 
-Thanks to the $t$-out-of- $N$-threshold scheme being a direct extension of the
-$N$-out-of- $N$-threshold scheme (see the discussion above), the implementation of the
+Thanks to the $t\text{-out-of-}N$-threshold scheme being a direct extension of the
+$N\text{-out-of-}N$-threshold scheme (see the discussion above), the implementation of the
 former consist of two new types: `Thresholdizer` and `Combiner`.
 
 The `Thresholdizer` type implements the secret-key generation and re-sharing steps. This
@@ -168,11 +168,11 @@ type corresponds to part 1. of the extension as described above. More specifical
 - `AggregateShares(share1, share2 ShamirSecretShare, [...])` aggregates two received
   shares (i.e., one addition step in computing $S(\alpha_i)$ above).
 
-The `Combiner` type lets parties obtain $t$-out-of- $t$ additive shares from their
-$t$-out-of- $N$ Shamir shares. This type corresponds to part 2. of the extension as
+The `Combiner` type lets parties obtain $t\text{-out-of-}t$ additive shares from their
+$t\text{-out-of-}N$ Shamir shares. This type corresponds to part 2. of the extension as
 described above, and is called as a pre-processing before any secret-key operation
-performed in the $t$-out-of- $N$ regime. More specifically, the `Combiner.GenAdditiveShare`
-takes as input the $t$-out-of- $N$-threshold secret-share of the party ($S(\alpha_i)$
+performed in the $t\text{-out-of-}N$ regime. More specifically, the `Combiner.GenAdditiveShare`
+takes as input the $t\text{-out-of-}N$-threshold secret-share of the party ($S(\alpha_i)$
 above) along with the set $L=\{\alpha_1, ..., \alpha_t\}$ of the $t$ parties participating
 to the protocol, and computes:
 
@@ -180,7 +180,7 @@ $$S(\alpha_i) \cdot l_i = S(\alpha_i) \cdot \prod_{\substack{\alpha_j \in L\\ \a
 \neq \alpha_i}} \frac{\alpha_j}{\alpha_j - \alpha_i}.$$
 
 Hence, from the share output by `GenAdditiveShare`, the usual protocols described for the
-$N$-out-of- $N$-threshold setting (see the previous section) can be used, yet with $N=t$.
+$N\text{-out-of-}N$-threshold setting (see the previous section) can be used, yet with $N=t$.
 
 ## MHE-MPC Protocol Overview
 

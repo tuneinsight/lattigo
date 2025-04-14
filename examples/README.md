@@ -40,9 +40,9 @@ Tutorials are examples showcasing the basic capabilities of the library.
 
 # Multiparty-HE Examples
 
- - `int_psi`: an example showcasing the $N$-out-of- $N$-threshold scheme in a *private set intersection* scenario.
- - `int_pir`: an example showcasing the $t$-out-of- $N$-threshold scheme in a *private information retrieval* scenario.
- - `thresh_eval_key_gen`: an example showcasing the generation of a large set of evaluation-keys in the $t$-out-of- $N$-threshold scheme.
+ - `int_psi`: an example showcasing the $N\text{-out-of-}N$-threshold scheme in a *private set intersection* scenario.
+ - `int_pir`: an example showcasing the $t\text{-out-of-}N$-threshold scheme in a *private information retrieval* scenario.
+ - `thresh_eval_key_gen`: an example showcasing the generation of a large set of evaluation-keys in the $t\text{-out-of-}N$-threshold scheme.
 
 ## Parameters
 

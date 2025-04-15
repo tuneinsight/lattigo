@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this library are documented in this file.
 
-## [7.x.x] - xx.xx.xxxx
+## [Unreleased]
 - Refactoring of the InnerSum methods: 
   - `rlwe.Evaluator.InnerSum` has been replaced by `rlwe.Evaluator.PartialTracesSum`, which applies the automorphisms that correspond to rotations at the scheme level (and sum the results).
   - Introduction of the `bgv.Evaluator.InnerSum` and `ckks.Evaluator.InnerSum` methods, which have the same behaviour as the old `InnerSum` method for parameters `n` and `batchSize` s.t. `0 < n*batchSize <= ctIn.Slots()` divides the number of slots. Parameters not satisfying these conditions are rejected.

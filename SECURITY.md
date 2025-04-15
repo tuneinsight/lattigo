@@ -6,9 +6,9 @@ Please include as much detail as possible in your report, including:
    - Potential impact of the vulnerability. 
 
 # Past Vulnerabilities
-### Wrong level for DenseToSparse Evaluation Key
+### Wrong level for DenseToSparse Evaluation Key (04.2025)
   - **Severity:** Low
-  - **Impact:** A security of 128-bit is not guaranteed if the `EvkDenseToSparse` evaluation key, which is part of the CKKS bootstrapping keys, is used. With the bootstrapping parameters proposed in Lattigo, the security falls to $\approx$ 106 bits of security. This means the vulnerability does not lead to any practical attack. However, anyone using CKKS bootstrapping should update their version of Lattigo and rotate their secret key to go back to 128-bit security. 
+  - **Impact:** A security of 128-bit is not guaranteed if the `EvkDenseToSparse` evaluation key, which is part of the CKKS bootstrapping keys, is used. With the bootstrapping parameters proposed in Lattigo, the security falls to $\approx$ 106 bits of security. This means the vulnerability should not lead to any practical attack. However, anyone using CKKS bootstrapping should update their version of Lattigo and rotate their secret key to go back to 128-bit security. 
   - **Versions impacted:** `v5.0.0-v6.1.0`
   - **Fixed in:** `v6.1.1`
   - **Fix:** `EvkDenseToSparse` is generated at the correct level. 

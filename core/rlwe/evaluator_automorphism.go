@@ -34,8 +34,12 @@ func (eval Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, opOut *Cipher
 	opOut.Resize(opOut.Degree(), level)
 
 	ringQ := eval.params.RingQ().AtLevel(level)
+	buffQP1 := eval.BuffQPPool.Get()
+	defer eval.BuffQPPool.Put(buffQP1)
+	buffQP2 := eval.BuffQPPool.Get()
+	defer eval.BuffQPPool.Put(buffQP2)
 
-	ctTmp := &Ciphertext{Element: Element[ring.Poly]{Value: []ring.Poly{eval.BuffQP[0].Q, eval.BuffQP[1].Q}}}
+	ctTmp := &Ciphertext{Element: Element[ring.Poly]{Value: []ring.Poly{(*buffQP1).Q, (*buffQP2).Q}}}
 	ctTmp.MetaData = ctIn.MetaData
 
 	eval.GadgetProduct(level, ctIn.Value[1], &evk.GadgetCiphertext, ctTmp)
@@ -81,8 +85,13 @@ func (eval Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1DecompQ
 
 	ringQ := eval.params.RingQ().AtLevel(level)
 
+	buffQP1 := eval.BuffQPPool.Get()
+	defer eval.BuffQPPool.Put(buffQP1)
+	buffQP2 := eval.BuffQPPool.Get()
+	defer eval.BuffQPPool.Put(buffQP2)
+
 	ctTmp := &Ciphertext{}
-	ctTmp.Value = []ring.Poly{eval.BuffQP[0].Q, eval.BuffQP[1].Q} // GadgetProductHoisted uses the same buffers for its ciphertext QP
+	ctTmp.Value = []ring.Poly{(*buffQP1).Q, (*buffQP2).Q} // GadgetProductHoisted uses the same buffers for its ciphertext QP
 	ctTmp.MetaData = ctIn.MetaData
 
 	eval.GadgetProductHoisted(level, c1DecompQP, &evk.EvaluationKey.GadgetCiphertext, ctTmp)
@@ -117,8 +126,13 @@ func (eval Evaluator) AutomorphismHoistedLazy(levelQ int, ctIn *Ciphertext, c1De
 		return fmt.Errorf("ctQP.LevelP()=%d < GaloisKey[%d].LevelP()=%d", ctQP.LevelP(), galEl, levelP)
 	}
 
+	buffQP1 := eval.BuffQPPool.Get()
+	defer eval.BuffQPPool.Put(buffQP1)
+	buffQP2 := eval.BuffQPPool.Get()
+	defer eval.BuffQPPool.Put(buffQP2)
+
 	ctTmp := &Element[ringqp.Poly]{}
-	ctTmp.Value = []ringqp.Poly{eval.BuffQP[0], eval.BuffQP[1]}
+	ctTmp.Value = []ringqp.Poly{*buffQP1, *buffQP2}
 	ctTmp.MetaData = ctIn.MetaData
 
 	if err = eval.GadgetProductHoistedLazy(levelQ, c1DecompQP, &evk.GadgetCiphertext, ctTmp); err != nil {

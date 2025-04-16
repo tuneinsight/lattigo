@@ -7,13 +7,11 @@ import (
 
 	"github.com/tuneinsight/lattigo/v6/core/rlwe"
 	"github.com/tuneinsight/lattigo/v6/ring"
-	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
 	"github.com/tuneinsight/lattigo/v6/utils/buffer"
 )
 
 // GaloisKeyGenProtocol is the structure storing the parameters for the collective GaloisKeys generation.
 type GaloisKeyGenProtocol struct {
-	skOut ringqp.Poly
 	EvaluationKeyGenProtocol
 }
 
@@ -32,12 +30,12 @@ type GaloisKeyGenCRP struct {
 // shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
 // [GaloisKeyGenProtocol] can be used concurrently.
 func (gkg GaloisKeyGenProtocol) ShallowCopy() GaloisKeyGenProtocol {
-	return GaloisKeyGenProtocol{EvaluationKeyGenProtocol: gkg.EvaluationKeyGenProtocol.ShallowCopy(), skOut: gkg.params.RingQP().NewPoly()}
+	return GaloisKeyGenProtocol{EvaluationKeyGenProtocol: gkg.EvaluationKeyGenProtocol.ShallowCopy()}
 }
 
 // NewGaloisKeyGenProtocol creates a [GaloisKeyGenProtocol] instance.
 func NewGaloisKeyGenProtocol(params rlwe.ParameterProvider) (gkg GaloisKeyGenProtocol) {
-	return GaloisKeyGenProtocol{EvaluationKeyGenProtocol: NewEvaluationKeyGenProtocol(params), skOut: params.GetRLWEParameters().RingQP().NewPoly()}
+	return GaloisKeyGenProtocol{EvaluationKeyGenProtocol: NewEvaluationKeyGenProtocol(params)}
 }
 
 // AllocateShare allocates a party's share in the GaloisKey Generation.
@@ -59,21 +57,23 @@ func (gkg GaloisKeyGenProtocol) GenShare(sk *rlwe.SecretKey, galEl uint64, crp G
 	levelQ := shareOut.LevelQ()
 	levelP := shareOut.LevelP()
 
-	ringQ := gkg.params.RingQ().AtLevel(levelQ)
-	ringP := gkg.params.RingP().AtLevel(levelP)
+	ringQP := gkg.params.RingQP().AtLevel(levelQ, levelP)
+	ringQ := ringQP.RingQ
+	ringP := ringQP.RingP
 
 	galElInv := ring.ModExp(galEl, ringQ.NthRoot()-1, ringQ.NthRoot())
 
 	// Important
 	shareOut.GaloisElement = galEl
 
-	ringQ.AutomorphismNTT(sk.Value.Q, galElInv, gkg.skOut.Q)
+	skOut := ringQP.NewPoly()
+	ringQ.AutomorphismNTT(sk.Value.Q, galElInv, skOut.Q)
 
 	if levelP > -1 {
-		ringP.AutomorphismNTT(sk.Value.P, galElInv, gkg.skOut.P)
+		ringP.AutomorphismNTT(sk.Value.P, galElInv, skOut.P)
 	}
 
-	return gkg.EvaluationKeyGenProtocol.GenShare(sk, &rlwe.SecretKey{Value: gkg.skOut}, crp.EvaluationKeyGenCRP, &shareOut.EvaluationKeyGenShare)
+	return gkg.EvaluationKeyGenProtocol.GenShare(sk, &rlwe.SecretKey{Value: skOut}, crp.EvaluationKeyGenCRP, &shareOut.EvaluationKeyGenShare)
 
 }
 

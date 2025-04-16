@@ -14,6 +14,25 @@ type Poly struct {
 	Coeffs structs.Matrix[uint64]
 }
 
+// NewPolyFromUintPool returns a new [Poly], built from backing []uint64 arrays obtained from a pool.
+// After use, the [Poly] should be recycled using the [RecyclePolyInUintPool] method.
+func NewPolyFromUintPool(pool structs.BufferPool[*[]uint64], level int) (pol *Poly) {
+	coeffs := make([][]uint64, level+1)
+	for i := range coeffs {
+		coeffs[i] = *pool.Get()
+	}
+	return &Poly{Coeffs: coeffs}
+}
+
+// RecyclePolyInUintPool takes a reference to a [Poly] and recycles its backing []uint64 arrays
+// (i.e. they are returned to a pool). The input [Poly] must not be used after calling this method.
+func RecyclePolyInUintPool(pool structs.BufferPool[*[]uint64], pol *Poly) {
+	for i := range pol.Coeffs {
+		pool.Put(&pol.Coeffs[i])
+	}
+	pol = nil
+}
+
 // NewPoly creates a new polynomial with N coefficients set to zero and Level+1 moduli.
 func NewPoly(N, Level int) (pol Poly) {
 	Coeffs := make([][]uint64, Level+1)

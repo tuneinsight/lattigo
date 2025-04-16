@@ -61,6 +61,8 @@ type Ternary struct {
 // i.e., with coefficients uniformly distributed in the given ring.
 type Uniform struct{}
 
+// NewSampler returns a new sampler that follows the distribution given by DistributionParameters.
+// WARNING: If the PRNG is deterministic/keyed (of type [sampling.KeyedPRNG]), *concurrent* calls to the sampler will not necessarily result in a deterministic output.
 func NewSampler(prng sampling.PRNG, baseRing *Ring, X DistributionParameters, montgomery bool) (Sampler, error) {
 	switch X := X.(type) {
 	case DiscreteGaussian:
@@ -77,17 +79,6 @@ func NewSampler(prng sampling.PRNG, baseRing *Ring, X DistributionParameters, mo
 type baseSampler struct {
 	prng     sampling.PRNG
 	baseRing *Ring
-}
-
-type randomBuffer struct {
-	randomBufferN []byte
-	ptr           int
-}
-
-func newRandomBuffer() *randomBuffer {
-	return &randomBuffer{
-		randomBufferN: make([]byte, 1024),
-	}
 }
 
 // AtLevel returns an instance of the target base sampler that operates at the target level.

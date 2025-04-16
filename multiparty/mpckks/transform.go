@@ -23,7 +23,6 @@ type MaskedLinearTransformationProtocol struct {
 	defaultScale *big.Int
 	prec         uint
 
-	mask    []*big.Int
 	encoder *ckks.Encoder
 }
 
@@ -32,17 +31,11 @@ type MaskedLinearTransformationProtocol struct {
 // [MaskedLinearTransformationProtocol] can be used concurrently.
 func (mltp MaskedLinearTransformationProtocol) ShallowCopy() MaskedLinearTransformationProtocol {
 
-	mask := make([]*big.Int, mltp.e2s.params.N())
-	for i := range mask {
-		mask[i] = new(big.Int)
-	}
-
 	return MaskedLinearTransformationProtocol{
 		e2s:          mltp.e2s.ShallowCopy(),
 		s2e:          mltp.s2e.ShallowCopy(),
 		prec:         mltp.prec,
 		defaultScale: mltp.defaultScale,
-		mask:         mask,
 		encoder:      mltp.encoder.ShallowCopy(),
 	}
 }
@@ -72,7 +65,6 @@ func (mltp MaskedLinearTransformationProtocol) WithParams(paramsOut ckks.Paramet
 		s2e:          s2e,
 		prec:         mltp.prec,
 		defaultScale: defaultScale,
-		mask:         mask,
 		encoder:      ckks.NewEncoder(paramsOut, mltp.prec),
 	}
 }
@@ -117,11 +109,6 @@ func NewMaskedLinearTransformationProtocol(paramsIn, paramsOut ckks.Parameters, 
 	scale := paramsOut.DefaultScale().Value
 
 	mltp.defaultScale, _ = new(big.Float).SetPrec(prec).Set(&scale).Int(nil)
-
-	mltp.mask = make([]*big.Int, paramsIn.N())
-	for i := range mltp.mask {
-		mltp.mask[i] = new(big.Int)
-	}
 
 	mltp.encoder = ckks.NewEncoder(paramsOut, prec)
 
@@ -178,7 +165,10 @@ func (mltp MaskedLinearTransformationProtocol) GenShare(skIn, skOut *rlwe.Secret
 		dslots *= 2
 	}
 
-	mask := mltp.mask[:dslots]
+	mask := make([]*big.Int, dslots)
+	for i := range mask {
+		mask[i] = new(big.Int)
+	}
 
 	// Generates the decryption share
 	// Returns [M_i] on mltp.tmpMask and [a*s_i -M_i + e] on EncToShareShare
@@ -251,7 +241,10 @@ func (mltp MaskedLinearTransformationProtocol) Transform(ct *rlwe.Ciphertext, tr
 		dslots *= 2
 	}
 
-	mask := mltp.mask[:dslots]
+	mask := make([]*big.Int, dslots)
+	for i := range mask {
+		mask[i] = new(big.Int)
+	}
 
 	// Returns -sum(M_i) + x (outside of the NTT domain)
 	mltp.e2s.GetShare(nil, share.EncToShareShare, ct, &multiparty.AdditiveShareBigint{Value: mask})

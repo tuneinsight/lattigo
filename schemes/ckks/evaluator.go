@@ -15,7 +15,6 @@ import (
 // It also holds a memory buffer used to store intermediate computations.
 type Evaluator struct {
 	*Encoder
-	*evaluatorBuffers
 	*rlwe.Evaluator
 }
 
@@ -24,9 +23,8 @@ type Evaluator struct {
 // and Ciphertexts that will be used for intermediate values.
 func NewEvaluator(parameters Parameters, evk rlwe.EvaluationKeySet) *Evaluator {
 	return &Evaluator{
-		Encoder:          NewEncoder(parameters),
-		evaluatorBuffers: newEvaluatorBuffers(parameters),
-		Evaluator:        rlwe.NewEvaluator(parameters.Parameters, evk),
+		Encoder:   NewEncoder(parameters),
+		Evaluator: rlwe.NewEvaluator(parameters.Parameters, evk),
 	}
 }
 
@@ -38,22 +36,6 @@ func (eval Evaluator) GetParameters() *Parameters {
 // GetRLWEParameters returns a pointer to the underlying [rlwe.Parameters].
 func (eval Evaluator) GetRLWEParameters() *rlwe.Parameters {
 	return &eval.Encoder.parameters.Parameters
-}
-
-type evaluatorBuffers struct {
-	buffQ [3]ring.Poly // Memory buffer in order: for MForm(c0), MForm(c1), c2
-}
-
-// BuffQ returns a pointer to the internal memory buffer buffQ.
-func (eval Evaluator) BuffQ() [3]ring.Poly {
-	return eval.buffQ
-}
-
-func newEvaluatorBuffers(parameters Parameters) *evaluatorBuffers {
-	buff := new(evaluatorBuffers)
-	ringQ := parameters.RingQ()
-	buff.buffQ = [3]ring.Poly{ringQ.NewPoly(), ringQ.NewPoly(), ringQ.NewPoly()}
-	return buff
 }
 
 // Add adds op1 to op0 and returns the result in opOut.
@@ -110,7 +92,9 @@ func (eval Evaluator) Add(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 		opOut.Resize(op0.Degree(), level)
 
 		// Instantiates new plaintext from buffer
-		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, eval.buffQ[0])
+		buffQ := eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(buffQ)
+		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, *buffQ)
 
 		// Sanity check, this error should not happen unless the evaluator's buffers
 		// were improperly tempered with.
@@ -206,7 +190,10 @@ func (eval Evaluator) Sub(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 		opOut.Resize(op0.Degree(), level)
 
 		// Instantiates new plaintext from buffer
-		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, eval.buffQ[0])
+		buffQ := eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(buffQ)
+
+		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, *buffQ)
 
 		// Sanity check, this error should not happen unless the evaluator's buffers
 		// were improperly tempered with.
@@ -257,6 +244,8 @@ func (eval Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 *rlwe.E
 
 	var err error
 
+	buffCt := eval.BuffCtPool.Get()
+	defer eval.BuffCtPool.Put(buffCt)
 	// Checks whether or not the receiver element is the same as one of the input elements
 	// and acts accordingly to avoid unnecessary element creation or element overwriting,
 	// and scales properly the element before the evaluation.
@@ -270,7 +259,7 @@ func (eval Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 *rlwe.E
 
 			if ratioInt.Cmp(new(big.Int).SetUint64(0)) == 1 {
 
-				tmp1, err = rlwe.NewCiphertextAtLevelFromPoly(level, eval.BuffCt.Value[:c1.Degree()+1])
+				tmp1, err = rlwe.NewCiphertextAtLevelFromPoly(level, buffCt.Value[:c1.Degree()+1])
 
 				// Sanity check, this error should not happen unless the evaluator's buffers
 				// were improperly tempered with.
@@ -333,7 +322,7 @@ func (eval Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 *rlwe.E
 
 			if ratioInt.Cmp(new(big.Int).SetUint64(0)) == 1 {
 				// Will avoid resizing on the output
-				tmp0, err = rlwe.NewCiphertextAtLevelFromPoly(level, eval.BuffCt.Value[:c0.Degree()+1])
+				tmp0, err = rlwe.NewCiphertextAtLevelFromPoly(level, buffCt.Value[:c0.Degree()+1])
 
 				// Sanity check, this error should not happen unless the evaluator's buffers
 				// were improperly tempered with.
@@ -363,7 +352,7 @@ func (eval Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 *rlwe.E
 
 			if ratioInt.Cmp(new(big.Int).SetUint64(0)) == 1 {
 				// Will avoid resizing on the output
-				tmp1, err = rlwe.NewCiphertextAtLevelFromPoly(level, eval.BuffCt.Value[:c1.Degree()+1])
+				tmp1, err = rlwe.NewCiphertextAtLevelFromPoly(level, buffCt.Value[:c1.Degree()+1])
 
 				// Sanity check, this error should not happen unless the evaluator's buffers
 				// were improperly tempered with.
@@ -387,7 +376,7 @@ func (eval Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 *rlwe.E
 
 			if ratioInt.Cmp(new(big.Int).SetUint64(0)) == 1 {
 
-				tmp0, err = rlwe.NewCiphertextAtLevelFromPoly(level, eval.BuffCt.Value[:c0.Degree()+1])
+				tmp0, err = rlwe.NewCiphertextAtLevelFromPoly(level, buffCt.Value[:c0.Degree()+1])
 
 				// Sanity check, this error should not happen unless the evaluator's buffers
 				// were improperly tempered with.
@@ -523,8 +512,10 @@ func (eval Evaluator) Rescale(op0, opOut *rlwe.Ciphertext) (err error) {
 		opOut.Scale = opOut.Scale.Div(rlwe.NewScale(ringQ.SubRings[op0.Level()-i].Modulus))
 	}
 
+	buffQ := eval.BuffQPool.Get()
+	defer eval.BuffQPool.Put(buffQ)
 	for i := range opOut.Value {
-		ringQ.DivRoundByLastModulusManyNTT(nbRescales, op0.Value[i], eval.buffQ[0], opOut.Value[i])
+		ringQ.DivRoundByLastModulusManyNTT(nbRescales, op0.Value[i], *buffQ, opOut.Value[i])
 	}
 
 	if op0 == opOut {
@@ -588,8 +579,10 @@ func (eval Evaluator) RescaleTo(op0 *rlwe.Ciphertext, minScale rlwe.Scale, opOut
 	}
 
 	if nbRescales > 0 {
+		buffQ := eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(buffQ)
 		for i := range opOut.Value {
-			ringQ.DivRoundByLastModulusManyNTT(nbRescales, op0.Value[i], eval.buffQ[0], opOut.Value[i])
+			ringQ.DivRoundByLastModulusManyNTT(nbRescales, op0.Value[i], *buffQ, opOut.Value[i])
 		}
 		opOut.Resize(opOut.Degree(), newLevel)
 	} else {
@@ -695,7 +688,9 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 		ringQ := eval.GetParameters().RingQ().AtLevel(level)
 
 		// Instantiates new plaintext from buffer
-		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, eval.buffQ[0])
+		buffQ := eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(buffQ)
+		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, *buffQ)
 
 		// Sanity check, this error should not happen unless the evaluator's buffers
 		// were improperly tempered with.
@@ -796,8 +791,12 @@ func (eval Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ring.Poly
 
 		ringQ := eval.GetParameters().RingQ().AtLevel(level)
 
-		c00 = eval.buffQ[0]
-		c01 = eval.buffQ[1]
+		buffQ0 := eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(buffQ0)
+		buffQ1 := eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(buffQ1)
+		c00 = *buffQ0
+		c01 = *buffQ1
 
 		c0 = opOut.Value[0]
 		c1 = opOut.Value[1]
@@ -806,8 +805,11 @@ func (eval Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ring.Poly
 			opOut.El().Resize(2, level)
 			c2 = opOut.Value[2]
 		} else {
+			buffQ2 := eval.BuffQPool.Get()
+			defer eval.BuffQPool.Put(buffQ2)
+
 			opOut.El().Resize(1, level)
-			c2 = eval.buffQ[2]
+			c2 = *buffQ2
 		}
 
 		// Avoid overwriting if the second input is the output
@@ -842,8 +844,13 @@ func (eval Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ring.Poly
 				return fmt.Errorf("cannot MulRelin: Relinearize: %w", err)
 			}
 
+			buffQP1 := eval.BuffQPPool.Get()
+			defer eval.BuffQPPool.Put(buffQP1)
+			buffQP2 := eval.BuffQPPool.Get()
+			defer eval.BuffQPPool.Put(buffQP2)
+
 			tmpCt := &rlwe.Ciphertext{}
-			tmpCt.Value = []ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}
+			tmpCt.Value = []ring.Poly{(*buffQP1).Q, (*buffQP2).Q}
 			tmpCt.MetaData = &rlwe.MetaData{}
 			tmpCt.IsNTT = true
 
@@ -859,13 +866,17 @@ func (eval Evaluator) mulRelin(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ring.Poly
 
 		var c0 ring.Poly
 		var c1 []ring.Poly
+
+		buffQ := eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(buffQ)
+
 		if op0.Degree() == 0 {
-			c0 = eval.buffQ[0]
+			c0 = *buffQ
 			ringQ.MForm(op0.Value[0], c0)
 			c1 = op1.El().Value
 
 		} else {
-			c0 = eval.buffQ[0]
+			c0 = *buffQ
 			ringQ.MForm(op1.El().Value[0], c0)
 			c1 = op0.Value
 		}
@@ -1019,7 +1030,10 @@ func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *
 		}
 
 		// Instantiates new plaintext from buffer
-		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, eval.buffQ[0])
+		buffQ := eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(buffQ)
+
+		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, *buffQ)
 
 		// Sanity check, this error should not happen unless the evaluator's buffers
 		// were improperly tempered with.
@@ -1116,8 +1130,12 @@ func (eval Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ri
 	// Case Ciphertext (x) Ciphertext
 	if op0.Degree() == 1 && op1.Degree() == 1 {
 
-		c00 = eval.buffQ[0]
-		c01 = eval.buffQ[1]
+		buffQ0 := eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(buffQ0)
+		buffQ1 := eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(buffQ1)
+		c00 = *buffQ0
+		c01 = *buffQ1
 
 		c0 = opOut.Value[0]
 		c1 = opOut.Value[1]
@@ -1127,7 +1145,9 @@ func (eval Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ri
 			c2 = opOut.Value[2]
 		} else {
 			opOut.Resize(utils.Max(1, opOut.Degree()), level)
-			c2 = eval.buffQ[2]
+			buffQ2 := eval.BuffQPool.Get()
+			defer eval.BuffQPool.Put(buffQ2)
+			c2 = *buffQ2
 		}
 
 		tmp0, tmp1 := op0.El(), op1.El()
@@ -1149,8 +1169,13 @@ func (eval Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ri
 
 			ringQ.MulCoeffsMontgomery(c01, tmp1.Value[1], c2) // c2 += c[1]*c[1]
 
+			buffQP1 := eval.BuffQPPool.Get()
+			defer eval.BuffQPPool.Put(buffQP1)
+			buffQP2 := eval.BuffQPPool.Get()
+			defer eval.BuffQPPool.Put(buffQP2)
+
 			tmpCt := &rlwe.Ciphertext{}
-			tmpCt.Value = []ring.Poly{eval.BuffQP[1].Q, eval.BuffQP[2].Q}
+			tmpCt.Value = []ring.Poly{(*buffQP1).Q, (*buffQP2).Q}
 			tmpCt.MetaData = &rlwe.MetaData{}
 			tmpCt.IsNTT = true
 
@@ -1166,7 +1191,9 @@ func (eval Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ri
 
 		opOut.Resize(utils.Max(op0.Degree(), opOut.Degree()), level)
 
-		c00 := eval.buffQ[0]
+		buffQ0 := eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(buffQ0)
+		c00 := *buffQ0
 
 		ringQ.MForm(op1.El().Value[0], c00)
 		for i := range op0.Value {
@@ -1244,9 +1271,18 @@ func (eval Evaluator) RotateHoistedNew(ctIn *rlwe.Ciphertext, rotations []int) (
 // It is much faster than sequential calls to [Evaluator.Rotate].
 func (eval Evaluator) RotateHoisted(ctIn *rlwe.Ciphertext, rotations []int, opOut map[int]*rlwe.Ciphertext) (err error) {
 	levelQ := ctIn.Level()
-	eval.DecomposeNTT(levelQ, eval.GetParameters().MaxLevelP(), eval.GetParameters().PCount(), ctIn.Value[1], ctIn.IsNTT, eval.BuffDecompQP)
+
+	baseRNSDecompositionVectorSize := eval.GetParameters().BaseRNSDecompositionVectorSize(levelQ, eval.GetParameters().MaxLevelP())
+	buffDecompQP := make([]ringqp.Poly, baseRNSDecompositionVectorSize)
+	for i := 0; i < len(buffDecompQP); i++ {
+		buff := eval.BuffQPPool.Get()
+		defer eval.BuffQPPool.Put(buff)
+		buffDecompQP[i] = *buff
+	}
+
+	eval.DecomposeNTT(levelQ, eval.GetParameters().MaxLevelP(), eval.GetParameters().PCount(), ctIn.Value[1], ctIn.IsNTT, buffDecompQP)
 	for _, i := range rotations {
-		if err = eval.AutomorphismHoisted(levelQ, ctIn, eval.BuffDecompQP, eval.GetParameters().GaloisElement(i), opOut[i]); err != nil {
+		if err = eval.AutomorphismHoisted(levelQ, ctIn, buffDecompQP, eval.GetParameters().GaloisElement(i), opOut[i]); err != nil {
 			return fmt.Errorf("cannot RotateHoisted: %w", err)
 		}
 	}
@@ -1321,9 +1357,8 @@ func (eval Evaluator) RotateAndAdd(ctIn *rlwe.Ciphertext, batchSize, n int, opOu
 // Evaluators can be used concurrently.
 func (eval Evaluator) ShallowCopy() *Evaluator {
 	return &Evaluator{
-		Encoder:          eval.Encoder.ShallowCopy(),
-		Evaluator:        eval.Evaluator.ShallowCopy(),
-		evaluatorBuffers: newEvaluatorBuffers(*eval.GetParameters()),
+		Encoder:   eval.Encoder,
+		Evaluator: eval.Evaluator,
 	}
 }
 
@@ -1331,8 +1366,7 @@ func (eval Evaluator) ShallowCopy() *Evaluator {
 // and where the temporary buffers are shared. The receiver and the returned Evaluators cannot be used concurrently.
 func (eval Evaluator) WithKey(evk rlwe.EvaluationKeySet) *Evaluator {
 	return &Evaluator{
-		Evaluator:        eval.Evaluator.WithKey(evk),
-		Encoder:          eval.Encoder,
-		evaluatorBuffers: eval.evaluatorBuffers,
+		Evaluator: eval.Evaluator.WithKey(evk),
+		Encoder:   eval.Encoder,
 	}
 }

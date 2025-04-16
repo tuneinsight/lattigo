@@ -6,6 +6,7 @@ import (
 	"github.com/tuneinsight/lattigo/v6/ring"
 	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
 	"github.com/tuneinsight/lattigo/v6/utils"
+	"github.com/tuneinsight/lattigo/v6/utils/structs"
 )
 
 // Evaluator is a struct that holds the necessary elements to execute general homomorphic
@@ -22,41 +23,30 @@ type Evaluator struct {
 }
 
 type EvaluatorBuffers struct {
-	BuffCt *Ciphertext
-	// BuffQP[0-1]: Key-Switch output Key-Switch on the fly decomp(c2)
-	// BuffQP[2-5]: Available
-	BuffQP        [6]ringqp.Poly
-	BuffInvNTT    ring.Poly
-	BuffDecompQP  []ringqp.Poly // Memory Buff for the basis extension in hoisting
-	BuffBitDecomp []uint64
+	BuffQPPool  structs.BufferPool[*ringqp.Poly]
+	BuffQPool   structs.BufferPool[*ring.Poly]
+	BuffBitPool structs.BufferPool[*[]uint64]
+	BuffCtPool  structs.BufferPool[*Ciphertext]
 }
 
+// NewEvaluatorBuffers creates the buffers that are used to recycle large obejcts instead of instantiating new ones.
+// Under the hood, all buffers use the same sync.Pool of *[]uint64.
 func NewEvaluatorBuffers(params Parameters) *EvaluatorBuffers {
-
 	buff := new(EvaluatorBuffers)
-	BaseRNSDecompositionVectorSize := params.BaseRNSDecompositionVectorSize(params.MaxLevelQ(), 0)
 	ringQP := params.RingQP()
+	ringQ := params.ringQ
 
-	buff.BuffCt = NewCiphertext(params, 2, params.MaxLevel())
-
-	buff.BuffQP = [6]ringqp.Poly{
-		ringQP.NewPoly(),
-		ringQP.NewPoly(),
-		ringQP.NewPoly(),
-		ringQP.NewPoly(),
-		ringQP.NewPoly(),
-		ringQP.NewPoly(),
-	}
-
-	buff.BuffInvNTT = params.RingQ().NewPoly()
-
-	buff.BuffDecompQP = make([]ringqp.Poly, BaseRNSDecompositionVectorSize)
-	for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
-		buff.BuffDecompQP[i] = ringQP.NewPoly()
-	}
-
-	buff.BuffBitDecomp = make([]uint64, params.RingQ().N())
-
+	buff.BuffQPPool = ringQP.NewBuffFromUintPool()
+	buff.BuffQPool = ringQ.NewBuffFromUintPool()
+	buff.BuffCtPool = structs.NewBuffFromUintPool(
+		func() *Ciphertext {
+			return NewCiphertextFromUintPool(params, 2, params.MaxLevel())
+		},
+		func(ct *Ciphertext) {
+			RecycleCiphertextInUintPool(params, ct)
+		},
+	)
+	buff.BuffBitPool = ringQ.BufferPool()
 	return buff
 }
 
@@ -65,6 +55,8 @@ func NewEvaluator(params ParameterProvider, evk EvaluationKeySet) (eval *Evaluat
 	eval = new(Evaluator)
 	p := params.GetRLWEParameters()
 	eval.params = *p
+
+	// All buffer use the same sync.Pool of *[]uint64
 	eval.EvaluatorBuffers = NewEvaluatorBuffers(eval.params)
 
 	if p.RingP() != nil {
@@ -241,8 +233,8 @@ func (eval Evaluator) ShallowCopy() *Evaluator {
 	return &Evaluator{
 		params:            eval.params,
 		Decomposer:        eval.Decomposer,
-		BasisExtender:     eval.BasisExtender.ShallowCopy(),
-		EvaluatorBuffers:  NewEvaluatorBuffers(eval.params),
+		BasisExtender:     eval.BasisExtender,
+		EvaluatorBuffers:  eval.EvaluatorBuffers,
 		EvaluationKeySet:  eval.EvaluationKeySet,
 		automorphismIndex: eval.automorphismIndex,
 	}
@@ -287,16 +279,12 @@ func (eval Evaluator) GetEvaluatorBuffer() *EvaluatorBuffers {
 	return eval.EvaluatorBuffers
 }
 
-func (eval Evaluator) GetBuffQP() [6]ringqp.Poly {
-	return eval.BuffQP
+func (eval Evaluator) GetBuffQPPool() structs.BufferPool[*ringqp.Poly] {
+	return eval.BuffQPPool
 }
 
-func (eval Evaluator) GetBuffCt() *Ciphertext {
-	return eval.BuffCt
-}
-
-func (eval Evaluator) GetBuffDecompQP() []ringqp.Poly {
-	return eval.BuffDecompQP
+func (eval Evaluator) GetBuffCtPool() structs.BufferPool[*Ciphertext] {
+	return eval.BuffCtPool
 }
 
 func (eval Evaluator) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q ring.Poly) {

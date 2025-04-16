@@ -49,24 +49,6 @@ func NewRingPackingEvaluator(evk *RingPackingEvaluationKey) *RingPackingEvaluato
 	}
 }
 
-// ShallowCopy creates a shallow copy of this struct in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// Evaluators can be used concurrently.
-func (eval RingPackingEvaluator) ShallowCopy() *RingPackingEvaluator {
-
-	Evaluators := map[int]*Evaluator{}
-	for i := range eval.Evaluators {
-		Evaluators[i] = eval.Evaluators[i].ShallowCopy()
-	}
-
-	return &RingPackingEvaluator{
-		RingPackingEvaluationKey: eval.RingPackingEvaluationKey,
-		Evaluators:               Evaluators,
-		XPow2NTT:                 eval.XPow2NTT,
-		XInvPow2NTT:              eval.XInvPow2NTT,
-	}
-}
-
 // Extract takes as input a ciphertext encrypting P(X) = c[i] * X^i and returns a map of
 // ciphertexts of degree eval.MinLogN(), each encrypting P(X) = c[i] * X^{0} for i in idx.
 // All non-constant coefficients are zeroed and thus correctness is ensured if this method

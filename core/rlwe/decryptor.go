@@ -92,18 +92,6 @@ func (d Decryptor) Decrypt(ct *Ciphertext, pt *Plaintext) {
 	}
 }
 
-// ShallowCopy creates a shallow copy of [Decryptor] in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// [Decryptor] can be used concurrently.
-func (d Decryptor) ShallowCopy() *Decryptor {
-	return &Decryptor{
-		params:    d.params,
-		ringQ:     d.ringQ,
-		buffQPool: d.buffQPool,
-		sk:        d.sk,
-	}
-}
-
 // WithKey creates a shallow copy of [Decryptor] with a new decryption key, in which all the
 // data-structures are shared with the receiver.
 // The receiver and the returned [Decryptor] can be used concurrently.

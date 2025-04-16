@@ -116,10 +116,3 @@ func (enc Encryptor) EncryptZero(ct interface{}) (err error) {
 
 	return nil
 }
-
-// ShallowCopy creates a shallow copy of this [Encryptor] in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// Encryptors can be used concurrently.
-func (enc Encryptor) ShallowCopy() *Encryptor {
-	return &Encryptor{Encryptor: enc.Encryptor.ShallowCopy()}
-}

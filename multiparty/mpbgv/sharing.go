@@ -27,29 +27,6 @@ func NewAdditiveShare(params bgv.Parameters) multiparty.AdditiveShare {
 	return multiparty.NewAdditiveShare(params.RingT())
 }
 
-// ShallowCopy creates a shallow copy of [EncToShareProtocol] in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// [EncToShareProtocol] can be used concurrently.
-func (e2s EncToShareProtocol) ShallowCopy() EncToShareProtocol {
-
-	params := e2s.params
-
-	prng, err := sampling.NewPRNG()
-
-	// Sanity check, this error should not happen.
-	if err != nil {
-		panic(err)
-	}
-
-	return EncToShareProtocol{
-		KeySwitchProtocol: e2s.KeySwitchProtocol.ShallowCopy(),
-		params:            e2s.params,
-		maskSampler:       ring.NewUniformSampler(prng, params.RingT()),
-		encoder:           e2s.encoder.ShallowCopy(),
-		zero:              e2s.zero,
-	}
-}
-
 // NewEncToShareProtocol creates a new EncToShareProtocol struct from the passed bgv.Parameters.
 func NewEncToShareProtocol(params bgv.Parameters, noiseFlooding ring.DistributionParameters) (EncToShareProtocol, error) {
 	e2s := EncToShareProtocol{}
@@ -142,19 +119,6 @@ func NewShareToEncProtocol(params bgv.Parameters, noiseFlooding ring.Distributio
 // AllocateShare allocates a share of the ShareToEnc protocol
 func (s2e ShareToEncProtocol) AllocateShare(level int) (share multiparty.KeySwitchShare) {
 	return s2e.KeySwitchProtocol.AllocateShare(level)
-}
-
-// ShallowCopy creates a shallow copy of [ShareToEncProtocol] in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// ShareToEncProtocol can be used concurrently.
-func (s2e ShareToEncProtocol) ShallowCopy() ShareToEncProtocol {
-	params := s2e.params
-	return ShareToEncProtocol{
-		KeySwitchProtocol: s2e.KeySwitchProtocol.ShallowCopy(),
-		encoder:           s2e.encoder.ShallowCopy(),
-		params:            params,
-		zero:              s2e.zero,
-	}
 }
 
 // GenShare generates a party's in the shares-to-encryption protocol given the party's secret-key share `sk`, a common

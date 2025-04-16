@@ -1352,16 +1352,6 @@ func (eval Evaluator) RotateAndAdd(ctIn *rlwe.Ciphertext, batchSize, n int, opOu
 	return
 }
 
-// ShallowCopy creates a shallow copy of this evaluator in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// Evaluators can be used concurrently.
-func (eval Evaluator) ShallowCopy() *Evaluator {
-	return &Evaluator{
-		Encoder:   eval.Encoder,
-		Evaluator: eval.Evaluator,
-	}
-}
-
 // WithKey creates a shallow copy of the receiver Evaluator for which the new EvaluationKey is evaluationKey
 // and where the temporary buffers are shared. The receiver and the returned Evaluators cannot be used concurrently.
 func (eval Evaluator) WithKey(evk rlwe.EvaluationKeySet) *Evaluator {

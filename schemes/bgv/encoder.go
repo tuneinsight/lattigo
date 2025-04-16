@@ -502,20 +502,3 @@ func (ecd Encoder) Decode(pt *rlwe.Plaintext, values interface{}) (err error) {
 		return
 	}
 }
-
-// ShallowCopy returns a lightweight copy of the target object
-// that can be used concurrently with the original object.
-func (ecd Encoder) ShallowCopy() (e *Encoder) {
-	e = &Encoder{
-		parameters:     ecd.parameters,
-		indexMatrix:    ecd.indexMatrix,
-		BuffBigIntPool: ecd.BuffBigIntPool,
-		BuffPolyQPool:  ecd.BuffPolyQPool,
-		BuffPolyTPool:  ecd.BuffPolyTPool,
-		paramsQP:       ecd.paramsQP,
-		qHalf:          ecd.qHalf,
-		tInvModQ:       ecd.tInvModQ,
-	}
-
-	return
-}

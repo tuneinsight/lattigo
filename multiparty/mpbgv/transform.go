@@ -16,17 +16,6 @@ type MaskedTransformProtocol struct {
 	s2e ShareToEncProtocol
 }
 
-// ShallowCopy creates a shallow copy of [MaskedTransformProtocol] in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// [MaskedTransformProtocol] can be used concurrently.
-func (rfp MaskedTransformProtocol) ShallowCopy() MaskedTransformProtocol {
-
-	return MaskedTransformProtocol{
-		e2s: rfp.e2s.ShallowCopy(),
-		s2e: rfp.s2e.ShallowCopy(),
-	}
-}
-
 // MaskedTransformFunc is a struct containing a user-defined in-place function that can be applied to masked integer plaintexts, as a part of the
 // Masked Transform Protocol.
 // The function is called with a vector of integers modulo bgv.Parameters.PlaintextModulus() of size bgv.Parameters.N() as input, and must write

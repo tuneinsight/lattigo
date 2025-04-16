@@ -32,18 +32,6 @@ func NewAdditiveShare(params ckks.Parameters, logSlots int) multiparty.AdditiveS
 	return multiparty.NewAdditiveShareBigint(nValues)
 }
 
-// ShallowCopy creates a shallow copy of [EncToShareProtocol] in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// [EncToShareProtocol] can be used concurrently.
-func (e2s EncToShareProtocol) ShallowCopy() EncToShareProtocol {
-
-	return EncToShareProtocol{
-		KeySwitchProtocol: e2s.KeySwitchProtocol.ShallowCopy(),
-		params:            e2s.params,
-		zero:              e2s.zero,
-	}
-}
-
 // NewEncToShareProtocol creates a new EncToShareProtocol struct from the passed parameters.
 func NewEncToShareProtocol(params ckks.Parameters, noise ring.DistributionParameters) (EncToShareProtocol, error) {
 	e2s := EncToShareProtocol{}
@@ -184,17 +172,6 @@ type ShareToEncProtocol struct {
 	multiparty.KeySwitchProtocol
 	params ckks.Parameters
 	zero   *rlwe.SecretKey
-}
-
-// ShallowCopy creates a shallow copy of [ShareToEncProtocol] in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// [ShareToEncProtocol] can be used concurrently.
-func (s2e ShareToEncProtocol) ShallowCopy() ShareToEncProtocol {
-	return ShareToEncProtocol{
-		KeySwitchProtocol: s2e.KeySwitchProtocol.ShallowCopy(),
-		params:            s2e.params,
-		zero:              s2e.zero,
-	}
 }
 
 // NewShareToEncProtocol creates a new ShareToEncProtocol struct from the passed parameters.

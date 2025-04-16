@@ -26,13 +26,6 @@ type GaloisKeyGenCRP struct {
 	EvaluationKeyGenCRP
 }
 
-// ShallowCopy creates a shallow copy of [GaloisKeyGenProtocol] in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// [GaloisKeyGenProtocol] can be used concurrently.
-func (gkg GaloisKeyGenProtocol) ShallowCopy() GaloisKeyGenProtocol {
-	return GaloisKeyGenProtocol{EvaluationKeyGenProtocol: gkg.EvaluationKeyGenProtocol.ShallowCopy()}
-}
-
 // NewGaloisKeyGenProtocol creates a [GaloisKeyGenProtocol] instance.
 func NewGaloisKeyGenProtocol(params rlwe.ParameterProvider) (gkg GaloisKeyGenProtocol) {
 	return GaloisKeyGenProtocol{EvaluationKeyGenProtocol: NewEvaluationKeyGenProtocol(params)}

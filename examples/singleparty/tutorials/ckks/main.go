@@ -759,13 +759,8 @@ func main() {
 	// CONCURRENCY
 	// ==========
 	//
-	// Lattigo does not implement low level concurrency yet.
-	// Currently concurrency must be done at the circuit level.
+	// All public structures in Lattigo are thread-safe and can be used concurrently.
 	//
-	// By design, structs outside of the parameters are not thread safe.
-	// For example, one cannot use an encoder to encode concurrently on different plaintexts.
-	// However, all structs (for which it makes sens) have the method `ShallowCopy`, which creates
-	// a copy of the original struct with new internal buffers, that is safe to use concurrently.
 
 }
 

@@ -201,7 +201,7 @@ func testRawCircuit(params ckks.Parameters, btpParams Parameters, level int, t *
 		for i := 1; i < len(ciphertexts); i++ {
 			ciphertexts[i], err = encryptor.EncryptNew(plaintext)
 			require.NoError(t, err)
-			evaluators[i] = evaluators[0].ShallowCopy()
+			evaluators[i] = evaluators[0]
 		}
 
 		var wg sync.WaitGroup

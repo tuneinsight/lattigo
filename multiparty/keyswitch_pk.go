@@ -133,34 +133,6 @@ func (pcks PublicKeySwitchProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined Pu
 	opOut.Value[1].CopyLvl(level, combined.Value[1])
 }
 
-// ShallowCopy creates a shallow copy of [PublicKeySwitchProtocol] in which all the read-only data-structures are
-// shared with the receiver and the temporary bufers are reallocated. The receiver and the returned
-// [PublicKeySwitchProtocol] can be used concurrently.
-func (pcks PublicKeySwitchProtocol) ShallowCopy() PublicKeySwitchProtocol {
-	prng, err := sampling.NewPRNG()
-
-	// Sanity check, this error should not happen.
-	if err != nil {
-		panic(err)
-	}
-
-	params := pcks.params
-
-	Xe, err := ring.NewSampler(prng, params.RingQ(), pcks.noise, false)
-
-	// Sanity check, this error should not happen.
-	if err != nil {
-		panic(err)
-	}
-
-	return PublicKeySwitchProtocol{
-		noiseSampler: Xe,
-		noise:        pcks.noise,
-		Encryptor:    pcks.Encryptor.ShallowCopy(),
-		params:       params,
-	}
-}
-
 // BinarySize returns the serialized size of the object in bytes.
 func (share PublicKeySwitchShare) BinarySize() int {
 	return share.Element.BinarySize()

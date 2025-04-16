@@ -615,16 +615,6 @@ func testEncryptor(tc *TestContext, level, bpw2 int, t *testing.T) {
 		require.GreaterOrEqual(t, math.Log2(params.NoiseFreshPK())+1, ringQ.Log2OfStandardDeviation(pt.Value))
 	})
 
-	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Encryptor/Encrypt/Pk/ShallowCopy"), func(t *testing.T) {
-		pkEnc1 := enc.WithKey(pk)
-		pkEnc2 := pkEnc1.ShallowCopy()
-		require.True(t, pkEnc1.params.Equal(&pkEnc2.params))
-		require.True(t, pkEnc1.encKey == pkEnc2.encKey)
-		require.False(t, (pkEnc1.basisextender == pkEnc2.basisextender) && (pkEnc1.basisextender != nil) && (pkEnc2.basisextender != nil))
-		require.False(t, pkEnc1.xsSampler == pkEnc2.xsSampler)
-		require.False(t, pkEnc1.xeSampler == pkEnc2.xeSampler)
-	})
-
 	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Encryptor/Encrypt/Sk"), func(t *testing.T) {
 		ringQ := params.RingQ().AtLevel(level)
 
@@ -665,17 +655,6 @@ func testEncryptor(tc *TestContext, level, bpw2 int, t *testing.T) {
 		}
 
 		require.GreaterOrEqual(t, math.Log2(params.NoiseFreshSK())+1, ringQ.Log2OfStandardDeviation(pt.Value))
-	})
-
-	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Encrypt/Sk/ShallowCopy"), func(t *testing.T) {
-		skEnc1 := NewEncryptor(params, sk)
-		skEnc2 := skEnc1.ShallowCopy()
-
-		require.True(t, skEnc1.params.Equal(&skEnc2.params))
-		require.True(t, skEnc1.encKey == skEnc2.encKey)
-		require.False(t, (skEnc1.basisextender == skEnc2.basisextender) && (skEnc1.basisextender != nil) && (skEnc2.basisextender != nil))
-		require.False(t, skEnc1.xsSampler == skEnc2.xsSampler)
-		require.False(t, skEnc1.xeSampler == skEnc2.xeSampler)
 	})
 
 	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Encrypt/WithKey/Sk->Sk"), func(t *testing.T) {

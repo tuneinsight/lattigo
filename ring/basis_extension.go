@@ -164,25 +164,6 @@ func GenModUpConstants(Q, P []uint64) ModUpConstants {
 	return ModUpConstants{qoverqiinvqi: qoverqiinvqi, qoverqimodp: qoverqimodp, vtimesqmodp: vtimesqmodp}
 }
 
-// ShallowCopy creates a shallow copy of this basis extender in which the read-only data-structures are
-// shared with the receiver.
-func (be *BasisExtender) ShallowCopy() *BasisExtender {
-	if be == nil {
-		return nil
-	}
-	return &BasisExtender{
-		ringQ:                be.ringQ,
-		ringP:                be.ringP,
-		constantsQtoP:        be.constantsQtoP,
-		constantsPtoQ:        be.constantsPtoQ,
-		modDownConstantsQtoP: be.modDownConstantsQtoP,
-		modDownConstantsPtoQ: be.modDownConstantsPtoQ,
-
-		buffQPool: be.buffQPool,
-		buffPPool: be.buffPPool,
-	}
-}
-
 // ModUpQtoP extends the RNS basis of a polynomial from Q to QP.
 // Given a polynomial with coefficients in basis {Q0,Q1....Qlevel},
 // it extends its basis from {Q0,Q1....Qlevel} to {Q0,Q1....Qlevel,P0,P1...Pj}

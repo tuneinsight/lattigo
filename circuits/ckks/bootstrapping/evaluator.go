@@ -128,39 +128,6 @@ func NewEvaluator(btpParams Parameters, evk *EvaluationKeys) (eval *Evaluator, e
 	return
 }
 
-// ShallowCopy creates a shallow copy of this [Evaluator] in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// Evaluator can be used concurrently.
-func (eval Evaluator) ShallowCopy() *Evaluator {
-	heEvaluator := eval.Evaluator
-
-	paramsN1 := eval.ResidualParameters
-	paramsN2 := eval.BootstrappingParameters
-
-	var DomainSwitcher ckks.DomainSwitcher
-	if paramsN1.RingType() == ring.ConjugateInvariant {
-		var err error
-		if DomainSwitcher, err = ckks.NewDomainSwitcher(paramsN2, eval.EvkCmplxToReal, eval.EvkRealToCmplx); err != nil {
-			panic(fmt.Errorf("cannot NewBootstrapper: ckks.NewDomainSwitcher: %w", err))
-		}
-	}
-	return &Evaluator{
-		Parameters:     eval.Parameters,
-		EvaluationKeys: eval.EvaluationKeys,
-		Mod1Parameters: eval.Mod1Parameters,
-		S2CDFTMatrix:   eval.S2CDFTMatrix,
-		C2SDFTMatrix:   eval.C2SDFTMatrix,
-		Evaluator:      heEvaluator,
-		xPow2N1:        eval.xPow2N1,
-		xPow2N2:        eval.xPow2N2,
-		xPow2InvN2:     eval.xPow2InvN2,
-		DomainSwitcher: DomainSwitcher,
-		DFTEvaluator:   dft.NewEvaluator(paramsN2, heEvaluator),
-		Mod1Evaluator:  mod1.NewEvaluator(heEvaluator, polynomial.NewEvaluator(paramsN2, heEvaluator), eval.Mod1Parameters),
-		SkDebug:        eval.SkDebug,
-	}
-}
-
 // CheckKeys checks if all the necessary keys are present in the instantiated [Evaluator]
 func (eval Evaluator) checkKeys(evk *EvaluationKeys) (err error) {
 

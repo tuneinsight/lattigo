@@ -725,9 +725,6 @@ type EvaluationKeySet interface {
 
 	// GetRelinearizationKey retrieves the RelinearizationKey.
 	GetRelinearizationKey() (evk *RelinearizationKey, err error)
-
-	// ShallowCopy returns a thread-safe copy of the underlying object.
-	ShallowCopy() EvaluationKeySet
 }
 
 // MemEvaluationKeySet is a basic in-memory implementation of the [EvaluationKeySet] interface.
@@ -797,11 +794,6 @@ func (evk MemEvaluationKeySet) BinarySize() (size int) {
 	}
 
 	return
-}
-
-// ShallowCopy returns a thread-safe copy of the MemEvaluationKey object.
-func (evk *MemEvaluationKeySet) ShallowCopy() EvaluationKeySet {
-	return evk
 }
 
 // WriteTo writes the object on an [io.Writer]. It implements the [io.WriterTo]

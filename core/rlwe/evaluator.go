@@ -226,20 +226,6 @@ func (eval Evaluator) InitOutputUnaryOp(op0, opOut *Element[ring.Poly]) (degree,
 	return utils.Max(op0.Degree(), opOut.Degree()), utils.Min(op0.Level(), opOut.Level()), nil
 }
 
-// ShallowCopy creates a shallow copy of this [Evaluator] in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// evaluators can be used concurrently.
-func (eval Evaluator) ShallowCopy() *Evaluator {
-	return &Evaluator{
-		params:            eval.params,
-		Decomposer:        eval.Decomposer,
-		BasisExtender:     eval.BasisExtender,
-		EvaluatorBuffers:  eval.EvaluatorBuffers,
-		EvaluationKeySet:  eval.EvaluationKeySet,
-		automorphismIndex: eval.automorphismIndex,
-	}
-}
-
 // WithKey creates a shallow copy of the receiver [Evaluator] for which the new [EvaluationKey] is evaluationKey
 // and where the temporary buffers are shared. The receiver and the returned evaluators cannot be used concurrently.
 func (eval Evaluator) WithKey(evk EvaluationKeySet) *Evaluator {

@@ -26,20 +26,6 @@ type MaskedLinearTransformationProtocol struct {
 	encoder *ckks.Encoder
 }
 
-// ShallowCopy creates a shallow copy of [MaskedLinearTransformationProtocol] in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// [MaskedLinearTransformationProtocol] can be used concurrently.
-func (mltp MaskedLinearTransformationProtocol) ShallowCopy() MaskedLinearTransformationProtocol {
-
-	return MaskedLinearTransformationProtocol{
-		e2s:          mltp.e2s.ShallowCopy(),
-		s2e:          mltp.s2e.ShallowCopy(),
-		prec:         mltp.prec,
-		defaultScale: mltp.defaultScale,
-		encoder:      mltp.encoder.ShallowCopy(),
-	}
-}
-
 // WithParams creates a shallow copy of the target [MaskedLinearTransformationProtocol] but with new output parameters.
 // The expected input parameters remain unchanged.
 func (mltp MaskedLinearTransformationProtocol) WithParams(paramsOut ckks.Parameters) MaskedLinearTransformationProtocol {
@@ -61,7 +47,7 @@ func (mltp MaskedLinearTransformationProtocol) WithParams(paramsOut ckks.Paramet
 	defaultScale, _ := new(big.Float).SetPrec(mltp.prec).Set(&scale).Int(nil)
 
 	return MaskedLinearTransformationProtocol{
-		e2s:          mltp.e2s.ShallowCopy(),
+		e2s:          mltp.e2s,
 		s2e:          s2e,
 		prec:         mltp.prec,
 		defaultScale: defaultScale,

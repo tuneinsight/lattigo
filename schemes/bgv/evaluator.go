@@ -35,15 +35,6 @@ type evaluatorBase struct {
 	basisExtenderQ1toQ2 *ring.BasisExtender
 }
 
-func (eval evaluatorBase) ShallowCopy() *evaluatorBase {
-	return &evaluatorBase{
-		tMontgomery:         eval.tMontgomery,
-		levelQMul:           eval.levelQMul,
-		pHalf:               eval.pHalf,
-		basisExtenderQ1toQ2: eval.basisExtenderQ1toQ2,
-	}
-}
-
 func newEvaluatorPrecomp(parameters Parameters) *evaluatorBase {
 	ringQ := parameters.RingQ()
 	ringQMul := parameters.RingQMul()
@@ -111,18 +102,6 @@ func NewEvaluator(parameters Parameters, evk rlwe.EvaluationKeySet, scaleInvaria
 // GetParameters returns a pointer to the underlying [bgv.Parameters].
 func (eval Evaluator) GetParameters() *Parameters {
 	return &eval.Encoder.parameters
-}
-
-// ShallowCopy creates a shallow copy of this [Evaluator] in which the read-only data-structures are
-// shared with the receiver.
-func (eval Evaluator) ShallowCopy() *Evaluator {
-	return &Evaluator{
-		evaluatorBase:  eval.evaluatorBase.ShallowCopy(),
-		Evaluator:      eval.Evaluator.ShallowCopy(),
-		evaluatorPool:  newEvaluatorPool(*eval.GetParameters()),
-		Encoder:        eval.Encoder.ShallowCopy(),
-		ScaleInvariant: eval.ScaleInvariant,
-	}
 }
 
 // WithKey creates a shallow copy of this [Evaluator] in which the read-only data-structures are

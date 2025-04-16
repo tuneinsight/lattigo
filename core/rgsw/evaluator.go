@@ -19,13 +19,6 @@ func NewEvaluator(params rlwe.ParameterProvider, evk rlwe.EvaluationKeySet) *Eva
 	return &Evaluator{*rlwe.NewEvaluator(params, evk)}
 }
 
-// ShallowCopy creates a shallow copy of this [Evaluator] in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// Evaluators can be used concurrently.
-func (eval Evaluator) ShallowCopy() *Evaluator {
-	return &Evaluator{*eval.Evaluator.ShallowCopy()}
-}
-
 // WithKey creates a shallow copy of the receiver [Evaluator] for which the evaluation key is set to the provided [rlwe.EvaluationKeySet]
 // and where the temporary buffers are shared. The receiver and the returned Evaluators cannot be used concurrently.
 func (eval Evaluator) WithKey(evk rlwe.EvaluationKeySet) *Evaluator {

@@ -19,30 +19,6 @@ type EvaluationKeyGenProtocol struct {
 	gaussianSamplerQ ring.Sampler
 }
 
-// ShallowCopy creates a shallow copy of [EvaluationKeyGenProtocol] in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// [EvaluationKeyGenProtocol] can be used concurrently.
-func (evkg EvaluationKeyGenProtocol) ShallowCopy() EvaluationKeyGenProtocol {
-	prng, err := sampling.NewPRNG()
-
-	// Sanity check, this error should not happen.
-	if err != nil {
-		panic(err)
-	}
-
-	Xe, err := ring.NewSampler(prng, evkg.params.RingQ(), evkg.params.Xe(), false)
-
-	// Sanity check, this error should not happen.
-	if err != nil {
-		panic(err)
-	}
-
-	return EvaluationKeyGenProtocol{
-		params:           evkg.params,
-		gaussianSamplerQ: Xe,
-	}
-}
-
 // NewEvaluationKeyGenProtocol creates a [EvaluationKeyGenProtocol] instance.
 func NewEvaluationKeyGenProtocol(params rlwe.ParameterProvider) (evkg EvaluationKeyGenProtocol) {
 

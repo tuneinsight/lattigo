@@ -29,39 +29,6 @@ type RelinearizationKeyGenCRP struct {
 	Value structs.Matrix[ringqp.Poly]
 }
 
-// ShallowCopy creates a shallow copy of [RelinearizationKeyGenProtocol] in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// [RelinearizationKeyGenProtocol] can be used concurrently.
-func (ekg *RelinearizationKeyGenProtocol) ShallowCopy() RelinearizationKeyGenProtocol {
-	var err error
-	prng, err := sampling.NewPRNG()
-
-	// Sanity check, this error should not happen.
-	if err != nil {
-		panic(err)
-	}
-
-	Xe, err := ring.NewSampler(prng, ekg.params.RingQ(), ekg.params.Xe(), false)
-
-	// Sanity check, this error should not happen.
-	if err != nil {
-		panic(err)
-	}
-
-	Xs, err := ring.NewSampler(prng, ekg.params.RingQ(), ekg.params.Xs(), false)
-
-	// Sanity check, this error should not happen.
-	if err != nil {
-		panic(err)
-	}
-
-	return RelinearizationKeyGenProtocol{
-		params:           ekg.params,
-		gaussianSamplerQ: Xe,
-		ternarySamplerQ:  Xs,
-	}
-}
-
 // NewRelinearizationKeyGenProtocol creates a new RelinearizationKeyGen protocol struct.
 func NewRelinearizationKeyGenProtocol(params rlwe.ParameterProvider) RelinearizationKeyGenProtocol {
 	rkg := RelinearizationKeyGenProtocol{}

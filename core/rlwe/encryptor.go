@@ -451,10 +451,6 @@ func (enc Encryptor) withKeyedUniformSampling(prng *sampling.KeyedPRNG) *Encrypt
 	return &enc
 }
 
-func (enc Encryptor) ShallowCopy() *Encryptor {
-	return NewEncryptor(enc.params, enc.encKey)
-}
-
 func (enc Encryptor) WithKey(key EncryptionKey) *Encryptor {
 	switch key := key.(type) {
 	case *SecretKey:

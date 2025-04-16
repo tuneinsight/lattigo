@@ -1215,19 +1215,3 @@ func (ecd *Encoder) polyToFloatNoCRT(coeffs []uint64, values FloatSlice, scale r
 
 	return
 }
-
-// ShallowCopy returns a lightweight copy of the target object
-// that can be used concurrently with the original object.
-func (ecd Encoder) ShallowCopy() *Encoder {
-
-	return &Encoder{
-		prec:            ecd.prec,
-		parameters:      ecd.parameters,
-		m:               ecd.m,
-		rotGroup:        ecd.rotGroup,
-		roots:           ecd.roots,
-		BuffPolyPool:    ecd.BuffPolyPool,
-		BuffBigIntPool:  ecd.BuffBigIntPool,
-		BuffComplexPool: ecd.BuffComplexPool,
-	}
-}

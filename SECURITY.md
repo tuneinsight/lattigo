@@ -1,5 +1,18 @@
 # Report a Vulnerability
 To report a vulnerability please contact us directly using the following email: lattigo@tuneinsight.com.
+Please include as much detail as possible in your report, including: 
+   - Affected version. 
+   - Steps to reproduce.
+   - Potential impact of the vulnerability. 
+
+# Past Vulnerabilities
+### Wrong level for DenseToSparse Evaluation Key (04.2025)
+  - **Severity:** Low
+  - **Impact:** A security of 128-bit is not guaranteed if the `EvkDenseToSparse` evaluation key, which is part of the CKKS bootstrapping keys, is used. With the bootstrapping parameters proposed in Lattigo, the security falls to $\approx$ 106 bits of security. This means the vulnerability should not lead to any practical attack. However, anyone using CKKS bootstrapping should update their version of Lattigo and rotate their secret key to go back to 128-bit security. 
+  - **Versions impacted:** `v5.0.0-v6.1.0`
+  - **Fixed in:** `v6.1.1`
+  - **Fix:** `EvkDenseToSparse` is generated at the correct level. 
+  - **Reported by:** Noam Kleinburd **@NoamK-CR**
 
 # Code Review
 Lattigo 2.0.0 was code-reviewed by ELCA in November 2020 and, within the allocated time for the code review, no critical or high-risk issues were found.

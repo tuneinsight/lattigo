@@ -75,11 +75,11 @@ func (eval Evaluator) Trace(ctIn *Ciphertext, logN int, opOut *Ciphertext) (err 
 			opOut.IsNTT = true
 		}
 
-		buffQP1 := eval.BuffQPPool.Get()
-		defer eval.BuffQPPool.Put(buffQP1)
-		buffQP2 := eval.BuffQPPool.Get()
-		defer eval.BuffQPPool.Put(buffQP2)
-		buff, err := NewCiphertextAtLevelFromPoly(level, []ring.Poly{(*buffQP1).Q, (*buffQP2).Q})
+		buffQ1 := eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(buffQ1)
+		buffQ2 := eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(buffQ2)
+		buff, err := NewCiphertextAtLevelFromPoly(level, []ring.Poly{*buffQ1, *buffQ2})
 
 		// Sanity check, this error should not happen unless the
 		// evaluator's buffer has been improperly tempered with.
@@ -172,7 +172,8 @@ func (eval Evaluator) PartialTracesSum(ctIn *Ciphertext, offset, n int, opOut *C
 
 	buffCt := eval.BuffCtPool.Get()
 	defer eval.BuffCtPool.Put(buffCt)
-	ctInNTT, err := NewCiphertextAtLevelFromPoly(levelQ, buffCt.Value[:2])
+	ctInNTT := NewCiphertextFromUintPool(params, 1, levelQ)
+	defer RecycleCiphertextInUintPool(params, ctInNTT)
 
 	// Sanity check, this error should not happen unless the
 	// evaluator's buffer thave been improperly tempered with.
@@ -198,23 +199,21 @@ func (eval Evaluator) PartialTracesSum(ctIn *Ciphertext, offset, n int, opOut *C
 		}
 	} else {
 
-		// BuffQP[0:2] are used by AutomorphismHoistedLazy
+		buffQP1 := eval.BuffQPPool.Get()
+		defer eval.BuffQPPool.Put(buffQP1)
+		buffQP2 := eval.BuffQPPool.Get()
+		defer eval.BuffQPPool.Put(buffQP2)
 
+		// Accumulator mod QP (i.e. opOut Mod QP)
+		accQP := &Element[ringqp.Poly]{Value: []ringqp.Poly{*buffQP1, *buffQP2}}
+		accQP.MetaData = ctInNTT.MetaData
+
+		// Buffer mod QP (i.e. to store the result of lazy gadget products)
 		buffQP3 := eval.BuffQPPool.Get()
 		defer eval.BuffQPPool.Put(buffQP3)
 		buffQP4 := eval.BuffQPPool.Get()
 		defer eval.BuffQPPool.Put(buffQP4)
-
-		// Accumulator mod QP (i.e. opOut Mod QP)
-		accQP := &Element[ringqp.Poly]{Value: []ringqp.Poly{*buffQP3, *buffQP4}}
-		accQP.MetaData = ctInNTT.MetaData
-
-		// Buffer mod QP (i.e. to store the result of lazy gadget products)
-		buffQP5 := eval.BuffQPPool.Get()
-		defer eval.BuffQPPool.Put(buffQP5)
-		buffQP6 := eval.BuffQPPool.Get()
-		defer eval.BuffQPPool.Put(buffQP6)
-		cQP := &Element[ringqp.Poly]{Value: []ringqp.Poly{*buffQP5, *buffQP6}}
+		cQP := &Element[ringqp.Poly]{Value: []ringqp.Poly{*buffQP3, *buffQP4}}
 		cQP.MetaData = ctInNTT.MetaData
 
 		// Buffer mod Q (i.e. to store the result of gadget products)

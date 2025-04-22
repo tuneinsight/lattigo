@@ -29,7 +29,7 @@ type EvaluatorBuffers struct {
 	BuffCtPool  structs.BufferPool[*Ciphertext]
 }
 
-// NewEvaluatorBuffers creates the buffers that are used to recycle large obejcts instead of instantiating new ones.
+// NewEvaluatorBuffers creates the buffers that are used to recycle large objects instead of instantiating new ones.
 // Under the hood, all buffers use the same sync.Pool of *[]uint64.
 func NewEvaluatorBuffers(params Parameters) *EvaluatorBuffers {
 	buff := new(EvaluatorBuffers)

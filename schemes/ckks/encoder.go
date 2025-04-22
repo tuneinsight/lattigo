@@ -60,9 +60,6 @@ type Encoder struct {
 
 	prec uint
 
-	// bigintCoeffs []*big.Int
-	// qHalf        *big.Int
-	// buff     ring.Poly
 	m        int
 	rotGroup []int
 

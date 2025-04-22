@@ -1008,13 +1008,13 @@ func (eval Evaluator) tensorScaleInvariant(ct0 *rlwe.Ciphertext, ct1 *rlwe.Eleme
 			return fmt.Errorf("cannot TensorInvariant: %w", err)
 		}
 
-		buffQP1 := eval.BuffQPPool.Get()
-		defer eval.BuffQPPool.Put(buffQP1)
-		buffQP2 := eval.BuffQPPool.Get()
-		defer eval.BuffQPPool.Put(buffQP2)
+		buffQ1 := eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(buffQ1)
+		buffQ2 := eval.BuffQPool.Get()
+		defer eval.BuffQPool.Put(buffQ2)
 
 		tmpCt := &rlwe.Ciphertext{}
-		tmpCt.Value = []ring.Poly{(*buffQP1).Q, (*buffQP2).Q}
+		tmpCt.Value = []ring.Poly{*buffQ1, *buffQ2}
 		tmpCt.MetaData = &rlwe.MetaData{}
 		tmpCt.IsNTT = true
 
@@ -1357,13 +1357,13 @@ func (eval Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ri
 
 			ringQ.MulCoeffsMontgomery(*c01, tmp1.Value[1], c2) // c2 += c[1]*c[1]
 
-			buffQP1 := eval.BuffQPPool.Get()
-			defer eval.BuffQPPool.Put(buffQP1)
-			buffQP2 := eval.BuffQPPool.Get()
-			defer eval.BuffQPPool.Put(buffQP2)
+			buffQ1 := eval.BuffQPool.Get()
+			defer eval.BuffQPool.Put(buffQ1)
+			buffQ2 := eval.BuffQPool.Get()
+			defer eval.BuffQPool.Put(buffQ2)
 
 			tmpCt := &rlwe.Ciphertext{}
-			tmpCt.Value = []ring.Poly{(*buffQP1).Q, (*buffQP2).Q}
+			tmpCt.Value = []ring.Poly{*buffQ1, *buffQ2}
 			tmpCt.MetaData = &rlwe.MetaData{}
 			tmpCt.IsNTT = true
 

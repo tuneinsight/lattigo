@@ -513,7 +513,8 @@ func (eval RingPackingEvaluator) Expand(ct *Ciphertext, logGap int) (cts map[int
 
 	buffCt := evalN.BuffCtPool.Get()
 	defer evalN.BuffCtPool.Put(buffCt)
-	tmp, err := NewCiphertextAtLevelFromPoly(level, []ring.Poly{buffCt.Value[0], buffCt.Value[1]})
+	tmp := NewCiphertextFromUintPool(evalN.GetRLWEParameters(), 1, level)
+	defer RecycleCiphertextInUintPool(evalN.GetRLWEParameters(), tmp)
 
 	// Sanity check, this error should not happen unless the
 	// evaluator's buffer thave been improperly tempered with.

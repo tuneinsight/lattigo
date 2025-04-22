@@ -261,16 +261,8 @@ func NewRing(N int, Moduli []uint64, pool structs.BufferPool[*[]uint64]) (r *Rin
 // NewRingConjugateInvariant creates a new RNS Ring with degree N and coefficient moduli Moduli with Conjugate Invariant NTT. N must be a power of two larger than 8. Moduli should be
 // a non-empty []uint64 with distinct prime elements. All moduli must also be equal to 1 modulo 4*N.
 // An error is returned with a nil *Ring in the case of non NTT-enabling parameters.
-func NewRingConjugateInvariant(N int, Moduli []uint64, pool ...structs.BufferPool[*[]uint64]) (r *Ring, err error) {
-	var bp structs.BufferPool[*[]uint64]
-	switch len(pool) {
-	case 0:
-	case 1:
-		bp = pool[0]
-	default:
-		return nil, fmt.Errorf("cannot create new ring: more than 1 buffer pools provided")
-	}
-	return NewRingWithCustomNTT(N, Moduli, NewNumberTheoreticTransformerConjugateInvariant, 4*N, bp)
+func NewRingConjugateInvariant(N int, Moduli []uint64, pool structs.BufferPool[*[]uint64]) (r *Ring, err error) {
+	return NewRingWithCustomNTT(N, Moduli, NewNumberTheoreticTransformerConjugateInvariant, 4*N, pool)
 }
 
 // NewRingFromType creates a new RNS Ring with degree N and coefficient moduli Moduli for which the type of NTT is determined by the ringType argument.

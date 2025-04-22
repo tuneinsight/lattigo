@@ -34,12 +34,12 @@ func (eval Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, opOut *Cipher
 	opOut.Resize(opOut.Degree(), level)
 
 	ringQ := eval.params.RingQ().AtLevel(level)
-	buffQP1 := eval.BuffQPPool.Get()
-	defer eval.BuffQPPool.Put(buffQP1)
-	buffQP2 := eval.BuffQPPool.Get()
-	defer eval.BuffQPPool.Put(buffQP2)
+	buffQP1 := eval.BuffQPool.Get()
+	defer eval.BuffQPool.Put(buffQP1)
+	buffQP2 := eval.BuffQPool.Get()
+	defer eval.BuffQPool.Put(buffQP2)
 
-	ctTmp := &Ciphertext{Element: Element[ring.Poly]{Value: []ring.Poly{(*buffQP1).Q, (*buffQP2).Q}}}
+	ctTmp := &Ciphertext{Element: Element[ring.Poly]{Value: []ring.Poly{*buffQP1, *buffQP2}}}
 	ctTmp.MetaData = ctIn.MetaData
 
 	eval.GadgetProduct(level, ctIn.Value[1], &evk.GadgetCiphertext, ctTmp)

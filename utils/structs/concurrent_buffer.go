@@ -33,30 +33,3 @@ func (spool *SyncPool[T]) Get() T {
 func (spool *SyncPool[T]) Put(buff T) {
 	spool.pool.Put(buff)
 }
-
-// BuffFromUintPool represents a pool of objects built on []uint64 backing arrays.
-// It implements the [BufferPool] interface.
-type BuffFromUintPool[T any] struct {
-	createObject  func() T
-	recycleObject func(T)
-}
-
-// NewBuffFromUintPool returns a new BuffFromUintPool structure.
-// The create (resp. recycle) function are meant to use an underlying
-// pool of []uint64 to build (resp. recycle) an object of type T.
-func NewBuffFromUintPool[T any](create func() T, recycle func(T)) *BuffFromUintPool[T] {
-	return &BuffFromUintPool[T]{
-		createObject:  create,
-		recycleObject: recycle,
-	}
-}
-
-// Get returns a new object of type T built from a []uint64 backing array obtained from a pool.
-func (bu *BuffFromUintPool[T]) Get() T {
-	return bu.createObject()
-}
-
-// Put recycle an object of type T. I.e. it returns the []uint64 backing arrays of obj to their pool.
-func (bu *BuffFromUintPool[T]) Put(obj T) {
-	bu.recycleObject(obj)
-}

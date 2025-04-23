@@ -3,7 +3,6 @@ package rlwe
 import (
 	"fmt"
 
-	"github.com/tuneinsight/lattigo/v6/ring"
 	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
 	"github.com/tuneinsight/lattigo/v6/utils"
 )
@@ -34,12 +33,9 @@ func (eval Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, opOut *Cipher
 	opOut.Resize(opOut.Degree(), level)
 
 	ringQ := eval.params.RingQ().AtLevel(level)
-	buffQP1 := eval.BuffQPool.Get()
-	defer eval.BuffQPool.Put(buffQP1)
-	buffQP2 := eval.BuffQPool.Get()
-	defer eval.BuffQPool.Put(buffQP2)
 
-	ctTmp := &Ciphertext{Element: Element[ring.Poly]{Value: []ring.Poly{*buffQP1, *buffQP2}}}
+	ctTmp := eval.GetBuffCt(1, ringQ.Level())
+	defer eval.RecycleBuffCt(ctTmp)
 	ctTmp.MetaData = ctIn.MetaData
 
 	eval.GadgetProduct(level, ctIn.Value[1], &evk.GadgetCiphertext, ctTmp)
@@ -85,13 +81,8 @@ func (eval Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1DecompQ
 
 	ringQ := eval.params.RingQ().AtLevel(level)
 
-	buffQ1 := eval.BuffQPool.Get()
-	defer eval.BuffQPool.Put(buffQ1)
-	buffQ2 := eval.BuffQPool.Get()
-	defer eval.BuffQPool.Put(buffQ2)
-
-	ctTmp := &Ciphertext{}
-	ctTmp.Value = []ring.Poly{*buffQ1, *buffQ2} // GadgetProductHoisted uses the same buffers for its ciphertext QP
+	ctTmp := eval.GetBuffCt(1, ringQ.Level())
+	defer eval.RecycleBuffCt(ctTmp)
 	ctTmp.MetaData = ctIn.MetaData
 
 	eval.GadgetProductHoisted(level, c1DecompQP, &evk.EvaluationKey.GadgetCiphertext, ctTmp)
@@ -126,10 +117,11 @@ func (eval Evaluator) AutomorphismHoistedLazy(levelQ int, ctIn *Ciphertext, c1De
 		return fmt.Errorf("ctQP.LevelP()=%d < GaloisKey[%d].LevelP()=%d", ctQP.LevelP(), galEl, levelP)
 	}
 
-	buffQP1 := eval.BuffQPPool.Get()
-	defer eval.BuffQPPool.Put(buffQP1)
-	buffQP2 := eval.BuffQPPool.Get()
-	defer eval.BuffQPPool.Put(buffQP2)
+	ringQP := eval.params.RingQP().AtLevel(levelQ, levelP)
+	buffQP1 := ringQP.GetBuffPolyQP()
+	defer ringQP.RecycleBuffPolyQP(buffQP1)
+	buffQP2 := ringQP.GetBuffPolyQP()
+	defer ringQP.RecycleBuffPolyQP(buffQP2)
 
 	ctTmp := &Element[ringqp.Poly]{}
 	ctTmp.Value = []ringqp.Poly{*buffQP1, *buffQP2}
@@ -138,8 +130,6 @@ func (eval Evaluator) AutomorphismHoistedLazy(levelQ int, ctIn *Ciphertext, c1De
 	if err = eval.GadgetProductHoistedLazy(levelQ, c1DecompQP, &evk.GadgetCiphertext, ctTmp); err != nil {
 		panic(fmt.Errorf("eval.GadgetProductHoistedLazy: %w", err))
 	}
-
-	ringQP := eval.params.RingQP().AtLevel(levelQ, levelP)
 
 	ringQ := ringQP.RingQ
 	ringP := ringQP.RingP

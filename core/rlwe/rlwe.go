@@ -5,11 +5,9 @@ package rlwe
 import (
 	"github.com/tuneinsight/lattigo/v6/ring"
 	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
-	"github.com/tuneinsight/lattigo/v6/utils/structs"
 )
 
 type EvaluatorProvider interface {
-	GetBuffQPPool() structs.BufferPool[*ringqp.Poly]
 	GetBuffCt(dimensions ...int) *Ciphertext
 	RecycleBuffCt(*Ciphertext)
 	DecomposeNTT(level, levelP, pCount int, c1 ring.Poly, isNTT bool, BuffDecompQP []ringqp.Poly)

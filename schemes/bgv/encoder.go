@@ -36,8 +36,6 @@ type Encoder struct {
 	// between the two structures is necessary.
 	// The size of an object returned from the pool MaxSlots() elements.
 	BuffBigIntPool structs.BufferPool[*[]*big.Int]
-	BuffPolyQPool  structs.BufferPool[*ring.Poly]
-	BuffPolyTPool  structs.BufferPool[*ring.Poly]
 
 	paramsQP []ring.ModUpConstants
 	qHalf    []*big.Int
@@ -88,8 +86,6 @@ func NewEncoder(parameters Parameters) *Encoder {
 		parameters:     parameters,
 		indexMatrix:    permuteMatrix(parameters.LogMaxSlots()),
 		BuffBigIntPool: buffBigIntPool,
-		BuffPolyQPool:  ringQ.NewBuffFromUintPool(),
-		BuffPolyTPool:  ringT.NewBuffFromUintPool(),
 		paramsQP:       paramsQP,
 		qHalf:          qHalf,
 		tInvModQ:       tInvModQ,
@@ -139,8 +135,8 @@ func (ecd Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 		T := ringT.SubRings[0].Modulus
 		BRC := ringT.SubRings[0].BRedConstant
 
-		buffT := ecd.BuffPolyTPool.Get()
-		defer ecd.BuffPolyTPool.Put(buffT)
+		buffT := ringT.GetBuffPoly()
+		defer ringT.RecycleBuffPoly(buffT)
 		ptT := buffT.Coeffs[0]
 
 		var valLen int
@@ -254,8 +250,9 @@ func (ecd Encoder) EncodeRingT(values IntegerSlice, scale rlwe.Scale, pT ring.Po
 // Accepted polyOut.(type) are a ringqp.Poly and *ring.Poly
 func (ecd Encoder) EmbedScale(values IntegerSlice, scaleUp bool, metadata *rlwe.MetaData, polyOut interface{}) (err error) {
 
-	buffT := ecd.BuffPolyTPool.Get()
-	defer ecd.BuffPolyTPool.Put(buffT)
+	ringT := ecd.parameters.ringT
+	buffT := ringT.GetBuffPoly()
+	defer ringT.RecycleBuffPoly(buffT)
 	pT := *buffT
 
 	if err = ecd.EncodeRingT(values, metadata.Scale, pT); err != nil {
@@ -327,8 +324,8 @@ func (ecd Encoder) Embed(values interface{}, metadata *rlwe.MetaData, polyOut in
 // DecodeRingT decodes a polynomial pT with coefficients modulo the plaintext modulu PlaintextModulus on an InterSlice at the given scale.
 func (ecd Encoder) DecodeRingT(pT ring.Poly, scale rlwe.Scale, values IntegerSlice) (err error) {
 	ringT := ecd.parameters.RingT()
-	buffT := ecd.BuffPolyTPool.Get()
-	defer ecd.BuffPolyTPool.Put(buffT)
+	buffT := ringT.GetBuffPoly()
+	defer ringT.RecycleBuffPoly(buffT)
 
 	ringT.MulScalar(pT, ring.ModExp(scale.Uint64(), ringT.SubRings[0].Modulus-2, ringT.SubRings[0].Modulus), *buffT)
 	ringT.NTT(*buffT, *buffT)
@@ -402,8 +399,8 @@ func (ecd Encoder) RingQ2T(level int, scaleDown bool, pQ, pT ring.Poly) {
 	ringT := ecd.parameters.RingT()
 
 	var poly ring.Poly
-	buffQ := ecd.BuffPolyQPool.Get()
-	defer ecd.BuffPolyQPool.Put(buffQ)
+	buffQ := ringQ.GetBuffPoly()
+	defer ringQ.RecycleBuffPoly(buffQ)
 
 	if scaleDown {
 		ringQ.MulScalar(pQ, ecd.parameters.PlaintextModulus(), *buffQ)
@@ -455,14 +452,16 @@ func (ecd Encoder) RingQ2T(level int, scaleDown bool, pQ, pT ring.Poly) {
 // Decode decodes a plaintext on an IntegerSlice mod PlaintextModulus of size at most N, where N is the smallest value satisfying PlaintextModulus = 1 mod 2N.
 func (ecd Encoder) Decode(pt *rlwe.Plaintext, values interface{}) (err error) {
 
-	buffT := ecd.BuffPolyTPool.Get()
-	defer ecd.BuffPolyTPool.Put(buffT)
+	ringT := ecd.parameters.RingT()
+	buffT := ringT.GetBuffPoly()
+	defer ringT.RecycleBuffPoly(buffT)
 
 	if pt.IsNTT {
-		buffQ := ecd.BuffPolyQPool.Get()
-		ecd.parameters.RingQ().AtLevel(pt.Level()).INTT(pt.Value, *buffQ)
+		ringQ := ecd.parameters.RingQ().AtLevel(pt.Level())
+		buffQ := ringQ.GetBuffPoly()
+		ringQ.INTT(pt.Value, *buffQ)
 		ecd.RingQ2T(pt.Level(), true, *buffQ, *buffT)
-		ecd.BuffPolyQPool.Put(buffQ) // buffQ not used after this point
+		ringQ.RecycleBuffPoly(buffQ)
 	} else {
 		ecd.RingQ2T(pt.Level(), true, pt.Value, *buffT)
 	}

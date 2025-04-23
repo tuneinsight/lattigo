@@ -387,29 +387,16 @@ func (r Ring) NewPoly() Poly {
 	return NewPoly(r.N(), r.level)
 }
 
-// NewPolyFromUintPool returns a new [Poly], built from backing []uint64 arrays obtained from a pool.
-// After use, the [Poly] should be recycled using the [Ring.RecyclePolyInUintPool] method.
-func (r Ring) NewPolyFromUintPool() (p *Poly) {
+// GetBuffPoly returns a new [Poly], built from backing []uint64 arrays obtained from a pool.
+// After use, the [Poly] should be recycled using the [Ring.RecycleBuffPoly] method.
+func (r Ring) GetBuffPoly() (p *Poly) {
 	return NewPolyFromUintPool(r.bufferPool, r.level)
 }
 
-// RecyclePolyInUintPool takes a reference to a [Poly] and recycles its backing []uint64 arrays
+// RecycleBuffPoly takes a reference to a [Poly] and recycles its backing []uint64 arrays
 // (i.e. they are returned to a pool). The input [Poly] must not be used after calling this method.
-func (r Ring) RecyclePolyInUintPool(pol *Poly) {
+func (r Ring) RecycleBuffPoly(pol *Poly) {
 	RecyclePolyInUintPool(r.bufferPool, pol)
-}
-
-// NewBuffFromUintPool returns a [structs.BuffFromUintPool] that implements the [structs.BufferPool] interface.
-// Temporary buffers of type [Poly] can be obtained (resp. recycled) using the Get (resp. Put) methods of the returned object.
-func (r Ring) NewBuffFromUintPool() *structs.BuffFromUintPool[*Poly] {
-	return structs.NewBuffFromUintPool(
-		func() *Poly {
-			return r.NewPolyFromUintPool()
-		},
-		func(poly *Poly) {
-			r.RecyclePolyInUintPool(poly)
-		},
-	)
 }
 
 // NewMonomialXi returns a polynomial X^{i}.

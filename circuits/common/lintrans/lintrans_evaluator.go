@@ -38,12 +38,12 @@ func (eval Evaluator) EvaluateMany(ctIn *rlwe.Ciphertext, linearTransformations 
 
 	levelQ = utils.Min(levelQ, ctIn.Level())
 
-	pool := eval.Evaluator.GetBuffQPPool()
+	ringQP := eval.GetRLWEParameters().RingQP().AtLevel(levelQ, levelP)
 	baseRNSDecompositionVectorSize := eval.Evaluator.GetRLWEParameters().BaseRNSDecompositionVectorSize(levelQ, levelP)
 	buffDecompQP := make([]ringqp.Poly, baseRNSDecompositionVectorSize)
 	for i := 0; i < len(buffDecompQP); i++ {
-		buff := pool.Get()
-		defer pool.Put(buff)
+		buff := ringQP.GetBuffPolyQP()
+		defer ringQP.RecycleBuffPolyQP(buff)
 		buffDecompQP[i] = *buff
 	}
 
@@ -137,20 +137,6 @@ func (eval Evaluator) EvaluateSequential(ctIn *rlwe.Ciphertext, linearTransforma
 // for matrix of only a few non-zero diagonals but uses more keys.
 func (eval Evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error) {
 
-	pool := eval.GetBuffQPPool()
-	buffQP0 := pool.Get()
-	defer pool.Put(buffQP0)
-	buffQP1 := pool.Get()
-	defer pool.Put(buffQP1)
-	buffQP2 := pool.Get()
-	defer pool.Put(buffQP2)
-	buffQP3 := pool.Get()
-	defer pool.Put(buffQP3)
-	buffQP4 := pool.Get()
-	defer pool.Put(buffQP4)
-	buffQP5 := pool.Get()
-	defer pool.Put(buffQP5)
-
 	*opOut.MetaData = *ctIn.MetaData
 	opOut.Scale = opOut.Scale.Mul(matrix.Scale)
 
@@ -163,6 +149,18 @@ func (eval Evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearT
 	ringQ := ringQP.RingQ
 	ringP := ringQP.RingP
 
+	buffQP0 := ringQP.GetBuffPolyQP()
+	defer ringQP.RecycleBuffPolyQP(buffQP0)
+	buffQP1 := ringQP.GetBuffPolyQP()
+	defer ringQP.RecycleBuffPolyQP(buffQP1)
+	buffQP2 := ringQP.GetBuffPolyQP()
+	defer ringQP.RecycleBuffPolyQP(buffQP2)
+	buffQP3 := ringQP.GetBuffPolyQP()
+	defer ringQP.RecycleBuffPolyQP(buffQP3)
+	buffQP4 := ringQP.GetBuffPolyQP()
+	defer ringQP.RecycleBuffPolyQP(buffQP4)
+	buffQP5 := ringQP.GetBuffPolyQP()
+	defer ringQP.RecycleBuffPolyQP(buffQP5)
 	buffCt := eval.GetBuffCt(1, ringQ.Level())
 	defer eval.RecycleBuffCt(buffCt)
 
@@ -278,18 +276,6 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 
 	params := eval.GetRLWEParameters()
 
-	pool := eval.GetBuffQPPool()
-	buffQP1 := pool.Get()
-	defer pool.Put(buffQP1)
-	buffQP2 := pool.Get()
-	defer pool.Put(buffQP2)
-	buffQP3 := pool.Get()
-	defer pool.Put(buffQP3)
-	buffQP4 := pool.Get()
-	defer pool.Put(buffQP4)
-	buffQP5 := pool.Get()
-	defer pool.Put(buffQP5)
-
 	*opOut.MetaData = *ctIn.MetaData
 	opOut.Scale = opOut.Scale.Mul(matrix.Scale)
 
@@ -300,6 +286,18 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 	ringQ := ringQP.RingQ
 	ringP := ringQP.RingP
 
+	buffQP1 := ringQP.GetBuffPolyQP()
+	defer ringQP.RecycleBuffPolyQP(buffQP1)
+	buffQP2 := ringQP.GetBuffPolyQP()
+	defer ringQP.RecycleBuffPolyQP(buffQP2)
+	buffQP3 := ringQP.GetBuffPolyQP()
+	defer ringQP.RecycleBuffPolyQP(buffQP3)
+	buffQP4 := ringQP.GetBuffPolyQP()
+	defer ringQP.RecycleBuffPolyQP(buffQP4)
+	buffP1 := ringQP.RingP.GetBuffPoly()
+	defer ringQP.RingP.RecycleBuffPoly(buffP1)
+	buffP2 := ringQP.RingP.GetBuffPoly()
+	defer ringQP.RingP.RecycleBuffPoly(buffP2)
 	buffCt := eval.GetBuffCt(1, ringQ.Level())
 	defer eval.RecycleBuffCt(buffCt)
 
@@ -327,8 +325,8 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 	cQP.IsNTT = true
 
 	// Result in QP
-	c0OutQP := ringqp.Poly{Q: opOut.Value[0], P: (*buffQP5).Q}
-	c1OutQP := ringqp.Poly{Q: opOut.Value[1], P: (*buffQP5).P}
+	c0OutQP := ringqp.Poly{Q: opOut.Value[0], P: *buffP1}
+	c1OutQP := ringqp.Poly{Q: opOut.Value[1], P: *buffP2}
 
 	ringQ.MulScalarBigint(ctInTmp0, ringP.ModulusAtLevel[levelP], ctInTmp0) // P*c0
 	ringQ.MulScalarBigint(ctInTmp1, ringP.ModulusAtLevel[levelP], ctInTmp1) // P*c1

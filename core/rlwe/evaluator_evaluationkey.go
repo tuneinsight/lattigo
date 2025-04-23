@@ -3,7 +3,6 @@ package rlwe
 import (
 	"fmt"
 
-	"github.com/tuneinsight/lattigo/v6/ring"
 	"github.com/tuneinsight/lattigo/v6/utils"
 )
 
@@ -75,12 +74,6 @@ func (eval Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, o
 		ctTmp := eval.GetBuffCt(ctIn.Degree(), level)
 		defer eval.RecycleBuffCt(ctTmp)
 
-		// Sanity check, this error should not happen unless the
-		// evaluator's buffer have been improperly tempered with.
-		if err != nil {
-			panic(err)
-		}
-
 		ctTmp.MetaData = ctIn.MetaData
 
 		// Switches key from large to small degree
@@ -104,14 +97,10 @@ func (eval Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, o
 }
 
 func (eval Evaluator) applyEvaluationKey(level int, ctIn *Ciphertext, evk *EvaluationKey, opOut *Ciphertext) {
-	buffQ1 := eval.BuffQPool.Get()
-	defer eval.BuffQPool.Put(buffQ1)
-	buffQ2 := eval.BuffQPool.Get()
-	defer eval.BuffQPool.Put(buffQ2)
-
-	ctTmp := &Ciphertext{}
-	ctTmp.Value = []ring.Poly{*buffQ1, *buffQ2}
+	ctTmp := eval.GetBuffCt(1, level)
+	defer eval.RecycleBuffCt(ctTmp)
 	ctTmp.MetaData = ctIn.MetaData
+
 	eval.GadgetProduct(level, ctIn.Value[1], &evk.GadgetCiphertext, ctTmp)
 	eval.params.RingQ().AtLevel(level).Add(ctIn.Value[0], ctTmp.Value[0], opOut.Value[0])
 	opOut.Value[1].CopyLvl(level, ctTmp.Value[1])
@@ -143,13 +132,8 @@ func (eval Evaluator) Relinearize(ctIn *Ciphertext, opOut *Ciphertext) (err erro
 
 	ringQ := eval.params.RingQ().AtLevel(level)
 
-	buffQ1 := eval.BuffQPool.Get()
-	defer eval.BuffQPool.Put(buffQ1)
-	buffQ2 := eval.BuffQPool.Get()
-	defer eval.BuffQPool.Put(buffQ2)
-
-	ctTmp := &Ciphertext{}
-	ctTmp.Value = []ring.Poly{*buffQ1, *buffQ2}
+	ctTmp := eval.GetBuffCt(1, ringQ.Level())
+	defer eval.RecycleBuffCt(ctTmp)
 	ctTmp.MetaData = ctIn.MetaData
 
 	eval.GadgetProduct(level, ctIn.Value[2], &rlk.GadgetCiphertext, ctTmp)

@@ -5,15 +5,13 @@ import (
 
 	"github.com/tuneinsight/lattigo/v6/ring"
 	"github.com/tuneinsight/lattigo/v6/utils"
-	"github.com/tuneinsight/lattigo/v6/utils/structs"
 )
 
 // Decryptor is a structure used to decrypt [Ciphertext]. It stores the secret-key.
 type Decryptor struct {
-	params    Parameters
-	ringQ     *ring.Ring
-	buffQPool structs.BufferPool[*ring.Poly]
-	sk        *SecretKey
+	params Parameters
+	ringQ  *ring.Ring
+	sk     *SecretKey
 }
 
 // NewDecryptor instantiates a new generic RLWE [Decryptor].
@@ -26,10 +24,9 @@ func NewDecryptor(params ParameterProvider, sk *SecretKey) *Decryptor {
 	}
 
 	return &Decryptor{
-		params:    *p,
-		ringQ:     p.RingQ(),
-		buffQPool: p.ringQ.NewBuffFromUintPool(),
-		sk:        sk,
+		params: *p,
+		ringQ:  p.RingQ(),
+		sk:     sk,
 	}
 }
 
@@ -70,10 +67,10 @@ func (d Decryptor) Decrypt(ct *Ciphertext, pt *Plaintext) {
 		ringQ.MulCoeffsMontgomery(pt.Value, d.sk.Value.Q, pt.Value)
 
 		if !ct.IsNTT {
-			buff := d.buffQPool.Get()
+			buff := ringQ.GetBuffPoly()
 			ringQ.NTTLazy(ct.Value[i-1], *buff)
 			ringQ.Add(pt.Value, *buff, pt.Value)
-			d.buffQPool.Put(buff)
+			ringQ.RecycleBuffPoly(buff)
 		} else {
 			ringQ.Add(pt.Value, ct.Value[i-1], pt.Value)
 		}
@@ -97,9 +94,8 @@ func (d Decryptor) Decrypt(ct *Ciphertext, pt *Plaintext) {
 // The receiver and the returned [Decryptor] can be used concurrently.
 func (d Decryptor) WithKey(sk *SecretKey) *Decryptor {
 	return &Decryptor{
-		params:    d.params,
-		ringQ:     d.ringQ,
-		buffQPool: d.buffQPool,
-		sk:        sk,
+		params: d.params,
+		ringQ:  d.ringQ,
+		sk:     sk,
 	}
 }

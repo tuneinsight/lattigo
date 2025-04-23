@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/tuneinsight/lattigo/v6/ring"
-	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
 	"github.com/tuneinsight/lattigo/v6/utils"
 	"github.com/tuneinsight/lattigo/v6/utils/structs"
 )
@@ -14,31 +13,12 @@ import (
 type Evaluator struct {
 	params Parameters
 	EvaluationKeySet
-	*EvaluatorBuffers
 
 	automorphismIndex map[uint64][]uint64
 
 	BasisExtender *ring.BasisExtender
 	Decomposer    *ring.Decomposer
-}
-
-type EvaluatorBuffers struct {
-	BuffQPPool  structs.BufferPool[*ringqp.Poly]
-	BuffQPool   structs.BufferPool[*ring.Poly]
-	BuffBitPool structs.BufferPool[*[]uint64]
-}
-
-// NewEvaluatorBuffers creates the buffers that are used to recycle large objects instead of instantiating new ones.
-// Under the hood, all buffers use the same sync.Pool of *[]uint64.
-func NewEvaluatorBuffers(params Parameters) *EvaluatorBuffers {
-	buff := new(EvaluatorBuffers)
-	ringQP := params.RingQP()
-	ringQ := params.ringQ
-
-	buff.BuffQPPool = ringQP.NewBuffFromUintPool()
-	buff.BuffQPool = ringQ.NewBuffFromUintPool()
-	buff.BuffBitPool = ringQ.BufferPool()
-	return buff
+	UintBuffPool  structs.BufferPool[*[]uint64]
 }
 
 // NewEvaluator creates a new [Evaluator].
@@ -48,7 +28,7 @@ func NewEvaluator(params ParameterProvider, evk EvaluationKeySet) (eval *Evaluat
 	eval.params = *p
 
 	// All buffer use the same sync.Pool of *[]uint64
-	eval.EvaluatorBuffers = NewEvaluatorBuffers(eval.params)
+	eval.UintBuffPool = eval.params.RingQ().BufferPool()
 
 	if p.RingP() != nil {
 		eval.BasisExtender = ring.NewBasisExtender(p.RingQ(), p.RingP())
@@ -82,16 +62,31 @@ func NewEvaluator(params ParameterProvider, evk EvaluationKeySet) (eval *Evaluat
 	return
 }
 
-func (eval *Evaluator) GetBuffCt(params ...int) *Ciphertext {
+func (eval *Evaluator) GetBuffPoly(level ...int) *ring.Poly {
+	if len(level) > 1 {
+		panic(fmt.Errorf("getbuffpoly takes 2 parameters at most"))
+	}
+
+	if len(level) > 0 {
+		return eval.params.ringQ.AtLevel(level[0]).GetBuffPoly()
+	}
+	return eval.params.ringQ.GetBuffPoly()
+}
+
+func (eval *Evaluator) RecycleBuffPoly(pol *ring.Poly) {
+	eval.params.ringQ.RecycleBuffPoly(pol)
+}
+
+func (eval *Evaluator) GetBuffCt(dimensions ...int) *Ciphertext {
 	degree := 2
 	level := eval.params.ringQ.Level()
-	switch nbParams := len(params); nbParams {
+	switch nbParams := len(dimensions); nbParams {
 	case 0:
 	case 1:
-		degree = params[0]
+		degree = dimensions[0]
 	case 2:
-		degree = params[0]
-		level = params[1]
+		degree = dimensions[0]
+		level = dimensions[1]
 	default:
 		panic(fmt.Errorf("getbuffct takes 2 parameters at most"))
 	}
@@ -261,24 +256,16 @@ func (eval Evaluator) WithKey(evk EvaluationKeySet) *Evaluator {
 
 	return &Evaluator{
 		params:            eval.params,
-		EvaluatorBuffers:  eval.EvaluatorBuffers,
 		Decomposer:        eval.Decomposer,
 		BasisExtender:     eval.BasisExtender,
 		EvaluationKeySet:  evk,
 		automorphismIndex: AutomorphismIndex,
+		UintBuffPool:      eval.UintBuffPool,
 	}
 }
 
 func (eval Evaluator) AutomorphismIndex(galEl uint64) []uint64 {
 	return eval.automorphismIndex[galEl]
-}
-
-func (eval Evaluator) GetEvaluatorBuffer() *EvaluatorBuffers {
-	return eval.EvaluatorBuffers
-}
-
-func (eval Evaluator) GetBuffQPPool() structs.BufferPool[*ringqp.Poly] {
-	return eval.BuffQPPool
 }
 
 func (eval Evaluator) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q ring.Poly) {

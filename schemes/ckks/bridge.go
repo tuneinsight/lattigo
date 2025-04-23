@@ -72,10 +72,11 @@ func (switcher DomainSwitcher) ComplexToReal(eval *Evaluator, ctIn, opOut *rlwe.
 		return fmt.Errorf("cannot ComplexToReal: no realToComplexEvk provided to this DomainSwitcher")
 	}
 
-	buffQ1 := evalRLWE.BuffQPool.Get()
-	defer evalRLWE.BuffQPool.Put(buffQ1)
-	buffQ2 := evalRLWE.BuffQPool.Get()
-	defer evalRLWE.BuffQPool.Put(buffQ2)
+	ringQ := switcher.stdRingQ.AtLevel(level)
+	buffQ1 := ringQ.GetBuffPoly()
+	defer ringQ.RecycleBuffPoly(buffQ1)
+	buffQ2 := ringQ.GetBuffPoly()
+	defer ringQ.RecycleBuffPoly(buffQ2)
 
 	ctTmp := &rlwe.Ciphertext{}
 	ctTmp.Value = []ring.Poly{*buffQ1, *buffQ2}
@@ -118,13 +119,14 @@ func (switcher DomainSwitcher) RealToComplex(eval *Evaluator, ctIn, opOut *rlwe.
 		return fmt.Errorf("cannot RealToComplex: no realToComplexEvk provided to this DomainSwitcher")
 	}
 
-	switcher.stdRingQ.AtLevel(level).UnfoldConjugateInvariantToStandard(ctIn.Value[0], opOut.Value[0])
-	switcher.stdRingQ.AtLevel(level).UnfoldConjugateInvariantToStandard(ctIn.Value[1], opOut.Value[1])
+	stdRingQ := switcher.stdRingQ.AtLevel(level)
+	stdRingQ.UnfoldConjugateInvariantToStandard(ctIn.Value[0], opOut.Value[0])
+	stdRingQ.UnfoldConjugateInvariantToStandard(ctIn.Value[1], opOut.Value[1])
 
-	buffQ1 := evalRLWE.BuffQPool.Get()
-	defer evalRLWE.BuffQPool.Put(buffQ1)
-	buffQ2 := evalRLWE.BuffQPool.Get()
-	defer evalRLWE.BuffQPool.Put(buffQ2)
+	buffQ1 := stdRingQ.GetBuffPoly()
+	defer stdRingQ.RecycleBuffPoly(buffQ1)
+	buffQ2 := stdRingQ.GetBuffPoly()
+	defer stdRingQ.RecycleBuffPoly(buffQ2)
 
 	ctTmp := &rlwe.Ciphertext{}
 	ctTmp.Value = []ring.Poly{*buffQ1, *buffQ2}
@@ -132,7 +134,7 @@ func (switcher DomainSwitcher) RealToComplex(eval *Evaluator, ctIn, opOut *rlwe.
 
 	// Switches the RCKswitcher key [X+X^-1] to a CKswitcher key [X]
 	evalRLWE.GadgetProduct(level, opOut.Value[1], &switcher.ciToStd.GadgetCiphertext, ctTmp)
-	switcher.stdRingQ.AtLevel(level).Add(opOut.Value[0], *buffQ1, opOut.Value[0])
+	stdRingQ.Add(opOut.Value[0], *buffQ1, opOut.Value[0])
 	opOut.Value[1].CopyLvl(level, *buffQ2)
 	*opOut.MetaData = *ctIn.MetaData
 	return

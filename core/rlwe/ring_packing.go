@@ -514,12 +514,6 @@ func (eval RingPackingEvaluator) Expand(ct *Ciphertext, logGap int) (cts map[int
 	tmp := evalN.GetBuffCt(1, level)
 	defer evalN.RecycleBuffCt(tmp)
 
-	// Sanity check, this error should not happen unless the
-	// evaluator's buffer thave been improperly tempered with.
-	if err != nil {
-		panic(err)
-	}
-
 	*tmp.MetaData = *ct.MetaData
 
 	for i := 0; i < logN; i++ {

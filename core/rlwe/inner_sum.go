@@ -75,17 +75,8 @@ func (eval Evaluator) Trace(ctIn *Ciphertext, logN int, opOut *Ciphertext) (err 
 			opOut.IsNTT = true
 		}
 
-		buffQ1 := eval.BuffQPool.Get()
-		defer eval.BuffQPool.Put(buffQ1)
-		buffQ2 := eval.BuffQPool.Get()
-		defer eval.BuffQPool.Put(buffQ2)
-		buff, err := NewCiphertextAtLevelFromPoly(level, []ring.Poly{*buffQ1, *buffQ2})
-
-		// Sanity check, this error should not happen unless the
-		// evaluator's buffer has been improperly tempered with.
-		if err != nil {
-			panic(err)
-		}
+		buff := eval.GetBuffCt(1, level)
+		defer eval.RecycleBuffCt(buff)
 
 		buff.IsNTT = true
 
@@ -173,12 +164,6 @@ func (eval Evaluator) PartialTracesSum(ctIn *Ciphertext, offset, n int, opOut *C
 	ctInNTT := eval.GetBuffCt(1, levelQ)
 	defer eval.RecycleBuffCt(ctInNTT)
 
-	// Sanity check, this error should not happen unless the
-	// evaluator's buffer thave been improperly tempered with.
-	if err != nil {
-		panic(err)
-	}
-
 	ctInNTT.MetaData = &MetaData{}
 	ctInNTT.IsNTT = true
 
@@ -197,20 +182,20 @@ func (eval Evaluator) PartialTracesSum(ctIn *Ciphertext, offset, n int, opOut *C
 		}
 	} else {
 
-		buffQP1 := eval.BuffQPPool.Get()
-		defer eval.BuffQPPool.Put(buffQP1)
-		buffQP2 := eval.BuffQPPool.Get()
-		defer eval.BuffQPPool.Put(buffQP2)
+		buffQP1 := ringQP.GetBuffPolyQP()
+		defer ringQP.RecycleBuffPolyQP(buffQP1)
+		buffQP2 := ringQP.GetBuffPolyQP()
+		defer ringQP.RecycleBuffPolyQP(buffQP2)
 
 		// Accumulator mod QP (i.e. opOut Mod QP)
 		accQP := &Element[ringqp.Poly]{Value: []ringqp.Poly{*buffQP1, *buffQP2}}
 		accQP.MetaData = ctInNTT.MetaData
 
 		// Buffer mod QP (i.e. to store the result of lazy gadget products)
-		buffQP3 := eval.BuffQPPool.Get()
-		defer eval.BuffQPPool.Put(buffQP3)
-		buffQP4 := eval.BuffQPPool.Get()
-		defer eval.BuffQPPool.Put(buffQP4)
+		buffQP3 := ringQP.GetBuffPolyQP()
+		defer ringQP.RecycleBuffPolyQP(buffQP3)
+		buffQP4 := ringQP.GetBuffPolyQP()
+		defer ringQP.RecycleBuffPolyQP(buffQP4)
 		cQP := &Element[ringqp.Poly]{Value: []ringqp.Poly{*buffQP3, *buffQP4}}
 		cQP.MetaData = ctInNTT.MetaData
 
@@ -228,8 +213,8 @@ func (eval Evaluator) PartialTracesSum(ctIn *Ciphertext, offset, n int, opOut *C
 		baseRNSDecompositionVectorSize := eval.params.BaseRNSDecompositionVectorSize(levelQ, levelP)
 		buffDecompQP := make([]ringqp.Poly, baseRNSDecompositionVectorSize)
 		for i := 0; i < len(buffDecompQP); i++ {
-			buff := eval.BuffQPPool.Get()
-			defer eval.BuffQPPool.Put(buff)
+			buff := ringQP.GetBuffPolyQP()
+			defer ringQP.RecycleBuffPolyQP(buff)
 			buffDecompQP[i] = *buff
 		}
 

@@ -66,7 +66,6 @@ type Encoder struct {
 	roots interface{}
 
 	// Pools used to recycle large objects.
-	BuffPolyPool    structs.BufferPool[*ring.Poly]
 	BuffBigIntPool  structs.BufferPool[*[]*big.Int]
 	BuffComplexPool structs.BufferPool[Complex]
 }
@@ -106,9 +105,6 @@ func NewEncoder(parameters Parameters, precision ...uint) (ecd *Encoder) {
 		buff := make([]*big.Int, m>>1)
 		return &buff
 	})
-
-	ringQ := parameters.RingQ()
-	ecd.BuffPolyPool = ringQ.NewBuffFromUintPool()
 
 	if prec <= 53 {
 
@@ -502,8 +498,8 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values FloatSlice, logprec f
 		return fmt.Errorf("cannot Decode: ensure that %d <= logSlots (%d) <= %d", 0, logSlots, maxLogCols)
 	}
 
-	buff := ecd.BuffPolyPool.Get()
-	defer ecd.BuffPolyPool.Put(buff)
+	buff := ecd.parameters.RingQ().GetBuffPoly()
+	defer ecd.parameters.RingQ().RecycleBuffPoly(buff)
 	if pt.IsNTT {
 		ecd.parameters.RingQ().AtLevel(pt.Level()).INTT(pt.Value, *buff)
 	} else {

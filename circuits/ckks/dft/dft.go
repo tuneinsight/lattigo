@@ -254,13 +254,6 @@ func (eval *Evaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices Matrix, 
 			tmp = eval.GetBuffCt(1, ctReal.Level())
 			defer eval.RecycleBuffCt(tmp)
 
-			// This error cannot happen unless the user improperly tempered the evaluators
-			// buffer. If it were to happen in that case, there is no way to recover from
-			// it, hence the panic.
-			if err != nil {
-				panic(err)
-			}
-
 			tmp.IsNTT = true
 		}
 

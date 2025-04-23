@@ -79,16 +79,12 @@ func NewCiphertextFromUintPool(params ParameterProvider, degree int, levelQ int)
 
 	Value := make([]ring.Poly, degree+1)
 	for i := range Value {
-		Value[i] = *ringQ.NewPolyFromUintPool()
+		Value[i] = *ringQ.GetBuffPoly()
 	}
 
 	el := Element[ring.Poly]{
-		Value: Value,
-		MetaData: &MetaData{
-			CiphertextMetaData: CiphertextMetaData{
-				IsNTT: p.NTTFlag(),
-			},
-		},
+		Value:    Value,
+		MetaData: &MetaData{},
 	}
 	return &Ciphertext{el}
 }
@@ -98,7 +94,7 @@ func NewCiphertextFromUintPool(params ParameterProvider, degree int, levelQ int)
 func RecycleCiphertextInUintPool(params ParameterProvider, ct *Ciphertext) {
 	ringQ := params.GetRLWEParameters().ringQ
 	for i := range ct.Value {
-		ringQ.RecyclePolyInUintPool(&ct.Value[i])
+		ringQ.RecycleBuffPoly(&ct.Value[i])
 	}
 	ct = nil
 }

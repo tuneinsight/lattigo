@@ -170,10 +170,8 @@ func (eval Evaluator) PartialTracesSum(ctIn *Ciphertext, offset, n int, opOut *C
 	opOut.Resize(opOut.Degree(), levelQ)
 	*opOut.MetaData = *ctIn.MetaData
 
-	buffCt := eval.BuffCtPool.Get()
-	defer eval.BuffCtPool.Put(buffCt)
-	ctInNTT := NewCiphertextFromUintPool(params, 1, levelQ)
-	defer RecycleCiphertextInUintPool(params, ctInNTT)
+	ctInNTT := eval.GetBuffCt(1, levelQ)
+	defer eval.RecycleBuffCt(ctInNTT)
 
 	// Sanity check, this error should not happen unless the
 	// evaluator's buffer thave been improperly tempered with.

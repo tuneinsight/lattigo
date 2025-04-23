@@ -72,9 +72,8 @@ func (eval Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, o
 
 		level := utils.Min(ctIn.Level(), opOut.Level())
 
-		buffCt := eval.BuffCtPool.Get()
-		defer eval.BuffCtPool.Put(buffCt)
-		ctTmp, err := NewCiphertextAtLevelFromPoly(level, buffCt.Value)
+		ctTmp := eval.GetBuffCt(ctIn.Degree(), level)
+		defer eval.RecycleBuffCt(ctTmp)
 
 		// Sanity check, this error should not happen unless the
 		// evaluator's buffer have been improperly tempered with.

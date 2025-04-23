@@ -26,7 +26,6 @@ type EvaluatorBuffers struct {
 	BuffQPPool  structs.BufferPool[*ringqp.Poly]
 	BuffQPool   structs.BufferPool[*ring.Poly]
 	BuffBitPool structs.BufferPool[*[]uint64]
-	BuffCtPool  structs.BufferPool[*Ciphertext]
 }
 
 // NewEvaluatorBuffers creates the buffers that are used to recycle large objects instead of instantiating new ones.
@@ -38,14 +37,6 @@ func NewEvaluatorBuffers(params Parameters) *EvaluatorBuffers {
 
 	buff.BuffQPPool = ringQP.NewBuffFromUintPool()
 	buff.BuffQPool = ringQ.NewBuffFromUintPool()
-	buff.BuffCtPool = structs.NewBuffFromUintPool(
-		func() *Ciphertext {
-			return NewCiphertextFromUintPool(params, 2, params.MaxLevel())
-		},
-		func(ct *Ciphertext) {
-			RecycleCiphertextInUintPool(params, ct)
-		},
-	)
 	buff.BuffBitPool = ringQ.BufferPool()
 	return buff
 }
@@ -89,6 +80,27 @@ func NewEvaluator(params ParameterProvider, evk EvaluationKeySet) (eval *Evaluat
 	eval.automorphismIndex = AutomorphismIndex
 
 	return
+}
+
+func (eval *Evaluator) GetBuffCt(params ...int) *Ciphertext {
+	degree := 2
+	level := eval.params.ringQ.Level()
+	switch nbParams := len(params); nbParams {
+	case 0:
+	case 1:
+		degree = params[0]
+	case 2:
+		degree = params[0]
+		level = params[1]
+	default:
+		panic(fmt.Errorf("getbuffct takes 2 parameters at most"))
+	}
+
+	return NewCiphertextFromUintPool(eval.params, degree, level)
+}
+
+func (eval *Evaluator) RecycleBuffCt(ct *Ciphertext) {
+	RecycleCiphertextInUintPool(eval.params, ct)
 }
 
 func (eval *Evaluator) GetRLWEParameters() *Parameters {
@@ -267,10 +279,6 @@ func (eval Evaluator) GetEvaluatorBuffer() *EvaluatorBuffers {
 
 func (eval Evaluator) GetBuffQPPool() structs.BufferPool[*ringqp.Poly] {
 	return eval.BuffQPPool
-}
-
-func (eval Evaluator) GetBuffCtPool() structs.BufferPool[*Ciphertext] {
-	return eval.BuffCtPool
 }
 
 func (eval Evaluator) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q ring.Poly) {

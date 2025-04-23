@@ -244,8 +244,8 @@ func (eval Evaluator) evaluateInPlace(level int, c0 *rlwe.Ciphertext, c1 *rlwe.E
 
 	var err error
 
-	buffCt := eval.BuffCtPool.Get()
-	defer eval.BuffCtPool.Put(buffCt)
+	buffCt := eval.GetBuffCt(maxDegree, level)
+	defer eval.RecycleBuffCt(buffCt)
 	// Checks whether or not the receiver element is the same as one of the input elements
 	// and acts accordingly to avoid unnecessary element creation or element overwriting,
 	// and scales properly the element before the evaluation.

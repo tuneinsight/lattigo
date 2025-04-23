@@ -150,8 +150,6 @@ func (eval Evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearT
 	defer pool.Put(buffQP4)
 	buffQP5 := pool.Get()
 	defer pool.Put(buffQP5)
-	buffCt := eval.GetBuffCtPool().Get()
-	defer eval.GetBuffCtPool().Put(buffCt)
 
 	*opOut.MetaData = *ctIn.MetaData
 	opOut.Scale = opOut.Scale.Mul(matrix.Scale)
@@ -164,6 +162,9 @@ func (eval Evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearT
 	ringQP := params.RingQP().AtLevel(levelQ, levelP)
 	ringQ := ringQP.RingQ
 	ringP := ringQP.RingP
+
+	buffCt := eval.GetBuffCt(1, ringQ.Level())
+	defer eval.RecycleBuffCt(buffCt)
 
 	opOut.Resize(opOut.Degree(), levelQ)
 
@@ -288,8 +289,6 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 	defer pool.Put(buffQP4)
 	buffQP5 := pool.Get()
 	defer pool.Put(buffQP5)
-	buffCt := eval.GetBuffCtPool().Get()
-	defer eval.GetBuffCtPool().Put(buffCt)
 
 	*opOut.MetaData = *ctIn.MetaData
 	opOut.Scale = opOut.Scale.Mul(matrix.Scale)
@@ -300,6 +299,9 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 	ringQP := params.RingQP().AtLevel(levelQ, levelP)
 	ringQ := ringQP.RingQ
 	ringP := ringQP.RingP
+
+	buffCt := eval.GetBuffCt(1, ringQ.Level())
+	defer eval.RecycleBuffCt(buffCt)
 
 	opOut.Resize(opOut.Degree(), levelQ)
 

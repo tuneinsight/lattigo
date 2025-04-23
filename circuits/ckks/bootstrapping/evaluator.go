@@ -725,11 +725,11 @@ func (eval Evaluator) ModUp(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err 
 			ctIn.Scale = ctIn.Scale.Mul(rlwe.NewScale(scale))
 		}
 
-		buffQP1 := ks.BuffQPPool.Get()
-		defer ks.BuffQPPool.Put(buffQP1)
+		buffQ1 := ks.BuffQPool.Get()
+		defer ks.BuffQPool.Put(buffQ1)
 
 		ctTmp := &rlwe.Ciphertext{}
-		ctTmp.Value = []ring.Poly{(*buffQP1).Q, ctIn.Value[1]}
+		ctTmp.Value = []ring.Poly{*buffQ1, ctIn.Value[1]}
 		ctTmp.MetaData = ctIn.MetaData
 
 		// Switch back to the dense key

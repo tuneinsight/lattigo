@@ -87,9 +87,9 @@ func (eval Evaluator) externalProduct32Bit(ct0 *rlwe.Ciphertext, rgsw *Ciphertex
 	pw2 := rgsw.Value[0].BaseTwoDecomposition
 	mask := uint64(((1 << pw2) - 1))
 
-	buffQP1 := eval.BuffQPPool.Get()
-	defer eval.BuffQPPool.Put(buffQP1)
-	cw := (*buffQP1).Q.Coeffs[0]
+	buffQ1 := eval.BuffQPool.Get()
+	defer eval.BuffQPool.Put(buffQ1)
+	cw := (*buffQ1).Coeffs[0]
 
 	buffBitDecomp := eval.BuffBitPool.Get()
 	defer eval.BuffBitPool.Put(buffBitDecomp)
@@ -146,14 +146,14 @@ func (eval Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Cipher
 
 	buffQ := eval.BuffQPool.Get()
 	defer eval.BuffQPool.Put(buffQ)
-	buffQP1 := eval.BuffQPPool.Get()
-	defer eval.BuffQPPool.Put(buffQP1)
+	buffQ1 := eval.BuffQPool.Get()
+	defer eval.BuffQPool.Put(buffQ1)
 	buffBitDecomp := eval.BuffBitPool.Get()
 	defer eval.BuffBitPool.Put(buffBitDecomp)
 	// (a, b) + (c0 * rgsw[k][0], c0 * rgsw[k][1])
 	for k, el := range rgsw.Value {
 		ringQ.INTT(ct0.Value[k], *buffQ)
-		cw := (*buffQP1).Q.Coeffs[0]
+		cw := (*buffQ1).Coeffs[0]
 		cwNTT := *buffBitDecomp
 		for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
 			for j := 0; j < BaseTwoDecompositionVectorSize[i]; j++ {

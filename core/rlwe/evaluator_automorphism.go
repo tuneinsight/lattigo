@@ -85,13 +85,13 @@ func (eval Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1DecompQ
 
 	ringQ := eval.params.RingQ().AtLevel(level)
 
-	buffQP1 := eval.BuffQPPool.Get()
-	defer eval.BuffQPPool.Put(buffQP1)
-	buffQP2 := eval.BuffQPPool.Get()
-	defer eval.BuffQPPool.Put(buffQP2)
+	buffQ1 := eval.BuffQPool.Get()
+	defer eval.BuffQPool.Put(buffQ1)
+	buffQ2 := eval.BuffQPool.Get()
+	defer eval.BuffQPool.Put(buffQ2)
 
 	ctTmp := &Ciphertext{}
-	ctTmp.Value = []ring.Poly{(*buffQP1).Q, (*buffQP2).Q} // GadgetProductHoisted uses the same buffers for its ciphertext QP
+	ctTmp.Value = []ring.Poly{*buffQ1, *buffQ2} // GadgetProductHoisted uses the same buffers for its ciphertext QP
 	ctTmp.MetaData = ctIn.MetaData
 
 	eval.GadgetProductHoisted(level, c1DecompQP, &evk.EvaluationKey.GadgetCiphertext, ctTmp)

@@ -687,13 +687,13 @@ func (eval Evaluator) tensorStandard(op0 *rlwe.Ciphertext, op1 *rlwe.Element[rin
 				return fmt.Errorf("cannot Tensor: cannot Relinearize: %w", err)
 			}
 
-			buffQP1 := eval.BuffQPPool.Get()
-			defer eval.BuffQPPool.Put(buffQP1)
-			buffQP2 := eval.BuffQPPool.Get()
-			defer eval.BuffQPPool.Put(buffQP2)
+			buffQ1 := eval.BuffQPool.Get()
+			defer eval.BuffQPool.Put(buffQ1)
+			buffQ2 := eval.BuffQPool.Get()
+			defer eval.BuffQPool.Put(buffQ2)
 
 			tmpCt := &rlwe.Ciphertext{}
-			tmpCt.Value = []ring.Poly{(*buffQP1).Q, (*buffQP2).Q}
+			tmpCt.Value = []ring.Poly{*buffQ1, *buffQ2}
 			tmpCt.MetaData = &rlwe.MetaData{}
 			tmpCt.IsNTT = true
 

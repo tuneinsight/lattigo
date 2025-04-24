@@ -79,15 +79,36 @@ func (eval *Evaluator) GetBuffCt(dimensions ...int) *Ciphertext {
 		panic(fmt.Errorf("getbuffct takes 2 parameters at most"))
 	}
 
-	return NewCiphertextFromUintPool(eval.params, degree, level)
+	return GetBuffCt(eval.params, degree, level)
 }
 
 // RecycleBuffCt recycles a temporary ciphertext (i.e. returns its backing uint64 arrays to the pool).
 // The input ciphertext must not be used after calling this method.
 func (eval *Evaluator) RecycleBuffCt(ct *Ciphertext) {
-	RecycleCiphertextInUintPool(eval.params, ct)
+	RecycleBuffCt(eval.params, ct)
 }
 
+// GetBuffPt returns a plaintext that can be used as a buffer for intermediate computations.
+// After use, the plaintext should be recycled with [Evaluator.RecycleBuffPt].
+// The optional argument specifies the level of the returned plaintext (default to eval.params.ringQ.Level()).
+func (eval *Evaluator) GetBuffPt(level ...int) *Plaintext {
+	lvl := eval.params.ringQ.Level()
+	switch nbParams := len(level); nbParams {
+	case 0:
+	case 1:
+		lvl = level[0]
+	default:
+		panic(fmt.Errorf("getbuffpt takes 1 parameter at most"))
+	}
+
+	return GetBuffPt(eval.params, lvl)
+}
+
+// RecycleBuffPt recycles a temporary plaintext (i.e. returns its backing uint64 arrays to the pool).
+// The input plaintext must not be used after calling this method.
+func (eval *Evaluator) RecycleBuffPt(pt *Plaintext) {
+	RecycleBuffPt(eval.params, pt)
+}
 func (eval *Evaluator) GetRLWEParameters() *Parameters {
 	return &eval.params
 }

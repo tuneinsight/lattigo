@@ -178,17 +178,8 @@ func (eval Evaluator) Add(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 		opOut.Resize(op0.Degree(), level)
 
 		// Instantiates new plaintext from buffer
-		ringQ := eval.parameters.RingQ().AtLevel(level)
-		buffQ := ringQ.GetBuffPoly()
-		defer ringQ.RecycleBuffPoly(buffQ)
-		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, *buffQ)
-
-		// This error should not happen, unless the evaluator's buffer were
-		// improperly tempered with. If it does happen, there is no way to
-		// recover from it.
-		if err != nil {
-			panic(err)
-		}
+		pt := eval.GetBuffPt(level)
+		defer eval.RecycleBuffPt(pt)
 
 		pt.MetaData = op0.MetaData // Sets the metadata, notably matches scalses
 
@@ -322,17 +313,8 @@ func (eval Evaluator) Sub(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 		opOut.Resize(op0.Degree(), level)
 
 		// Instantiates new plaintext from buffer
-		ringQ := eval.parameters.RingQ().AtLevel(level)
-		buffQ := ringQ.GetBuffPoly()
-		defer ringQ.RecycleBuffPoly(buffQ)
-		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, *buffQ)
-
-		// This error should not happen, unless the evaluator's buffer were
-		// improperly tempered with. If it does happen, there is no way to
-		// recover from it.
-		if err != nil {
-			panic(err)
-		}
+		pt := eval.GetBuffPt(level)
+		defer eval.RecycleBuffPt(pt)
 
 		pt.MetaData = op0.MetaData // Sets the metadata, notably matches scales
 
@@ -458,17 +440,8 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 		}
 
 		// Instantiates new plaintext from buffer
-		ringQ := eval.parameters.RingQ().AtLevel(level)
-		buffQ := ringQ.GetBuffPoly()
-		defer ringQ.RecycleBuffPoly(buffQ)
-		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, *buffQ)
-
-		// This error should not happen, unless the evaluator's buffer were
-		// improperly tempered with. If it does happen, there is no way to
-		// recover from it.
-		if err != nil {
-			panic(err)
-		}
+		pt := eval.GetBuffPt(level)
+		defer eval.RecycleBuffPt(pt)
 
 		pt.MetaData = op0.MetaData.CopyNew() // Sets the metadata, notably matches scales
 		pt.Scale = rlwe.NewScale(1)
@@ -673,6 +646,7 @@ func (eval Evaluator) tensorStandard(op0 *rlwe.Ciphertext, op1 *rlwe.Element[rin
 			}
 
 			tmpCt := eval.GetBuffCt(1, ringQ.Level())
+			defer eval.RecycleBuffCt(tmpCt)
 			tmpCt.MetaData = &rlwe.MetaData{}
 			tmpCt.IsNTT = true
 
@@ -751,17 +725,9 @@ func (eval Evaluator) MulScaleInvariant(op0 *rlwe.Ciphertext, op1 rlwe.Operand, 
 		opOut.Resize(op0.Degree(), level)
 
 		// Instantiates new plaintext from buffer
-		ringQ := eval.parameters.RingQ().AtLevel(level)
-		buffQ := ringQ.GetBuffPoly()
-		defer ringQ.RecycleBuffPoly(buffQ)
-		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, *buffQ)
+		pt := eval.GetBuffPt(level)
+		defer eval.RecycleBuffPt(pt)
 
-		// This error should not happen, unless the evaluator's buffer were
-		// improperly tempered with. If it does happen, there is no way to
-		// recover from it.
-		if err != nil {
-			panic(err)
-		}
 		pt.MetaData = op0.MetaData.CopyNew() // Sets the metadata, notably matches scales
 		pt.Scale = rlwe.NewScale(1)
 
@@ -862,17 +828,8 @@ func (eval Evaluator) MulRelinScaleInvariant(op0 *rlwe.Ciphertext, op1 rlwe.Oper
 		opOut.Resize(op0.Degree(), level)
 
 		// Instantiates new plaintext from buffer
-		ringQ := eval.parameters.RingQ().AtLevel(level)
-		buffQ := ringQ.GetBuffPoly()
-		defer ringQ.RecycleBuffPoly(buffQ)
-		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, *buffQ)
-
-		// This error should not happen, unless the evaluator's buffer were
-		// improperly tempered with. If it does happen, there is no way to
-		// recover from it.
-		if err != nil {
-			panic(err)
-		}
+		pt := eval.GetBuffPt(level)
+		defer eval.RecycleBuffPt(pt)
 
 		pt.MetaData = op0.MetaData.CopyNew() // Sets the metadata, notably matches scales
 		pt.Scale = rlwe.NewScale(1)
@@ -1187,17 +1144,9 @@ func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *
 		opOut.Resize(op0.Degree(), opOut.Level())
 
 		// Instantiates new plaintext from buffer
-		ringQ := eval.parameters.RingQ().AtLevel(level)
-		buffQ := ringQ.GetBuffPoly()
-		defer ringQ.RecycleBuffPoly(buffQ)
-		pt, err := rlwe.NewPlaintextAtLevelFromPoly(level, *buffQ)
+		pt := eval.GetBuffPt(level)
+		defer eval.RecycleBuffPt(pt)
 
-		// This error should not happen, unless the evaluator's buffer were
-		// improperly tempered with. If it does happen, there is no way to
-		// recover from it.
-		if err != nil {
-			panic(err)
-		}
 		pt.MetaData = op0.MetaData.CopyNew() // Sets the metadata, notably matches scales
 
 		// op1 *= (op1.Scale / opOut.Scale)
@@ -1338,6 +1287,7 @@ func (eval Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ri
 			ringQ.MulCoeffsMontgomery(*c01, tmp1.Value[1], c2) // c2 += c[1]*c[1]
 
 			tmpCt := eval.GetBuffCt(1, level)
+			defer eval.RecycleBuffCt(tmpCt)
 			tmpCt.MetaData = &rlwe.MetaData{}
 			tmpCt.IsNTT = true
 
@@ -1536,6 +1486,7 @@ func (eval Evaluator) InnerSum(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *r
 		}
 
 		ctTmp := eval.GetBuffCt(1, opOut.Level())
+		defer eval.RecycleBuffCt(ctTmp)
 		ctTmp.MetaData = opOut.MetaData
 		if err = eval.RotateRows(opOut, ctTmp); err != nil {
 			return

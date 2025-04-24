@@ -329,11 +329,6 @@ func (eval Evaluator) InnerFunction(ctIn *Ciphertext, batchSize, n int, f func(a
 	opOut.Resize(opOut.Degree(), levelQ)
 	*opOut.MetaData = *ctIn.MetaData
 
-	P0 := params.RingQ().NewPoly()
-	P1 := params.RingQ().NewPoly()
-	P2 := params.RingQ().NewPoly()
-	P3 := params.RingQ().NewPoly()
-
 	ctInNTT := NewCiphertext(params, 1, levelQ)
 
 	*ctInNTT.MetaData = *ctIn.MetaData
@@ -351,7 +346,8 @@ func (eval Evaluator) InnerFunction(ctIn *Ciphertext, batchSize, n int, f func(a
 	} else {
 
 		// Accumulator mod Q
-		accQ, err := NewCiphertextAtLevelFromPoly(levelQ, []ring.Poly{P0, P1})
+		accQ := eval.GetBuffCt(1, levelQ)
+		defer eval.RecycleBuffCt(accQ)
 		*accQ.MetaData = *ctInNTT.MetaData
 
 		// Sanity check, this error should not happen unless the
@@ -361,7 +357,8 @@ func (eval Evaluator) InnerFunction(ctIn *Ciphertext, batchSize, n int, f func(a
 		}
 
 		// Buffer mod Q
-		cQ, err := NewCiphertextAtLevelFromPoly(levelQ, []ring.Poly{P2, P3})
+		cQ := eval.GetBuffCt(1, levelQ)
+		defer eval.RecycleBuffCt(cQ)
 		*cQ.MetaData = *ctInNTT.MetaData
 
 		// Sanity check, this error should not happen unless the

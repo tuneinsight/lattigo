@@ -62,21 +62,9 @@ func NewEvaluator(params ParameterProvider, evk EvaluationKeySet) (eval *Evaluat
 	return
 }
 
-func (eval *Evaluator) GetBuffPoly(level ...int) *ring.Poly {
-	if len(level) > 1 {
-		panic(fmt.Errorf("getbuffpoly takes 2 parameters at most"))
-	}
-
-	if len(level) > 0 {
-		return eval.params.ringQ.AtLevel(level[0]).GetBuffPoly()
-	}
-	return eval.params.ringQ.GetBuffPoly()
-}
-
-func (eval *Evaluator) RecycleBuffPoly(pol *ring.Poly) {
-	eval.params.ringQ.RecycleBuffPoly(pol)
-}
-
+// GetBuffCt returns a ciphertext that can be used as a buffer for intermediate computations.
+// After use, the ciphertext should be recycled with [Evaluator.RecycleBuffCt].
+// The optional dimensions specify the degree and level of the ciphertext (default to 2, eval.params.ringQ.Level()).
 func (eval *Evaluator) GetBuffCt(dimensions ...int) *Ciphertext {
 	degree := 2
 	level := eval.params.ringQ.Level()
@@ -94,6 +82,8 @@ func (eval *Evaluator) GetBuffCt(dimensions ...int) *Ciphertext {
 	return NewCiphertextFromUintPool(eval.params, degree, level)
 }
 
+// RecycleBuffCt recycles a temporary ciphertext (i.e. returns its backing uint64 arrays to the pool).
+// The input ciphertext must not be used after calling this method.
 func (eval *Evaluator) RecycleBuffCt(ct *Ciphertext) {
 	RecycleCiphertextInUintPool(eval.params, ct)
 }

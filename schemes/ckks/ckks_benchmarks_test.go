@@ -124,7 +124,7 @@ func benchEvaluatorParallel(tc *TestContext, b *testing.B) {
 		})
 	})
 
-	b.Run(name("EvaluatorParallel/Add/Scalar", tc), func(b *testing.B) {
+	b.Run(name("EvaluatorParallel/Add/Vector", tc), func(b *testing.B) {
 		b.ResetTimer()
 		b.RunParallel(func(pb *testing.PB) {
 			receiver := NewCiphertext(params, 1, ciphertext1.Level())

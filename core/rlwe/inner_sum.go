@@ -75,13 +75,8 @@ func (eval Evaluator) Trace(ctIn *Ciphertext, logN int, opOut *Ciphertext) (err 
 			opOut.IsNTT = true
 		}
 
-		buff, err := NewCiphertextAtLevelFromPoly(level, []ring.Poly{eval.BuffQP[3].Q, eval.BuffQP[4].Q})
-
-		// Sanity check, this error should not happen unless the
-		// evaluator's buffer has been improperly tempered with.
-		if err != nil {
-			panic(err)
-		}
+		buff := eval.GetBuffCt(1, level)
+		defer eval.RecycleBuffCt(buff)
 
 		buff.IsNTT = true
 
@@ -166,13 +161,8 @@ func (eval Evaluator) PartialTracesSum(ctIn *Ciphertext, offset, n int, opOut *C
 	opOut.Resize(opOut.Degree(), levelQ)
 	*opOut.MetaData = *ctIn.MetaData
 
-	ctInNTT, err := NewCiphertextAtLevelFromPoly(levelQ, eval.BuffCt.Value[:2])
-
-	// Sanity check, this error should not happen unless the
-	// evaluator's buffer thave been improperly tempered with.
-	if err != nil {
-		panic(err)
-	}
+	ctInNTT := eval.GetBuffCt(1, levelQ)
+	defer eval.RecycleBuffCt(ctInNTT)
 
 	ctInNTT.MetaData = &MetaData{}
 	ctInNTT.IsNTT = true
@@ -192,14 +182,21 @@ func (eval Evaluator) PartialTracesSum(ctIn *Ciphertext, offset, n int, opOut *C
 		}
 	} else {
 
-		// BuffQP[0:2] are used by AutomorphismHoistedLazy
+		buffQP1 := ringQP.GetBuffPolyQP()
+		defer ringQP.RecycleBuffPolyQP(buffQP1)
+		buffQP2 := ringQP.GetBuffPolyQP()
+		defer ringQP.RecycleBuffPolyQP(buffQP2)
 
 		// Accumulator mod QP (i.e. opOut Mod QP)
-		accQP := &Element[ringqp.Poly]{Value: []ringqp.Poly{eval.BuffQP[2], eval.BuffQP[3]}}
+		accQP := &Element[ringqp.Poly]{Value: []ringqp.Poly{*buffQP1, *buffQP2}}
 		accQP.MetaData = ctInNTT.MetaData
 
 		// Buffer mod QP (i.e. to store the result of lazy gadget products)
-		cQP := &Element[ringqp.Poly]{Value: []ringqp.Poly{eval.BuffQP[4], eval.BuffQP[5]}}
+		buffQP3 := ringQP.GetBuffPolyQP()
+		defer ringQP.RecycleBuffPolyQP(buffQP3)
+		buffQP4 := ringQP.GetBuffPolyQP()
+		defer ringQP.RecycleBuffPolyQP(buffQP4)
+		cQP := &Element[ringqp.Poly]{Value: []ringqp.Poly{*buffQP3, *buffQP4}}
 		cQP.MetaData = ctInNTT.MetaData
 
 		// Buffer mod Q (i.e. to store the result of gadget products)
@@ -213,13 +210,21 @@ func (eval Evaluator) PartialTracesSum(ctIn *Ciphertext, offset, n int, opOut *C
 
 		cQ.MetaData = ctInNTT.MetaData
 
+		baseRNSDecompositionVectorSize := eval.params.BaseRNSDecompositionVectorSize(levelQ, levelP)
+		buffDecompQP := make([]ringqp.Poly, baseRNSDecompositionVectorSize)
+		for i := 0; i < len(buffDecompQP); i++ {
+			buff := ringQP.GetBuffPolyQP()
+			defer ringQP.RecycleBuffPolyQP(buff)
+			buffDecompQP[i] = *buff
+		}
+
 		state := false
 		copy := true
 		// Binary reading of the input n
 		for i, j := 0, n; j > 0; i, j = i+1, j>>1 {
 
 			// Starts by decomposing the input ciphertext
-			eval.DecomposeNTT(levelQ, levelP, levelP+1, ctInNTT.Value[1], true, eval.BuffDecompQP)
+			eval.DecomposeNTT(levelQ, levelP, levelP+1, ctInNTT.Value[1], true, buffDecompQP)
 
 			// If the binary reading scans a 1 (j is odd)
 			if j&1 == 1 {
@@ -234,12 +239,12 @@ func (eval Evaluator) PartialTracesSum(ctIn *Ciphertext, offset, n int, opOut *C
 
 					// opOutQP = opOutQP + Rotate(ctInNTT, k)
 					if copy {
-						if err = eval.AutomorphismHoistedLazy(levelQ, ctInNTT, eval.BuffDecompQP, rot, accQP); err != nil {
+						if err = eval.AutomorphismHoistedLazy(levelQ, ctInNTT, buffDecompQP, rot, accQP); err != nil {
 							return err
 						}
 						copy = false
 					} else {
-						if err = eval.AutomorphismHoistedLazy(levelQ, ctInNTT, eval.BuffDecompQP, rot, cQP); err != nil {
+						if err = eval.AutomorphismHoistedLazy(levelQ, ctInNTT, buffDecompQP, rot, cQP); err != nil {
 							return err
 						}
 						ringQP.Add(accQP.Value[0], cQP.Value[0], accQP.Value[0])
@@ -273,7 +278,7 @@ func (eval Evaluator) PartialTracesSum(ctIn *Ciphertext, offset, n int, opOut *C
 				rot := params.GaloisElement((1 << i) * offset)
 
 				// ctInNTT = ctInNTT + Rotate(ctInNTT, 2^i)
-				if err = eval.AutomorphismHoisted(levelQ, ctInNTT, eval.BuffDecompQP, rot, cQ); err != nil {
+				if err = eval.AutomorphismHoisted(levelQ, ctInNTT, buffDecompQP, rot, cQ); err != nil {
 					return err
 				}
 				ringQ.Add(ctInNTT.Value[0], cQ.Value[0], ctInNTT.Value[0])
@@ -324,11 +329,6 @@ func (eval Evaluator) InnerFunction(ctIn *Ciphertext, batchSize, n int, f func(a
 	opOut.Resize(opOut.Degree(), levelQ)
 	*opOut.MetaData = *ctIn.MetaData
 
-	P0 := params.RingQ().NewPoly()
-	P1 := params.RingQ().NewPoly()
-	P2 := params.RingQ().NewPoly()
-	P3 := params.RingQ().NewPoly()
-
 	ctInNTT := NewCiphertext(params, 1, levelQ)
 
 	*ctInNTT.MetaData = *ctIn.MetaData
@@ -346,7 +346,8 @@ func (eval Evaluator) InnerFunction(ctIn *Ciphertext, batchSize, n int, f func(a
 	} else {
 
 		// Accumulator mod Q
-		accQ, err := NewCiphertextAtLevelFromPoly(levelQ, []ring.Poly{P0, P1})
+		accQ := eval.GetBuffCt(1, levelQ)
+		defer eval.RecycleBuffCt(accQ)
 		*accQ.MetaData = *ctInNTT.MetaData
 
 		// Sanity check, this error should not happen unless the
@@ -356,7 +357,8 @@ func (eval Evaluator) InnerFunction(ctIn *Ciphertext, batchSize, n int, f func(a
 		}
 
 		// Buffer mod Q
-		cQ, err := NewCiphertextAtLevelFromPoly(levelQ, []ring.Poly{P2, P3})
+		cQ := eval.GetBuffCt(1, levelQ)
+		defer eval.RecycleBuffCt(cQ)
 		*cQ.MetaData = *ctInNTT.MetaData
 
 		// Sanity check, this error should not happen unless the

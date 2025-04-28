@@ -104,6 +104,7 @@ func run(tc *ckks.TestContext, t *testing.T) {
 	}
 
 	t.Run(name("Average", tc), func(t *testing.T) {
+		t.Parallel()
 
 		values, _, ciphertext := tc.NewTestVector(-1-1i, 1+1i)
 
@@ -142,6 +143,7 @@ func run(tc *ckks.TestContext, t *testing.T) {
 	})
 
 	t.Run(name("LinearTransform/BSGS=True", tc), func(t *testing.T) {
+		t.Parallel()
 
 		values, _, ciphertext := tc.NewTestVector(-1-1i, 1+1i)
 
@@ -189,6 +191,7 @@ func run(tc *ckks.TestContext, t *testing.T) {
 	})
 
 	t.Run(name("LinearTransform/BSGS=False", tc), func(t *testing.T) {
+		t.Parallel()
 
 		values, _, ciphertext := tc.NewTestVector(-1-1i, 1+1i)
 
@@ -237,6 +240,8 @@ func run(tc *ckks.TestContext, t *testing.T) {
 	})
 
 	t.Run(name("LinearTransform/Permutation", tc), func(t *testing.T) {
+		t.Parallel()
+
 		idx := make([]int, params.MaxSlots())
 		for i := range idx {
 			idx[i] = i

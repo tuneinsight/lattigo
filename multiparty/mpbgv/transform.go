@@ -14,25 +14,6 @@ import (
 type MaskedTransformProtocol struct {
 	e2s EncToShareProtocol
 	s2e ShareToEncProtocol
-
-	tmpPt       ring.Poly
-	tmpMask     ring.Poly
-	tmpMaskPerm ring.Poly
-}
-
-// ShallowCopy creates a shallow copy of [MaskedTransformProtocol] in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// [MaskedTransformProtocol] can be used concurrently.
-func (rfp MaskedTransformProtocol) ShallowCopy() MaskedTransformProtocol {
-	params := rfp.e2s.params
-
-	return MaskedTransformProtocol{
-		e2s:         rfp.e2s.ShallowCopy(),
-		s2e:         rfp.s2e.ShallowCopy(),
-		tmpPt:       params.RingQ().NewPoly(),
-		tmpMask:     params.RingT().NewPoly(),
-		tmpMaskPerm: params.RingT().NewPoly(),
-	}
 }
 
 // MaskedTransformFunc is a struct containing a user-defined in-place function that can be applied to masked integer plaintexts, as a part of the
@@ -67,9 +48,6 @@ func NewMaskedTransformProtocol(paramsIn, paramsOut bgv.Parameters, noiseFloodin
 		return
 	}
 
-	rfp.tmpPt = paramsOut.RingQ().NewPoly()
-	rfp.tmpMask = paramsIn.RingT().NewPoly()
-	rfp.tmpMaskPerm = paramsIn.RingT().NewPoly()
 	return
 }
 
@@ -96,8 +74,9 @@ func (rfp MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, ct *rlw
 		return fmt.Errorf("cannot GenShare: crs level must be equal to ShareToEncShare")
 	}
 
-	rfp.e2s.GenShare(skIn, ct, &multiparty.AdditiveShare{Value: rfp.tmpMask}, &shareOut.EncToShareShare)
-	mask := rfp.tmpMask
+	tmpMask := rfp.e2s.params.RingT().NewPoly()
+	rfp.e2s.GenShare(skIn, ct, &multiparty.AdditiveShare{Value: tmpMask}, &shareOut.EncToShareShare)
+	mask := tmpMask
 	if transform != nil {
 		coeffs := make([]uint64, len(mask.Coeffs[0]))
 
@@ -111,15 +90,16 @@ func (rfp MaskedTransformProtocol) GenShare(skIn, skOut *rlwe.SecretKey, ct *rlw
 
 		transform.Func(coeffs)
 
+		tmpMaskPerm := rfp.e2s.params.RingT().NewPoly()
 		if transform.Encode {
-			if err := rfp.s2e.encoder.EncodeRingT(coeffs, ct.Scale, rfp.tmpMaskPerm); err != nil {
+			if err := rfp.s2e.encoder.EncodeRingT(coeffs, ct.Scale, tmpMaskPerm); err != nil {
 				return fmt.Errorf("cannot GenShare: %w", err)
 			}
 		} else {
-			copy(rfp.tmpMaskPerm.Coeffs[0], coeffs)
+			copy(tmpMaskPerm.Coeffs[0], coeffs)
 		}
 
-		mask = rfp.tmpMaskPerm
+		mask = tmpMaskPerm
 	}
 
 	// Stores the ciphertext metadata on the public share
@@ -162,8 +142,9 @@ func (rfp MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *Mas
 		return fmt.Errorf("cannot Transform: crs level and s2e level must be the same")
 	}
 
-	rfp.e2s.GetShare(nil, share.EncToShareShare, ct, &multiparty.AdditiveShare{Value: rfp.tmpMask}) // tmpMask RingT(m - sum M_i)
-	mask := rfp.tmpMask
+	tmpMask := rfp.e2s.params.RingT().NewPoly()
+	rfp.e2s.GetShare(nil, share.EncToShareShare, ct, &multiparty.AdditiveShare{Value: tmpMask}) // tmpMask RingT(m - sum M_i)
+	mask := tmpMask
 	if transform != nil {
 		coeffs := make([]uint64, len(mask.Coeffs[0]))
 
@@ -177,22 +158,24 @@ func (rfp MaskedTransformProtocol) Transform(ct *rlwe.Ciphertext, transform *Mas
 
 		transform.Func(coeffs)
 
+		tmpMaskPerm := rfp.e2s.params.RingT().NewPoly()
 		if transform.Encode {
-			if err := rfp.s2e.encoder.EncodeRingT(coeffs, ciphertextOut.Scale, rfp.tmpMaskPerm); err != nil {
+			if err := rfp.s2e.encoder.EncodeRingT(coeffs, ciphertextOut.Scale, tmpMaskPerm); err != nil {
 				return fmt.Errorf("cannot Transform: %w", err)
 			}
 		} else {
-			copy(rfp.tmpMaskPerm.Coeffs[0], coeffs)
+			copy(tmpMaskPerm.Coeffs[0], coeffs)
 		}
 
-		mask = rfp.tmpMaskPerm
+		mask = tmpMaskPerm
 	}
 
 	ciphertextOut.Resize(ciphertextOut.Degree(), maxLevel)
 
-	rfp.s2e.encoder.RingT2Q(maxLevel, true, mask, rfp.tmpPt)
-	rfp.s2e.params.RingQ().AtLevel(maxLevel).NTT(rfp.tmpPt, rfp.tmpPt)
-	rfp.s2e.params.RingQ().AtLevel(maxLevel).Add(rfp.tmpPt, share.ShareToEncShare.Value, ciphertextOut.Value[0])
+	tmpPt := rfp.s2e.params.RingQ().AtLevel(maxLevel).NewPoly()
+	rfp.s2e.encoder.RingT2Q(maxLevel, true, mask, tmpPt)
+	rfp.s2e.params.RingQ().AtLevel(maxLevel).NTT(tmpPt, tmpPt)
+	rfp.s2e.params.RingQ().AtLevel(maxLevel).Add(tmpPt, share.ShareToEncShare.Value, ciphertextOut.Value[0])
 
 	return rfp.s2e.GetEncryption(multiparty.KeySwitchShare{Value: ciphertextOut.Value[0]}, crs, ciphertextOut)
 }

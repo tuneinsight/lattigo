@@ -340,7 +340,7 @@ func evalPhase(params bgv.Parameters, NGoRoutine int, encInputs []*rlwe.Cipherte
 	//l.Println("> Spawning", NGoRoutine, "evaluator goroutine")
 	for i := 1; i <= NGoRoutine; i++ {
 		go func(i int) {
-			evaluator := evaluator.ShallowCopy() // creates a shallow evaluator copy for this goroutine
+			evaluator := evaluator
 			for task := range tasks {
 				task.elapsedmultTask = runTimed(func() {
 					// 1) Multiplication of two input vectors

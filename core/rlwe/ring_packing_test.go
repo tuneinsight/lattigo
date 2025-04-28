@@ -77,6 +77,7 @@ func testRingPacking(tc *TestContext, t *testing.T) {
 
 	t.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), 0, "Split"), func(t *testing.T) {
 
+		t.Parallel()
 		pt := genPlaintextNTT(params, level, 1<<40)
 		ct, err := enc.EncryptNew(pt)
 		require.NoError(t, err)
@@ -133,6 +134,8 @@ func testRingPacking(tc *TestContext, t *testing.T) {
 			t.Skip("eval.MaxLogN() = eval.MinLogN()")
 		}
 
+		t.Parallel()
+
 		paramsNHalf := *eval.Parameters[params.LogN()-1].GetRLWEParameters()
 		encNHalf := NewEncryptor(paramsNHalf, ski[paramsNHalf.LogN()])
 
@@ -177,6 +180,7 @@ func testRingPacking(tc *TestContext, t *testing.T) {
 	})
 
 	t.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), 0, "Extract/Naive=False"), func(t *testing.T) {
+		t.Parallel()
 
 		if params.RingType() != ring.Standard {
 			t.Skip("Expand not supported for ring.Type = ring.ConjugateInvariant")
@@ -242,6 +246,7 @@ func testRingPacking(tc *TestContext, t *testing.T) {
 	})
 
 	t.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), 0, "Extract/Naive=True"), func(t *testing.T) {
+		t.Parallel()
 
 		if params.RingType() != ring.Standard {
 			t.Skip("Expand not supported for ring.Type = ring.ConjugateInvariant")
@@ -319,6 +324,7 @@ func testRingPacking(tc *TestContext, t *testing.T) {
 		if params.RingType() != ring.Standard {
 			t.Skip("Pack not supported for ring.Type = ring.ConjugateInvariant")
 		}
+		t.Parallel()
 
 		pt := NewPlaintext(params, level)
 		ringQ := tc.params.RingQ().AtLevel(level)
@@ -377,10 +383,12 @@ func testRingPacking(tc *TestContext, t *testing.T) {
 	})
 
 	t.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), 0, "Extract[naive=false]->Permute->Repack[naive=true]"), func(t *testing.T) {
+		t.Parallel()
 		testExtractPermuteRepack(params, level, enc, dec, eval, false, true, t)
 	})
 
 	t.Run(testString(params, params.MaxLevelQ(), params.MaxLevelP(), 0, "Extract[naive=true]->Permute->Repack[naive=false]"), func(t *testing.T) {
+		t.Parallel()
 		testExtractPermuteRepack(params, level, enc, dec, eval, true, false, t)
 	})
 }

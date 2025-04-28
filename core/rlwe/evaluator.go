@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/tuneinsight/lattigo/v6/ring"
-	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
 	"github.com/tuneinsight/lattigo/v6/utils"
+	"github.com/tuneinsight/lattigo/v6/utils/structs"
 )
 
 // Evaluator is a struct that holds the necessary elements to execute general homomorphic
@@ -13,51 +13,12 @@ import (
 type Evaluator struct {
 	params Parameters
 	EvaluationKeySet
-	*EvaluatorBuffers
 
 	automorphismIndex map[uint64][]uint64
 
 	BasisExtender *ring.BasisExtender
 	Decomposer    *ring.Decomposer
-}
-
-type EvaluatorBuffers struct {
-	BuffCt *Ciphertext
-	// BuffQP[0-1]: Key-Switch output Key-Switch on the fly decomp(c2)
-	// BuffQP[2-5]: Available
-	BuffQP        [6]ringqp.Poly
-	BuffInvNTT    ring.Poly
-	BuffDecompQP  []ringqp.Poly // Memory Buff for the basis extension in hoisting
-	BuffBitDecomp []uint64
-}
-
-func NewEvaluatorBuffers(params Parameters) *EvaluatorBuffers {
-
-	buff := new(EvaluatorBuffers)
-	BaseRNSDecompositionVectorSize := params.BaseRNSDecompositionVectorSize(params.MaxLevelQ(), 0)
-	ringQP := params.RingQP()
-
-	buff.BuffCt = NewCiphertext(params, 2, params.MaxLevel())
-
-	buff.BuffQP = [6]ringqp.Poly{
-		ringQP.NewPoly(),
-		ringQP.NewPoly(),
-		ringQP.NewPoly(),
-		ringQP.NewPoly(),
-		ringQP.NewPoly(),
-		ringQP.NewPoly(),
-	}
-
-	buff.BuffInvNTT = params.RingQ().NewPoly()
-
-	buff.BuffDecompQP = make([]ringqp.Poly, BaseRNSDecompositionVectorSize)
-	for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
-		buff.BuffDecompQP[i] = ringQP.NewPoly()
-	}
-
-	buff.BuffBitDecomp = make([]uint64, params.RingQ().N())
-
-	return buff
+	UintBuffPool  structs.BufferPool[*[]uint64]
 }
 
 // NewEvaluator creates a new [Evaluator].
@@ -65,7 +26,9 @@ func NewEvaluator(params ParameterProvider, evk EvaluationKeySet) (eval *Evaluat
 	eval = new(Evaluator)
 	p := params.GetRLWEParameters()
 	eval.params = *p
-	eval.EvaluatorBuffers = NewEvaluatorBuffers(eval.params)
+
+	// All buffer use the same sync.Pool of *[]uint64
+	eval.UintBuffPool = eval.params.RingQ().BufferPool()
 
 	if p.RingP() != nil {
 		eval.BasisExtender = ring.NewBasisExtender(p.RingQ(), p.RingP())
@@ -99,6 +62,53 @@ func NewEvaluator(params ParameterProvider, evk EvaluationKeySet) (eval *Evaluat
 	return
 }
 
+// GetBuffCt returns a ciphertext that can be used as a buffer for intermediate computations.
+// After use, the ciphertext should be recycled with [Evaluator.RecycleBuffCt].
+// The optional dimensions specify the degree and level of the ciphertext (default to 2, eval.params.ringQ.Level()).
+func (eval *Evaluator) GetBuffCt(dimensions ...int) *Ciphertext {
+	degree := 2
+	level := eval.params.ringQ.Level()
+	switch nbParams := len(dimensions); nbParams {
+	case 0:
+	case 1:
+		degree = dimensions[0]
+	case 2:
+		degree = dimensions[0]
+		level = dimensions[1]
+	default:
+		panic(fmt.Errorf("getbuffct takes 2 parameters at most"))
+	}
+
+	return GetBuffCt(eval.params, degree, level)
+}
+
+// RecycleBuffCt recycles a temporary ciphertext (i.e. returns its backing uint64 arrays to the pool).
+// The input ciphertext must not be used after calling this method.
+func (eval *Evaluator) RecycleBuffCt(ct *Ciphertext) {
+	RecycleBuffCt(eval.params, ct)
+}
+
+// GetBuffPt returns a plaintext that can be used as a buffer for intermediate computations.
+// After use, the plaintext should be recycled with [Evaluator.RecycleBuffPt].
+// The optional argument specifies the level of the returned plaintext (default to eval.params.ringQ.Level()).
+func (eval *Evaluator) GetBuffPt(level ...int) *Plaintext {
+	lvl := eval.params.ringQ.Level()
+	switch nbParams := len(level); nbParams {
+	case 0:
+	case 1:
+		lvl = level[0]
+	default:
+		panic(fmt.Errorf("getbuffpt takes 1 parameter at most"))
+	}
+
+	return GetBuffPt(eval.params, lvl)
+}
+
+// RecycleBuffPt recycles a temporary plaintext (i.e. returns its backing uint64 arrays to the pool).
+// The input plaintext must not be used after calling this method.
+func (eval *Evaluator) RecycleBuffPt(pt *Plaintext) {
+	RecycleBuffPt(eval.params, pt)
+}
 func (eval *Evaluator) GetRLWEParameters() *Parameters {
 	return &eval.params
 }
@@ -234,20 +244,6 @@ func (eval Evaluator) InitOutputUnaryOp(op0, opOut *Element[ring.Poly]) (degree,
 	return utils.Max(op0.Degree(), opOut.Degree()), utils.Min(op0.Level(), opOut.Level()), nil
 }
 
-// ShallowCopy creates a shallow copy of this [Evaluator] in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// evaluators can be used concurrently.
-func (eval Evaluator) ShallowCopy() *Evaluator {
-	return &Evaluator{
-		params:            eval.params,
-		Decomposer:        eval.Decomposer,
-		BasisExtender:     eval.BasisExtender.ShallowCopy(),
-		EvaluatorBuffers:  NewEvaluatorBuffers(eval.params),
-		EvaluationKeySet:  eval.EvaluationKeySet,
-		automorphismIndex: eval.automorphismIndex,
-	}
-}
-
 // WithKey creates a shallow copy of the receiver [Evaluator] for which the new [EvaluationKey] is evaluationKey
 // and where the temporary buffers are shared. The receiver and the returned evaluators cannot be used concurrently.
 func (eval Evaluator) WithKey(evk EvaluationKeySet) *Evaluator {
@@ -271,32 +267,16 @@ func (eval Evaluator) WithKey(evk EvaluationKeySet) *Evaluator {
 
 	return &Evaluator{
 		params:            eval.params,
-		EvaluatorBuffers:  eval.EvaluatorBuffers,
 		Decomposer:        eval.Decomposer,
 		BasisExtender:     eval.BasisExtender,
 		EvaluationKeySet:  evk,
 		automorphismIndex: AutomorphismIndex,
+		UintBuffPool:      eval.UintBuffPool,
 	}
 }
 
 func (eval Evaluator) AutomorphismIndex(galEl uint64) []uint64 {
 	return eval.automorphismIndex[galEl]
-}
-
-func (eval Evaluator) GetEvaluatorBuffer() *EvaluatorBuffers {
-	return eval.EvaluatorBuffers
-}
-
-func (eval Evaluator) GetBuffQP() [6]ringqp.Poly {
-	return eval.BuffQP
-}
-
-func (eval Evaluator) GetBuffCt() *Ciphertext {
-	return eval.BuffCt
-}
-
-func (eval Evaluator) GetBuffDecompQP() []ringqp.Poly {
-	return eval.BuffDecompQP
 }
 
 func (eval Evaluator) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q ring.Poly) {

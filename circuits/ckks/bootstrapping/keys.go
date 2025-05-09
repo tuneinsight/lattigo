@@ -138,7 +138,7 @@ func (p Parameters) genEncapsulationEvaluationKeysNew(skDense *rlwe.SecretKey) (
 	kgenDense := rlwe.NewKeyGenerator(params)
 	skSparse := kgenSparse.GenSecretKeyWithHammingWeightNew(p.EphemeralSecretWeight)
 
-	EvkDenseToSparse = kgenDense.GenEvaluationKeyNew(skDense, skSparse)
+	EvkDenseToSparse = kgenSparse.GenEvaluationKeyNew(skDense, skSparse)
 	EvkSparseToDense = kgenDense.GenEvaluationKeyNew(skSparse, skDense)
 	return
 }

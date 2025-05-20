@@ -52,6 +52,7 @@ func (m *Map[K, T]) WriteTo(w io.Writer) (n int64, err error) {
 
 		var inc int64
 
+		/* #nosec G115 -- marshalling support size of type uint32 only */
 		if inc, err = buffer.WriteUint32(w, uint32(len(*m))); err != nil {
 			return n + inc, err
 		}
@@ -110,6 +111,7 @@ func (m *Map[K, T]) ReadFrom(r io.Reader) (n int64, err error) {
 			*m = make(Map[K, T], size)
 		}
 
+		/* #nosec G115 -- library requires 64-bit system -> int = int64 */
 		for i := 0; i < int(size); i++ {
 
 			var key uint64

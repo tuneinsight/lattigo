@@ -153,6 +153,9 @@ External pull requests only proposing small or trivial changes will be converted
 External contributions will require the signature of a Contributor License Agreement (CLA).
 You can contact us using the following email to request a copy of the CLA: [lattigo@tuneinsight.com](mailto:lattigo@tuneinsight.com).
 
+## Vulnerability Reports 
+See [Report a Vulnerability](SECURITY.md#report-a-vulnerability).
+
 ## Bug Reports
 
 Lattigo welcomes bug/regression reports of any kind that conform to the preset template, which is

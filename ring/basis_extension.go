@@ -126,6 +126,7 @@ func GenModUpConstants(Q, P []uint64) ModUpConstants {
 		}
 
 		// (Q/Qi)^-1) * r (mod Qi) (in Montgomery form)
+		/* #nosec G115 -- library requires 64-bit system -> int = int64 */
 		qoverqiinvqi[i] = ModexpMontgomery(qiStar, int(qi-2), qi, mredQ[i], bredQ[i])
 
 		for j, pj := range P {

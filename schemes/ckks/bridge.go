@@ -15,6 +15,7 @@ type DomainSwitcher struct {
 
 	stdToci, ciToStd  *rlwe.EvaluationKey
 	automorphismIndex []uint64
+	poolQ             *ring.Pool
 }
 
 // NewDomainSwitcher instantiate a new [DomainSwitcher] type. It may be instantiated from parameters from either RingType.
@@ -40,6 +41,7 @@ func NewDomainSwitcher(params Parameters, comlexToRealEvk, realToComplexEvk *rlw
 	if s.automorphismIndex, err = ring.AutomorphismNTTIndex(s.stdRingQ.N(), s.stdRingQ.NthRoot(), s.stdRingQ.NthRoot()-1); err != nil {
 		panic(err)
 	}
+	s.poolQ = ring.NewPool(s.stdRingQ)
 
 	return s, nil
 }
@@ -72,11 +74,11 @@ func (switcher DomainSwitcher) ComplexToReal(eval *Evaluator, ctIn, opOut *rlwe.
 		return fmt.Errorf("cannot ComplexToReal: no realToComplexEvk provided to this DomainSwitcher")
 	}
 
-	ringQ := switcher.stdRingQ.AtLevel(level)
-	buffQ1 := ringQ.GetBuffPoly()
-	defer ringQ.RecycleBuffPoly(buffQ1)
-	buffQ2 := ringQ.GetBuffPoly()
-	defer ringQ.RecycleBuffPoly(buffQ2)
+	poolQ := switcher.poolQ.AtLevel(level)
+	buffQ1 := poolQ.GetBuffPoly()
+	defer poolQ.RecycleBuffPoly(buffQ1)
+	buffQ2 := poolQ.GetBuffPoly()
+	defer poolQ.RecycleBuffPoly(buffQ2)
 
 	ctTmp := &rlwe.Ciphertext{}
 	ctTmp.Value = []ring.Poly{*buffQ1, *buffQ2}
@@ -123,10 +125,11 @@ func (switcher DomainSwitcher) RealToComplex(eval *Evaluator, ctIn, opOut *rlwe.
 	stdRingQ.UnfoldConjugateInvariantToStandard(ctIn.Value[0], opOut.Value[0])
 	stdRingQ.UnfoldConjugateInvariantToStandard(ctIn.Value[1], opOut.Value[1])
 
-	buffQ1 := stdRingQ.GetBuffPoly()
-	defer stdRingQ.RecycleBuffPoly(buffQ1)
-	buffQ2 := stdRingQ.GetBuffPoly()
-	defer stdRingQ.RecycleBuffPoly(buffQ2)
+	poolQ := switcher.poolQ.AtLevel(level)
+	buffQ1 := poolQ.GetBuffPoly()
+	defer poolQ.RecycleBuffPoly(buffQ1)
+	buffQ2 := poolQ.GetBuffPoly()
+	defer poolQ.RecycleBuffPoly(buffQ2)
 
 	ctTmp := &rlwe.Ciphertext{}
 	ctTmp.Value = []ring.Poly{*buffQ1, *buffQ2}

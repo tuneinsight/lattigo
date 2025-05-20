@@ -71,8 +71,8 @@ func (eval Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, o
 
 		level := utils.Min(ctIn.Level(), opOut.Level())
 
-		ctTmp := eval.GetBuffCt(ctIn.Degree(), level)
-		defer eval.RecycleBuffCt(ctTmp)
+		ctTmp := eval.pool.GetBuffCt(ctIn.Degree(), level)
+		defer eval.pool.RecycleBuffCt(ctTmp)
 
 		ctTmp.MetaData = ctIn.MetaData
 
@@ -97,8 +97,8 @@ func (eval Evaluator) ApplyEvaluationKey(ctIn *Ciphertext, evk *EvaluationKey, o
 }
 
 func (eval Evaluator) applyEvaluationKey(level int, ctIn *Ciphertext, evk *EvaluationKey, opOut *Ciphertext) {
-	ctTmp := eval.GetBuffCt(1, level)
-	defer eval.RecycleBuffCt(ctTmp)
+	ctTmp := eval.pool.GetBuffCt(1, level)
+	defer eval.pool.RecycleBuffCt(ctTmp)
 	ctTmp.MetaData = ctIn.MetaData
 
 	eval.GadgetProduct(level, ctIn.Value[1], &evk.GadgetCiphertext, ctTmp)
@@ -132,8 +132,8 @@ func (eval Evaluator) Relinearize(ctIn *Ciphertext, opOut *Ciphertext) (err erro
 
 	ringQ := eval.params.RingQ().AtLevel(level)
 
-	ctTmp := eval.GetBuffCt(1, ringQ.Level())
-	defer eval.RecycleBuffCt(ctTmp)
+	ctTmp := eval.pool.GetBuffCt(1, ringQ.Level())
+	defer eval.pool.RecycleBuffCt(ctTmp)
 	ctTmp.MetaData = ctIn.MetaData
 
 	eval.GadgetProduct(level, ctIn.Value[2], &rlk.GadgetCiphertext, ctTmp)

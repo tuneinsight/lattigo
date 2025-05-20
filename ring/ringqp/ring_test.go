@@ -13,10 +13,10 @@ import (
 
 func TestRingQP(t *testing.T) {
 	LogN := 10
-	ringQ, err := ring.NewRing(1<<LogN, ring.Qi60[:4], nil)
+	ringQ, err := ring.NewRing(1<<LogN, ring.Qi60[:4])
 	require.NoError(t, err)
 
-	ringP, err := ring.NewRing(1<<LogN, ring.Pi60[:4], nil)
+	ringP, err := ring.NewRing(1<<LogN, ring.Pi60[:4])
 	require.NoError(t, err)
 
 	ringQP := Ring{ringQ, ringP}

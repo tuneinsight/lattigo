@@ -100,7 +100,7 @@ func newvOLErings(params parameters) *vOLErings {
 		panic(err)
 	}
 
-	if rings.ringQ, err = ring.NewRing(N, primes, nil); err != nil {
+	if rings.ringQ, err = ring.NewRing(N, primes); err != nil {
 		panic(err)
 	}
 

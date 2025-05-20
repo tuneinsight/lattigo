@@ -728,12 +728,12 @@ func testGadgetProduct(tc *TestContext, levelQ, bpw2 int, t *testing.T) {
 		t.Run(testString(params, levelQ, levelP, bpw2, "Evaluator/GadgetProductHoisted"), func(t *testing.T) {
 
 			// Setup temporary buffer for decomposition
-			ringQP := params.RingQP().AtLevel(levelQ, levelP)
+			poolQP := tc.eval.pool.AtLevel(levelQ, levelP)
 			size := params.BaseRNSDecompositionVectorSize(levelQ, 0)
 			buffDecompQP := make([]ringqp.Poly, size)
 			for i := 0; i < size; i++ {
-				poly := ringQP.GetBuffPolyQP()
-				defer ringQP.RecycleBuffPolyQP(poly)
+				poly := poolQP.GetBuffPolyQP()
+				defer poolQP.RecycleBuffPolyQP(poly)
 				buffDecompQP[i] = *poly
 			}
 			if bpw2 != 0 {
@@ -965,12 +965,12 @@ func testAutomorphism(tc *TestContext, level, bpw2 int, t *testing.T) {
 		}
 
 		// Setup temporary buffer for decomposition
-		ringQP := params.RingQP().AtLevel(level, params.MaxLevelP())
+		poolQP := tc.eval.pool.AtLevel(level, params.MaxLevelP())
 		size := params.BaseRNSDecompositionVectorSize(level, 0)
 		buffDecompQP := make([]ringqp.Poly, size)
 		for i := 0; i < size; i++ {
-			poly := ringQP.GetBuffPolyQP()
-			defer ringQP.RecycleBuffPolyQP(poly)
+			poly := poolQP.GetBuffPolyQP()
+			defer poolQP.RecycleBuffPolyQP(poly)
 			buffDecompQP[i] = *poly
 		}
 		// Generate a plaintext with values up to 2^30
@@ -1024,12 +1024,12 @@ func testAutomorphism(tc *TestContext, level, bpw2 int, t *testing.T) {
 		}
 
 		// Setup temporary buffer for decomposition
-		ringQP := params.RingQP().AtLevel(level, params.MaxLevelP())
+		poolQP := tc.eval.pool.AtLevel(level, params.MaxLevelP())
 		size := params.BaseRNSDecompositionVectorSize(level, 0)
 		buffDecompQP := make([]ringqp.Poly, size)
 		for i := 0; i < size; i++ {
-			poly := ringQP.GetBuffPolyQP()
-			defer ringQP.RecycleBuffPolyQP(poly)
+			poly := poolQP.GetBuffPolyQP()
+			defer poolQP.RecycleBuffPolyQP(poly)
 			buffDecompQP[i] = *poly
 		}
 

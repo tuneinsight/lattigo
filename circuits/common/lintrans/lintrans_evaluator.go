@@ -11,6 +11,15 @@ import (
 
 type Evaluator struct {
 	schemes.Evaluator
+	pool *rlwe.Pool
+}
+
+func NewEvaluator(eval schemes.Evaluator) *Evaluator {
+
+	return &Evaluator{
+		Evaluator: eval,
+		pool:      rlwe.NewPool(eval.GetRLWEParameters().RingQP()),
+	}
 }
 
 // EvaluateMany takes as input a ciphertext ctIn, a list of linear transformations [M0, M1, M2, ...] and a list of pre-allocated receiver opOut
@@ -38,12 +47,12 @@ func (eval Evaluator) EvaluateMany(ctIn *rlwe.Ciphertext, linearTransformations 
 
 	levelQ = utils.Min(levelQ, ctIn.Level())
 
-	ringQP := eval.GetRLWEParameters().RingQP().AtLevel(levelQ, levelP)
+	poolQP := eval.pool.AtLevel(levelQ, levelP)
 	baseRNSDecompositionVectorSize := eval.Evaluator.GetRLWEParameters().BaseRNSDecompositionVectorSize(levelQ, levelP)
 	buffDecompQP := make([]ringqp.Poly, baseRNSDecompositionVectorSize)
 	for i := 0; i < len(buffDecompQP); i++ {
-		buff := ringQP.GetBuffPolyQP()
-		defer ringQP.RecycleBuffPolyQP(buff)
+		buff := poolQP.GetBuffPolyQP()
+		defer poolQP.RecycleBuffPolyQP(buff)
 		buffDecompQP[i] = *buff
 	}
 
@@ -146,23 +155,24 @@ func (eval Evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearT
 	levelP := matrix.LevelP
 
 	ringQP := params.RingQP().AtLevel(levelQ, levelP)
+	poolQP := eval.pool.AtLevel(levelQ, levelP)
 	ringQ := ringQP.RingQ
 	ringP := ringQP.RingP
 
-	buffQP0 := ringQP.GetBuffPolyQP()
-	defer ringQP.RecycleBuffPolyQP(buffQP0)
-	buffQP1 := ringQP.GetBuffPolyQP()
-	defer ringQP.RecycleBuffPolyQP(buffQP1)
-	buffQP2 := ringQP.GetBuffPolyQP()
-	defer ringQP.RecycleBuffPolyQP(buffQP2)
-	buffQP3 := ringQP.GetBuffPolyQP()
-	defer ringQP.RecycleBuffPolyQP(buffQP3)
-	buffQP4 := ringQP.GetBuffPolyQP()
-	defer ringQP.RecycleBuffPolyQP(buffQP4)
-	buffQP5 := ringQP.GetBuffPolyQP()
-	defer ringQP.RecycleBuffPolyQP(buffQP5)
-	buffCt := eval.GetBuffCt(1, ringQ.Level())
-	defer eval.RecycleBuffCt(buffCt)
+	buffQP0 := poolQP.GetBuffPolyQP()
+	defer poolQP.RecycleBuffPolyQP(buffQP0)
+	buffQP1 := poolQP.GetBuffPolyQP()
+	defer poolQP.RecycleBuffPolyQP(buffQP1)
+	buffQP2 := poolQP.GetBuffPolyQP()
+	defer poolQP.RecycleBuffPolyQP(buffQP2)
+	buffQP3 := poolQP.GetBuffPolyQP()
+	defer poolQP.RecycleBuffPolyQP(buffQP3)
+	buffQP4 := poolQP.GetBuffPolyQP()
+	defer poolQP.RecycleBuffPolyQP(buffQP4)
+	buffQP5 := poolQP.GetBuffPolyQP()
+	defer poolQP.RecycleBuffPolyQP(buffQP5)
+	buffCt := eval.pool.GetBuffCt(1, ringQ.Level())
+	defer eval.pool.RecycleBuffCt(buffCt)
 
 	opOut.Resize(opOut.Degree(), levelQ)
 
@@ -283,23 +293,24 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 	levelP := matrix.LevelP
 
 	ringQP := params.RingQP().AtLevel(levelQ, levelP)
+	poolQP := eval.pool.AtLevel(levelQ, levelP)
 	ringQ := ringQP.RingQ
 	ringP := ringQP.RingP
 
-	buffQP1 := ringQP.GetBuffPolyQP()
-	defer ringQP.RecycleBuffPolyQP(buffQP1)
-	buffQP2 := ringQP.GetBuffPolyQP()
-	defer ringQP.RecycleBuffPolyQP(buffQP2)
-	buffQP3 := ringQP.GetBuffPolyQP()
-	defer ringQP.RecycleBuffPolyQP(buffQP3)
-	buffQP4 := ringQP.GetBuffPolyQP()
-	defer ringQP.RecycleBuffPolyQP(buffQP4)
-	buffP1 := ringQP.RingP.GetBuffPoly()
-	defer ringQP.RingP.RecycleBuffPoly(buffP1)
-	buffP2 := ringQP.RingP.GetBuffPoly()
-	defer ringQP.RingP.RecycleBuffPoly(buffP2)
-	buffCt := eval.GetBuffCt(1, ringQ.Level())
-	defer eval.RecycleBuffCt(buffCt)
+	buffQP1 := poolQP.GetBuffPolyQP()
+	defer poolQP.RecycleBuffPolyQP(buffQP1)
+	buffQP2 := poolQP.GetBuffPolyQP()
+	defer poolQP.RecycleBuffPolyQP(buffQP2)
+	buffQP3 := poolQP.GetBuffPolyQP()
+	defer poolQP.RecycleBuffPolyQP(buffQP3)
+	buffQP4 := poolQP.GetBuffPolyQP()
+	defer poolQP.RecycleBuffPolyQP(buffQP4)
+	buffP1 := poolQP.PoolP.GetBuffPoly()
+	defer poolQP.PoolP.RecycleBuffPoly(buffP1)
+	buffP2 := poolQP.PoolP.GetBuffPoly()
+	defer poolQP.PoolP.RecycleBuffPoly(buffP2)
+	buffCt := eval.pool.GetBuffCt(1, ringQ.Level())
+	defer eval.pool.RecycleBuffCt(buffCt)
 
 	opOut.Resize(opOut.Degree(), levelQ)
 

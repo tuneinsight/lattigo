@@ -75,8 +75,8 @@ func (eval Evaluator) Trace(ctIn *Ciphertext, logN int, opOut *Ciphertext) (err 
 			opOut.IsNTT = true
 		}
 
-		buff := eval.GetBuffCt(1, level)
-		defer eval.RecycleBuffCt(buff)
+		buff := eval.pool.GetBuffCt(1, level)
+		defer eval.pool.RecycleBuffCt(buff)
 
 		buff.IsNTT = true
 
@@ -155,14 +155,15 @@ func (eval Evaluator) PartialTracesSum(ctIn *Ciphertext, offset, n int, opOut *C
 	levelP := params.PCount() - 1
 
 	ringQP := params.RingQP().AtLevel(ctIn.Level(), levelP)
+	poolQP := eval.pool.AtLevel(ctIn.Level(), levelP)
 
 	ringQ := ringQP.RingQ
 
 	opOut.Resize(opOut.Degree(), levelQ)
 	*opOut.MetaData = *ctIn.MetaData
 
-	ctInNTT := eval.GetBuffCt(1, levelQ)
-	defer eval.RecycleBuffCt(ctInNTT)
+	ctInNTT := eval.pool.GetBuffCt(1, levelQ)
+	defer eval.pool.RecycleBuffCt(ctInNTT)
 
 	ctInNTT.MetaData = &MetaData{}
 	ctInNTT.IsNTT = true
@@ -182,20 +183,20 @@ func (eval Evaluator) PartialTracesSum(ctIn *Ciphertext, offset, n int, opOut *C
 		}
 	} else {
 
-		buffQP1 := ringQP.GetBuffPolyQP()
-		defer ringQP.RecycleBuffPolyQP(buffQP1)
-		buffQP2 := ringQP.GetBuffPolyQP()
-		defer ringQP.RecycleBuffPolyQP(buffQP2)
+		buffQP1 := poolQP.GetBuffPolyQP()
+		defer poolQP.RecycleBuffPolyQP(buffQP1)
+		buffQP2 := poolQP.GetBuffPolyQP()
+		defer poolQP.RecycleBuffPolyQP(buffQP2)
 
 		// Accumulator mod QP (i.e. opOut Mod QP)
 		accQP := &Element[ringqp.Poly]{Value: []ringqp.Poly{*buffQP1, *buffQP2}}
 		accQP.MetaData = ctInNTT.MetaData
 
 		// Buffer mod QP (i.e. to store the result of lazy gadget products)
-		buffQP3 := ringQP.GetBuffPolyQP()
-		defer ringQP.RecycleBuffPolyQP(buffQP3)
-		buffQP4 := ringQP.GetBuffPolyQP()
-		defer ringQP.RecycleBuffPolyQP(buffQP4)
+		buffQP3 := poolQP.GetBuffPolyQP()
+		defer poolQP.RecycleBuffPolyQP(buffQP3)
+		buffQP4 := poolQP.GetBuffPolyQP()
+		defer poolQP.RecycleBuffPolyQP(buffQP4)
 		cQP := &Element[ringqp.Poly]{Value: []ringqp.Poly{*buffQP3, *buffQP4}}
 		cQP.MetaData = ctInNTT.MetaData
 
@@ -213,8 +214,8 @@ func (eval Evaluator) PartialTracesSum(ctIn *Ciphertext, offset, n int, opOut *C
 		baseRNSDecompositionVectorSize := eval.params.BaseRNSDecompositionVectorSize(levelQ, levelP)
 		buffDecompQP := make([]ringqp.Poly, baseRNSDecompositionVectorSize)
 		for i := 0; i < len(buffDecompQP); i++ {
-			buff := ringQP.GetBuffPolyQP()
-			defer ringQP.RecycleBuffPolyQP(buff)
+			buff := poolQP.GetBuffPolyQP()
+			defer poolQP.RecycleBuffPolyQP(buff)
 			buffDecompQP[i] = *buff
 		}
 
@@ -346,8 +347,8 @@ func (eval Evaluator) InnerFunction(ctIn *Ciphertext, batchSize, n int, f func(a
 	} else {
 
 		// Accumulator mod Q
-		accQ := eval.GetBuffCt(1, levelQ)
-		defer eval.RecycleBuffCt(accQ)
+		accQ := eval.pool.GetBuffCt(1, levelQ)
+		defer eval.pool.RecycleBuffCt(accQ)
 		*accQ.MetaData = *ctInNTT.MetaData
 
 		// Sanity check, this error should not happen unless the
@@ -357,8 +358,8 @@ func (eval Evaluator) InnerFunction(ctIn *Ciphertext, batchSize, n int, f func(a
 		}
 
 		// Buffer mod Q
-		cQ := eval.GetBuffCt(1, levelQ)
-		defer eval.RecycleBuffCt(cQ)
+		cQ := eval.pool.GetBuffCt(1, levelQ)
+		defer eval.pool.RecycleBuffCt(cQ)
 		*cQ.MetaData = *ctInNTT.MetaData
 
 		// Sanity check, this error should not happen unless the

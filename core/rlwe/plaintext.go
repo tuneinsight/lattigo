@@ -1,7 +1,6 @@
 package rlwe
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/tuneinsight/lattigo/v6/ring"
@@ -33,26 +32,6 @@ func NewPlaintextAtLevelFromPoly(level int, poly ring.Poly) (pt *Plaintext, err 
 	Element.MetaData = &MetaData{}
 
 	return &Plaintext{Element: *Element, Value: Element.Value[0]}, nil
-}
-
-// GetBuffPt returns a new [*Plaintext], built from backing []uint64 arrays obtained from the pool stored in the ring passed with the params.
-// After use, the [Plaintext] should be recycled using the [RecycleBuffPt] method.
-func GetBuffPt(params ParameterProvider, level int) *Plaintext {
-	poly := params.GetRLWEParameters().RingQ().AtLevel(level).GetBuffPoly()
-
-	pt, err := NewPlaintextAtLevelFromPoly(level, *poly)
-
-	// sanity check: should not happen
-	if err != nil {
-		panic(fmt.Errorf("cannot create new plaintext: %w", err))
-	}
-	return pt
-}
-
-// RecycleBuffPt takes a reference to a [Plaintext] and recycles its backing []uint64 arrays
-// (i.e. they are returned to a pool). The input [Plaintext] must not be used after calling this method.
-func RecycleBuffPt(params ParameterProvider, pt *Plaintext) {
-	params.GetRLWEParameters().ringQ.RecycleBuffPoly(&pt.Value)
 }
 
 // Copy copies the supplied plaintext value into the receiver plaintext.

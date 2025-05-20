@@ -8,8 +8,6 @@ import (
 )
 
 type EvaluatorProvider interface {
-	GetBuffCt(dimensions ...int) *Ciphertext
-	RecycleBuffCt(*Ciphertext)
 	DecomposeNTT(level, levelP, pCount int, c1 ring.Poly, isNTT bool, BuffDecompQP []ringqp.Poly)
 	CheckAndGetGaloisKey(galEl uint64) (evk *GaloisKey, err error)
 	GadgetProductLazy(levelQ int, cx ring.Poly, gadgetCt *GadgetCiphertext, ct *Element[ringqp.Poly]) (err error)

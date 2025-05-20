@@ -11,6 +11,7 @@ import (
 type Decryptor struct {
 	params Parameters
 	ringQ  *ring.Ring
+	poolQ  *ring.Pool
 	sk     *SecretKey
 }
 
@@ -27,6 +28,7 @@ func NewDecryptor(params ParameterProvider, sk *SecretKey) *Decryptor {
 		params: *p,
 		ringQ:  p.RingQ(),
 		sk:     sk,
+		poolQ:  ring.NewPool(p.ringQ),
 	}
 }
 
@@ -67,10 +69,11 @@ func (d Decryptor) Decrypt(ct *Ciphertext, pt *Plaintext) {
 		ringQ.MulCoeffsMontgomery(pt.Value, d.sk.Value.Q, pt.Value)
 
 		if !ct.IsNTT {
-			buff := ringQ.GetBuffPoly()
+			poolQ := d.poolQ.AtLevel(level)
+			buff := poolQ.GetBuffPoly()
 			ringQ.NTTLazy(ct.Value[i-1], *buff)
 			ringQ.Add(pt.Value, *buff, pt.Value)
-			ringQ.RecycleBuffPoly(buff)
+			poolQ.RecycleBuffPoly(buff)
 		} else {
 			ringQ.Add(pt.Value, ct.Value[i-1], pt.Value)
 		}

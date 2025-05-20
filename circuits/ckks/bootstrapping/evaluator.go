@@ -43,6 +43,8 @@ type Evaluator struct {
 	C2SDFTMatrix   dft.Matrix
 
 	SkDebug *rlwe.SecretKey
+
+	pool *rlwe.Pool
 }
 
 // NewEvaluator creates a new [Evaluator].
@@ -125,6 +127,7 @@ func NewEvaluator(btpParams Parameters, evk *EvaluationKeys) (eval *Evaluator, e
 
 	eval.Mod1Evaluator = mod1.NewEvaluator(eval.Evaluator, polynomial.NewEvaluator(params, eval.Evaluator), eval.Mod1Parameters)
 
+	eval.pool = rlwe.NewPool(eval.BootstrappingParameters.RingQP())
 	return
 }
 
@@ -635,7 +638,7 @@ func (eval Evaluator) ModUp(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err 
 	levelQ := params.QCount() - 1
 	levelP := params.PCount() - 1
 
-	ringQP := params.RingQP().AtLevel(levelQ, levelP)
+	poolQP := eval.pool.AtLevel(levelQ, levelP)
 	ringQ = ringQ.AtLevel(levelQ)
 
 	Q := ringQ.ModuliChain()
@@ -671,8 +674,8 @@ func (eval Evaluator) ModUp(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err 
 		size := eval.ResidualParameters.BaseRNSDecompositionVectorSize(eval.BootstrappingParameters.MaxLevelQ(), 0)
 		buffDecompQP := make([]ringqp.Poly, size)
 		for i := 0; i < size; i++ {
-			buff := ringQP.GetBuffPolyQP()
-			defer ringQP.RecycleBuffPolyQP(buff)
+			buff := poolQP.GetBuffPolyQP()
+			defer poolQP.RecycleBuffPolyQP(buff)
 			buffDecompQP[i] = *buff
 		}
 
@@ -726,8 +729,8 @@ func (eval Evaluator) ModUp(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err 
 			ctIn.Scale = ctIn.Scale.Mul(rlwe.NewScale(scale))
 		}
 
-		buffQ1 := ringQ.GetBuffPoly()
-		defer ringQ.RecycleBuffPoly(buffQ1)
+		buffQ1 := poolQP.GetBuffPoly()
+		defer poolQP.RecycleBuffPoly(buffQ1)
 
 		ctTmp := &rlwe.Ciphertext{}
 		ctTmp.Value = []ring.Poly{*buffQ1, ctIn.Value[1]}

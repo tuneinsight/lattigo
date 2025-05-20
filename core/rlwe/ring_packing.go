@@ -511,8 +511,8 @@ func (eval RingPackingEvaluator) Expand(ct *Ciphertext, logGap int) (cts map[int
 
 	gap := 1 << logGap
 
-	tmp := evalN.GetBuffCt(1, level)
-	defer evalN.RecycleBuffCt(tmp)
+	tmp := evalN.pool.GetBuffCt(1, level)
+	defer evalN.pool.RecycleBuffCt(tmp)
 
 	*tmp.MetaData = *ct.MetaData
 

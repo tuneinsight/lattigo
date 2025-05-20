@@ -144,6 +144,7 @@ type Evaluator struct {
 	*ckks.Evaluator
 	LTEvaluator *ltcommon.Evaluator
 	parameters  ckks.Parameters
+	pool        *rlwe.Pool
 }
 
 // NewEvaluator instantiates a new [Evaluator] from a [ckks.Evaluator].
@@ -152,6 +153,9 @@ func NewEvaluator(params ckks.Parameters, eval *ckks.Evaluator) *Evaluator {
 	dfteval.Evaluator = eval
 	dfteval.LTEvaluator = ltcommon.NewEvaluator(eval)
 	dfteval.parameters = params
+
+	dfteval.pool = rlwe.NewPool(params.RingQP())
+
 	return dfteval
 }
 
@@ -251,8 +255,8 @@ func (eval *Evaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices Matrix, 
 		if ctImag != nil {
 			tmp = ctImag
 		} else {
-			tmp = eval.GetBuffCt(1, ctReal.Level())
-			defer eval.RecycleBuffCt(tmp)
+			tmp = eval.pool.GetBuffCt(1, ctReal.Level())
+			defer eval.pool.RecycleBuffCt(tmp)
 
 			tmp.IsNTT = true
 		}

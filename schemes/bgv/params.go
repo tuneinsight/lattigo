@@ -10,7 +10,6 @@ import (
 	"github.com/tuneinsight/lattigo/v6/core/rlwe"
 	"github.com/tuneinsight/lattigo/v6/ring"
 	"github.com/tuneinsight/lattigo/v6/utils"
-	"github.com/tuneinsight/lattigo/v6/utils/structs"
 )
 
 const (
@@ -104,9 +103,8 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 	if err != nil {
 		return Parameters{}, err
 	}
-	// One can reuse the pool from rlweParams.ringQ as the ring dimension N is the same
-	poolQMul := rlweParams.RingQ().BufferPool()
-	if ringQMul, err = ring.NewRing(rlweParams.N(), primes, poolQMul); err != nil {
+
+	if ringQMul, err = ring.NewRing(rlweParams.N(), primes); err != nil {
 		return Parameters{}, err
 	}
 
@@ -122,15 +120,7 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 	var ringT *ring.Ring
 	/* #nosec G115 -- library requires 64-bit system -> int = int64 */
 	dimRingT := utils.Min(rlweParams.N(), int(order>>1))
-	poolT := poolQMul
-	// If dimRingT != N, both rings use different pools
-	if dimRingT != rlweParams.N() {
-		poolT = structs.NewSyncPool(func() *[]uint64 {
-			buff := make([]uint64, dimRingT)
-			return &buff
-		})
-	}
-	if ringT, err = ring.NewRing(dimRingT, []uint64{t}, poolT); err != nil {
+	if ringT, err = ring.NewRing(dimRingT, []uint64{t}); err != nil {
 		return Parameters{}, fmt.Errorf("provided plaintext modulus t is invalid: %w", err)
 	}
 

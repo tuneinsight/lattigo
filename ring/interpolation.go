@@ -25,7 +25,7 @@ func NewInterpolator(degree int, T uint64) (itp *Interpolator, err error) {
 
 	itp = new(Interpolator)
 
-	if itp.r, err = NewRing(1<<bits.Len64(uint64(degree)), []uint64{T}, nil); err != nil {
+	if itp.r, err = NewRing(1<<bits.Len64(uint64(degree)), []uint64{T}); err != nil {
 		return nil, err
 	}
 

@@ -6,6 +6,7 @@ import (
 	"unsafe"
 
 	"github.com/tuneinsight/lattigo/v6/utils/bignum"
+	"github.com/tuneinsight/lattigo/v6/utils/structs"
 )
 
 // BasisExtender stores the necessary parameters for RNS basis extension.
@@ -17,6 +18,8 @@ type BasisExtender struct {
 	constantsPtoQ        []ModUpConstants
 	modDownConstantsPtoQ [][]uint64
 	modDownConstantsQtoP [][]uint64
+	poolQ                *Pool
+	poolP                *Pool
 }
 
 func genmodDownConstants(ringQ, ringP *Ring) (constants [][]uint64) {
@@ -68,6 +71,17 @@ func NewBasisExtender(ringQ, ringP *Ring) (be *BasisExtender) {
 
 	be.modDownConstantsPtoQ = genmodDownConstants(ringQ, ringP)
 	be.modDownConstantsQtoP = genmodDownConstants(ringP, ringQ)
+
+	backingPool := structs.NewSyncPoolUint64(ringQ.N())
+
+	be.poolQ = NewPool(be.ringQ, backingPool)
+
+	backingPoolP := backingPool
+	// we use the same backing pool only if ringQ and ringP have the same dimension
+	if ringQ.N() != ringP.N() {
+		backingPoolP = structs.NewSyncPoolUint64(ringP.N())
+	}
+	be.poolP = NewPool(be.ringP, backingPoolP)
 
 	return
 }
@@ -164,8 +178,8 @@ func (be *BasisExtender) ModUpQtoP(levelQ, levelP int, polQ, polP Poly) {
 
 	ringQ := be.ringQ.AtLevel(levelQ)
 	ringP := be.ringP.AtLevel(levelP)
-	buffQ := ringQ.GetBuffPoly()
-	defer ringQ.RecycleBuffPoly(buffQ)
+	buffQ := be.poolQ.GetBuffPoly()
+	defer be.poolQ.RecycleBuffPoly(buffQ)
 
 	QHalf := bignum.NewInt(ringQ.ModulusAtLevel[levelQ])
 	QHalf.Rsh(QHalf, 1)
@@ -182,8 +196,9 @@ func (be *BasisExtender) ModUpPtoQ(levelP, levelQ int, polP, polQ Poly) {
 
 	ringQ := be.ringQ.AtLevel(levelQ)
 	ringP := be.ringP.AtLevel(levelP)
-	buffP := ringP.GetBuffPoly()
-	defer ringP.RecycleBuffPoly(buffP)
+	poolP := be.poolP.AtLevel(levelP)
+	buffP := poolP.AtLevel(levelP).GetBuffPoly()
+	defer poolP.RecycleBuffPoly(buffP)
 
 	PHalf := bignum.NewInt(ringP.ModulusAtLevel[levelP])
 	PHalf.Rsh(PHalf, 1)
@@ -200,9 +215,10 @@ func (be *BasisExtender) ModUpPtoQ(levelP, levelQ int, polP, polQ Poly) {
 func (be *BasisExtender) ModDownQPtoQ(levelQ, levelP int, p1Q, p1P, p2Q Poly) {
 
 	ringQ := be.ringQ.AtLevel(levelQ)
+	poolQ := be.poolQ.AtLevel(levelQ)
 	modDownConstants := be.modDownConstantsPtoQ[levelP]
-	buffQ := ringQ.GetBuffPoly()
-	defer ringQ.RecycleBuffPoly(buffQ)
+	buffQ := poolQ.GetBuffPoly()
+	defer poolQ.RecycleBuffPoly(buffQ)
 
 	be.ModUpPtoQ(levelP, levelQ, p1P, *buffQ)
 
@@ -219,12 +235,14 @@ func (be *BasisExtender) ModDownQPtoQ(levelQ, levelP int, p1Q, p1P, p2Q Poly) {
 func (be *BasisExtender) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q Poly) {
 
 	ringQ := be.ringQ.AtLevel(levelQ)
+	poolQ := be.poolQ.AtLevel(levelQ)
 	ringP := be.ringP.AtLevel(levelP)
+	poolP := be.poolP.AtLevel(levelP)
 	modDownConstants := be.modDownConstantsPtoQ[levelP]
-	buffP := ringP.GetBuffPoly()
-	defer ringP.RecycleBuffPoly(buffP)
-	buffQ := ringQ.GetBuffPoly()
-	defer ringQ.RecycleBuffPoly(buffQ)
+	buffP := poolP.GetBuffPoly()
+	defer poolP.RecycleBuffPoly(buffP)
+	buffQ := poolQ.GetBuffPoly()
+	defer poolQ.RecycleBuffPoly(buffQ)
 
 	ringP.INTTLazy(p1P, *buffP)
 	be.ModUpPtoQ(levelP, levelQ, *buffP, *buffQ)
@@ -244,9 +262,10 @@ func (be *BasisExtender) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q Poly)
 func (be *BasisExtender) ModDownQPtoP(levelQ, levelP int, p1Q, p1P, p2P Poly) {
 
 	ringP := be.ringP.AtLevel(levelP)
+	poolP := be.poolP.AtLevel(levelP)
 	modDownConstants := be.modDownConstantsQtoP[levelQ]
-	buffP := ringP.GetBuffPoly()
-	defer ringP.RecycleBuffPoly(buffP)
+	buffP := poolP.GetBuffPoly()
+	defer poolP.RecycleBuffPoly(buffP)
 
 	be.ModUpQtoP(levelQ, levelP, p1Q, *buffP)
 

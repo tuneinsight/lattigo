@@ -9,6 +9,7 @@ import (
 	"github.com/tuneinsight/lattigo/v6/ring"
 	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
 	"github.com/tuneinsight/lattigo/v6/utils"
+	"github.com/tuneinsight/lattigo/v6/utils/structs"
 )
 
 // Evaluator is a struct that holds the necessary elements to perform the homomorphic operations between ciphertexts and/or plaintexts.
@@ -23,6 +24,8 @@ type Evaluator struct {
 	// scale-invariant multiplications (transforming the BGV evaluator into
 	// BFV evaluator).
 	ScaleInvariant bool
+	pool           *rlwe.Pool
+	poolQMul       *ring.Pool
 }
 
 type evaluatorBase struct {
@@ -79,6 +82,11 @@ func NewEvaluator(parameters Parameters, evk rlwe.EvaluationKeySet, scaleInvaria
 	ev.Encoder = NewEncoder(parameters)
 	ev.ScaleInvariant = len(scaleInvariant) > 0 && scaleInvariant[0]
 
+	uintPool := structs.NewSyncPoolUint64(parameters.N())
+	ev.pool = rlwe.NewPool(parameters.RingQP(), uintPool)
+
+	ev.poolQMul = ring.NewPool(parameters.ringQMul, uintPool)
+
 	return ev
 }
 
@@ -94,6 +102,7 @@ func (eval Evaluator) WithKey(evk rlwe.EvaluationKeySet) *Evaluator {
 		evaluatorBase: eval.evaluatorBase,
 		Evaluator:     eval.Evaluator.WithKey(evk),
 		Encoder:       eval.Encoder,
+		pool:          eval.pool,
 	}
 }
 
@@ -178,8 +187,8 @@ func (eval Evaluator) Add(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 		opOut.Resize(op0.Degree(), level)
 
 		// Instantiates new plaintext from buffer
-		pt := eval.GetBuffPt(level)
-		defer eval.RecycleBuffPt(pt)
+		pt := eval.pool.GetBuffPt(level)
+		defer eval.pool.RecycleBuffPt(pt)
 
 		pt.MetaData = op0.MetaData // Sets the metadata, notably matches scalses
 
@@ -313,8 +322,8 @@ func (eval Evaluator) Sub(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 		opOut.Resize(op0.Degree(), level)
 
 		// Instantiates new plaintext from buffer
-		pt := eval.GetBuffPt(level)
-		defer eval.RecycleBuffPt(pt)
+		pt := eval.pool.GetBuffPt(level)
+		defer eval.pool.RecycleBuffPt(pt)
 
 		pt.MetaData = op0.MetaData // Sets the metadata, notably matches scales
 
@@ -440,8 +449,8 @@ func (eval Evaluator) Mul(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 		}
 
 		// Instantiates new plaintext from buffer
-		pt := eval.GetBuffPt(level)
-		defer eval.RecycleBuffPt(pt)
+		pt := eval.pool.GetBuffPt(level)
+		defer eval.pool.RecycleBuffPt(pt)
 
 		pt.MetaData = op0.MetaData.CopyNew() // Sets the metadata, notably matches scales
 		pt.Scale = rlwe.NewScale(1)
@@ -587,6 +596,7 @@ func (eval Evaluator) tensorStandard(op0 *rlwe.Ciphertext, op1 *rlwe.Element[rin
 	opOut.Scale = op0.Scale.Mul(op1.Scale)
 
 	ringQ := eval.parameters.RingQ().AtLevel(level)
+	poolQ := eval.pool.AtLevel(level)
 
 	var c00, c01 *ring.Poly
 	var c0, c1, c2 ring.Poly
@@ -594,10 +604,10 @@ func (eval Evaluator) tensorStandard(op0 *rlwe.Ciphertext, op1 *rlwe.Element[rin
 	// Case Ciphertext (x) Ciphertext
 	if op0.Degree() == 1 && op1.Degree() == 1 {
 
-		c00 = ringQ.GetBuffPoly()
-		defer ringQ.RecycleBuffPoly(c00)
-		c01 = ringQ.GetBuffPoly()
-		defer ringQ.RecycleBuffPoly(c01)
+		c00 = poolQ.GetBuffPoly()
+		defer poolQ.RecycleBuffPoly(c00)
+		c01 = poolQ.GetBuffPoly()
+		defer poolQ.RecycleBuffPoly(c01)
 
 		c0 = opOut.Value[0]
 		c1 = opOut.Value[1]
@@ -607,8 +617,8 @@ func (eval Evaluator) tensorStandard(op0 *rlwe.Ciphertext, op1 *rlwe.Element[rin
 			c2 = opOut.Value[2]
 		} else {
 			opOut.Resize(1, opOut.Level())
-			buffq := ringQ.GetBuffPoly()
-			defer ringQ.RecycleBuffPoly(buffq)
+			buffq := poolQ.GetBuffPoly()
+			defer poolQ.RecycleBuffPoly(buffq)
 			c2 = *buffq
 		}
 
@@ -645,8 +655,8 @@ func (eval Evaluator) tensorStandard(op0 *rlwe.Ciphertext, op1 *rlwe.Element[rin
 				return fmt.Errorf("cannot Tensor: cannot Relinearize: %w", err)
 			}
 
-			tmpCt := eval.GetBuffCt(1, ringQ.Level())
-			defer eval.RecycleBuffCt(tmpCt)
+			tmpCt := eval.pool.GetBuffCt(1, ringQ.Level())
+			defer eval.pool.RecycleBuffCt(tmpCt)
 			tmpCt.MetaData = &rlwe.MetaData{}
 			tmpCt.IsNTT = true
 
@@ -661,8 +671,8 @@ func (eval Evaluator) tensorStandard(op0 *rlwe.Ciphertext, op1 *rlwe.Element[rin
 
 		opOut.Resize(op0.Degree(), level)
 
-		c00 = ringQ.GetBuffPoly()
-		defer ringQ.RecycleBuffPoly(c00)
+		c00 = poolQ.GetBuffPoly()
+		defer poolQ.RecycleBuffPoly(c00)
 
 		// Multiply by T * 2^{64} * 2^{64} -> result multipled by T and switched in the Montgomery domain
 		ringQ.MulRNSScalarMontgomery(op1.El().Value[0], eval.tMontgomery, *c00)
@@ -725,8 +735,8 @@ func (eval Evaluator) MulScaleInvariant(op0 *rlwe.Ciphertext, op1 rlwe.Operand, 
 		opOut.Resize(op0.Degree(), level)
 
 		// Instantiates new plaintext from buffer
-		pt := eval.GetBuffPt(level)
-		defer eval.RecycleBuffPt(pt)
+		pt := eval.pool.GetBuffPt(level)
+		defer eval.pool.RecycleBuffPt(pt)
 
 		pt.MetaData = op0.MetaData.CopyNew() // Sets the metadata, notably matches scales
 		pt.Scale = rlwe.NewScale(1)
@@ -828,8 +838,8 @@ func (eval Evaluator) MulRelinScaleInvariant(op0 *rlwe.Ciphertext, op1 rlwe.Oper
 		opOut.Resize(op0.Degree(), level)
 
 		// Instantiates new plaintext from buffer
-		pt := eval.GetBuffPt(level)
-		defer eval.RecycleBuffPt(pt)
+		pt := eval.pool.GetBuffPt(level)
+		defer eval.pool.RecycleBuffPt(pt)
 
 		pt.MetaData = op0.MetaData.CopyNew() // Sets the metadata, notably matches scales
 		pt.Scale = rlwe.NewScale(1)
@@ -890,7 +900,7 @@ func (eval Evaluator) tensorScaleInvariant(ct0 *rlwe.Ciphertext, ct1 *rlwe.Eleme
 	level := opOut.Level()
 
 	levelQMul := eval.levelQMul[level]
-	ringQMul := eval.parameters.ringQMul.AtLevel(levelQMul)
+	poolQMul := eval.poolQMul.AtLevel(levelQMul)
 
 	// Avoid overwriting if the second input is the output
 	var tmp0Q0, tmp1Q0 *rlwe.Element[ring.Poly]
@@ -900,16 +910,16 @@ func (eval Evaluator) tensorScaleInvariant(ct0 *rlwe.Ciphertext, ct1 *rlwe.Eleme
 		tmp0Q0, tmp1Q0 = ct0.El(), ct1
 	}
 
-	buffQ0 := ringQMul.GetBuffPoly()
-	defer ringQMul.RecycleBuffPoly(buffQ0)
-	buffQ1 := ringQMul.GetBuffPoly()
-	defer ringQMul.RecycleBuffPoly(buffQ1)
-	buffQ2 := ringQMul.GetBuffPoly()
-	defer ringQMul.RecycleBuffPoly(buffQ2)
-	buffQ3 := ringQMul.GetBuffPoly()
-	defer ringQMul.RecycleBuffPoly(buffQ3)
-	buffQ4 := ringQMul.GetBuffPoly()
-	defer ringQMul.RecycleBuffPoly(buffQ4)
+	buffQ0 := poolQMul.GetBuffPoly()
+	defer poolQMul.RecycleBuffPoly(buffQ0)
+	buffQ1 := poolQMul.GetBuffPoly()
+	defer poolQMul.RecycleBuffPoly(buffQ1)
+	buffQ2 := poolQMul.GetBuffPoly()
+	defer poolQMul.RecycleBuffPoly(buffQ2)
+	buffQ3 := poolQMul.GetBuffPoly()
+	defer poolQMul.RecycleBuffPoly(buffQ3)
+	buffQ4 := poolQMul.GetBuffPoly()
+	defer poolQMul.RecycleBuffPoly(buffQ4)
 	tmp0Q1 := &rlwe.Element[ring.Poly]{Value: []ring.Poly{*buffQ0, *buffQ1, *buffQ2}}
 	tmp1Q1 := &rlwe.Element[ring.Poly]{Value: []ring.Poly{*buffQ3, *buffQ4}}
 	tmp2Q1 := tmp0Q1
@@ -926,9 +936,9 @@ func (eval Evaluator) tensorScaleInvariant(ct0 *rlwe.Ciphertext, ct1 *rlwe.Eleme
 		c2 = opOut.Value[2]
 	} else {
 		opOut.Resize(1, opOut.Level())
-		ringQ := eval.parameters.RingQ().AtLevel(level)
-		buffQ := ringQ.GetBuffPoly()
-		defer ringQ.RecycleBuffPoly(buffQ)
+		poolQ := eval.poolQ.AtLevel(level)
+		buffQ := poolQ.GetBuffPoly()
+		defer poolQ.RecycleBuffPoly(buffQ)
 		c2 = *buffQ
 	}
 
@@ -950,8 +960,8 @@ func (eval Evaluator) tensorScaleInvariant(ct0 *rlwe.Ciphertext, ct1 *rlwe.Eleme
 
 		ringQ := eval.parameters.RingQ().AtLevel(level)
 
-		tmpCt := eval.GetBuffCt(1, ringQ.Level())
-		defer eval.RecycleBuffCt(tmpCt)
+		tmpCt := eval.pool.GetBuffCt(1, ringQ.Level())
+		defer eval.pool.RecycleBuffCt(tmpCt)
 
 		tmpCt.MetaData = &rlwe.MetaData{}
 		tmpCt.IsNTT = true
@@ -980,8 +990,9 @@ func MulScaleInvariant(params Parameters, a, b rlwe.Scale, level int) (c rlwe.Sc
 
 func (eval Evaluator) modUpAndNTT(level, levelQMul int, ctQ0, ctQ1 *rlwe.Element[ring.Poly]) {
 	ringQ, ringQMul := eval.parameters.RingQ().AtLevel(level), eval.parameters.RingQMul().AtLevel(levelQMul)
-	buffQ := ringQ.GetBuffPoly()
-	defer ringQ.RecycleBuffPoly(buffQ)
+	poolQ := eval.poolQ.AtLevel(level)
+	buffQ := poolQ.GetBuffPoly()
+	defer poolQ.RecycleBuffPoly(buffQ)
 	for i := range ctQ0.Value {
 		ringQ.INTT(ctQ0.Value[i], *buffQ)
 		eval.basisExtenderQ1toQ2.ModUpQtoP(level, levelQMul, *buffQ, ctQ1.Value[i])
@@ -992,19 +1003,20 @@ func (eval Evaluator) modUpAndNTT(level, levelQMul int, ctQ0, ctQ1 *rlwe.Element
 func (eval Evaluator) tensorLowDeg(level, levelQMul int, ct0Q0, ct1Q0, ct2Q0, ct0Q1, ct1Q1, ct2Q1 *rlwe.Element[ring.Poly]) {
 
 	ringQ, ringQMul := eval.parameters.RingQ().AtLevel(level), eval.parameters.RingQMul().AtLevel(levelQMul)
+	poolQ, poolQMul := eval.poolQ.AtLevel(level), eval.poolQMul.AtLevel(levelQMul)
 
-	c00 := ringQ.GetBuffPoly()
-	defer ringQ.RecycleBuffPoly(c00)
-	c01 := ringQ.GetBuffPoly()
-	defer ringQ.RecycleBuffPoly(c01)
+	c00 := poolQ.GetBuffPoly()
+	defer poolQ.RecycleBuffPoly(c00)
+	c01 := poolQ.GetBuffPoly()
+	defer poolQ.RecycleBuffPoly(c01)
 
 	ringQ.MForm(ct0Q0.Value[0], *c00)
 	ringQ.MForm(ct0Q0.Value[1], *c01)
 
-	c00M := ringQMul.GetBuffPoly()
-	defer ringQMul.RecycleBuffPoly(c00M)
-	c01M := ringQMul.GetBuffPoly()
-	defer ringQMul.RecycleBuffPoly(c01M)
+	c00M := poolQMul.GetBuffPoly()
+	defer poolQMul.RecycleBuffPoly(c00M)
+	c01M := poolQMul.GetBuffPoly()
+	defer poolQMul.RecycleBuffPoly(c01M)
 
 	ringQMul.MForm(ct0Q1.Value[0], *c00M)
 	ringQMul.MForm(ct0Q1.Value[1], *c01M)
@@ -1144,8 +1156,8 @@ func (eval Evaluator) MulThenAdd(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *
 		opOut.Resize(op0.Degree(), opOut.Level())
 
 		// Instantiates new plaintext from buffer
-		pt := eval.GetBuffPt(level)
-		defer eval.RecycleBuffPt(pt)
+		pt := eval.pool.GetBuffPt(level)
+		defer eval.pool.RecycleBuffPt(pt)
 
 		pt.MetaData = op0.MetaData.CopyNew() // Sets the metadata, notably matches scales
 
@@ -1220,6 +1232,7 @@ func (eval Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ri
 	level := opOut.Level()
 
 	ringQ := eval.parameters.RingQ().AtLevel(level)
+	poolQ := eval.poolQ.AtLevel(level)
 	sT := eval.parameters.RingT().SubRings[0]
 
 	var c0, c1, c2 ring.Poly
@@ -1228,10 +1241,10 @@ func (eval Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ri
 	// Case Ciphertext (x) Ciphertext
 	if op0.Degree() == 1 && op1.Degree() == 1 {
 
-		c00 = ringQ.GetBuffPoly()
-		defer ringQ.RecycleBuffPoly(c00)
-		c01 = ringQ.GetBuffPoly()
-		defer ringQ.RecycleBuffPoly(c01)
+		c00 = poolQ.GetBuffPoly()
+		defer poolQ.RecycleBuffPoly(c00)
+		c01 = poolQ.GetBuffPoly()
+		defer poolQ.RecycleBuffPoly(c01)
 
 		c0 = opOut.Value[0]
 		c1 = opOut.Value[1]
@@ -1241,8 +1254,8 @@ func (eval Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ri
 			c2 = opOut.Value[2]
 		} else {
 			opOut.Resize(utils.Max(1, opOut.Degree()), level)
-			buffQ := ringQ.GetBuffPoly()
-			defer ringQ.RecycleBuffPoly(buffQ)
+			buffQ := poolQ.GetBuffPoly()
+			defer poolQ.RecycleBuffPoly(buffQ)
 			c2 = *buffQ
 		}
 
@@ -1286,8 +1299,8 @@ func (eval Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ri
 
 			ringQ.MulCoeffsMontgomery(*c01, tmp1.Value[1], c2) // c2 += c[1]*c[1]
 
-			tmpCt := eval.GetBuffCt(1, level)
-			defer eval.RecycleBuffCt(tmpCt)
+			tmpCt := eval.pool.GetBuffCt(1, level)
+			defer eval.pool.RecycleBuffCt(tmpCt)
 			tmpCt.MetaData = &rlwe.MetaData{}
 			tmpCt.IsNTT = true
 
@@ -1305,8 +1318,8 @@ func (eval Evaluator) mulRelinThenAdd(op0 *rlwe.Ciphertext, op1 *rlwe.Element[ri
 
 		opOut.Resize(utils.Max(op0.Degree(), opOut.Degree()), level)
 
-		c00 := ringQ.GetBuffPoly()
-		defer ringQ.RecycleBuffPoly(c00)
+		c00 := poolQ.GetBuffPoly()
+		defer poolQ.RecycleBuffPoly(c00)
 
 		// Multiply by T * 2^{64} * 2^{64} -> result multipled by T and switched in the Montgomery domain
 		ringQ.MulRNSScalarMontgomery(op1.El().Value[0], eval.tMontgomery, *c00)
@@ -1367,9 +1380,10 @@ func (eval Evaluator) Rescale(op0, opOut *rlwe.Ciphertext) (err error) {
 
 	level := op0.Level()
 	ringQ := eval.parameters.RingQ().AtLevel(level)
+	poolQ := eval.poolQ.AtLevel(level)
 
-	buffQ := ringQ.GetBuffPoly()
-	defer ringQ.RecycleBuffPoly(buffQ)
+	buffQ := poolQ.GetBuffPoly()
+	defer poolQ.RecycleBuffPoly(buffQ)
 	for i := range opOut.Value {
 		ringQ.DivRoundByLastModulusNTT(op0.Value[i], *buffQ, opOut.Value[i])
 	}
@@ -1485,8 +1499,8 @@ func (eval Evaluator) InnerSum(ctIn *rlwe.Ciphertext, batchSize, n int, opOut *r
 			return
 		}
 
-		ctTmp := eval.GetBuffCt(1, opOut.Level())
-		defer eval.RecycleBuffCt(ctTmp)
+		ctTmp := eval.pool.GetBuffCt(1, opOut.Level())
+		defer eval.pool.RecycleBuffCt(ctTmp)
 		ctTmp.MetaData = opOut.MetaData
 		if err = eval.RotateRows(opOut, ctTmp); err != nil {
 			return

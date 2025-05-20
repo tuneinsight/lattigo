@@ -5,7 +5,6 @@ import (
 
 	"github.com/tuneinsight/lattigo/v6/ring"
 	"github.com/tuneinsight/lattigo/v6/utils"
-	"github.com/tuneinsight/lattigo/v6/utils/structs"
 )
 
 // Evaluator is a struct that holds the necessary elements to execute general homomorphic
@@ -18,7 +17,7 @@ type Evaluator struct {
 
 	BasisExtender *ring.BasisExtender
 	Decomposer    *ring.Decomposer
-	UintBuffPool  structs.BufferPool[*[]uint64]
+	pool          *Pool
 }
 
 // NewEvaluator creates a new [Evaluator].
@@ -27,8 +26,7 @@ func NewEvaluator(params ParameterProvider, evk EvaluationKeySet) (eval *Evaluat
 	p := params.GetRLWEParameters()
 	eval.params = *p
 
-	// All buffer use the same sync.Pool of *[]uint64
-	eval.UintBuffPool = eval.params.RingQ().BufferPool()
+	eval.pool = NewPool(p.RingQP())
 
 	if p.RingP() != nil {
 		eval.BasisExtender = ring.NewBasisExtender(p.RingQ(), p.RingP())
@@ -62,53 +60,6 @@ func NewEvaluator(params ParameterProvider, evk EvaluationKeySet) (eval *Evaluat
 	return
 }
 
-// GetBuffCt returns a ciphertext that can be used as a buffer for intermediate computations.
-// After use, the ciphertext should be recycled with [Evaluator.RecycleBuffCt].
-// The optional dimensions specify the degree and level of the ciphertext (default to 2, eval.params.ringQ.Level()).
-func (eval *Evaluator) GetBuffCt(dimensions ...int) *Ciphertext {
-	degree := 2
-	level := eval.params.ringQ.Level()
-	switch nbParams := len(dimensions); nbParams {
-	case 0:
-	case 1:
-		degree = dimensions[0]
-	case 2:
-		degree = dimensions[0]
-		level = dimensions[1]
-	default:
-		panic(fmt.Errorf("getbuffct takes 2 parameters at most"))
-	}
-
-	return GetBuffCt(eval.params, degree, level)
-}
-
-// RecycleBuffCt recycles a temporary ciphertext (i.e. returns its backing uint64 arrays to the pool).
-// The input ciphertext must not be used after calling this method.
-func (eval *Evaluator) RecycleBuffCt(ct *Ciphertext) {
-	RecycleBuffCt(eval.params, ct)
-}
-
-// GetBuffPt returns a plaintext that can be used as a buffer for intermediate computations.
-// After use, the plaintext should be recycled with [Evaluator.RecycleBuffPt].
-// The optional argument specifies the level of the returned plaintext (default to eval.params.ringQ.Level()).
-func (eval *Evaluator) GetBuffPt(level ...int) *Plaintext {
-	lvl := eval.params.ringQ.Level()
-	switch nbParams := len(level); nbParams {
-	case 0:
-	case 1:
-		lvl = level[0]
-	default:
-		panic(fmt.Errorf("getbuffpt takes 1 parameter at most"))
-	}
-
-	return GetBuffPt(eval.params, lvl)
-}
-
-// RecycleBuffPt recycles a temporary plaintext (i.e. returns its backing uint64 arrays to the pool).
-// The input plaintext must not be used after calling this method.
-func (eval *Evaluator) RecycleBuffPt(pt *Plaintext) {
-	RecycleBuffPt(eval.params, pt)
-}
 func (eval *Evaluator) GetRLWEParameters() *Parameters {
 	return &eval.params
 }
@@ -271,7 +222,7 @@ func (eval Evaluator) WithKey(evk EvaluationKeySet) *Evaluator {
 		BasisExtender:     eval.BasisExtender,
 		EvaluationKeySet:  evk,
 		automorphismIndex: AutomorphismIndex,
-		UintBuffPool:      eval.UintBuffPool,
+		pool:              eval.pool,
 	}
 }
 

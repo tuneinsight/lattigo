@@ -68,6 +68,7 @@ type Encoder struct {
 	// Pools used to recycle large objects.
 	BuffBigIntPool  structs.BufferPool[*[]*big.Int]
 	BuffComplexPool structs.BufferPool[Complex]
+	poolQ           *ring.Pool
 }
 
 // NewEncoder creates a new [Encoder] from the target parameters.
@@ -127,6 +128,8 @@ func NewEncoder(parameters Parameters, precision ...uint) (ecd *Encoder) {
 			return &buff
 		})
 	}
+
+	ecd.poolQ = ring.NewPool(parameters.RingQ())
 
 	return
 }
@@ -498,8 +501,8 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values FloatSlice, logprec f
 		return fmt.Errorf("cannot Decode: ensure that %d <= logSlots (%d) <= %d", 0, logSlots, maxLogCols)
 	}
 
-	buff := ecd.parameters.RingQ().GetBuffPoly()
-	defer ecd.parameters.RingQ().RecycleBuffPoly(buff)
+	buff := ecd.poolQ.GetBuffPoly()
+	defer ecd.poolQ.RecycleBuffPoly(buff)
 	if pt.IsNTT {
 		ecd.parameters.RingQ().AtLevel(pt.Level()).INTT(pt.Value, *buff)
 	} else {

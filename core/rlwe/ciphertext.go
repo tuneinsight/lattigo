@@ -69,34 +69,3 @@ func (ct Ciphertext) Copy(ctxCopy *Ciphertext) {
 func (ct Ciphertext) Equal(other *Ciphertext) bool {
 	return ct.Element.Equal(&other.Element)
 }
-
-// GetBuffCt returns a new [*Ciphertext], built from backing []uint64 arrays obtained from the pool stored in the ring passed with the params.
-// After use, the [Ciphertext] should be recycled using the [RecycleBuffCt] method.
-func GetBuffCt(params ParameterProvider, degree int, levelQ int) *Ciphertext {
-	p := params.GetRLWEParameters()
-
-	ringQ := p.RingQ().AtLevel(levelQ)
-
-	polys := make([]ring.Poly, degree+1)
-	for i := range polys {
-		polys[i] = *ringQ.GetBuffPoly()
-	}
-
-	ct, err := NewCiphertextAtLevelFromPoly(levelQ, polys)
-
-	// sanity check: should not happen
-	if err != nil {
-		panic(fmt.Errorf("cannot create new ciphertext: %w", err))
-	}
-	return ct
-}
-
-// RecycleBuffCt takes a reference to a [Ciphertext] and recycles its backing []uint64 arrays
-// (i.e. they are returned to a pool). The input [Ciphertext] must not be used after calling this method.
-func RecycleBuffCt(params ParameterProvider, ct *Ciphertext) {
-	ringQ := params.GetRLWEParameters().ringQ
-	for i := range ct.Value {
-		ringQ.RecycleBuffPoly(&ct.Value[i])
-	}
-	ct = nil
-}

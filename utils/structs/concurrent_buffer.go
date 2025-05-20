@@ -24,6 +24,14 @@ func NewSyncPool[T any](f func() T) *SyncPool[T] {
 	return &SyncPool[T]{pool: pool}
 }
 
+func NewSyncPoolUint64(N int) *SyncPool[*[]uint64] {
+	return NewSyncPool(func() *[]uint64 {
+		buff := make([]uint64, N)
+		return &buff
+	})
+
+}
+
 // Get returns a new object of type T from the pool.
 func (spool *SyncPool[T]) Get() T {
 	return spool.pool.Get().(T)

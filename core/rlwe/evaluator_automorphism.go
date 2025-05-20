@@ -34,8 +34,8 @@ func (eval Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, opOut *Cipher
 
 	ringQ := eval.params.RingQ().AtLevel(level)
 
-	ctTmp := eval.GetBuffCt(1, ringQ.Level())
-	defer eval.RecycleBuffCt(ctTmp)
+	ctTmp := eval.pool.GetBuffCt(1, ringQ.Level())
+	defer eval.pool.RecycleBuffCt(ctTmp)
 	ctTmp.MetaData = ctIn.MetaData
 
 	eval.GadgetProduct(level, ctIn.Value[1], &evk.GadgetCiphertext, ctTmp)
@@ -81,8 +81,8 @@ func (eval Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1DecompQ
 
 	ringQ := eval.params.RingQ().AtLevel(level)
 
-	ctTmp := eval.GetBuffCt(1, ringQ.Level())
-	defer eval.RecycleBuffCt(ctTmp)
+	ctTmp := eval.pool.GetBuffCt(1, ringQ.Level())
+	defer eval.pool.RecycleBuffCt(ctTmp)
 	ctTmp.MetaData = ctIn.MetaData
 
 	eval.GadgetProductHoisted(level, c1DecompQP, &evk.EvaluationKey.GadgetCiphertext, ctTmp)
@@ -118,10 +118,11 @@ func (eval Evaluator) AutomorphismHoistedLazy(levelQ int, ctIn *Ciphertext, c1De
 	}
 
 	ringQP := eval.params.RingQP().AtLevel(levelQ, levelP)
-	buffQP1 := ringQP.GetBuffPolyQP()
-	defer ringQP.RecycleBuffPolyQP(buffQP1)
-	buffQP2 := ringQP.GetBuffPolyQP()
-	defer ringQP.RecycleBuffPolyQP(buffQP2)
+	poolQP := eval.pool.AtLevel(levelQ, levelP)
+	buffQP1 := poolQP.GetBuffPolyQP()
+	defer poolQP.RecycleBuffPolyQP(buffQP1)
+	buffQP2 := poolQP.GetBuffPolyQP()
+	defer poolQP.RecycleBuffPolyQP(buffQP2)
 
 	ctTmp := &Element[ringqp.Poly]{}
 	ctTmp.Value = []ringqp.Poly{*buffQP1, *buffQP2}

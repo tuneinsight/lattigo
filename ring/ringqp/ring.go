@@ -219,29 +219,3 @@ func (r Ring) NewPoly() Poly {
 	}
 	return Poly{Q, P}
 }
-
-// GetBuffPolyQP returns a new [Poly], built from backing []uint64 arrays obtained from a pool.
-// After use, the [Poly] should be recycled using the [Ring.RecycleBuffPolyQP] method.
-func (r Ring) GetBuffPolyQP() *Poly {
-	var Q, P ring.Poly
-	if r.RingQ != nil {
-		buffQ := r.RingQ.GetBuffPoly()
-		Q = *buffQ
-	}
-	if r.RingP != nil {
-		buffP := r.RingP.GetBuffPoly()
-		P = *buffP
-	}
-	return &Poly{Q, P}
-}
-
-// RecycleBuffPolyQP takes a reference to a [Poly] and recycles its backing []uint64 arrays
-// (i.e. they are returned to a pool). The input [Poly] must not be used after calling this method.
-func (r Ring) RecycleBuffPolyQP(poly *Poly) {
-	if r.RingQ != nil {
-		r.RingQ.RecycleBuffPoly(&poly.Q)
-	}
-	if r.RingP != nil {
-		r.RingP.RecycleBuffPoly(&poly.P)
-	}
-}

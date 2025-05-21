@@ -11,7 +11,6 @@ import (
 type Decryptor struct {
 	params Parameters
 	ringQ  *ring.Ring
-	buff   ring.Poly
 	sk     *SecretKey
 }
 
@@ -27,7 +26,6 @@ func NewDecryptor(params ParameterProvider, sk *SecretKey) *Decryptor {
 	return &Decryptor{
 		params: *p,
 		ringQ:  p.RingQ(),
-		buff:   p.RingQ().NewPoly(),
 		sk:     sk,
 	}
 }
@@ -69,8 +67,10 @@ func (d Decryptor) Decrypt(ct *Ciphertext, pt *Plaintext) {
 		ringQ.MulCoeffsMontgomery(pt.Value, d.sk.Value.Q, pt.Value)
 
 		if !ct.IsNTT {
-			ringQ.NTTLazy(ct.Value[i-1], d.buff)
-			ringQ.Add(pt.Value, d.buff, pt.Value)
+			buff := ringQ.GetBuffPoly()
+			ringQ.NTTLazy(ct.Value[i-1], *buff)
+			ringQ.Add(pt.Value, *buff, pt.Value)
+			ringQ.RecycleBuffPoly(buff)
 		} else {
 			ringQ.Add(pt.Value, ct.Value[i-1], pt.Value)
 		}
@@ -89,26 +89,13 @@ func (d Decryptor) Decrypt(ct *Ciphertext, pt *Plaintext) {
 	}
 }
 
-// ShallowCopy creates a shallow copy of [Decryptor] in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// [Decryptor] can be used concurrently.
-func (d Decryptor) ShallowCopy() *Decryptor {
-	return &Decryptor{
-		params: d.params,
-		ringQ:  d.ringQ,
-		buff:   d.ringQ.NewPoly(),
-		sk:     d.sk,
-	}
-}
-
 // WithKey creates a shallow copy of [Decryptor] with a new decryption key, in which all the
-// read-only data-structures are shared with the receiver and the temporary buffers
-// are reallocated. The receiver and the returned [Decryptor] can be used concurrently.
+// data-structures are shared with the receiver.
+// The receiver and the returned [Decryptor] can be used concurrently.
 func (d Decryptor) WithKey(sk *SecretKey) *Decryptor {
 	return &Decryptor{
 		params: d.params,
 		ringQ:  d.ringQ,
-		buff:   d.ringQ.NewPoly(),
 		sk:     sk,
 	}
 }

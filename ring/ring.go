@@ -11,6 +11,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v6/utils"
 	"github.com/tuneinsight/lattigo/v6/utils/bignum"
+	"github.com/tuneinsight/lattigo/v6/utils/structs"
 )
 
 const (
@@ -78,6 +79,8 @@ type Ring struct {
 	RescaleConstants [][]uint64
 
 	level int
+
+	bufferPool structs.BufferPool[*[]uint64]
 }
 
 // ConjugateInvariantRing returns the conjugate invariant ring of the receiver ring.
@@ -176,6 +179,11 @@ func (r Ring) Level() int {
 	return r.level
 }
 
+// BufferPool returns the pool of *[]uint64
+func (r Ring) BufferPool() structs.BufferPool[*[]uint64] {
+	return r.bufferPool
+}
+
 // AtLevel returns an instance of the target ring that operates at the target level.
 // This instance is thread safe and can be use concurrently with the base ring.
 func (r Ring) AtLevel(level int) *Ring {
@@ -195,6 +203,7 @@ func (r Ring) AtLevel(level int) *Ring {
 		ModulusAtLevel:   r.ModulusAtLevel,
 		RescaleConstants: r.RescaleConstants,
 		level:            level,
+		bufferPool:       r.bufferPool,
 	}
 }
 
@@ -243,16 +252,17 @@ func (r Ring) BRedConstants() (BRC [][2]uint64) {
 
 // NewRing creates a new RNS Ring with degree N and coefficient moduli Moduli with Standard NTT. N must be a power of two larger than 8. Moduli should be
 // a non-empty []uint64 with distinct prime elements. All moduli must also be equal to 1 modulo 2*N.
+// A pool implementing BufferPool[*[]uint64] will be stored in the returned Ring and will be used to efficiently instantiate large objects.
 // An error is returned with a nil *Ring in the case of non NTT-enabling parameters.
-func NewRing(N int, Moduli []uint64) (r *Ring, err error) {
-	return NewRingWithCustomNTT(N, Moduli, NewNumberTheoreticTransformerStandard, 2*N)
+func NewRing(N int, Moduli []uint64, pool structs.BufferPool[*[]uint64]) (r *Ring, err error) {
+	return NewRingWithCustomNTT(N, Moduli, NewNumberTheoreticTransformerStandard, 2*N, pool)
 }
 
 // NewRingConjugateInvariant creates a new RNS Ring with degree N and coefficient moduli Moduli with Conjugate Invariant NTT. N must be a power of two larger than 8. Moduli should be
 // a non-empty []uint64 with distinct prime elements. All moduli must also be equal to 1 modulo 4*N.
 // An error is returned with a nil *Ring in the case of non NTT-enabling parameters.
-func NewRingConjugateInvariant(N int, Moduli []uint64) (r *Ring, err error) {
-	return NewRingWithCustomNTT(N, Moduli, NewNumberTheoreticTransformerConjugateInvariant, 4*N)
+func NewRingConjugateInvariant(N int, Moduli []uint64, pool structs.BufferPool[*[]uint64]) (r *Ring, err error) {
+	return NewRingWithCustomNTT(N, Moduli, NewNumberTheoreticTransformerConjugateInvariant, 4*N, pool)
 }
 
 // NewRingFromType creates a new RNS Ring with degree N and coefficient moduli Moduli for which the type of NTT is determined by the ringType argument.
@@ -260,12 +270,12 @@ func NewRingConjugateInvariant(N int, Moduli []uint64) (r *Ring, err error) {
 // is instantiated with a ConjugateInvariant NTT with Nth root of unity 4*N. N must be a power of two larger than 8.
 // Moduli should be a non-empty []uint64 with distinct prime elements. All moduli must also be equal to 1 modulo the root of unity.
 // An error is returned with a nil *Ring in the case of non NTT-enabling parameters.
-func NewRingFromType(N int, Moduli []uint64, ringType Type) (r *Ring, err error) {
+func NewRingFromType(N int, Moduli []uint64, ringType Type, pool structs.BufferPool[*[]uint64]) (r *Ring, err error) {
 	switch ringType {
 	case Standard:
-		return NewRingWithCustomNTT(N, Moduli, NewNumberTheoreticTransformerStandard, 2*N)
+		return NewRingWithCustomNTT(N, Moduli, NewNumberTheoreticTransformerStandard, 2*N, pool)
 	case ConjugateInvariant:
-		return NewRingWithCustomNTT(N, Moduli, NewNumberTheoreticTransformerConjugateInvariant, 4*N)
+		return NewRingWithCustomNTT(N, Moduli, NewNumberTheoreticTransformerConjugateInvariant, 4*N, pool)
 	default:
 		return nil, fmt.Errorf("invalid ring type")
 	}
@@ -275,7 +285,7 @@ func NewRingFromType(N int, Moduli []uint64, ringType Type) (r *Ring, err error)
 // ModuliChain should be a non-empty []uint64 with distinct prime elements.
 // All moduli must also be equal to 1 modulo the root of unity.
 // N must be a power of two larger than 8. An error is returned with a nil *Ring in the case of non NTT-enabling parameters.
-func NewRingWithCustomNTT(N int, ModuliChain []uint64, ntt func(*SubRing, int) NumberTheoreticTransformer, NthRoot int) (r *Ring, err error) {
+func NewRingWithCustomNTT(N int, ModuliChain []uint64, ntt func(*SubRing, int) NumberTheoreticTransformer, NthRoot int, pool structs.BufferPool[*[]uint64]) (r *Ring, err error) {
 	r = new(Ring)
 
 	// Checks if N is a power of 2
@@ -309,6 +319,21 @@ func NewRingWithCustomNTT(N int, ModuliChain []uint64, ntt func(*SubRing, int) N
 	r.RescaleConstants = rewRescaleConstants(r.SubRings)
 
 	r.level = len(ModuliChain) - 1
+
+	r.bufferPool = pool
+
+	if r.bufferPool != nil { // Check that provided pool returns slices of length N
+		arr := r.bufferPool.Get()
+		if len(*arr) != N {
+			return nil, fmt.Errorf("invalid pool: pool must return []uint64 of length=%d != %d", N, len(*arr))
+		}
+		r.bufferPool.Put(arr)
+	} else { // If no pool provided: create one
+		r.bufferPool = structs.NewSyncPool(func() *[]uint64 {
+			arr := make([]uint64, N)
+			return &arr
+		})
+	}
 
 	return r, r.generateNTTConstants(nil, nil)
 }
@@ -360,6 +385,18 @@ func (r *Ring) generateNTTConstants(primitiveRoots []uint64, factors [][]uint64)
 // NewPoly creates a new polynomial with all coefficients set to 0.
 func (r Ring) NewPoly() Poly {
 	return NewPoly(r.N(), r.level)
+}
+
+// GetBuffPoly returns a new [Poly], built from backing []uint64 arrays obtained from a pool.
+// After use, the [Poly] should be recycled using the [Ring.RecycleBuffPoly] method.
+func (r Ring) GetBuffPoly() (p *Poly) {
+	return NewPolyFromUintPool(r.bufferPool, r.level)
+}
+
+// RecycleBuffPoly takes a reference to a [Poly] and recycles its backing []uint64 arrays
+// (i.e. they are returned to a pool). The input [Poly] must not be used after calling this method.
+func (r Ring) RecycleBuffPoly(pol *Poly) {
+	RecyclePolyInUintPool(r.bufferPool, pol)
 }
 
 // NewMonomialXi returns a polynomial X^{i}.
@@ -596,7 +633,10 @@ func newRingFromparametersLiteral(p ringParametersLiteral) (r *Ring, err error) 
 	}
 
 	r.RescaleConstants = rewRescaleConstants(r.SubRings)
-
+	r.bufferPool = structs.NewSyncPool(func() *[]uint64 {
+		buff := make([]uint64, r.SubRings[0].N)
+		return &buff
+	})
 	return
 }
 

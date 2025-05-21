@@ -11,6 +11,7 @@ import (
 	"github.com/tuneinsight/lattigo/v6/circuits/ckks/polynomial"
 	"github.com/tuneinsight/lattigo/v6/core/rlwe"
 	"github.com/tuneinsight/lattigo/v6/ring"
+	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
 	"github.com/tuneinsight/lattigo/v6/schemes/ckks"
 	"github.com/tuneinsight/lattigo/v6/utils"
 	"github.com/tuneinsight/lattigo/v6/utils/bignum"
@@ -125,39 +126,6 @@ func NewEvaluator(btpParams Parameters, evk *EvaluationKeys) (eval *Evaluator, e
 	eval.Mod1Evaluator = mod1.NewEvaluator(eval.Evaluator, polynomial.NewEvaluator(params, eval.Evaluator), eval.Mod1Parameters)
 
 	return
-}
-
-// ShallowCopy creates a shallow copy of this [Evaluator] in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// Evaluator can be used concurrently.
-func (eval Evaluator) ShallowCopy() *Evaluator {
-	heEvaluator := eval.Evaluator.ShallowCopy()
-
-	paramsN1 := eval.ResidualParameters
-	paramsN2 := eval.BootstrappingParameters
-
-	var DomainSwitcher ckks.DomainSwitcher
-	if paramsN1.RingType() == ring.ConjugateInvariant {
-		var err error
-		if DomainSwitcher, err = ckks.NewDomainSwitcher(paramsN2, eval.EvkCmplxToReal, eval.EvkRealToCmplx); err != nil {
-			panic(fmt.Errorf("cannot NewBootstrapper: ckks.NewDomainSwitcher: %w", err))
-		}
-	}
-	return &Evaluator{
-		Parameters:     eval.Parameters,
-		EvaluationKeys: eval.EvaluationKeys,
-		Mod1Parameters: eval.Mod1Parameters,
-		S2CDFTMatrix:   eval.S2CDFTMatrix,
-		C2SDFTMatrix:   eval.C2SDFTMatrix,
-		Evaluator:      heEvaluator,
-		xPow2N1:        eval.xPow2N1,
-		xPow2N2:        eval.xPow2N2,
-		xPow2InvN2:     eval.xPow2InvN2,
-		DomainSwitcher: DomainSwitcher,
-		DFTEvaluator:   dft.NewEvaluator(paramsN2, heEvaluator),
-		Mod1Evaluator:  mod1.NewEvaluator(heEvaluator, polynomial.NewEvaluator(paramsN2, heEvaluator), eval.Mod1Parameters),
-		SkDebug:        eval.SkDebug,
-	}
 }
 
 // CheckKeys checks if all the necessary keys are present in the instantiated [Evaluator]
@@ -667,6 +635,7 @@ func (eval Evaluator) ModUp(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err 
 	levelQ := params.QCount() - 1
 	levelP := params.PCount() - 1
 
+	ringQP := params.RingQP().AtLevel(levelQ, levelP)
 	ringQ = ringQ.AtLevel(levelQ)
 
 	Q := ringQ.ModuliChain()
@@ -699,6 +668,14 @@ func (eval Evaluator) ModUp(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err 
 
 		ks := eval.Evaluator.Evaluator
 
+		size := eval.ResidualParameters.BaseRNSDecompositionVectorSize(eval.BootstrappingParameters.MaxLevelQ(), 0)
+		buffDecompQP := make([]ringqp.Poly, size)
+		for i := 0; i < size; i++ {
+			buff := ringQP.GetBuffPolyQP()
+			defer ringQP.RecycleBuffPolyQP(buff)
+			buffDecompQP[i] = *buff
+		}
+
 		// ModUp q->QP for ctIn[1] centered around q
 		for j := 0; j < N; j++ {
 
@@ -711,22 +688,22 @@ func (eval Evaluator) ModUp(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err 
 
 			for i := 0; i < levelQ+1; i++ {
 				tmp = ring.BRedAdd(coeff, Q[i], BRCQ[i])
-				ks.BuffDecompQP[0].Q.Coeffs[i][j] = tmp*pos + (Q[i]-tmp)*neg
+				buffDecompQP[0].Q.Coeffs[i][j] = tmp*pos + (Q[i]-tmp)*neg
 
 			}
 
 			for i := 0; i < levelP+1; i++ {
 				tmp = ring.BRedAdd(coeff, P[i], BRCP[i])
-				ks.BuffDecompQP[0].P.Coeffs[i][j] = tmp*pos + (P[i]-tmp)*neg
+				buffDecompQP[0].P.Coeffs[i][j] = tmp*pos + (P[i]-tmp)*neg
 			}
 		}
 
-		for i := len(ks.BuffDecompQP) - 1; i >= 0; i-- {
-			ringQ.NTT(ks.BuffDecompQP[0].Q, ks.BuffDecompQP[i].Q)
+		for i := len(buffDecompQP) - 1; i >= 0; i-- {
+			ringQ.NTT(buffDecompQP[0].Q, buffDecompQP[i].Q)
 		}
 
-		for i := len(ks.BuffDecompQP) - 1; i >= 0; i-- {
-			ringP.NTT(ks.BuffDecompQP[0].P, ks.BuffDecompQP[i].P)
+		for i := len(buffDecompQP) - 1; i >= 0; i-- {
+			ringP.NTT(buffDecompQP[0].P, buffDecompQP[i].P)
 		}
 
 		ringQ.NTT(ctIn.Value[0], ctIn.Value[0])
@@ -736,12 +713,12 @@ func (eval Evaluator) ModUp(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err 
 
 			scalar := uint64(math.Round(scale))
 
-			for i := len(ks.BuffDecompQP) - 1; i >= 0; i-- {
-				ringQ.MulScalar(ks.BuffDecompQP[0].Q, scalar, ks.BuffDecompQP[i].Q)
+			for i := len(buffDecompQP) - 1; i >= 0; i-- {
+				ringQ.MulScalar(buffDecompQP[0].Q, scalar, buffDecompQP[i].Q)
 			}
 
-			for i := len(ks.BuffDecompQP) - 1; i >= 0; i-- {
-				ringP.MulScalar(ks.BuffDecompQP[0].P, scalar, ks.BuffDecompQP[i].P)
+			for i := len(buffDecompQP) - 1; i >= 0; i-- {
+				ringP.MulScalar(buffDecompQP[0].P, scalar, buffDecompQP[i].P)
 			}
 
 			ringQ.MulScalar(ctIn.Value[0], scalar, ctIn.Value[0])
@@ -749,12 +726,15 @@ func (eval Evaluator) ModUp(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err 
 			ctIn.Scale = ctIn.Scale.Mul(rlwe.NewScale(scale))
 		}
 
+		buffQ1 := ringQ.GetBuffPoly()
+		defer ringQ.RecycleBuffPoly(buffQ1)
+
 		ctTmp := &rlwe.Ciphertext{}
-		ctTmp.Value = []ring.Poly{ks.BuffQP[1].Q, ctIn.Value[1]}
+		ctTmp.Value = []ring.Poly{*buffQ1, ctIn.Value[1]}
 		ctTmp.MetaData = ctIn.MetaData
 
 		// Switch back to the dense key
-		ks.GadgetProductHoisted(levelQ, ks.BuffDecompQP, &eval.EvkSparseToDense.GadgetCiphertext, ctTmp)
+		ks.GadgetProductHoisted(levelQ, buffDecompQP, &eval.EvkSparseToDense.GadgetCiphertext, ctTmp)
 		ringQ.Add(ctIn.Value[0], ctTmp.Value[0], ctIn.Value[0])
 
 	} else {

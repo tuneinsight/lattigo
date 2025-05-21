@@ -38,23 +38,30 @@ func (eval Evaluator) EvaluateMany(ctIn *rlwe.Ciphertext, linearTransformations 
 
 	levelQ = utils.Min(levelQ, ctIn.Level())
 
-	BuffDecompQP := eval.GetBuffDecompQP()
+	ringQP := eval.GetRLWEParameters().RingQP().AtLevel(levelQ, levelP)
+	baseRNSDecompositionVectorSize := eval.Evaluator.GetRLWEParameters().BaseRNSDecompositionVectorSize(levelQ, levelP)
+	buffDecompQP := make([]ringqp.Poly, baseRNSDecompositionVectorSize)
+	for i := 0; i < len(buffDecompQP); i++ {
+		buff := ringQP.GetBuffPolyQP()
+		defer ringQP.RecycleBuffPolyQP(buff)
+		buffDecompQP[i] = *buff
+	}
 
-	eval.DecomposeNTT(levelQ, levelP, levelP+1, ctIn.Value[1], ctIn.IsNTT, BuffDecompQP)
+	eval.DecomposeNTT(levelQ, levelP, levelP+1, ctIn.Value[1], ctIn.IsNTT, buffDecompQP)
 
 	ctPreRot := map[int]*rlwe.Element[ringqp.Poly]{}
 
 	for i, lt := range linearTransformations {
 
 		if lt.N1 == 0 {
-			if err = eval.MultiplyByDiagMatrix(ctIn, lt, BuffDecompQP, opOut[i]); err != nil {
+			if err = eval.MultiplyByDiagMatrix(ctIn, lt, buffDecompQP, opOut[i]); err != nil {
 				return
 			}
 		} else {
 
 			_, _, rotN2 := lt.BSGSIndex()
 
-			if err = eval.PreRotatedCiphertextForDiagonalMatrixMultiplication(levelQ, levelP, ctIn, BuffDecompQP, rotN2, ctPreRot); err != nil {
+			if err = eval.PreRotatedCiphertextForDiagonalMatrixMultiplication(levelQ, levelP, ctIn, buffDecompQP, rotN2, ctPreRot); err != nil {
 				return
 			}
 
@@ -130,9 +137,6 @@ func (eval Evaluator) EvaluateSequential(ctIn *rlwe.Ciphertext, linearTransforma
 // for matrix of only a few non-zero diagonals but uses more keys.
 func (eval Evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearTransformation, BuffDecompQP []ringqp.Poly, opOut *rlwe.Ciphertext) (err error) {
 
-	BuffQP := eval.GetBuffQP()
-	BuffCt := eval.GetBuffCt()
-
 	*opOut.MetaData = *ctIn.MetaData
 	opOut.Scale = opOut.Scale.Mul(matrix.Scale)
 
@@ -145,27 +149,42 @@ func (eval Evaluator) MultiplyByDiagMatrix(ctIn *rlwe.Ciphertext, matrix LinearT
 	ringQ := ringQP.RingQ
 	ringP := ringQP.RingP
 
+	buffQP0 := ringQP.GetBuffPolyQP()
+	defer ringQP.RecycleBuffPolyQP(buffQP0)
+	buffQP1 := ringQP.GetBuffPolyQP()
+	defer ringQP.RecycleBuffPolyQP(buffQP1)
+	buffQP2 := ringQP.GetBuffPolyQP()
+	defer ringQP.RecycleBuffPolyQP(buffQP2)
+	buffQP3 := ringQP.GetBuffPolyQP()
+	defer ringQP.RecycleBuffPolyQP(buffQP3)
+	buffQP4 := ringQP.GetBuffPolyQP()
+	defer ringQP.RecycleBuffPolyQP(buffQP4)
+	buffQP5 := ringQP.GetBuffPolyQP()
+	defer ringQP.RecycleBuffPolyQP(buffQP5)
+	buffCt := eval.GetBuffCt(1, ringQ.Level())
+	defer eval.RecycleBuffCt(buffCt)
+
 	opOut.Resize(opOut.Degree(), levelQ)
 
 	QiOverF := params.QiOverflowMargin(levelQ)
 	PiOverF := params.PiOverflowMargin(levelP)
 
-	c0OutQP := ringqp.Poly{Q: opOut.Value[0], P: BuffQP[5].Q}
-	c1OutQP := ringqp.Poly{Q: opOut.Value[1], P: BuffQP[5].P}
+	c0OutQP := ringqp.Poly{Q: opOut.Value[0], P: (*buffQP5).Q}
+	c1OutQP := ringqp.Poly{Q: opOut.Value[1], P: (*buffQP5).P}
 
-	ct0TimesP := BuffQP[0].Q // ct0 * P mod Q
-	tmp0QP := BuffQP[1]
-	tmp1QP := BuffQP[2]
+	ct0TimesP := (*buffQP0).Q // ct0 * P mod Q
+	tmp0QP := *buffQP1
+	tmp1QP := *buffQP2
 
 	cQP := &rlwe.Element[ringqp.Poly]{}
-	cQP.Value = []ringqp.Poly{BuffQP[3], BuffQP[4]}
+	cQP.Value = []ringqp.Poly{*buffQP3, *buffQP4}
 	cQP.MetaData = &rlwe.MetaData{}
 	cQP.MetaData.IsNTT = true
 
-	BuffCt.Value[0].CopyLvl(levelQ, ctIn.Value[0])
-	BuffCt.Value[1].CopyLvl(levelQ, ctIn.Value[1])
+	buffCt.Value[0].CopyLvl(levelQ, ctIn.Value[0])
+	buffCt.Value[1].CopyLvl(levelQ, ctIn.Value[1])
 
-	ctInTmp0, ctInTmp1 := BuffCt.Value[0], BuffCt.Value[1]
+	ctInTmp0, ctInTmp1 := buffCt.Value[0], buffCt.Value[1]
 
 	ringQ.MulScalarBigint(ctInTmp0, ringP.ModulusAtLevel[levelP], ct0TimesP) // P*c0
 
@@ -257,9 +276,6 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 
 	params := eval.GetRLWEParameters()
 
-	BuffQP := eval.GetBuffQP()
-	BuffCt := eval.GetBuffCt()
-
 	*opOut.MetaData = *ctIn.MetaData
 	opOut.Scale = opOut.Scale.Mul(matrix.Scale)
 
@@ -270,6 +286,21 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 	ringQ := ringQP.RingQ
 	ringP := ringQP.RingP
 
+	buffQP1 := ringQP.GetBuffPolyQP()
+	defer ringQP.RecycleBuffPolyQP(buffQP1)
+	buffQP2 := ringQP.GetBuffPolyQP()
+	defer ringQP.RecycleBuffPolyQP(buffQP2)
+	buffQP3 := ringQP.GetBuffPolyQP()
+	defer ringQP.RecycleBuffPolyQP(buffQP3)
+	buffQP4 := ringQP.GetBuffPolyQP()
+	defer ringQP.RecycleBuffPolyQP(buffQP4)
+	buffP1 := ringQP.RingP.GetBuffPoly()
+	defer ringQP.RingP.RecycleBuffPoly(buffP1)
+	buffP2 := ringQP.RingP.GetBuffPoly()
+	defer ringQP.RingP.RecycleBuffPoly(buffP2)
+	buffCt := eval.GetBuffCt(1, ringQ.Level())
+	defer eval.RecycleBuffCt(buffCt)
+
 	opOut.Resize(opOut.Degree(), levelQ)
 
 	QiOverF := params.QiOverflowMargin(levelQ) >> 1
@@ -278,24 +309,24 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 	// Computes the N2 rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giant-step algorithm
 	index, _, _ := matrix.BSGSIndex()
 
-	BuffCt.Value[0].CopyLvl(levelQ, ctIn.Value[0])
-	BuffCt.Value[1].CopyLvl(levelQ, ctIn.Value[1])
+	buffCt.Value[0].CopyLvl(levelQ, ctIn.Value[0])
+	buffCt.Value[1].CopyLvl(levelQ, ctIn.Value[1])
 
-	ctInTmp0, ctInTmp1 := BuffCt.Value[0], BuffCt.Value[1]
+	ctInTmp0, ctInTmp1 := buffCt.Value[0], buffCt.Value[1]
 
 	// Accumulator inner loop
-	tmp0QP := BuffQP[1]
-	tmp1QP := BuffQP[2]
+	tmp0QP := (*buffQP1)
+	tmp1QP := (*buffQP2)
 
 	// Accumulator outer loop
 	cQP := &rlwe.Element[ringqp.Poly]{}
-	cQP.Value = []ringqp.Poly{BuffQP[3], BuffQP[4]}
+	cQP.Value = []ringqp.Poly{*buffQP3, *buffQP4}
 	cQP.MetaData = &rlwe.MetaData{}
 	cQP.IsNTT = true
 
 	// Result in QP
-	c0OutQP := ringqp.Poly{Q: opOut.Value[0], P: BuffQP[5].Q}
-	c1OutQP := ringqp.Poly{Q: opOut.Value[1], P: BuffQP[5].P}
+	c0OutQP := ringqp.Poly{Q: opOut.Value[0], P: *buffP1}
+	c1OutQP := ringqp.Poly{Q: opOut.Value[1], P: *buffP2}
 
 	ringQ.MulScalarBigint(ctInTmp0, ringP.ModulusAtLevel[levelP], ctInTmp0) // P*c0
 	ringQ.MulScalarBigint(ctInTmp1, ringP.ModulusAtLevel[levelP], ctInTmp1) // P*c1

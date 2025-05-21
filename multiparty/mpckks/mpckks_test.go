@@ -435,7 +435,7 @@ func testRefreshParameterized(tc *testContext, paramsOut ckks.Parameters, skOut 
 				t.Fail()
 			}
 		} else {
-			p.MaskedLinearTransformationProtocol = RefreshParties[0].MaskedLinearTransformationProtocol.ShallowCopy()
+			p.MaskedLinearTransformationProtocol = RefreshParties[0].MaskedLinearTransformationProtocol
 		}
 
 		p.sIn = tc.sk0Shards[i]

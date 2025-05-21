@@ -17,8 +17,6 @@ type RelinearizationKeyGenProtocol struct {
 
 	gaussianSamplerQ ring.Sampler
 	ternarySamplerQ  ring.Sampler
-
-	buf [2]ringqp.Poly
 }
 
 // RelinearizationKeyGenShare is a share in the RelinearizationKeyGen protocol.
@@ -29,42 +27,6 @@ type RelinearizationKeyGenShare struct {
 // RelinearizationKeyGenCRP is a type for common reference polynomials in the RelinearizationKeyGen protocol.
 type RelinearizationKeyGenCRP struct {
 	Value structs.Matrix[ringqp.Poly]
-}
-
-// ShallowCopy creates a shallow copy of [RelinearizationKeyGenProtocol] in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// [RelinearizationKeyGenProtocol] can be used concurrently.
-func (ekg *RelinearizationKeyGenProtocol) ShallowCopy() RelinearizationKeyGenProtocol {
-	var err error
-	prng, err := sampling.NewPRNG()
-
-	// Sanity check, this error should not happen.
-	if err != nil {
-		panic(err)
-	}
-
-	params := ekg.params
-
-	Xe, err := ring.NewSampler(prng, ekg.params.RingQ(), ekg.params.Xe(), false)
-
-	// Sanity check, this error should not happen.
-	if err != nil {
-		panic(err)
-	}
-
-	Xs, err := ring.NewSampler(prng, ekg.params.RingQ(), ekg.params.Xs(), false)
-
-	// Sanity check, this error should not happen.
-	if err != nil {
-		panic(err)
-	}
-
-	return RelinearizationKeyGenProtocol{
-		params:           ekg.params,
-		buf:              [2]ringqp.Poly{params.RingQP().NewPoly(), params.RingQP().NewPoly()},
-		gaussianSamplerQ: Xe,
-		ternarySamplerQ:  Xs,
-	}
 }
 
 // NewRelinearizationKeyGenProtocol creates a new RelinearizationKeyGen protocol struct.
@@ -94,7 +56,6 @@ func NewRelinearizationKeyGenProtocol(params rlwe.ParameterProvider) Relineariza
 		panic(err)
 	}
 
-	rkg.buf = [2]ringqp.Poly{rkg.params.RingQP().NewPoly(), rkg.params.RingQP().NewPoly()}
 	return rkg
 }
 
@@ -140,15 +101,16 @@ func (ekg RelinearizationKeyGenProtocol) GenShareRoundOne(sk *rlwe.SecretKey, cr
 
 	hasModulusP := levelP > -1
 
+	buffQ := ringQ.NewPoly()
 	if hasModulusP {
 		// Computes P * sk
-		ringQ.MulScalarBigint(sk.Value.Q, ringQP.RingP.ModulusAtLevel[levelP], ekg.buf[0].Q)
+		ringQ.MulScalarBigint(sk.Value.Q, ringQP.RingP.ModulusAtLevel[levelP], buffQ)
 	} else {
 		levelP = 0
-		ekg.buf[0].Q.CopyLvl(levelQ, sk.Value.Q)
+		buffQ.CopyLvl(levelQ, sk.Value.Q)
 	}
 
-	ringQ.IMForm(ekg.buf[0].Q, ekg.buf[0].Q)
+	ringQ.IMForm(buffQ, buffQ)
 
 	// u
 	ekg.ternarySamplerQ.Read(ephSkOut.Value.Q)
@@ -192,7 +154,7 @@ func (ekg RelinearizationKeyGenProtocol) GenShareRoundOne(sk *rlwe.SecretKey, cr
 					}
 
 					qi := ringQ.SubRings[index].Modulus
-					skP := ekg.buf[0].Q.Coeffs[index]
+					skP := buffQ.Coeffs[index]
 					h := shareOut.Value[i][j][0].Q.Coeffs[index]
 
 					for w := 0; w < N; w++ {
@@ -217,7 +179,7 @@ func (ekg RelinearizationKeyGenProtocol) GenShareRoundOne(sk *rlwe.SecretKey, cr
 			}
 		}
 
-		ringQ.MulScalar(ekg.buf[0].Q, 1<<shareOut.BaseTwoDecomposition, ekg.buf[0].Q)
+		ringQ.MulScalar(buffQ, 1<<shareOut.BaseTwoDecomposition, buffQ)
 	}
 }
 
@@ -238,7 +200,9 @@ func (ekg RelinearizationKeyGenProtocol) GenShareRoundTwo(ephSk, sk *rlwe.Secret
 	ringQP := ekg.params.RingQP().AtLevel(levelQ, levelP)
 
 	// (u_i - s_i)
-	ringQP.Sub(ephSk.Value, sk.Value, ekg.buf[0])
+	buffQP0 := ringQP.NewPoly()
+	buffQP1 := ekg.params.RingQP().NewPoly()
+	ringQP.Sub(ephSk.Value, sk.Value, buffQP0)
 
 	sampler := ekg.gaussianSamplerQ.AtLevel(levelQ)
 
@@ -253,18 +217,18 @@ func (ekg RelinearizationKeyGenProtocol) GenShareRoundTwo(ephSk, sk *rlwe.Secret
 			ringQP.MulCoeffsMontgomeryLazy(round1.Value[i][j][0], sk.Value, shareOut.Value[i][j][0])
 
 			// (AggregateShareRoundTwo samples) * sk + e_1i
-			sampler.Read(ekg.buf[1].Q)
+			sampler.Read(buffQP1.Q)
 
 			if levelP > -1 {
-				ringQP.ExtendBasisSmallNormAndCenter(ekg.buf[1].Q, levelP, ekg.buf[1].Q, ekg.buf[1].P)
+				ringQP.ExtendBasisSmallNormAndCenter(buffQP1.Q, levelP, buffQP1.Q, buffQP1.P)
 			}
 
-			ringQP.NTT(ekg.buf[1], ekg.buf[1])
-			ringQP.Add(shareOut.Value[i][j][0], ekg.buf[1], shareOut.Value[i][j][0])
+			ringQP.NTT(buffQP1, buffQP1)
+			ringQP.Add(shareOut.Value[i][j][0], buffQP1, shareOut.Value[i][j][0])
 
 			// second part
 			// (AggRound1Samples[0])*sk + (u_i - s_i) * (AggRound1Samples[1]) + e_1
-			ringQP.MulCoeffsMontgomeryThenAdd(ekg.buf[0], round1.Value[i][j][1], shareOut.Value[i][j][0])
+			ringQP.MulCoeffsMontgomeryThenAdd(buffQP0, round1.Value[i][j][1], shareOut.Value[i][j][0])
 		}
 	}
 }

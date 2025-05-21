@@ -11,6 +11,7 @@ type UniformSampler struct {
 }
 
 // NewUniformSampler instantiates a new UniformSampler from a given PRNG.
+// WARNING: If the PRNG is deterministic/keyed (of type [sampling.KeyedPRNG]), *concurrent* calls to the sampler will not necessarily result in a deterministic output.
 func NewUniformSampler(prng sampling.PRNG, r Ring) (s UniformSampler) {
 	if r.RingQ != nil {
 		s.samplerQ = ring.NewUniformSampler(prng, r.RingQ)
@@ -66,12 +67,4 @@ func (s UniformSampler) ReadNew() (p Poly) {
 	}
 
 	return Poly{Q: Q, P: P}
-}
-
-func (s UniformSampler) WithPRNG(prng sampling.PRNG) UniformSampler {
-	sp := UniformSampler{samplerQ: s.samplerQ.WithPRNG(prng)}
-	if s.samplerP != nil {
-		sp.samplerP = s.samplerP.WithPRNG(prng)
-	}
-	return sp
 }

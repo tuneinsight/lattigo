@@ -26,7 +26,7 @@ func BenchmarkNTT(b *testing.B) {
 
 func benchNTT(LogN, Qi int, b *testing.B) {
 	b.Run(fmt.Sprintf("Forward/N=%d/Qi=%d", 1<<LogN, Qi), func(b *testing.B) {
-		r, err := NewRing(1<<LogN, Qi60[:Qi])
+		r, err := NewRing(1<<LogN, Qi60[:Qi], nil)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -46,7 +46,7 @@ func benchNTT(LogN, Qi int, b *testing.B) {
 
 func benchINTT(LogN, Qi int, b *testing.B) {
 	b.Run(fmt.Sprintf("Backward/N=%d/Qi=%d", 1<<LogN, Qi), func(b *testing.B) {
-		r, err := NewRing(1<<LogN, Qi60[:Qi])
+		r, err := NewRing(1<<LogN, Qi60[:Qi], nil)
 		if err != nil {
 			b.Fatal(err)
 		}

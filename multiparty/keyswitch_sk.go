@@ -17,42 +17,11 @@ type KeySwitchProtocol struct {
 	params       rlwe.Parameters
 	noise        ring.DistributionParameters
 	noiseSampler ring.Sampler
-	buf          ring.Poly
-	bufDelta     ring.Poly
 }
 
 // KeySwitchShare is a type for the KeySwitch protocol shares.
 type KeySwitchShare struct {
 	Value ring.Poly
-}
-
-// ShallowCopy creates a shallow copy of [KeySwitchProtocol] in which all the read-only data-structures are
-// shared with the receiver and the temporary bufers are reallocated. The receiver and the returned
-// [KeySwitchProtocol] can be used concurrently.
-func (cks KeySwitchProtocol) ShallowCopy() KeySwitchProtocol {
-	prng, err := sampling.NewPRNG()
-
-	// Sanity check, this error should not happen.
-	if err != nil {
-		panic(err)
-	}
-
-	params := cks.params
-
-	Xe, err := ring.NewSampler(prng, cks.params.RingQ(), cks.noise, false)
-
-	// Sanity check, this error should not happen.
-	if err != nil {
-		panic(err)
-	}
-
-	return KeySwitchProtocol{
-		params:       params,
-		noiseSampler: Xe,
-		buf:          params.RingQ().NewPoly(),
-		bufDelta:     params.RingQ().NewPoly(),
-		noise:        cks.noise,
-	}
 }
 
 // KeySwitchCRP is a type for common reference polynomials in the KeySwitch protocol.
@@ -92,8 +61,6 @@ func NewKeySwitchProtocol(params rlwe.ParameterProvider, noiseFlooding ring.Dist
 		panic(err)
 	}
 
-	cks.buf = cks.params.RingQ().NewPoly()
-	cks.bufDelta = cks.params.RingQ().NewPoly()
 	return cks, nil
 }
 
@@ -122,19 +89,21 @@ func (cks KeySwitchProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlw
 	shareOut.Value.Resize(levelQ)
 
 	ringQ := cks.params.RingQ().AtLevel(levelQ)
+	buffDelta := ringQ.NewPoly()
+	buffQ := cks.params.RingQ().NewPoly()
 
-	ringQ.Sub(skInput.Value.Q, skOutput.Value.Q, cks.bufDelta)
+	ringQ.Sub(skInput.Value.Q, skOutput.Value.Q, buffDelta)
 
 	var c1NTT ring.Poly
 	if !ct.IsNTT {
-		ringQ.NTTLazy(ct.Value[1], cks.buf)
-		c1NTT = cks.buf
+		ringQ.NTTLazy(ct.Value[1], buffQ)
+		c1NTT = buffQ
 	} else {
 		c1NTT = ct.Value[1]
 	}
 
 	// c1NTT * (skIn - skOut)
-	ringQ.MulCoeffsMontgomeryLazy(c1NTT, cks.bufDelta, shareOut.Value)
+	ringQ.MulCoeffsMontgomeryLazy(c1NTT, buffDelta, shareOut.Value)
 
 	if !ct.IsNTT {
 		// InvNTT(c1NTT * (skIn - skOut)) + e
@@ -142,9 +111,9 @@ func (cks KeySwitchProtocol) GenShare(skInput, skOutput *rlwe.SecretKey, ct *rlw
 		cks.noiseSampler.AtLevel(levelQ).ReadAndAdd(shareOut.Value)
 	} else {
 		// c1NTT * (skIn - skOut) + e
-		cks.noiseSampler.AtLevel(levelQ).Read(cks.buf)
-		ringQ.NTT(cks.buf, cks.buf)
-		ringQ.Add(shareOut.Value, cks.buf, shareOut.Value)
+		cks.noiseSampler.AtLevel(levelQ).Read(buffQ)
+		ringQ.NTT(buffQ, buffQ)
+		ringQ.Add(shareOut.Value, buffQ, shareOut.Value)
 	}
 }
 

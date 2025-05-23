@@ -66,10 +66,12 @@ func IMFormLazy(a, q, mredconstant uint64) (r uint64) {
 
 // GenMRedConstant computes the constant mredconstant = (q^-1) mod 2^64 required for MRed.
 func GenMRedConstant(q uint64) (mredconstant uint64) {
-	mredconstant = 1
-	for i := 0; i < 63; i++ {
-		mredconstant *= q
-		q *= q
+	var b uint64 = 1
+	var xi uint64
+	for i := 0; i < 64; i++ {
+		xi = b & 1
+		mredconstant |= (xi << i)
+		b = (b - (xi * q)) >> 1
 	}
 	return mredconstant
 }

@@ -26,6 +26,7 @@ func BenchmarkConcurrentBootstrap(b *testing.B) {
 	evk, _, err := btpParams.GenEvaluationKeys(sk)
 	require.NoError(b, err)
 
+	// Benchmark parallel bootstrapping
 	b.Run(ParamsToString(params, btpParams.LogMaxDimensions().Cols, "Bootstrap/"), func(b *testing.B) {
 		var err error
 		eval, err := NewEvaluator(btpParams, evk)

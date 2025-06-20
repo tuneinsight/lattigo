@@ -72,12 +72,12 @@ func (g *GaussianSampler) read(pol Poly, f func(a, b, c uint64) uint64) {
 
 	r := g.baseRing
 
-	randomBufferN := make([]byte, 1024)
+	var randomBufferN [1024]byte
 	var ptr int
 
 	level := r.level
 
-	if _, err := g.prng.Read(randomBufferN); err != nil {
+	if _, err := g.prng.Read(randomBufferN[:]); err != nil {
 		// Sanity check, this error should not happen.
 		panic(err)
 	}
@@ -121,7 +121,7 @@ func (g *GaussianSampler) read(pol Poly, f func(a, b, c uint64) uint64) {
 
 			for {
 				// Sample norm with sigma = 1 and sign
-				norm, sign = g.normFloat64(randomBufferN, &ptr)
+				norm, sign = g.normFloat64(randomBufferN[:], &ptr)
 
 				// Sets normFlo = norm * sigma with precision 53 bits
 				// and 0.5 for rounding discretization
@@ -160,7 +160,7 @@ func (g *GaussianSampler) read(pol Poly, f func(a, b, c uint64) uint64) {
 		for i := 0; i < N; i++ {
 
 			for {
-				norm, sign = g.normFloat64(randomBufferN, &ptr)
+				norm, sign = g.normFloat64(randomBufferN[:], &ptr)
 
 				if v := norm * sigma; v <= bound {
 					coeffInt = uint64(v + 0.5) // rounding
@@ -189,16 +189,15 @@ func (g *GaussianSampler) read(pol Poly, f func(a, b, c uint64) uint64) {
 //
 // Algorithm adapted from https://golang.org/src/math/rand/normal.go
 // to use a secure PRNG instead of math/rand.
-func (g *GaussianSampler) normFloat64(buffer []byte, ptr *int) (float64, uint64) {
+func (g *GaussianSampler) normFloat64(buff []byte, ptr *int) (float64, uint64) {
 
 	currPtr := *ptr
-	buff := buffer
 	prng := g.prng
 	buffLen := len(buff)
 
 	read := func() {
 		if currPtr == buffLen {
-			if _, err := prng.Read(buff[:]); err != nil {
+			if _, err := prng.Read(buff); err != nil {
 				// Sanity check, this error should not happen.
 				panic(err)
 			}

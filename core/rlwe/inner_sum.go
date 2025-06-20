@@ -211,13 +211,8 @@ func (eval Evaluator) PartialTracesSum(ctIn *Ciphertext, offset, n int, opOut *C
 
 		cQ.MetaData = ctInNTT.MetaData
 
-		baseRNSDecompositionVectorSize := eval.params.BaseRNSDecompositionVectorSize(levelQ, levelP)
-		buffDecompQP := make([]ringqp.Poly, baseRNSDecompositionVectorSize)
-		for i := 0; i < len(buffDecompQP); i++ {
-			buff := poolQP.GetBuffPolyQP()
-			defer poolQP.RecycleBuffPolyQP(buff)
-			buffDecompQP[i] = *buff
-		}
+		buffDecompQP := poolQP.GetBuffDecompQP(eval.params, levelQ, levelP)
+		defer eval.pool.RecycleBuffDecompQP(buffDecompQP)
 
 		state := false
 		copy := true

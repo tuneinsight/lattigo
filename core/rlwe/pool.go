@@ -29,6 +29,15 @@ func NewPool(rqp *ringqp.Ring, pools ...structs.BufferPool[*[]uint64]) *Pool {
 	return &Pool{ringqpPool}
 }
 
+// AtLevel returns a new pool from which objects from polynomials at the given levels can be drawn.
+// The method accepts up to two levels:
+// Zero level: the objects returned are built from polynomials at level 0.
+// One level: the objects returned are built from polynomials in RingQ (resp. RingP) at the given level (resp. level 0).
+// Two levels: the objects returned are built from polynomials in RingQ (resp. RingP) at levels[0] (resp. levels[1]).
+func (pool Pool) AtLevel(levels ...int) *Pool {
+	return &Pool{pool.Pool.AtLevel(levels...)}
+}
+
 // GetBuffCt returns a ciphertext that can be used as a buffer for intermediate computations.
 // After use, the ciphertext should be recycled with [Pool.RecycleBuffCt].
 // The optional dimensions specify the degree and level of the ciphertext (default to 2, eval.params.ringQ.Level()).
@@ -98,4 +107,23 @@ func (pool *Pool) GetBuffPt(level ...int) *Plaintext {
 // The input plaintext must not be used after calling this method.
 func (pool *Pool) RecycleBuffPt(pt *Plaintext) {
 	pool.RecycleBuffPoly(&pt.Value)
+}
+
+// GetBuffDecompQP returns buffers of polys to be used for RNS decomposition.
+// After use, the array of buffers must be recycled with [Pool.RecycleBuffDecompQP].
+func (pool *Pool) GetBuffDecompQP(params Parameters, levelQ, levelP int) []ringqp.Poly {
+	size := params.BaseRNSDecompositionVectorSize(levelQ, levelP)
+	buffDecompQP := make([]ringqp.Poly, size)
+	for i := 0; i < size; i++ {
+		poly := pool.GetBuffPolyQP()
+		buffDecompQP[i] = *poly
+	}
+	return buffDecompQP
+}
+
+// RecycleBuffDecompQP recycles a temporary array of polys used for decomposition.
+func (pool *Pool) RecycleBuffDecompQP(decomp []ringqp.Poly) {
+	for _, poly := range decomp {
+		pool.RecycleBuffPolyQP(&poly)
+	}
 }

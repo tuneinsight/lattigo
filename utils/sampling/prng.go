@@ -30,8 +30,8 @@ func (prng *ThreadSafePRNG) Read(sum []byte) (n int, err error) {
 // sequences of random bytes among different parties using the hash function blake2b. Backward sequence
 // security (given the digest i, compute the digest i-1) is ensured by default, however forward sequence
 // security (given the digest i, compute the digest i+1) is only ensured if the KeyedPRNG is keyed.
-// WARNING: KeyedPRNG should NOT be called by multiple threads. It does not make sense to do so as the resulting
-// sequence will not be deterministic for a given key. For a PRNG securely seeded with a private keyuse [ThreadSafePRNG].
+// WARNING: If KeyedPRNG is called concurrently by multiple threads, the resulting sequences will be independent and no error will be triggered. However, the result will not be deterministic and therefore, in most cases, it does not make sense to use KeyedPRNG in a concurrent setting.
+// NOTE: For a PRNG securely seeded with a private key use [ThreadSafePRNG].
 type KeyedPRNG struct {
 	mutex sync.Mutex
 	key   []byte
@@ -41,7 +41,7 @@ type KeyedPRNG struct {
 // NewKeyedPRNG creates a new instance of KeyedPRNG.
 // Accepts an optional key, else set key=nil which is treated as key=[]byte{}
 // WARNING: A PRNG INITIALISED WITH key=nil IS INSECURE!
-// WARNING: KeyedPRNG should NOT be called by multiple threads. If that occurs, the generated sequence will not be deterministic.
+// WARNING: KeyedPRNG can be called by multiple threads BUT the generated sequences will not be deterministic.
 func NewKeyedPRNG(key []byte) (*KeyedPRNG, error) {
 	var err error
 	prng := new(KeyedPRNG)

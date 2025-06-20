@@ -1240,15 +1240,10 @@ func (eval Evaluator) RotateHoistedNew(ctIn *rlwe.Ciphertext, rotations []int) (
 func (eval Evaluator) RotateHoisted(ctIn *rlwe.Ciphertext, rotations []int, opOut map[int]*rlwe.Ciphertext) (err error) {
 	levelQ := ctIn.Level()
 
-	baseRNSDecompositionVectorSize := eval.GetParameters().BaseRNSDecompositionVectorSize(levelQ, eval.GetParameters().MaxLevelP())
-	buffDecompQP := make([]ringqp.Poly, baseRNSDecompositionVectorSize)
-
 	poolQP := eval.pool.AtLevel(levelQ, eval.GetParameters().MaxLevelP())
-	for i := 0; i < len(buffDecompQP); i++ {
-		buff := poolQP.GetBuffPolyQP()
-		defer poolQP.RecycleBuffPolyQP(buff)
-		buffDecompQP[i] = *buff
-	}
+
+	buffDecompQP := poolQP.GetBuffDecompQP(*eval.GetRLWEParameters(), levelQ, eval.GetParameters().MaxLevelP())
+	defer poolQP.RecycleBuffDecompQP(buffDecompQP)
 
 	eval.DecomposeNTT(levelQ, eval.GetParameters().MaxLevelP(), eval.GetParameters().PCount(), ctIn.Value[1], ctIn.IsNTT, buffDecompQP)
 	for _, i := range rotations {

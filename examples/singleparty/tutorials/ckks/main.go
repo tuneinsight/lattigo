@@ -759,7 +759,7 @@ func main() {
 	// CONCURRENCY
 	// ==========
 	//
-	// All public structures in Lattigo are thread-safe and can be used concurrently.
+	// In lattigo, a type's methods are thread-safe and can be called concurrently. E.g. one can use an evaluator's methods concurrently.
 	//
 
 }

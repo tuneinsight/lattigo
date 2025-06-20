@@ -9,7 +9,6 @@ import (
 	"flag"
 	"fmt"
 	"math"
-	"sync"
 
 	"github.com/tuneinsight/lattigo/v6/circuits/ckks/bootstrapping"
 	"github.com/tuneinsight/lattigo/v6/core/rlwe"
@@ -194,22 +193,23 @@ func main() {
 	// To equalize the scale, the function evaluator.SetScale(ciphertext, parameters.DefaultScale()) can be used at the expense of one level.
 	// If the ciphertext is is at level one or greater when given to the bootstrapper, this equalization is automatically done.
 	// Here we bootstrap two ciphertexts in parallel to demonstrate that evaluators are thread-safe.
-	var wg sync.WaitGroup
-	var res1, res2 *rlwe.Ciphertext
+	resChan := make(chan *rlwe.Ciphertext, 1)
 	fmt.Println("Bootstrapping...")
-	wg.Add(1)
+
 	go func() {
-		defer wg.Done()
-		res2, err = eval.Bootstrap(ciphertext2)
+		res, err := eval.Bootstrap(ciphertext2)
 		if err != nil {
 			panic(err)
 		}
+		resChan <- res
 	}()
-	res1, err = eval.Bootstrap(ciphertext1)
+
+	res1, err := eval.Bootstrap(ciphertext1)
 	if err != nil {
 		panic(err)
 	}
-	wg.Wait()
+
+	res2 := <-resChan
 	fmt.Println("Done")
 
 	//==================

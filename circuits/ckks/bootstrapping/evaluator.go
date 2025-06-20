@@ -11,7 +11,6 @@ import (
 	"github.com/tuneinsight/lattigo/v6/circuits/ckks/polynomial"
 	"github.com/tuneinsight/lattigo/v6/core/rlwe"
 	"github.com/tuneinsight/lattigo/v6/ring"
-	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
 	"github.com/tuneinsight/lattigo/v6/schemes/ckks"
 	"github.com/tuneinsight/lattigo/v6/utils"
 	"github.com/tuneinsight/lattigo/v6/utils/bignum"
@@ -671,13 +670,8 @@ func (eval Evaluator) ModUp(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, err 
 
 		ks := eval.Evaluator.Evaluator
 
-		size := eval.ResidualParameters.BaseRNSDecompositionVectorSize(eval.BootstrappingParameters.MaxLevelQ(), 0)
-		buffDecompQP := make([]ringqp.Poly, size)
-		for i := 0; i < size; i++ {
-			buff := poolQP.GetBuffPolyQP()
-			defer poolQP.RecycleBuffPolyQP(buff)
-			buffDecompQP[i] = *buff
-		}
+		buffDecompQP := poolQP.GetBuffDecompQP(eval.ResidualParameters.Parameters, eval.BootstrappingParameters.MaxLevelQ(), 0)
+		defer eval.pool.RecycleBuffDecompQP(buffDecompQP)
 
 		// ModUp q->QP for ctIn[1] centered around q
 		for j := 0; j < N; j++ {

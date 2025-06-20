@@ -48,13 +48,8 @@ func (eval Evaluator) EvaluateMany(ctIn *rlwe.Ciphertext, linearTransformations 
 	levelQ = utils.Min(levelQ, ctIn.Level())
 
 	poolQP := eval.pool.AtLevel(levelQ, levelP)
-	baseRNSDecompositionVectorSize := eval.Evaluator.GetRLWEParameters().BaseRNSDecompositionVectorSize(levelQ, levelP)
-	buffDecompQP := make([]ringqp.Poly, baseRNSDecompositionVectorSize)
-	for i := 0; i < len(buffDecompQP); i++ {
-		buff := poolQP.GetBuffPolyQP()
-		defer poolQP.RecycleBuffPolyQP(buff)
-		buffDecompQP[i] = *buff
-	}
+	buffDecompQP := poolQP.GetBuffDecompQP(*eval.GetRLWEParameters(), levelQ, levelP)
+	defer eval.pool.RecycleBuffDecompQP(buffDecompQP)
 
 	eval.DecomposeNTT(levelQ, levelP, levelP+1, ctIn.Value[1], ctIn.IsNTT, buffDecompQP)
 

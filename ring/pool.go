@@ -37,7 +37,7 @@ func (p Pool) AtLevel(level int) *Pool {
 	return &Pool{level, p.bufferPool}
 }
 
-// GetBuffPoly returns a new  []uint64 slice obtained from a pool.
+// GetBuffUintArray returns a new  []uint64 slice obtained from a pool.
 // After use, the slice should be recycled using the [Pool.RecycleBuffUintArray] method.
 func (p Pool) GetBuffUintArray() *[]uint64 {
 	return p.bufferPool.Get()

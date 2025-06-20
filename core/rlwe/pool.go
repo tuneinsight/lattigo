@@ -123,7 +123,7 @@ func (pool *Pool) GetBuffDecompQP(params Parameters, levelQ, levelP int) []ringq
 
 // RecycleBuffDecompQP recycles a temporary array of polys used for decomposition.
 func (pool *Pool) RecycleBuffDecompQP(decomp []ringqp.Poly) {
-	for _, poly := range decomp {
-		pool.RecycleBuffPolyQP(&poly)
+	for i := range decomp {
+		pool.RecycleBuffPolyQP(&decomp[i])
 	}
 }

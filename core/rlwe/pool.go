@@ -40,7 +40,7 @@ func (pool Pool) AtLevel(levels ...int) *Pool {
 
 // GetBuffCt returns a ciphertext that can be used as a buffer for intermediate computations.
 // After use, the ciphertext should be recycled with [Pool.RecycleBuffCt].
-// The optional dimensions specify the degree and level of the ciphertext (default to 2, eval.params.ringQ.Level()).
+// The optional dimensions specify the degree and level of the ciphertext (default to 2, pool.GetLevel()).
 func (pool *Pool) GetBuffCt(dimensions ...int) *Ciphertext {
 	degree := 2
 	level := pool.GetLevel()
@@ -81,7 +81,7 @@ func (pool *Pool) RecycleBuffCt(ct *Ciphertext) {
 
 // GetBuffPt returns a plaintext that can be used as a buffer for intermediate computations.
 // After use, the plaintext should be recycled with [Pool.RecycleBuffPt].
-// The optional argument specifies the level of the returned plaintext (default to eval.params.ringQ.Level()).
+// The optional argument specifies the level of the returned plaintext (default to pool.GetLevel()).
 func (pool *Pool) GetBuffPt(level ...int) *Plaintext {
 	lvl := pool.GetLevel()
 	switch nbParams := len(level); nbParams {

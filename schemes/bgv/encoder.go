@@ -89,7 +89,7 @@ func NewEncoder(parameters Parameters) *Encoder {
 	poolQ := ring.NewPool(ringQ, backingPool)
 
 	backingPoolT := backingPool
-	// we use the same backing pool only if ringQ and ringP have the same dimension
+	// we use the same backing pool only if ringQ and ringT have the same dimension
 	if ringQ.N() != ringT.N() {
 		backingPoolT = structs.NewSyncPoolUint64(ringT.N())
 	}

@@ -5,22 +5,20 @@ Please include as much detail as possible in your report, including:
    - Steps to reproduce.
    - Potential impact of the vulnerability. 
 
-# Past Vulnerabilities
-### Wrong level for DenseToSparse Evaluation Key (04.2025)
-  - **Severity:** Low
-  - **Impact:** A security of 128-bit is not guaranteed if the `EvkDenseToSparse` evaluation key, which is part of the CKKS bootstrapping keys, is used. With the bootstrapping parameters proposed in Lattigo, the security falls to $\approx$ 106 bits of security. This means the vulnerability should not lead to any practical attack. However, anyone using CKKS bootstrapping should update their version of Lattigo and rotate their secret key to go back to 128-bit security. 
-  - **Versions impacted:** `v5.0.0-v6.1.0`
-  - **Fixed in:** `v6.1.1`
-  - **Fix:** `EvkDenseToSparse` is generated at the correct level. 
-  - **Reported by:** Noam Kleinburd **@NoamK-CR**
-
 # Code Review
 Lattigo 2.0.0 was code-reviewed by ELCA in November 2020 and, within the allocated time for the code review, no critical or high-risk issues were found.
+
+# Security Guarantees
+
+Default: Lattigo ensures IND-CPA security with at least 128-bit strength (according to the [Lattice estimator](https://github.com/malb/lattice-estimator)).
+Lattigo doesn't automatically provide IND-CPA-D security but offers API support to mitigate related attacks.
+This note reviews different security models and provides security guidance and recommendations for using the Lattigo. It outlines known limitations, past vulnerabilities, and suggested best practices to help users understand and mitigate potential risks when using Lattigo in their applications.
+
 
 # IND-CPA Security
 
 In IND-CPA security, the adversary has access only to an encryption oracle. This means that to attempt breaking the cryptographic scheme, the adversary can select multiple plaintexts and observe the corresponding well-formed ciphertexts produced by the encryption function. IND-CPA serves as the baseline security standard for cryptosystems with provable security.  
-Notably, all widely used FHE schemes —such as BFV, BGV, CKKS (implemented in the current version of Lattigo), and TFHE— provide only CPA security, which refers to protection against passive adversaries. In Lattigo, the default parameters provide at least 128-bits of security (according to the [Lattice estimator](https://github.com/malb/lattice-estimator)). 
+Notably, all widely used FHE schemes —such as BFV, BGV, CKKS (implemented in the current version of Lattigo), and TFHE— provide only CPA security, which refers to protection against passive adversaries. 
 
 
 # IND-CPA-D Security 
@@ -77,3 +75,13 @@ Fully Homomorphic Encryption (FHE) ciphertexts are malleable by design. This mal
 As discussed above, the FHE schemes proposed in Lattigo guarantee some notion of confidentiality (e.g. IND-CPA) but they do not necessarily hide information about the underlying computation. In other words, they do not provide **circuit privacy**. More precisely, schemes like CKKS and BFV/BGV leak information on the computation performed because the homomorphic operations introduce some structure in the ciphertext. Then, an adversary with knowledge of ciphertexts can infer details about the circuit (e.g. its depth, the type of operations, constants…). For instance, given a ciphertext $\text{ct}_1$ and its transformed version $\text{ct}_2$ after a homomorphic multiplication by a constant $C$, an adversary can deduce $C$.  
 
 Circuit privacy usually requires techniques such as noise flooding or rerandomization, which in turn implies a significant loss in performance. 
+
+# Past Vulnerabilities
+### Wrong level for DenseToSparse Evaluation Key (04.2025)
+  - **Severity:** Low
+  - **Impact:** A security of 128-bit is not guaranteed if the `EvkDenseToSparse` evaluation key, which is part of the CKKS bootstrapping keys, is used. With the bootstrapping parameters proposed in Lattigo, the security falls to $\approx$ 106 bits of security. This means the vulnerability should not lead to any practical attack. However, anyone using CKKS bootstrapping should update their version of Lattigo and rotate their secret key to go back to 128-bit security. 
+  - **Versions impacted:** `v5.0.0-v6.1.0`
+  - **Fixed in:** `v6.1.1`
+  - **Fix:** `EvkDenseToSparse` is generated at the correct level. 
+  - **Reported by:** Noam Kleinburd **@NoamK-CR**
+

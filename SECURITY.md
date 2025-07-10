@@ -10,7 +10,7 @@ Lattigo 2.0.0 was code-reviewed by ELCA in November 2020 and, within the allocat
 
 # Security Guarantees
 
-Default: Lattigo ensures IND-CPA security with at least 128-bit strength (according to the [Lattice estimator](https://github.com/malb/lattice-estimator)).
+Default: Lattigo ensures IND-CPA security when used with appropriat parameters (see [Lattice estimator](https://github.com/malb/lattice-estimator) to pick secure parameters).
 Lattigo doesn't automatically provide IND-CPA-D security but offers API support to mitigate related attacks.
 This note reviews different security models and provides security guidance and recommendations for using the Lattigo. It outlines known limitations, past vulnerabilities, and suggested best practices to help users understand and mitigate potential risks when using Lattigo in their applications.
 

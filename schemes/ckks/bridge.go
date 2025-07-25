@@ -15,6 +15,7 @@ type DomainSwitcher struct {
 
 	stdToci, ciToStd  *rlwe.EvaluationKey
 	automorphismIndex []uint64
+	poolQ             *ring.BufferPool
 }
 
 // NewDomainSwitcher instantiate a new [DomainSwitcher] type. It may be instantiated from parameters from either RingType.
@@ -40,6 +41,7 @@ func NewDomainSwitcher(params Parameters, comlexToRealEvk, realToComplexEvk *rlw
 	if s.automorphismIndex, err = ring.AutomorphismNTTIndex(s.stdRingQ.N(), s.stdRingQ.NthRoot(), s.stdRingQ.NthRoot()-1); err != nil {
 		panic(err)
 	}
+	s.poolQ = ring.NewPool(s.stdRingQ)
 
 	return s, nil
 }
@@ -72,15 +74,21 @@ func (switcher DomainSwitcher) ComplexToReal(eval *Evaluator, ctIn, opOut *rlwe.
 		return fmt.Errorf("cannot ComplexToReal: no realToComplexEvk provided to this DomainSwitcher")
 	}
 
+	poolQ := switcher.poolQ.AtLevel(level)
+	buffQ1 := poolQ.GetBuffPoly()
+	defer poolQ.RecycleBuffPoly(buffQ1)
+	buffQ2 := poolQ.GetBuffPoly()
+	defer poolQ.RecycleBuffPoly(buffQ2)
+
 	ctTmp := &rlwe.Ciphertext{}
-	ctTmp.Value = []ring.Poly{evalRLWE.BuffQP[1].Q, evalRLWE.BuffQP[2].Q}
+	ctTmp.Value = []ring.Poly{*buffQ1, *buffQ2}
 	ctTmp.MetaData = ctIn.MetaData
 
 	evalRLWE.GadgetProduct(level, ctIn.Value[1], &switcher.stdToci.GadgetCiphertext, ctTmp)
-	switcher.stdRingQ.AtLevel(level).Add(evalRLWE.BuffQP[1].Q, ctIn.Value[0], evalRLWE.BuffQP[1].Q)
+	switcher.stdRingQ.AtLevel(level).Add(*buffQ1, ctIn.Value[0], *buffQ1)
 
-	switcher.conjugateRingQ.AtLevel(level).FoldStandardToConjugateInvariant(evalRLWE.BuffQP[1].Q, switcher.automorphismIndex, opOut.Value[0])
-	switcher.conjugateRingQ.AtLevel(level).FoldStandardToConjugateInvariant(evalRLWE.BuffQP[2].Q, switcher.automorphismIndex, opOut.Value[1])
+	switcher.conjugateRingQ.AtLevel(level).FoldStandardToConjugateInvariant(*buffQ1, switcher.automorphismIndex, opOut.Value[0])
+	switcher.conjugateRingQ.AtLevel(level).FoldStandardToConjugateInvariant(*buffQ2, switcher.automorphismIndex, opOut.Value[1])
 	*opOut.MetaData = *ctIn.MetaData
 	opOut.Scale = ctIn.Scale.Mul(rlwe.NewScale(2))
 	return
@@ -113,17 +121,24 @@ func (switcher DomainSwitcher) RealToComplex(eval *Evaluator, ctIn, opOut *rlwe.
 		return fmt.Errorf("cannot RealToComplex: no realToComplexEvk provided to this DomainSwitcher")
 	}
 
-	switcher.stdRingQ.AtLevel(level).UnfoldConjugateInvariantToStandard(ctIn.Value[0], opOut.Value[0])
-	switcher.stdRingQ.AtLevel(level).UnfoldConjugateInvariantToStandard(ctIn.Value[1], opOut.Value[1])
+	stdRingQ := switcher.stdRingQ.AtLevel(level)
+	stdRingQ.UnfoldConjugateInvariantToStandard(ctIn.Value[0], opOut.Value[0])
+	stdRingQ.UnfoldConjugateInvariantToStandard(ctIn.Value[1], opOut.Value[1])
+
+	poolQ := switcher.poolQ.AtLevel(level)
+	buffQ1 := poolQ.GetBuffPoly()
+	defer poolQ.RecycleBuffPoly(buffQ1)
+	buffQ2 := poolQ.GetBuffPoly()
+	defer poolQ.RecycleBuffPoly(buffQ2)
 
 	ctTmp := &rlwe.Ciphertext{}
-	ctTmp.Value = []ring.Poly{evalRLWE.BuffQP[1].Q, evalRLWE.BuffQP[2].Q}
+	ctTmp.Value = []ring.Poly{*buffQ1, *buffQ2}
 	ctTmp.MetaData = ctIn.MetaData
 
 	// Switches the RCKswitcher key [X+X^-1] to a CKswitcher key [X]
 	evalRLWE.GadgetProduct(level, opOut.Value[1], &switcher.ciToStd.GadgetCiphertext, ctTmp)
-	switcher.stdRingQ.AtLevel(level).Add(opOut.Value[0], evalRLWE.BuffQP[1].Q, opOut.Value[0])
-	opOut.Value[1].CopyLvl(level, evalRLWE.BuffQP[2].Q)
+	stdRingQ.Add(opOut.Value[0], *buffQ1, opOut.Value[0])
+	opOut.Value[1].CopyLvl(level, *buffQ2)
 	*opOut.MetaData = *ctIn.MetaData
 	return
 }

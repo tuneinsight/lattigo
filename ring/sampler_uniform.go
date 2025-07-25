@@ -9,16 +9,15 @@ import (
 // UniformSampler wraps a util.PRNG and represents the state of a sampler of uniform polynomials.
 type UniformSampler struct {
 	*baseSampler
-	*randomBuffer
 }
 
 // NewUniformSampler creates a new instance of UniformSampler from a PRNG and ring definition.
+// WARNING: If the PRNG is deterministic/keyed (of type [sampling.KeyedPRNG]), *concurrent* calls to the sampler will not necessarily result in a deterministic output.
 func NewUniformSampler(prng sampling.PRNG, baseRing *Ring) (u *UniformSampler) {
 	u = new(UniformSampler)
 	u.baseSampler = &baseSampler{}
 	u.baseRing = baseRing
 	u.prng = prng
-	u.randomBuffer = newRandomBuffer()
 	return
 }
 
@@ -26,8 +25,7 @@ func NewUniformSampler(prng sampling.PRNG, baseRing *Ring) (u *UniformSampler) {
 // The returned sampler cannot be used concurrently to the original sampler.
 func (u *UniformSampler) AtLevel(level int) Sampler {
 	return &UniformSampler{
-		baseSampler:  u.baseSampler.AtLevel(level),
-		randomBuffer: u.randomBuffer,
+		baseSampler: u.baseSampler.AtLevel(level),
 	}
 }
 
@@ -48,21 +46,17 @@ func (u *UniformSampler) read(pol Poly, f func(a, b, c uint64) uint64) {
 	level := u.baseRing.Level()
 
 	var randomUint, mask, qi uint64
+	var buffer [1024]byte
 
 	prng := u.prng
 	N := u.baseRing.N()
-	byteArrayLength := len(u.randomBufferN)
+	byteArrayLength := len(buffer)
 
 	var ptr int
-	if ptr = u.ptr; ptr == 0 || ptr == byteArrayLength {
-		if _, err := prng.Read(u.randomBufferN); err != nil {
-			// Sanity check, this error should not happen.
-			panic(err)
-		}
-		ptr = 0 // for the case where ptr == byteArrayLength
+	if _, err := prng.Read(buffer[:]); err != nil {
+		// Sanity check, this error should not happen.
+		panic(err)
 	}
-
-	buffer := u.randomBufferN
 
 	for j := 0; j < level+1; j++ {
 
@@ -81,7 +75,7 @@ func (u *UniformSampler) read(pol Poly, f func(a, b, c uint64) uint64) {
 
 				// Refills the buff if it runs empty
 				if ptr == byteArrayLength {
-					if _, err := u.prng.Read(buffer); err != nil {
+					if _, err := u.prng.Read(buffer[:]); err != nil {
 						// Sanity check, this error should not happen.
 						panic(err)
 					}
@@ -102,7 +96,6 @@ func (u *UniformSampler) read(pol Poly, f func(a, b, c uint64) uint64) {
 		}
 	}
 
-	u.ptr = ptr
 }
 
 // ReadNew generates a new polynomial with coefficients following a uniform distribution over [0, Qi-1].
@@ -111,16 +104,6 @@ func (u *UniformSampler) ReadNew() (pol Poly) {
 	pol = u.baseRing.NewPoly()
 	u.Read(pol)
 	return
-}
-
-func (u *UniformSampler) WithPRNG(prng sampling.PRNG) *UniformSampler {
-	return &UniformSampler{
-		baseSampler: &baseSampler{
-			prng:     prng,
-			baseRing: u.baseRing,
-		},
-		randomBuffer: newRandomBuffer(),
-	}
 }
 
 // RandUniform samples a uniform randomInt variable in the range [0, mask] until randomInt is in the range [0, v-1].

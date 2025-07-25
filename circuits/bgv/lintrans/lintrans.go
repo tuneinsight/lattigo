@@ -140,9 +140,7 @@ type Evaluator struct {
 // The default [bgv.Evaluator] is compliant to the [schemes.Evaluator] interface.
 func NewEvaluator(eval schemes.Evaluator) (linTransEval *Evaluator) {
 	return &Evaluator{
-		lintrans.Evaluator{
-			Evaluator: eval,
-		},
+		*lintrans.NewEvaluator(eval),
 	}
 }
 

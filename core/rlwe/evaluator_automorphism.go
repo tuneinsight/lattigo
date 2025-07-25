@@ -3,7 +3,6 @@ package rlwe
 import (
 	"fmt"
 
-	"github.com/tuneinsight/lattigo/v6/ring"
 	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
 	"github.com/tuneinsight/lattigo/v6/utils"
 )
@@ -35,7 +34,8 @@ func (eval Evaluator) Automorphism(ctIn *Ciphertext, galEl uint64, opOut *Cipher
 
 	ringQ := eval.params.RingQ().AtLevel(level)
 
-	ctTmp := &Ciphertext{Element: Element[ring.Poly]{Value: []ring.Poly{eval.BuffQP[0].Q, eval.BuffQP[1].Q}}}
+	ctTmp := eval.pool.GetBuffCt(1, ringQ.Level())
+	defer eval.pool.RecycleBuffCt(ctTmp)
 	ctTmp.MetaData = ctIn.MetaData
 
 	eval.GadgetProduct(level, ctIn.Value[1], &evk.GadgetCiphertext, ctTmp)
@@ -81,8 +81,8 @@ func (eval Evaluator) AutomorphismHoisted(level int, ctIn *Ciphertext, c1DecompQ
 
 	ringQ := eval.params.RingQ().AtLevel(level)
 
-	ctTmp := &Ciphertext{}
-	ctTmp.Value = []ring.Poly{eval.BuffQP[0].Q, eval.BuffQP[1].Q} // GadgetProductHoisted uses the same buffers for its ciphertext QP
+	ctTmp := eval.pool.GetBuffCt(1, ringQ.Level())
+	defer eval.pool.RecycleBuffCt(ctTmp)
 	ctTmp.MetaData = ctIn.MetaData
 
 	eval.GadgetProductHoisted(level, c1DecompQP, &evk.EvaluationKey.GadgetCiphertext, ctTmp)
@@ -117,15 +117,20 @@ func (eval Evaluator) AutomorphismHoistedLazy(levelQ int, ctIn *Ciphertext, c1De
 		return fmt.Errorf("ctQP.LevelP()=%d < GaloisKey[%d].LevelP()=%d", ctQP.LevelP(), galEl, levelP)
 	}
 
+	ringQP := eval.params.RingQP().AtLevel(levelQ, levelP)
+	poolQP := eval.pool.AtLevel(levelQ, levelP)
+	buffQP1 := poolQP.GetBuffPolyQP()
+	defer poolQP.RecycleBuffPolyQP(buffQP1)
+	buffQP2 := poolQP.GetBuffPolyQP()
+	defer poolQP.RecycleBuffPolyQP(buffQP2)
+
 	ctTmp := &Element[ringqp.Poly]{}
-	ctTmp.Value = []ringqp.Poly{eval.BuffQP[0], eval.BuffQP[1]}
+	ctTmp.Value = []ringqp.Poly{*buffQP1, *buffQP2}
 	ctTmp.MetaData = ctIn.MetaData
 
 	if err = eval.GadgetProductHoistedLazy(levelQ, c1DecompQP, &evk.GadgetCiphertext, ctTmp); err != nil {
 		panic(fmt.Errorf("eval.GadgetProductHoistedLazy: %w", err))
 	}
-
-	ringQP := eval.params.RingQP().AtLevel(levelQ, levelP)
 
 	ringQ := ringQP.RingQ
 	ringP := ringQP.RingP

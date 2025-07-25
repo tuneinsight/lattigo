@@ -11,12 +11,13 @@ import (
 // types in addition to ciphertexts types in the rlwe package.
 type Encryptor struct {
 	*rlwe.Encryptor
+	pool *rlwe.Pool
 }
 
 // NewEncryptor creates a new Encryptor type. Note that only secret-key encryption is
 // supported at the moment.
 func NewEncryptor(params rlwe.ParameterProvider, key rlwe.EncryptionKey) *Encryptor {
-	return &Encryptor{rlwe.NewEncryptor(params, key)}
+	return &Encryptor{rlwe.NewEncryptor(params, key), rlwe.NewPool(params.GetRLWEParameters().RingQP())}
 }
 
 // Encrypt encrypts a plaintext pt into a ciphertext ct, which can be a [rgsw.Ciphertext]
@@ -40,7 +41,9 @@ func (enc Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) (err error) {
 
 	if pt != nil {
 
-		buffQP := params.RingQP().NewPoly()
+		buffQP := enc.pool.GetBuffPolyQP()
+		defer enc.pool.RecycleBuffPolyQP(buffQP)
+
 		if !pt.IsNTT {
 			ringQ.NTT(pt.Value, buffQP.Q)
 

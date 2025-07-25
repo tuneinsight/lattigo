@@ -30,7 +30,7 @@ func NewPool(rqp *ringqp.Ring, pools ...structs.BufferPool[*[]uint64]) *Pool {
 }
 
 // AtLevel returns a new pool from which objects from polynomials at the given levels can be drawn.
-// The method accepts up to two levels:
+// The method accepts up to two arguments:
 // Zero level: the objects returned are built from polynomials at level 0.
 // One level: the objects returned are built from polynomials in RingQ (resp. RingP) at the given level (resp. level 0).
 // Two levels: the objects returned are built from polynomials in RingQ (resp. RingP) at levels[0] (resp. levels[1]).

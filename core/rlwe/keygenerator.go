@@ -13,12 +13,14 @@ import (
 // as well as a memory buffer for intermediate values.
 type KeyGenerator struct {
 	*Encryptor
+	pool *Pool
 }
 
 // NewKeyGenerator creates a new KeyGenerator, from which the secret and public keys, as well as [EvaluationKey].
 func NewKeyGenerator(params ParameterProvider) *KeyGenerator {
 	return &KeyGenerator{
 		Encryptor: NewEncryptor(params, nil),
+		pool:      NewPool(params.GetRLWEParameters().RingQP()),
 	}
 }
 
@@ -109,10 +111,12 @@ func (kgen KeyGenerator) GenRelinearizationKeyNew(sk *SecretKey, evkParams ...Ev
 
 // GenRelinearizationKey generates an [EvaluationKey] that will be used to relinearize [Ciphertexts] during multiplication.
 func (kgen KeyGenerator) GenRelinearizationKey(sk *SecretKey, rlk *RelinearizationKey) {
-	sk2 := kgen.params.ringQ.AtLevel(rlk.LevelQ()).NewPoly()
+	sk2 := kgen.pool.AtLevel(rlk.LevelQ()).GetBuffPoly()
+	defer kgen.pool.RecycleBuffPoly(sk2)
+
 	sk2.CopyLvl(rlk.LevelQ(), sk.Value.Q)
-	kgen.params.RingQ().AtLevel(rlk.LevelQ()).MulCoeffsMontgomery(sk2, sk.Value.Q, sk2)
-	kgen.genEvaluationKey(sk2, sk.Value, &rlk.EvaluationKey)
+	kgen.params.RingQ().AtLevel(rlk.LevelQ()).MulCoeffsMontgomery(*sk2, sk.Value.Q, *sk2)
+	kgen.genEvaluationKey(*sk2, sk.Value, &rlk.EvaluationKey)
 }
 
 // GenGaloisKeyNew generates a new [GaloisKey], enabling the automorphism X^{i} -> X^{i * galEl}.
@@ -138,7 +142,10 @@ func (kgen KeyGenerator) GenGaloisKey(galEl uint64, sk *SecretKey, gk *GaloisKey
 	skIn := sk.Value
 
 	ringQP := kgen.params.RingQP().AtLevel(gk.LevelQ(), gk.LevelP())
-	skOut := ringQP.NewPoly()
+	polyQP := kgen.pool.AtLevel(gk.LevelQ(), gk.LevelP())
+
+	skOut := polyQP.GetBuffPolyQP()
+	defer polyQP.RecycleBuffPolyQP(skOut)
 
 	ringQ := ringQP.RingQ
 	ringP := ringQP.RingP
@@ -163,7 +170,7 @@ func (kgen KeyGenerator) GenGaloisKey(galEl uint64, sk *SecretKey, gk *GaloisKey
 		ringP.AutomorphismNTTWithIndex(skIn.P, index, skOut.P)
 	}
 
-	kgen.genEvaluationKey(skIn.Q, skOut, &gk.EvaluationKey)
+	kgen.genEvaluationKey(skIn.Q, *skOut, &gk.EvaluationKey)
 
 	gk.GaloisElement = galEl
 	gk.NthRoot = ringQ.NthRoot()
@@ -209,7 +216,9 @@ func (kgen KeyGenerator) GenEvaluationKeysForRingSwapNew(skStd, skConjugateInvar
 	kgen.params.RingQ().AtLevel(levelQ).UnfoldConjugateInvariantToStandard(skConjugateInvariant.Value.Q, skCIMappedToStandard.Value.Q)
 
 	if kgen.params.PCount() != 0 {
-		ExtendBasisSmallNormAndCenterNTTMontgomery(kgen.params.RingQ(), kgen.params.RingP(), skCIMappedToStandard.Value.Q, kgen.params.ringQ.NewPoly(), skCIMappedToStandard.Value.P)
+		buffQ := kgen.pool.GetBuffPoly()
+		defer kgen.pool.RecycleBuffPoly(buffQ)
+		ExtendBasisSmallNormAndCenterNTTMontgomery(kgen.params.RingQ(), kgen.params.RingP(), skCIMappedToStandard.Value.Q, *buffQ, skCIMappedToStandard.Value.P)
 	}
 
 	levelQ, levelP, BaseTwoDecomposition, compressed := ResolveEvaluationKeyParameters(kgen.params, evkParams)
@@ -254,22 +263,25 @@ func (kgen KeyGenerator) GenEvaluationKey(skInput, skOutput *SecretKey, evk *Eva
 	ringQ := kgen.params.RingQ()
 	ringP := kgen.params.RingP()
 
-	buffSkOut := kgen.params.RingQP().NewPoly()
-	buffSkIn := kgen.params.RingQ().NewPoly()
+	buffSkOut := kgen.pool.GetBuffPolyQP()
+	defer kgen.pool.RecycleBuffPolyQP(buffSkOut)
+	buffSkIn := kgen.pool.GetBuffPoly()
+	defer kgen.pool.RecycleBuffPoly(buffSkIn)
 	// Maps the smaller key to the largest with Y = X^{N/n}.
 	ring.MapSmallDimensionToLargerDimensionNTT(skOutput.Value.Q, buffSkOut.Q)
 
 	// Extends the modulus P of skOutput to the one of skInput
-	buffQ := ringQ.AtLevel(0).NewPoly()
+	buffQ := kgen.pool.AtLevel(0).GetBuffPoly()
+	defer kgen.pool.RecycleBuffPoly(buffQ)
 	if levelP := evk.LevelP(); levelP != -1 {
-		ExtendBasisSmallNormAndCenterNTTMontgomery(ringQ, ringP.AtLevel(levelP), buffSkOut.Q, buffQ, buffSkOut.P)
+		ExtendBasisSmallNormAndCenterNTTMontgomery(ringQ, ringP.AtLevel(levelP), buffSkOut.Q, *buffQ, buffSkOut.P)
 	}
 
 	// Maps the smaller key to the largest dimension with Y = X^{N/n}.
-	ring.MapSmallDimensionToLargerDimensionNTT(skInput.Value.Q, buffSkIn)
-	ExtendBasisSmallNormAndCenterNTTMontgomery(ringQ, ringQ.AtLevel(skOutput.Value.Q.Level()), buffSkIn, buffQ, buffSkIn)
+	ring.MapSmallDimensionToLargerDimensionNTT(skInput.Value.Q, *buffSkIn)
+	ExtendBasisSmallNormAndCenterNTTMontgomery(ringQ, ringQ.AtLevel(skOutput.Value.Q.Level()), *buffSkIn, *buffQ, *buffSkIn)
 
-	kgen.genEvaluationKey(buffSkIn, buffSkOut, evk)
+	kgen.genEvaluationKey(*buffSkIn, *buffSkOut, evk)
 }
 
 func (kgen KeyGenerator) genEvaluationKey(skIn ring.Poly, skOut ringqp.Poly, evk *EvaluationKey) {
@@ -308,8 +320,10 @@ func (kgen KeyGenerator) genEvaluationKey(skIn ring.Poly, skOut ringqp.Poly, evk
 	}
 
 	// Adds the plaintext (input-key) to the EvaluationKey.
-	buffQ := kgen.params.ringQ.AtLevel(evk.GadgetCiphertext.LevelQ()).NewPoly()
-	if err := AddPolyTimesGadgetVectorToGadgetCiphertext(skIn, []GadgetCiphertext{evk.GadgetCiphertext}, *kgen.params.RingQP(), buffQ); err != nil {
+	buffQ := kgen.pool.AtLevel(evk.GadgetCiphertext.LevelQ()).GetBuffPoly()
+	defer kgen.pool.RecycleBuffPoly(buffQ)
+
+	if err := AddPolyTimesGadgetVectorToGadgetCiphertext(skIn, []GadgetCiphertext{evk.GadgetCiphertext}, *kgen.params.RingQP(), *buffQ); err != nil {
 		// Sanity check, this error should not happen.
 		panic(err)
 	}

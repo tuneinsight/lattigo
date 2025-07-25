@@ -43,7 +43,7 @@ type Evaluator struct {
 
 	SkDebug *rlwe.SecretKey
 
-	pool *rlwe.Pool
+	pool *rlwe.BufferPool
 }
 
 // NewEvaluator creates a new [Evaluator].

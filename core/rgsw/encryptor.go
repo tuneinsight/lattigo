@@ -11,7 +11,7 @@ import (
 // types in addition to ciphertexts types in the rlwe package.
 type Encryptor struct {
 	*rlwe.Encryptor
-	pool *rlwe.Pool
+	pool *rlwe.BufferPool
 }
 
 // NewEncryptor creates a new Encryptor type. Note that only secret-key encryption is

@@ -144,7 +144,7 @@ type Evaluator struct {
 	*ckks.Evaluator
 	LTEvaluator *ltcommon.Evaluator
 	parameters  ckks.Parameters
-	pool        *rlwe.Pool
+	pool        *rlwe.BufferPool
 }
 
 // NewEvaluator instantiates a new [Evaluator] from a [ckks.Evaluator].

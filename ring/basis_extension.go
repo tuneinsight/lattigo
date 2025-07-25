@@ -18,8 +18,8 @@ type BasisExtender struct {
 	constantsPtoQ        []ModUpConstants
 	modDownConstantsPtoQ [][]uint64
 	modDownConstantsQtoP [][]uint64
-	poolQ                *Pool
-	poolP                *Pool
+	poolQ                *BufferPool
+	poolP                *BufferPool
 }
 
 func genmodDownConstants(ringQ, ringP *Ring) (constants [][]uint64) {

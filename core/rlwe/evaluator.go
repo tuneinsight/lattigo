@@ -17,7 +17,7 @@ type Evaluator struct {
 
 	BasisExtender *ring.BasisExtender
 	Decomposer    *ring.Decomposer
-	pool          *Pool
+	pool          *BufferPool
 }
 
 // NewEvaluator creates a new [Evaluator].

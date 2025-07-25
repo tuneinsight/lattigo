@@ -11,7 +11,7 @@ import (
 // [Evaluator.ExternalProduct]).
 type Evaluator struct {
 	rlwe.Evaluator
-	pool *rlwe.Pool
+	pool *rlwe.BufferPool
 }
 
 // NewEvaluator creates a new [Evaluator] type supporting RGSW operations in addition
@@ -153,8 +153,8 @@ func (eval Evaluator) externalProductInPlaceSinglePAndBitDecomp(ct0 *rlwe.Cipher
 
 	buffQ := poolQP.GetBuffPoly()
 	defer poolQP.RecycleBuffPoly(buffQ)
-	buffQ1 := poolQP.Pool.AtLevel(0).GetBuffPoly()
-	defer poolQP.Pool.AtLevel(0).RecycleBuffPoly(buffQ1)
+	buffQ1 := poolQP.BufferPool.AtLevel(0).GetBuffPoly()
+	defer poolQP.BufferPool.AtLevel(0).RecycleBuffPoly(buffQ1)
 	buffBitDecomp := eval.pool.GetBuffUintArray()
 	defer eval.pool.RecycleBuffUintArray(buffBitDecomp)
 	// (a, b) + (c0 * rgsw[k][0], c0 * rgsw[k][1])

@@ -53,7 +53,7 @@ type Encryptor struct {
 	xsSampler      ring.Sampler
 	basisextender  *ring.BasisExtender
 	uniformSampler ringqp.UniformSampler
-	pool           *Pool
+	pool           *BufferPool
 }
 
 // GetRLWEParameters returns the underlying [Parameters].
@@ -353,7 +353,7 @@ func (enc Encryptor) encryptZeroSk(sk *SecretKey, ct interface{}) (err error) {
 		if ct.Degree() == 1 {
 			c1 = ct.Value[1]
 		} else {
-			buffPolyQ := enc.pool.Pool.AtLevel(ct.Level()).GetBuffPoly()
+			buffPolyQ := enc.pool.BufferPool.AtLevel(ct.Level()).GetBuffPoly()
 			defer enc.pool.RecycleBuffPoly(buffPolyQ)
 			c1 = *buffPolyQ
 		}

@@ -78,7 +78,7 @@ type Ring struct {
 	RescaleConstants [][]uint64
 
 	level int
-	pool  *Pool
+	pool  *BufferPool
 }
 
 // ConjugateInvariantRing returns the conjugate invariant ring of the receiver ring.

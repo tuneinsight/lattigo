@@ -24,8 +24,8 @@ type Evaluator struct {
 	// scale-invariant multiplications (transforming the BGV evaluator into
 	// BFV evaluator).
 	ScaleInvariant bool
-	pool           *rlwe.Pool
-	poolQMul       *ring.Pool
+	pool           *rlwe.BufferPool
+	poolQMul       *ring.BufferPool
 }
 
 type evaluatorBase struct {

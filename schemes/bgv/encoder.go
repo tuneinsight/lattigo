@@ -36,8 +36,8 @@ type Encoder struct {
 	// between the two structures is necessary.
 	// The size of an object returned from the pool MaxSlots() elements.
 	BuffBigIntPool structs.BufferPool[*[]*big.Int]
-	poolQ          *ring.Pool
-	poolT          *ring.Pool
+	poolQ          *ring.BufferPool
+	poolT          *ring.BufferPool
 
 	paramsQP []ring.ModUpConstants
 	qHalf    []*big.Int

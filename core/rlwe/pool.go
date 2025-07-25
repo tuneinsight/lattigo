@@ -8,13 +8,13 @@ import (
 	"github.com/tuneinsight/lattigo/v6/utils/structs"
 )
 
-// Pool represents a pool of different objects (plaintexts, ciphertexts, polys) that can be used to instantiate temporary buffers.
-type Pool struct {
-	*ringqp.Pool
+// BufferPool represents a pool of different objects (plaintexts, ciphertexts, polys) that can be used to instantiate temporary buffers.
+type BufferPool struct {
+	*ringqp.BufferPool
 }
 
 // NewPool returns a new pool given a RingQP, and optionally a pool to draw the backing arrays from.
-func NewPool(rqp *ringqp.Ring, pools ...structs.BufferPool[*[]uint64]) *Pool {
+func NewPool(rqp *ringqp.Ring, pools ...structs.BufferPool[*[]uint64]) *BufferPool {
 	// If no backing pool is given, we create one here.
 	switch lenPool := len(pools); lenPool {
 	case 0:
@@ -26,7 +26,7 @@ func NewPool(rqp *ringqp.Ring, pools ...structs.BufferPool[*[]uint64]) *Pool {
 
 	ringqpPool := ringqp.NewPool(rqp, pools...)
 
-	return &Pool{ringqpPool}
+	return &BufferPool{ringqpPool}
 }
 
 // AtLevel returns a new pool from which objects from polynomials at the given levels can be drawn.
@@ -34,14 +34,14 @@ func NewPool(rqp *ringqp.Ring, pools ...structs.BufferPool[*[]uint64]) *Pool {
 // Zero level: the objects returned are built from polynomials at level 0.
 // One level: the objects returned are built from polynomials in RingQ (resp. RingP) at the given level (resp. level 0).
 // Two levels: the objects returned are built from polynomials in RingQ (resp. RingP) at levels[0] (resp. levels[1]).
-func (pool Pool) AtLevel(levels ...int) *Pool {
-	return &Pool{pool.Pool.AtLevel(levels...)}
+func (pool BufferPool) AtLevel(levels ...int) *BufferPool {
+	return &BufferPool{pool.BufferPool.AtLevel(levels...)}
 }
 
 // GetBuffCt returns a ciphertext that can be used as a buffer for intermediate computations.
-// After use, the ciphertext should be recycled with [Pool.RecycleBuffCt].
+// After use, the ciphertext should be recycled with [BufferPool.RecycleBuffCt].
 // The optional dimensions specify the degree and level of the ciphertext (default to 2, pool.GetLevel()).
-func (pool *Pool) GetBuffCt(dimensions ...int) *Ciphertext {
+func (pool *BufferPool) GetBuffCt(dimensions ...int) *Ciphertext {
 	degree := 2
 	level := pool.GetLevel()
 	switch nbParams := len(dimensions); nbParams {
@@ -72,7 +72,7 @@ func (pool *Pool) GetBuffCt(dimensions ...int) *Ciphertext {
 
 // RecycleBuffCt recycles a temporary ciphertext (i.e. returns its backing uint64 arrays to the pool).
 // The input ciphertext must not be used after calling this method.
-func (pool *Pool) RecycleBuffCt(ct *Ciphertext) {
+func (pool *BufferPool) RecycleBuffCt(ct *Ciphertext) {
 	for i := range ct.Value {
 		pool.RecycleBuffPoly(&ct.Value[i])
 	}
@@ -80,9 +80,9 @@ func (pool *Pool) RecycleBuffCt(ct *Ciphertext) {
 }
 
 // GetBuffPt returns a plaintext that can be used as a buffer for intermediate computations.
-// After use, the plaintext should be recycled with [Pool.RecycleBuffPt].
+// After use, the plaintext should be recycled with [BufferPool.RecycleBuffPt].
 // The optional argument specifies the level of the returned plaintext (default to pool.GetLevel()).
-func (pool *Pool) GetBuffPt(level ...int) *Plaintext {
+func (pool *BufferPool) GetBuffPt(level ...int) *Plaintext {
 	lvl := pool.GetLevel()
 	switch nbParams := len(level); nbParams {
 	case 0:
@@ -105,13 +105,13 @@ func (pool *Pool) GetBuffPt(level ...int) *Plaintext {
 
 // RecycleBuffPt recycles a temporary plaintext (i.e. returns its backing uint64 arrays to the pool).
 // The input plaintext must not be used after calling this method.
-func (pool *Pool) RecycleBuffPt(pt *Plaintext) {
+func (pool *BufferPool) RecycleBuffPt(pt *Plaintext) {
 	pool.RecycleBuffPoly(&pt.Value)
 }
 
 // GetBuffDecompQP returns buffers of polys to be used for RNS decomposition.
-// After use, the array of buffers must be recycled with [Pool.RecycleBuffDecompQP].
-func (pool *Pool) GetBuffDecompQP(params Parameters, levelQ, levelP int) []ringqp.Poly {
+// After use, the array of buffers must be recycled with [BufferPool.RecycleBuffDecompQP].
+func (pool *BufferPool) GetBuffDecompQP(params Parameters, levelQ, levelP int) []ringqp.Poly {
 	size := params.BaseRNSDecompositionVectorSize(levelQ, levelP)
 	buffDecompQP := make([]ringqp.Poly, size)
 	for i := 0; i < size; i++ {
@@ -122,7 +122,7 @@ func (pool *Pool) GetBuffDecompQP(params Parameters, levelQ, levelP int) []ringq
 }
 
 // RecycleBuffDecompQP recycles a temporary array of polys used for decomposition.
-func (pool *Pool) RecycleBuffDecompQP(decomp []ringqp.Poly) {
+func (pool *BufferPool) RecycleBuffDecompQP(decomp []ringqp.Poly) {
 	for i := range decomp {
 		pool.RecycleBuffPolyQP(&decomp[i])
 	}

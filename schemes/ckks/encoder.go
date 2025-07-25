@@ -68,7 +68,7 @@ type Encoder struct {
 	// Pools used to recycle large objects.
 	BuffBigIntPool  structs.BufferPool[*[]*big.Int]
 	BuffComplexPool structs.BufferPool[Complex]
-	poolQ           *ring.Pool
+	poolQ           *ring.BufferPool
 }
 
 // NewEncoder creates a new [Encoder] from the target parameters.

@@ -11,7 +11,7 @@ import (
 
 type Evaluator struct {
 	schemes.Evaluator
-	pool *rlwe.Pool
+	pool *rlwe.BufferPool
 }
 
 func NewEvaluator(eval schemes.Evaluator) *Evaluator {

@@ -15,7 +15,7 @@ type DomainSwitcher struct {
 
 	stdToci, ciToStd  *rlwe.EvaluationKey
 	automorphismIndex []uint64
-	poolQ             *ring.Pool
+	poolQ             *ring.BufferPool
 }
 
 // NewDomainSwitcher instantiate a new [DomainSwitcher] type. It may be instantiated from parameters from either RingType.

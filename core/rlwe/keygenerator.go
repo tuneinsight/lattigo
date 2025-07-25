@@ -13,7 +13,7 @@ import (
 // as well as a memory buffer for intermediate values.
 type KeyGenerator struct {
 	*Encryptor
-	pool *Pool
+	pool *BufferPool
 }
 
 // NewKeyGenerator creates a new KeyGenerator, from which the secret and public keys, as well as [EvaluationKey].

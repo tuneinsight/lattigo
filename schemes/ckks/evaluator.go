@@ -16,7 +16,7 @@ import (
 type Evaluator struct {
 	*Encoder
 	*rlwe.Evaluator
-	pool *rlwe.Pool
+	pool *rlwe.BufferPool
 }
 
 // NewEvaluator creates a new [Evaluator], that can be used to do homomorphic

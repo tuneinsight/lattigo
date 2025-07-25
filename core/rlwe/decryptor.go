@@ -11,7 +11,7 @@ import (
 type Decryptor struct {
 	params Parameters
 	ringQ  *ring.Ring
-	poolQ  *ring.Pool
+	poolQ  *ring.BufferPool
 	sk     *SecretKey
 }
 

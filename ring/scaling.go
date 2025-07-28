@@ -109,19 +109,19 @@ func (r Ring) DivRoundByLastModulusNTT(p0, buff, p1 Poly) {
 }
 
 // DivRoundByLastModulus divides (rounded) the polynomial by its last modulus. The input must be in the NTT domain.
-// Output poly level must be equal or one less than input level.
-func (r Ring) DivRoundByLastModulus(p0, p1 Poly) {
+// Output poly level must be equal or one less than input level. Buffer poly level must be larger or equal to input level.
+func (r Ring) DivRoundByLastModulus(p0, buff, p1 Poly) {
 
 	level := r.level
 
 	// Center by (p-1)/2
 	pHalf := (r.SubRings[level].Modulus - 1) >> 1
 
-	r.SubRings[level].AddScalar(p0.Coeffs[level], pHalf, p0.Coeffs[level])
+	r.SubRings[level].AddScalar(p0.Coeffs[level], pHalf, buff.Coeffs[level])
 
 	for i, s := range r.SubRings[:level] {
-		s.AddScalarLazyThenNegTwoModulusLazy(p0.Coeffs[i], s.Modulus-BRedAdd(pHalf, s.Modulus, s.BRedConstant), p0.Coeffs[i])
-		s.AddLazyThenMulScalarMontgomery(p0.Coeffs[level], p0.Coeffs[i], r.RescaleConstants[level-1][i], p1.Coeffs[i])
+		s.AddScalarLazyThenNegTwoModulusLazy(p0.Coeffs[i], s.Modulus-BRedAdd(pHalf, s.Modulus, s.BRedConstant), buff.Coeffs[i])
+		s.AddLazyThenMulScalarMontgomery(buff.Coeffs[level], buff.Coeffs[i], r.RescaleConstants[level-1][i], p1.Coeffs[i])
 	}
 }
 
@@ -143,7 +143,7 @@ func (r Ring) DivRoundByLastModulusManyNTT(nbRescales int, p0, buff, p1 Poly) {
 
 			rCpy.INTT(p0, buff)
 			for i := 0; i < nbRescales; i++ {
-				rCpy.DivRoundByLastModulus(buff, buff)
+				rCpy.DivRoundByLastModulus(buff, buff, buff)
 				rCpy = rCpy.AtLevel(rCpy.Level() - 1)
 			}
 
@@ -171,22 +171,22 @@ func (r Ring) DivRoundByLastModulusMany(nbRescales int, p0, buff, p1 Poly) {
 
 			rCpy := r.AtLevel(r.Level())
 
-			rCpy.DivRoundByLastModulus(p0, buff)
+			rCpy.DivRoundByLastModulus(p0, buff, buff)
 			rCpy = rCpy.AtLevel(rCpy.Level() - 1)
 
 			for i := 1; i < nbRescales; i++ {
 
 				if i == nbRescales-1 {
-					rCpy.DivRoundByLastModulus(buff, p1)
+					rCpy.DivRoundByLastModulus(buff, buff, p1)
 				} else {
-					rCpy.DivRoundByLastModulus(buff, buff)
+					rCpy.DivRoundByLastModulus(buff, buff, buff)
 				}
 
 				rCpy = rCpy.AtLevel(rCpy.Level() - 1)
 			}
 
 		} else {
-			r.DivRoundByLastModulus(p0, p1)
+			r.DivRoundByLastModulus(p0, buff, p1)
 		}
 	}
 }

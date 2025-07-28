@@ -29,7 +29,7 @@ type FloatSlice interface {
 type Complex any
 
 // GaloisGen is an integer of order N/2 modulo M and that spans Z_M with the integer -1.
-// The j-th ring automorphism takes the root zeta to zeta^(5j).
+// The j-th ring automorphism takes the root zeta to zeta^(5^j).
 const GaloisGen uint64 = ring.GaloisGen
 
 // Encoder is a type that implements the encoding and decoding interface for the CKKS scheme. It provides methods to encode/decode

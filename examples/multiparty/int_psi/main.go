@@ -117,7 +117,7 @@ func main() {
 	// Step 4: The helper server switches the encryption of the result to the target public key
 	encOut := execPCKSProtocol(params, tpk, encRes, P)
 
-	// Step 5: The target party decrypts the result with its secret key
+	// Step 5: The target party decrypts the result with their secret key
 	l.Println("> Result Decryption")
 	decryptor := rlwe.NewDecryptor(params, tsk)
 	ptres := bgv.NewPlaintext(params, params.MaxLevel())

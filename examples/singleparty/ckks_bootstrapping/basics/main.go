@@ -191,7 +191,7 @@ func main() {
 	// and returns a ciphertext with the max level of `floatParamsResidualLit`.
 	// CAUTION: the scale of the ciphertext MUST be equal (or very close) to params.DefaultScale()
 	// To equalize the scale, the function evaluator.SetScale(ciphertext, parameters.DefaultScale()) can be used at the expense of one level.
-	// If the ciphertext is is at level one or greater when given to the bootstrapper, this equalization is automatically done.
+	// If the ciphertext is at level one or greater when given to the bootstrapper, this equalization is automatically done.
 	// Here we bootstrap two ciphertexts in parallel to demonstrate that evaluators are thread-safe.
 	resChan := make(chan *rlwe.Ciphertext, 1)
 	fmt.Println("Bootstrapping...")

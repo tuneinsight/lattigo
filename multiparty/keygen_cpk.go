@@ -93,27 +93,6 @@ func (ckg PublicKeyGenProtocol) GenPublicKey(roundShare PublicKeyGenShare, crp P
 	pubkey.Value[1].Copy(crp.Value)
 }
 
-// ShallowCopy creates a shallow copy of [PublicKeyGenProtocol] in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// [PublicKeyGenProtocol] can be used concurrently.
-func (ckg PublicKeyGenProtocol) ShallowCopy() PublicKeyGenProtocol {
-	prng, err := sampling.NewPRNG()
-
-	// Sanity check, this error should not happen.
-	if err != nil {
-		panic(err)
-	}
-
-	sampler, err := ring.NewSampler(prng, ckg.params.RingQ(), ckg.params.Xe(), false)
-
-	// Sanity check, this error should not happen.
-	if err != nil {
-		panic(err)
-	}
-
-	return PublicKeyGenProtocol{ckg.params, sampler}
-}
-
 // BinarySize returns the serialized size of the object in bytes.
 func (share PublicKeyGenShare) BinarySize() int {
 	return share.Value.BinarySize()

@@ -14,7 +14,6 @@ type SecretKeyBootstrapper struct {
 	*rlwe.Decryptor
 	*rlwe.Encryptor
 	sk       *rlwe.SecretKey
-	Values   []*bignum.Complex
 	Counter  int // records the number of bootstrapping
 	MinLevel int
 }
@@ -26,11 +25,11 @@ func NewSecretKeyBootstrapper(params ckks.Parameters, sk *rlwe.SecretKey) *Secre
 		Decryptor:  rlwe.NewDecryptor(params, sk),
 		Encryptor:  rlwe.NewEncryptor(params, sk),
 		sk:         sk,
-		Values:     make([]*bignum.Complex, params.N())}
+	}
 }
 
 func (d *SecretKeyBootstrapper) Bootstrap(ct *rlwe.Ciphertext) (*rlwe.Ciphertext, error) {
-	values := d.Values[:1<<ct.LogDimensions.Cols]
+	values := make([]*bignum.Complex, 1<<ct.LogDimensions.Cols)
 	if err := d.Decode(d.DecryptNew(ct), values); err != nil {
 		return nil, err
 	}

@@ -545,7 +545,7 @@ func execRequest(params bgv.Parameters, NGoRoutine int, encQuery *rlwe.Ciphertex
 	workers.Add(NGoRoutine)
 	for i := 1; i <= NGoRoutine; i++ {
 		go func(i int) {
-			evaluator := evaluator.ShallowCopy() // creates a shallow evaluator copy for this goroutine
+			evaluator := evaluator
 			tmp := bgv.NewCiphertext(params, 1, params.MaxLevel())
 			for task := range tasks {
 				task.elapsedmaskTask = runTimed(func() {

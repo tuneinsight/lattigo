@@ -184,8 +184,8 @@ func testEncToShares(tc *testContext, t *testing.T) {
 			P[i].s2e, err = NewShareToEncProtocol(params, params.Xe())
 			require.NoError(t, err)
 		} else {
-			P[i].e2s = P[0].e2s.ShallowCopy()
-			P[i].s2e = P[0].s2e.ShallowCopy()
+			P[i].e2s = P[0].e2s
+			P[i].s2e = P[0].s2e
 		}
 
 		P[i].sk = tc.sk0Shards[i]
@@ -264,7 +264,7 @@ func testRefresh(tc *testContext, t *testing.T) {
 				p.RefreshProtocol, err = NewRefreshProtocol(tc.params, tc.params.Xe())
 				require.NoError(t, err)
 			} else {
-				p.RefreshProtocol = RefreshParties[0].RefreshProtocol.ShallowCopy()
+				p.RefreshProtocol = RefreshParties[0].RefreshProtocol
 			}
 
 			p.s = sk0Shards[i]

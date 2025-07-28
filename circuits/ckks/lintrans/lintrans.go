@@ -137,10 +137,9 @@ type Evaluator struct {
 // NewEvaluator instantiates a new [Evaluator] from a circuit.EvaluatorForLinearTransformation.
 // This method is allocation free.
 func NewEvaluator(eval schemes.Evaluator) (linTransEval *Evaluator) {
+
 	return &Evaluator{
-		lintrans.Evaluator{
-			Evaluator: eval,
-		},
+		*lintrans.NewEvaluator(eval),
 	}
 }
 

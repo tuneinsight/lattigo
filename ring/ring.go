@@ -78,6 +78,7 @@ type Ring struct {
 	RescaleConstants [][]uint64
 
 	level int
+	pool  *BufferPool
 }
 
 // ConjugateInvariantRing returns the conjugate invariant ring of the receiver ring.
@@ -195,6 +196,7 @@ func (r Ring) AtLevel(level int) *Ring {
 		ModulusAtLevel:   r.ModulusAtLevel,
 		RescaleConstants: r.RescaleConstants,
 		level:            level,
+		pool:             r.pool,
 	}
 }
 
@@ -243,6 +245,7 @@ func (r Ring) BRedConstants() (BRC [][2]uint64) {
 
 // NewRing creates a new RNS Ring with degree N and coefficient moduli Moduli with Standard NTT. N must be a power of two larger than 8. Moduli should be
 // a non-empty []uint64 with distinct prime elements. All moduli must also be equal to 1 modulo 2*N.
+// A pool implementing BufferPool[*[]uint64] will be stored in the returned Ring and will be used to efficiently instantiate large objects.
 // An error is returned with a nil *Ring in the case of non NTT-enabling parameters.
 func NewRing(N int, Moduli []uint64) (r *Ring, err error) {
 	return NewRingWithCustomNTT(N, Moduli, NewNumberTheoreticTransformerStandard, 2*N)

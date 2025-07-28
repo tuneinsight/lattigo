@@ -16,8 +16,6 @@ type PublicKeySwitchProtocol struct {
 	params rlwe.Parameters
 	noise  ring.DistributionParameters
 
-	buf ring.Poly
-
 	*rlwe.Encryptor
 	noiseSampler ring.Sampler
 }
@@ -33,8 +31,6 @@ func NewPublicKeySwitchProtocol(params rlwe.ParameterProvider, noiseFlooding rin
 	pcks = PublicKeySwitchProtocol{}
 	pcks.params = *params.GetRLWEParameters()
 	pcks.noise = noiseFlooding
-
-	pcks.buf = pcks.params.RingQ().NewPoly()
 
 	prng, err := sampling.NewPRNG()
 
@@ -92,18 +88,19 @@ func (pcks PublicKeySwitchProtocol) GenShare(sk *rlwe.SecretKey, pk *rlwe.Public
 		panic(err)
 	}
 
+	buffQ := pcks.params.RingQ().NewPoly()
 	// Add ct[1] * s and noise
 	if ct.IsNTT {
 		ringQ.MulCoeffsMontgomeryThenAdd(ct.Value[1], sk.Value.Q, shareOut.Value[0])
-		pcks.noiseSampler.Read(pcks.buf)
-		ringQ.NTT(pcks.buf, pcks.buf)
-		ringQ.Add(shareOut.Value[0], pcks.buf, shareOut.Value[0])
+		pcks.noiseSampler.Read(buffQ)
+		ringQ.NTT(buffQ, buffQ)
+		ringQ.Add(shareOut.Value[0], buffQ, shareOut.Value[0])
 	} else {
-		ringQ.NTTLazy(ct.Value[1], pcks.buf)
-		ringQ.MulCoeffsMontgomeryLazy(pcks.buf, sk.Value.Q, pcks.buf)
-		ringQ.INTT(pcks.buf, pcks.buf)
-		pcks.noiseSampler.ReadAndAdd(pcks.buf)
-		ringQ.Add(shareOut.Value[0], pcks.buf, shareOut.Value[0])
+		ringQ.NTTLazy(ct.Value[1], buffQ)
+		ringQ.MulCoeffsMontgomeryLazy(buffQ, sk.Value.Q, buffQ)
+		ringQ.INTT(buffQ, buffQ)
+		pcks.noiseSampler.ReadAndAdd(buffQ)
+		ringQ.Add(shareOut.Value[0], buffQ, shareOut.Value[0])
 	}
 }
 
@@ -134,35 +131,6 @@ func (pcks PublicKeySwitchProtocol) KeySwitch(ctIn *rlwe.Ciphertext, combined Pu
 	pcks.params.RingQ().AtLevel(level).Add(ctIn.Value[0], combined.Value[0], opOut.Value[0])
 
 	opOut.Value[1].CopyLvl(level, combined.Value[1])
-}
-
-// ShallowCopy creates a shallow copy of [PublicKeySwitchProtocol] in which all the read-only data-structures are
-// shared with the receiver and the temporary bufers are reallocated. The receiver and the returned
-// [PublicKeySwitchProtocol] can be used concurrently.
-func (pcks PublicKeySwitchProtocol) ShallowCopy() PublicKeySwitchProtocol {
-	prng, err := sampling.NewPRNG()
-
-	// Sanity check, this error should not happen.
-	if err != nil {
-		panic(err)
-	}
-
-	params := pcks.params
-
-	Xe, err := ring.NewSampler(prng, params.RingQ(), pcks.noise, false)
-
-	// Sanity check, this error should not happen.
-	if err != nil {
-		panic(err)
-	}
-
-	return PublicKeySwitchProtocol{
-		noiseSampler: Xe,
-		noise:        pcks.noise,
-		Encryptor:    pcks.Encryptor.ShallowCopy(),
-		params:       params,
-		buf:          params.RingQ().NewPoly(),
-	}
 }
 
 // BinarySize returns the serialized size of the object in bytes.

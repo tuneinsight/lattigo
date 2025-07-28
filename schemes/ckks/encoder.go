@@ -11,6 +11,7 @@ import (
 	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
 	"github.com/tuneinsight/lattigo/v6/utils"
 	"github.com/tuneinsight/lattigo/v6/utils/bignum"
+	"github.com/tuneinsight/lattigo/v6/utils/structs"
 )
 
 type Float interface {
@@ -22,6 +23,10 @@ type Float interface {
 // See Float for information on the type constraint.
 type FloatSlice interface {
 }
+
+// Complex is an empty interface whose goal is to
+// indicate that the expected input should be a complex number.
+type Complex any
 
 // GaloisGen is an integer of order N/2 modulo M and that spans Z_M with the integer -1.
 // The j-th ring automorphism takes the root zeta to zeta^(5^j).
@@ -55,14 +60,15 @@ type Encoder struct {
 
 	prec uint
 
-	bigintCoeffs []*big.Int
-	qHalf        *big.Int
-	buff         ring.Poly
-	m            int
-	rotGroup     []int
+	m        int
+	rotGroup []int
 
-	roots     interface{}
-	buffCmplx interface{}
+	roots interface{}
+
+	// Pools used to recycle large objects.
+	BuffBigIntPool  structs.BufferPool[*[]*big.Int]
+	BuffComplexPool structs.BufferPool[Complex]
+	poolQ           *ring.BufferPool
 }
 
 // NewEncoder creates a new [Encoder] from the target parameters.
@@ -90,31 +96,40 @@ func NewEncoder(parameters Parameters, precision ...uint) (ecd *Encoder) {
 	}
 
 	ecd = &Encoder{
-		prec:         prec,
-		parameters:   parameters,
-		bigintCoeffs: make([]*big.Int, m>>1),
-		qHalf:        bignum.NewInt(0),
-		buff:         parameters.RingQ().NewPoly(),
-		m:            m,
-		rotGroup:     rotGroup,
+		prec:       prec,
+		parameters: parameters,
+		m:          m,
+		rotGroup:   rotGroup,
 	}
+
+	ecd.BuffBigIntPool = structs.NewSyncPool(func() *[]*big.Int {
+		buff := make([]*big.Int, m>>1)
+		return &buff
+	})
 
 	if prec <= 53 {
 
 		ecd.roots = GetRootsComplex128(ecd.m)
-		ecd.buffCmplx = make([]complex128, ecd.m>>2)
+
+		ecd.BuffComplexPool = structs.NewSyncPool(func() Complex {
+			buff := make([]complex128, ecd.m>>2)
+			return &buff
+		})
 
 	} else {
 
-		tmp := make([]*bignum.Complex, ecd.m>>2)
-
-		for i := 0; i < ecd.m>>2; i++ {
-			tmp[i] = &bignum.Complex{bignum.NewFloat(0, prec), bignum.NewFloat(0, prec)}
-		}
-
 		ecd.roots = GetRootsBigComplex(ecd.m, prec)
-		ecd.buffCmplx = tmp
+
+		ecd.BuffComplexPool = structs.NewSyncPool(func() Complex {
+			buff := make([]*bignum.Complex, ecd.m>>2)
+			for i := 0; i < ecd.m>>2; i++ {
+				buff[i] = &bignum.Complex{bignum.NewFloat(0, prec), bignum.NewFloat(0, prec)}
+			}
+			return &buff
+		})
 	}
+
+	ecd.poolQ = ring.NewPool(parameters.RingQ())
 
 	return
 }
@@ -165,7 +180,9 @@ func (ecd Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 			return fmt.Errorf("cannot Encode: supported values.(type) for IsBatched=False is []float64 or []*big.Float, but %T was given", values)
 		}
 
-		ecd.parameters.RingQ().AtLevel(pt.Level()).NTT(pt.Value, pt.Value)
+		if pt.IsNTT {
+			ecd.parameters.RingQ().AtLevel(pt.Level()).NTT(pt.Value, pt.Value)
+		}
 	}
 
 	return
@@ -208,7 +225,9 @@ func (ecd Encoder) embedDouble(values FloatSlice, metadata *rlwe.MetaData, polyO
 	slots := 1 << metadata.LogDimensions.Cols
 	var lenValues int
 
-	buffCmplx := ecd.buffCmplx.([]complex128)
+	buffRef := ecd.BuffComplexPool.Get().(*[]complex128)
+	defer ecd.BuffComplexPool.Put(buffRef)
+	buffCmplx := *buffRef
 
 	switch values := values.(type) {
 
@@ -329,7 +348,9 @@ func (ecd Encoder) embedArbitrary(values FloatSlice, metadata *rlwe.MetaData, po
 	slots := 1 << metadata.LogDimensions.Cols
 	var lenValues int
 
-	buffCmplx := ecd.buffCmplx.([]*bignum.Complex)
+	buffRef := ecd.BuffComplexPool.Get().(*[]*bignum.Complex)
+	defer ecd.BuffComplexPool.Put(buffRef)
+	buffCmplx := *buffRef
 
 	switch values := values.(type) {
 
@@ -458,7 +479,9 @@ func (ecd Encoder) plaintextToComplex(level int, scale rlwe.Scale, logSlots int,
 	if level == 0 {
 		return polyToComplexNoCRT(p.Coeffs[0], values, scale, logSlots, isreal, ecd.parameters.RingQ().AtLevel(level))
 	}
-	return polyToComplexCRT(p, ecd.bigintCoeffs, values, scale, logSlots, isreal, ecd.parameters.RingQ().AtLevel(level))
+	bigintCoeffs := ecd.BuffBigIntPool.Get()
+	defer ecd.BuffBigIntPool.Put(bigintCoeffs)
+	return polyToComplexCRT(p, *bigintCoeffs, values, scale, logSlots, isreal, ecd.parameters.RingQ().AtLevel(level))
 }
 
 // plaintextToFloat maps a CRT polynomial to a real valued [FloatSlice].
@@ -480,10 +503,12 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values FloatSlice, logprec f
 		return fmt.Errorf("cannot Decode: ensure that %d <= logSlots (%d) <= %d", 0, logSlots, maxLogCols)
 	}
 
+	buff := ecd.poolQ.GetBuffPoly()
+	defer ecd.poolQ.RecycleBuffPoly(buff)
 	if pt.IsNTT {
-		ecd.parameters.RingQ().AtLevel(pt.Level()).INTT(pt.Value, ecd.buff)
+		ecd.parameters.RingQ().AtLevel(pt.Level()).INTT(pt.Value, *buff)
 	} else {
-		ecd.buff.CopyLvl(pt.Level(), pt.Value)
+		buff.CopyLvl(pt.Level(), pt.Value)
 	}
 
 	switch values.(type) {
@@ -496,9 +521,11 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values FloatSlice, logprec f
 
 		if ecd.prec <= 53 {
 
-			buffCmplx := ecd.buffCmplx.([]complex128)
+			buffRef := ecd.BuffComplexPool.Get().(*[]complex128)
+			defer ecd.BuffComplexPool.Put(buffRef)
+			buffCmplx := *buffRef
 
-			if err = ecd.plaintextToComplex(pt.Level(), pt.Scale, logSlots, ecd.buff, buffCmplx); err != nil {
+			if err = ecd.plaintextToComplex(pt.Level(), pt.Scale, logSlots, *buff, buffCmplx); err != nil {
 				return
 			}
 
@@ -573,9 +600,11 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values FloatSlice, logprec f
 			}
 		} else {
 
-			buffCmplx := ecd.buffCmplx.([]*bignum.Complex)
+			buffRef := ecd.BuffComplexPool.Get().(*[]*bignum.Complex)
+			defer ecd.BuffComplexPool.Put(buffRef)
+			buffCmplx := *buffRef
 
-			if err = ecd.plaintextToComplex(pt.Level(), pt.Scale, logSlots, ecd.buff, buffCmplx[:slots]); err != nil {
+			if err = ecd.plaintextToComplex(pt.Level(), pt.Scale, logSlots, *buff, buffCmplx[:slots]); err != nil {
 				return
 			}
 
@@ -726,7 +755,7 @@ func (ecd Encoder) decodePublic(pt *rlwe.Plaintext, values FloatSlice, logprec f
 		}
 
 	} else {
-		return ecd.plaintextToFloat(pt.Level(), pt.Scale, logSlots, ecd.buff, values)
+		return ecd.plaintextToFloat(pt.Level(), pt.Scale, logSlots, *buff, values)
 	}
 
 	return
@@ -1015,21 +1044,24 @@ func (ecd *Encoder) polyToFloatCRT(p ring.Poly, values FloatSlice, scale rlwe.Sc
 		slots = utils.Min(len(p.Coeffs[0]), len(values))
 	}
 
-	bigintCoeffs := ecd.bigintCoeffs
+	buffRef := ecd.BuffBigIntPool.Get()
+	defer ecd.BuffBigIntPool.Put(buffRef)
+	bigintCoeffs := *buffRef
 
-	ecd.parameters.RingQ().PolyToBigint(ecd.buff, 1, bigintCoeffs)
+	ecd.parameters.RingQ().PolyToBigint(p, 1, bigintCoeffs)
 
 	Q := r.ModulusAtLevel[r.Level()]
 
-	ecd.qHalf.Set(Q)
-	ecd.qHalf.Rsh(ecd.qHalf, 1)
+	qHalf := new(big.Int)
+	qHalf.Set(Q)
+	qHalf.Rsh(qHalf, 1)
 
 	var sign int
 	for i := 0; i < slots; i++ {
 		// Centers the value around the current modulus
 		bigintCoeffs[i].Mod(bigintCoeffs[i], Q)
 
-		sign = bigintCoeffs[i].Cmp(ecd.qHalf)
+		sign = bigintCoeffs[i].Cmp(qHalf)
 		if sign == 1 || sign == 0 {
 			bigintCoeffs[i].Sub(bigintCoeffs[i], Q)
 		}
@@ -1180,35 +1212,4 @@ func (ecd *Encoder) polyToFloatNoCRT(coeffs []uint64, values FloatSlice, scale r
 	}
 
 	return
-}
-
-// ShallowCopy returns a lightweight copy of the target object
-// that can be used concurrently with the original object.
-func (ecd Encoder) ShallowCopy() *Encoder {
-
-	var buffCmplx interface{}
-
-	if prec := ecd.prec; prec <= 53 {
-		buffCmplx = make([]complex128, ecd.m>>1)
-	} else {
-		tmp := make([]*bignum.Complex, ecd.m>>2)
-
-		for i := 0; i < ecd.m>>2; i++ {
-			tmp[i] = &bignum.Complex{bignum.NewFloat(0, prec), bignum.NewFloat(0, prec)}
-		}
-
-		buffCmplx = tmp
-	}
-
-	return &Encoder{
-		prec:         ecd.prec,
-		parameters:   ecd.parameters,
-		bigintCoeffs: make([]*big.Int, len(ecd.bigintCoeffs)),
-		qHalf:        new(big.Int),
-		buff:         *ecd.buff.CopyNew(),
-		m:            ecd.m,
-		rotGroup:     ecd.rotGroup,
-		roots:        ecd.roots,
-		buffCmplx:    buffCmplx,
-	}
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/tuneinsight/lattigo/v6/ring"
-	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
 	"github.com/tuneinsight/lattigo/v6/utils"
 )
 
@@ -13,51 +12,12 @@ import (
 type Evaluator struct {
 	params Parameters
 	EvaluationKeySet
-	*EvaluatorBuffers
 
 	automorphismIndex map[uint64][]uint64
 
 	BasisExtender *ring.BasisExtender
 	Decomposer    *ring.Decomposer
-}
-
-type EvaluatorBuffers struct {
-	BuffCt *Ciphertext
-	// BuffQP[0-1]: Key-Switch output Key-Switch on the fly decomp(c2)
-	// BuffQP[2-5]: Available
-	BuffQP        [6]ringqp.Poly
-	BuffInvNTT    ring.Poly
-	BuffDecompQP  []ringqp.Poly // Memory Buff for the basis extension in hoisting
-	BuffBitDecomp []uint64
-}
-
-func NewEvaluatorBuffers(params Parameters) *EvaluatorBuffers {
-
-	buff := new(EvaluatorBuffers)
-	BaseRNSDecompositionVectorSize := params.BaseRNSDecompositionVectorSize(params.MaxLevelQ(), 0)
-	ringQP := params.RingQP()
-
-	buff.BuffCt = NewCiphertext(params, 2, params.MaxLevel())
-
-	buff.BuffQP = [6]ringqp.Poly{
-		ringQP.NewPoly(),
-		ringQP.NewPoly(),
-		ringQP.NewPoly(),
-		ringQP.NewPoly(),
-		ringQP.NewPoly(),
-		ringQP.NewPoly(),
-	}
-
-	buff.BuffInvNTT = params.RingQ().NewPoly()
-
-	buff.BuffDecompQP = make([]ringqp.Poly, BaseRNSDecompositionVectorSize)
-	for i := 0; i < BaseRNSDecompositionVectorSize; i++ {
-		buff.BuffDecompQP[i] = ringQP.NewPoly()
-	}
-
-	buff.BuffBitDecomp = make([]uint64, params.RingQ().N())
-
-	return buff
+	pool          *BufferPool
 }
 
 // NewEvaluator creates a new [Evaluator].
@@ -65,7 +25,8 @@ func NewEvaluator(params ParameterProvider, evk EvaluationKeySet) (eval *Evaluat
 	eval = new(Evaluator)
 	p := params.GetRLWEParameters()
 	eval.params = *p
-	eval.EvaluatorBuffers = NewEvaluatorBuffers(eval.params)
+
+	eval.pool = NewPool(p.RingQP())
 
 	if p.RingP() != nil {
 		eval.BasisExtender = ring.NewBasisExtender(p.RingQ(), p.RingP())
@@ -234,20 +195,6 @@ func (eval Evaluator) InitOutputUnaryOp(op0, opOut *Element[ring.Poly]) (degree,
 	return utils.Max(op0.Degree(), opOut.Degree()), utils.Min(op0.Level(), opOut.Level()), nil
 }
 
-// ShallowCopy creates a shallow copy of this [Evaluator] in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// evaluators can be used concurrently.
-func (eval Evaluator) ShallowCopy() *Evaluator {
-	return &Evaluator{
-		params:            eval.params,
-		Decomposer:        eval.Decomposer,
-		BasisExtender:     eval.BasisExtender.ShallowCopy(),
-		EvaluatorBuffers:  NewEvaluatorBuffers(eval.params),
-		EvaluationKeySet:  eval.EvaluationKeySet,
-		automorphismIndex: eval.automorphismIndex,
-	}
-}
-
 // WithKey creates a shallow copy of the receiver [Evaluator] for which the new [EvaluationKey] is evaluationKey
 // and where the temporary buffers are shared. The receiver and the returned evaluators cannot be used concurrently.
 func (eval Evaluator) WithKey(evk EvaluationKeySet) *Evaluator {
@@ -271,32 +218,16 @@ func (eval Evaluator) WithKey(evk EvaluationKeySet) *Evaluator {
 
 	return &Evaluator{
 		params:            eval.params,
-		EvaluatorBuffers:  eval.EvaluatorBuffers,
 		Decomposer:        eval.Decomposer,
 		BasisExtender:     eval.BasisExtender,
 		EvaluationKeySet:  evk,
 		automorphismIndex: AutomorphismIndex,
+		pool:              eval.pool,
 	}
 }
 
 func (eval Evaluator) AutomorphismIndex(galEl uint64) []uint64 {
 	return eval.automorphismIndex[galEl]
-}
-
-func (eval Evaluator) GetEvaluatorBuffer() *EvaluatorBuffers {
-	return eval.EvaluatorBuffers
-}
-
-func (eval Evaluator) GetBuffQP() [6]ringqp.Poly {
-	return eval.BuffQP
-}
-
-func (eval Evaluator) GetBuffCt() *Ciphertext {
-	return eval.BuffCt
-}
-
-func (eval Evaluator) GetBuffDecompQP() []ringqp.Poly {
-	return eval.BuffDecompQP
 }
 
 func (eval Evaluator) ModDownQPtoQNTT(levelQ, levelP int, p1Q, p1P, p2Q ring.Poly) {

@@ -18,8 +18,14 @@ func (eval Evaluator) GadgetProduct(levelQ int, cx ring.Poly, gadgetCt *GadgetCi
 	levelQ = utils.Min(levelQ, gadgetCt.LevelQ())
 	levelP := gadgetCt.LevelP()
 
+	poolQP := eval.pool.AtLevel(levelQ, levelP)
+	buffQP1 := poolQP.GetBuffPolyQP()
+	defer poolQP.RecycleBuffPolyQP(buffQP1)
+	buffQP2 := poolQP.GetBuffPolyQP()
+	defer poolQP.RecycleBuffPolyQP(buffQP2)
+
 	ctTmp := &Element[ringqp.Poly]{}
-	ctTmp.Value = []ringqp.Poly{{Q: ct.Value[0], P: eval.BuffQP[0].P}, {Q: ct.Value[1], P: eval.BuffQP[1].P}}
+	ctTmp.Value = []ringqp.Poly{{Q: ct.Value[0], P: (*buffQP1).P}, {Q: ct.Value[1], P: (*buffQP2).P}}
 	ctTmp.MetaData = ct.MetaData
 
 	if err := eval.GadgetProductLazy(levelQ, cx, gadgetCt, ctTmp); err != nil {
@@ -125,19 +131,26 @@ func (eval Evaluator) gadgetProductMultiplePLazy(levelQ int, cx ring.Poly, gadge
 	levelP := gadgetCt.LevelP()
 
 	ringQP := eval.params.RingQP().AtLevel(levelQ, levelP)
+	poolQP := eval.pool.AtLevel(levelQ, levelP)
 
 	ringQ := ringQP.RingQ
 	ringP := ringQP.RingP
 
-	c2QP := eval.BuffDecompQP[0]
+	buff := poolQP.GetBuffPolyQP()
+	defer poolQP.RecycleBuffPolyQP(buff)
+
+	c2QP := *buff
+
+	buffQ := poolQP.GetBuffPoly()
+	defer poolQP.RecycleBuffPoly(buffQ)
 
 	var cxNTT, cxInvNTT ring.Poly
 	if ctQP.IsNTT {
 		cxNTT = cx
-		cxInvNTT = eval.BuffInvNTT
+		cxInvNTT = *buffQ
 		ringQ.INTT(cxNTT, cxInvNTT)
 	} else {
-		cxNTT = eval.BuffInvNTT
+		cxNTT = *buffQ
 		cxInvNTT = cx
 		ringQ.NTT(cxInvNTT, cxNTT)
 	}
@@ -192,13 +205,16 @@ func (eval Evaluator) gadgetProductSinglePAndBitDecompLazy(levelQ int, cx ring.P
 	levelP := gadgetCt.LevelP()
 
 	ringQP := eval.params.RingQP().AtLevel(levelQ, levelP)
+	poolQP := eval.pool.AtLevel(levelQ, levelP)
 
 	ringQ := ringQP.RingQ
 	ringP := ringQP.RingP
 
 	var cxInvNTT ring.Poly
 	if ctQP.IsNTT {
-		cxInvNTT = eval.BuffInvNTT
+		buffQ := poolQP.GetBuffPoly()
+		defer poolQP.RecycleBuffPoly(buffQ)
+		cxInvNTT = *buffQ
 		ringQ.INTT(cx, cxInvNTT)
 	} else {
 		cxInvNTT = cx
@@ -211,15 +227,21 @@ func (eval Evaluator) gadgetProductSinglePAndBitDecompLazy(levelQ int, cx ring.P
 
 	mask := uint64(((1 << pw2) - 1))
 
-	cw := eval.BuffDecompQP[0].Q.Coeffs[0]
-	cwNTT := eval.BuffBitDecomp
+	buff := poolQP.GetBuffPolyQP()
+	defer poolQP.RecycleBuffPolyQP(buff)
+
+	cw := buff.Q.Coeffs[0]
+
+	buffBitDecomp := eval.pool.GetBuffUintArray()
+	defer eval.pool.RecycleBuffUintArray(buffBitDecomp)
+	cwNTT := *buffBitDecomp
 
 	QiOverF := eval.params.QiOverflowMargin(levelQ) >> 1
 	PiOverF := eval.params.PiOverflowMargin(levelP) >> 1
 
 	el := gadgetCt.Value
 
-	c2QP := eval.BuffDecompQP[0]
+	c2QP := buff
 
 	// Re-encryption with CRT decomposition for the Qi
 	var reduce int
@@ -325,10 +347,16 @@ func (eval Evaluator) gadgetProductSinglePAndBitDecompLazy(levelQ int, cx ring.P
 // Result NTT domain is returned according to the NTT flag of ct.
 func (eval Evaluator) GadgetProductHoisted(levelQ int, BuffQPDecompQP []ringqp.Poly, gadgetCt *GadgetCiphertext, ct *Ciphertext) {
 
+	pool := eval.pool.PoolP.AtLevel(gadgetCt.LevelP())
+	buffP1 := pool.GetBuffPoly()
+	defer pool.RecycleBuffPoly(buffP1)
+	buffP2 := pool.GetBuffPoly()
+	defer pool.RecycleBuffPoly(buffP2)
+
 	ctQP := &Element[ringqp.Poly]{}
 	ctQP.Value = []ringqp.Poly{
-		{Q: ct.Value[0], P: eval.BuffQP[0].P},
-		{Q: ct.Value[1], P: eval.BuffQP[1].P},
+		{Q: ct.Value[0], P: *buffP1},
+		{Q: ct.Value[1], P: *buffP2},
 	}
 	ctQP.MetaData = ct.MetaData
 
@@ -431,15 +459,19 @@ func (eval Evaluator) gadgetProductMultiplePLazyHoisted(levelQ int, BuffQPDecomp
 func (eval Evaluator) DecomposeNTT(levelQ, levelP, nbPi int, c2 ring.Poly, c2IsNTT bool, decompQP []ringqp.Poly) {
 
 	ringQ := eval.params.RingQ().AtLevel(levelQ)
+	poolQ := eval.pool.AtLevel(levelQ)
 
 	var polyNTT, polyInvNTT ring.Poly
 
+	buffQ := poolQ.GetBuffPoly()
+	defer poolQ.RecycleBuffPoly(buffQ)
+
 	if c2IsNTT {
 		polyNTT = c2
-		polyInvNTT = eval.BuffInvNTT
+		polyInvNTT = *buffQ
 		ringQ.INTT(polyNTT, polyInvNTT)
 	} else {
-		polyNTT = eval.BuffInvNTT
+		polyNTT = *buffQ
 		polyInvNTT = c2
 		ringQ.NTT(polyInvNTT, polyNTT)
 	}

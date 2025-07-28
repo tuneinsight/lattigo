@@ -11,13 +11,13 @@ import (
 // types in addition to ciphertexts types in the rlwe package.
 type Encryptor struct {
 	*rlwe.Encryptor
-	buffQP ringqp.Poly
+	pool *rlwe.BufferPool
 }
 
 // NewEncryptor creates a new Encryptor type. Note that only secret-key encryption is
 // supported at the moment.
 func NewEncryptor(params rlwe.ParameterProvider, key rlwe.EncryptionKey) *Encryptor {
-	return &Encryptor{rlwe.NewEncryptor(params, key), params.GetRLWEParameters().RingQP().NewPoly()}
+	return &Encryptor{rlwe.NewEncryptor(params, key), rlwe.NewPool(params.GetRLWEParameters().RingQP())}
 }
 
 // Encrypt encrypts a plaintext pt into a ciphertext ct, which can be a [rgsw.Ciphertext]
@@ -41,26 +41,29 @@ func (enc Encryptor) Encrypt(pt *rlwe.Plaintext, ct interface{}) (err error) {
 
 	if pt != nil {
 
+		buffQP := enc.pool.GetBuffPolyQP()
+		defer enc.pool.RecycleBuffPolyQP(buffQP)
+
 		if !pt.IsNTT {
-			ringQ.NTT(pt.Value, enc.buffQP.Q)
+			ringQ.NTT(pt.Value, buffQP.Q)
 
 			if !pt.IsMontgomery {
-				ringQ.MForm(enc.buffQP.Q, enc.buffQP.Q)
+				ringQ.MForm(buffQP.Q, buffQP.Q)
 			}
 
 		} else {
 			if !pt.IsMontgomery {
-				ringQ.MForm(pt.Value, enc.buffQP.Q)
+				ringQ.MForm(pt.Value, buffQP.Q)
 			} else {
-				pt.Value.CopyLvl(levelQ, enc.buffQP.Q)
+				pt.Value.CopyLvl(levelQ, buffQP.Q)
 			}
 		}
 
 		if err := rlwe.AddPolyTimesGadgetVectorToGadgetCiphertext(
-			enc.buffQP.Q,
+			buffQP.Q,
 			[]rlwe.GadgetCiphertext{rgswCt.Value[0], rgswCt.Value[1]},
 			*params.RingQP(),
-			enc.buffQP.Q); err != nil {
+			buffQP.Q); err != nil {
 			// Sanity check, this error should not happen.
 			panic(err)
 		}
@@ -115,11 +118,4 @@ func (enc Encryptor) EncryptZero(ct interface{}) (err error) {
 	}
 
 	return nil
-}
-
-// ShallowCopy creates a shallow copy of this [Encryptor] in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// Encryptors can be used concurrently.
-func (enc Encryptor) ShallowCopy() *Encryptor {
-	return &Encryptor{Encryptor: enc.Encryptor.ShallowCopy(), buffQP: enc.GetRLWEParameters().RingQP().NewPoly()}
 }

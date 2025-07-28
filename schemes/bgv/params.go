@@ -103,6 +103,7 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 	if err != nil {
 		return Parameters{}, err
 	}
+
 	if ringQMul, err = ring.NewRing(rlweParams.N(), primes); err != nil {
 		return Parameters{}, err
 	}
@@ -118,7 +119,8 @@ func NewParameters(rlweParams rlwe.Parameters, t uint64) (p Parameters, err erro
 
 	var ringT *ring.Ring
 	/* #nosec G115 -- library requires 64-bit system -> int = int64 */
-	if ringT, err = ring.NewRing(utils.Min(rlweParams.N(), int(order>>1)), []uint64{t}); err != nil {
+	dimRingT := utils.Min(rlweParams.N(), int(order>>1))
+	if ringT, err = ring.NewRing(dimRingT, []uint64{t}); err != nil {
 		return Parameters{}, fmt.Errorf("provided plaintext modulus t is invalid: %w", err)
 	}
 

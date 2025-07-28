@@ -139,7 +139,7 @@ func testPublicKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *test
 			if i == 0 {
 				ckg[i] = NewPublicKeyGenProtocol(params)
 			} else {
-				ckg[i] = ckg[0].ShallowCopy()
+				ckg[i] = ckg[0]
 			}
 		}
 
@@ -182,7 +182,7 @@ func testRelinearizationKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int
 			if i == 0 {
 				rkg[i] = NewRelinearizationKeyGenProtocol(params)
 			} else {
-				rkg[i] = rkg[0].ShallowCopy()
+				rkg[i] = rkg[0]
 			}
 		}
 
@@ -238,7 +238,7 @@ func testEvaluationKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *
 			if i == 0 {
 				evkg[i] = NewEvaluationKeyGenProtocol(params)
 			} else {
-				evkg[i] = evkg[0].ShallowCopy()
+				evkg[i] = evkg[0]
 			}
 		}
 
@@ -293,7 +293,7 @@ func testGaloisKeyGenProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *test
 			if i == 0 {
 				gkg[i] = NewGaloisKeyGenProtocol(params)
 			} else {
-				gkg[i] = gkg[0].ShallowCopy()
+				gkg[i] = gkg[0]
 			}
 		}
 
@@ -344,7 +344,7 @@ func testKeySwitchProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *testing
 				cks[i], err = NewKeySwitchProtocol(params, ring.DiscreteGaussian{Sigma: sigmaSmudging, Bound: 6 * sigmaSmudging})
 				require.NoError(t, err)
 			} else {
-				cks[i] = cks[0].ShallowCopy()
+				cks[i] = cks[0]
 			}
 		}
 
@@ -420,7 +420,7 @@ func testPublicKeySwitchProtocol(tc *testContext, levelQ, levelP, bpw2 int, t *t
 				pcks[i], err = NewPublicKeySwitchProtocol(params, ring.DiscreteGaussian{Sigma: sigmaSmudging, Bound: 6 * sigmaSmudging})
 				require.NoError(t, err)
 			} else {
-				pcks[i] = pcks[0].ShallowCopy()
+				pcks[i] = pcks[0]
 			}
 		}
 

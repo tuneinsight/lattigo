@@ -137,14 +137,18 @@ func testEncoder(tc *TestContext, t *testing.T) {
 	testLevel := [2]int{0, tc.Params.MaxLevel()}
 
 	for _, lvl := range testLevel {
+		lvl := lvl
 		t.Run(name("Encoder/Uint/IsBatched=true", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 			values, plaintext, _ := NewTestVector(tc.Params, tc.Ecd, tc.Enc, lvl, tc.Params.DefaultScale())
 			VerifyTestVectors(tc.Params, tc.Ecd, tc.Dec, plaintext, values, t)
 		})
 	}
 
 	for _, lvl := range testLevel {
+		lvl := lvl
 		t.Run(name("Encoder/Int/IsBatched=true", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 
 			T := tc.Params.PlaintextModulus()
 			THalf := T >> 1
@@ -168,7 +172,9 @@ func testEncoder(tc *TestContext, t *testing.T) {
 	}
 
 	for _, lvl := range testLevel {
+		lvl := lvl
 		t.Run(name("Encoder/Uint/IsBatched=false", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 			T := tc.Params.PlaintextModulus()
 			poly := tc.Sampler.ReadNew()
 			coeffs := make([]uint64, poly.N())
@@ -186,7 +192,9 @@ func testEncoder(tc *TestContext, t *testing.T) {
 	}
 
 	for _, lvl := range testLevel {
+		lvl := lvl
 		t.Run(name("Encoder/Int/IsBatched=false", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 
 			T := tc.Params.PlaintextModulus()
 			THalf := T >> 1
@@ -215,7 +223,9 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 	testLevel := [2]int{0, tc.Params.MaxLevel()}
 
 	for _, lvl := range testLevel {
+		lvl := lvl
 		t.Run(name("Evaluator/Add/Ct/Ct/New", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 			values0, _, ciphertext0 := NewTestVector(tc.Params, tc.Ecd, tc.Enc, lvl, tc.Params.NewScale(3))
 			values1, _, ciphertext1 := NewTestVector(tc.Params, tc.Ecd, tc.Enc, lvl, tc.Params.NewScale(7))
 
@@ -233,7 +243,9 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 	}
 
 	for _, lvl := range testLevel {
+		lvl := lvl
 		t.Run(name("Evaluator/Add/Ct/Ct/Inplace", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 			values0, _, ciphertext0 := NewTestVector(tc.Params, tc.Ecd, tc.Enc, lvl, tc.Params.NewScale(3))
 			values1, _, ciphertext1 := NewTestVector(tc.Params, tc.Ecd, tc.Enc, lvl, tc.Params.NewScale(7))
 
@@ -250,7 +262,9 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 	}
 
 	for _, lvl := range testLevel {
+		lvl := lvl
 		t.Run(name("Evaluator/Add/Ct/Pt/Inplace", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 			values0, _, ciphertext0 := NewTestVector(tc.Params, tc.Ecd, tc.Enc, lvl, tc.Params.NewScale(3))
 			values1, plaintext, _ := NewTestVector(tc.Params, tc.Ecd, tc.Enc, lvl, tc.Params.NewScale(7))
 
@@ -267,7 +281,9 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 	}
 
 	for _, lvl := range testLevel {
+		lvl := lvl
 		t.Run(name("Evaluator/Add/Ct/Scalar/Inplace", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 			values, _, ciphertext := NewTestVector(tc.Params, tc.Ecd, tc.Enc, lvl, tc.Params.DefaultScale())
 
 			scalar := tc.Params.PlaintextModulus() >> 1
@@ -282,7 +298,9 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 	}
 
 	for _, lvl := range testLevel {
+		lvl := lvl
 		t.Run(name("Evaluator/Add/Ct/Vector/Inplace", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 			values, _, ciphertext := NewTestVector(tc.Params, tc.Ecd, tc.Enc, lvl, tc.Params.DefaultScale())
 
 			p := ring.Poly{Coeffs: [][]uint64{values}}
@@ -295,7 +313,9 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 	}
 
 	for _, lvl := range testLevel {
+		lvl := lvl
 		t.Run(name("Evaluator/Sub/Ct/Ct/New", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 			values0, _, ciphertext0 := NewTestVector(tc.Params, tc.Ecd, tc.Enc, lvl, tc.Params.NewScale(3))
 			values1, _, ciphertext1 := NewTestVector(tc.Params, tc.Ecd, tc.Enc, lvl, tc.Params.NewScale(7))
 
@@ -313,7 +333,9 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 	}
 
 	for _, lvl := range testLevel {
+		lvl := lvl
 		t.Run(name("Evaluator/Sub/Ct/Ct/Inplace", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 			values0, _, ciphertext0 := NewTestVector(tc.Params, tc.Ecd, tc.Enc, lvl, tc.Params.NewScale(3))
 			values1, _, ciphertext1 := NewTestVector(tc.Params, tc.Ecd, tc.Enc, lvl, tc.Params.NewScale(7))
 
@@ -330,7 +352,9 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 	}
 
 	for _, lvl := range testLevel {
+		lvl := lvl
 		t.Run(name("Evaluator/Sub/Ct/Pt/Inplace", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 			values0, _, ciphertext0 := NewTestVector(tc.Params, tc.Ecd, tc.Enc, lvl, tc.Params.NewScale(3))
 			values1, plaintext, _ := NewTestVector(tc.Params, tc.Ecd, tc.Enc, lvl, tc.Params.NewScale(7))
 
@@ -347,7 +371,9 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 	}
 
 	for _, lvl := range testLevel {
+		lvl := lvl
 		t.Run(name("Evaluator/Sub/Ct/Scalar/Inplace", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 			values, _, ciphertext := NewTestVector(tc.Params, tc.Ecd, tc.Enc, lvl, tc.Params.DefaultScale())
 
 			scalar := tc.Params.PlaintextModulus() >> 1
@@ -362,7 +388,9 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 	}
 
 	for _, lvl := range testLevel {
+		lvl := lvl
 		t.Run(name("Evaluator/Sub/Ct/Vector/Inplace", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 			values, _, ciphertext := NewTestVector(tc.Params, tc.Ecd, tc.Enc, lvl, tc.Params.DefaultScale())
 
 			p := ring.Poly{Coeffs: [][]uint64{values}}
@@ -375,7 +403,9 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 	}
 
 	for _, lvl := range testLevel {
+		lvl := lvl
 		t.Run(name("Evaluator/Mul/Ct/Ct/Inplace", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 			if lvl == 0 {
 				t.Skip("Skipping: Level = 0")
 			}
@@ -396,7 +426,9 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 	}
 
 	for _, lvl := range testLevel {
+		lvl := lvl
 		t.Run(name("Evaluator/Mul/Ct/Pt/Inplace", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 			if lvl == 0 {
 				t.Skip("Skipping: Level = 0")
 			}
@@ -417,7 +449,9 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 	}
 
 	for _, lvl := range testLevel {
+		lvl := lvl
 		t.Run(name("Evaluator/Mul/Ct/Scalar/Inplace", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 			if lvl == 0 {
 				t.Skip("Skipping: Level = 0")
 			}
@@ -436,7 +470,9 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 	}
 
 	for _, lvl := range testLevel {
+		lvl := lvl
 		t.Run(name("Evaluator/Mul/Ct/Vector/Inplace", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 
 			if lvl == 0 {
 				t.Skip("Skipping: Level = 0")
@@ -454,7 +490,9 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 	}
 
 	for _, lvl := range testLevel {
+		lvl := lvl
 		t.Run(name("Evaluator/Square/Ct/Ct/Inplace", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 			if lvl == 0 {
 				t.Skip("Skipping: Level = 0")
 			}
@@ -471,7 +509,9 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 	}
 
 	for _, lvl := range testLevel {
+		lvl := lvl
 		t.Run(name("Evaluator/MulRelin/Ct/Ct/Inplace", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 			if lvl == 0 {
 				t.Skip("Skipping: Level = 0")
 			}
@@ -496,7 +536,9 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 	}
 
 	for _, lvl := range testLevel {
+		lvl := lvl
 		t.Run(name("Evaluator/MulThenAdd/Ct/Ct/Inplace", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 			if lvl == 0 {
 				t.Skip("Skipping: Level = 0")
 			}
@@ -520,7 +562,9 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 	}
 
 	for _, lvl := range testLevel {
+		lvl := lvl
 		t.Run(name("Evaluator/MulThenAdd/Ct/Pt/Inplace", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 			if lvl == 0 {
 				t.Skip("Skipping: Level = 0")
 			}
@@ -544,7 +588,9 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 	}
 
 	for _, lvl := range testLevel {
+		lvl := lvl
 		t.Run(name("Evaluator/MulThenAdd/Ct/Scalar/Inplace", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 			if lvl == 0 {
 				t.Skip("Skipping: Level = 0")
 			}
@@ -567,7 +613,9 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 	}
 
 	for _, lvl := range testLevel {
+		lvl := lvl
 		t.Run(name("Evaluator/MulThenAdd/Ct/Vector/Inplace", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 			if lvl == 0 {
 				t.Skip("Skipping: Level = 0")
 			}
@@ -593,7 +641,9 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 	}
 
 	for _, lvl := range testLevel {
+		lvl := lvl
 		t.Run(name("Evaluator/MulRelinThenAdd/Ct/Ct/Inplace", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 			if lvl == 0 {
 				t.Skip("Skipping: Level = 0")
 			}
@@ -617,7 +667,9 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 	}
 
 	for _, lvl := range testLevel[:] {
+		lvl := lvl
 		t.Run(name("Evaluator/Rescale", tc, lvl), func(t *testing.T) {
+			t.Parallel()
 
 			ringT := tc.Params.RingT()
 
@@ -695,10 +747,14 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 	}
 
 	for _, i := range []int{0, 1, 2} {
+		i := i
 		// n*batchSize = N, N/2, N/8
 		for _, offset := range []int{0, 1, 3} {
+			offset := offset
 			for _, lvl := range testLevel {
+				lvl := lvl
 				t.Run(name("Evaluator/InnerSum/", tc, lvl), func(t *testing.T) {
+					t.Parallel()
 					if lvl == 0 {
 						t.Skip("Skipping: Level = 0")
 					}
@@ -728,9 +784,13 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 
 		// Test RotateAndAdd with n*batchSize dividing and not dividing #slots
 		for _, n := range []int{tc.Params.MaxSlots() >> 3, 7} {
+			n := n
 			for _, batchSize := range []int{8, 3} {
+				batchSize := batchSize
 				for _, lvl := range testLevel {
+					lvl := lvl
 					t.Run(name("Evaluator/RotateAndAdd/", tc, lvl), func(t *testing.T) {
+						t.Parallel()
 						if lvl == 0 {
 							t.Skip("Skipping: Level = 0")
 						}
@@ -763,7 +823,9 @@ func testEvaluatorBfv(tc *TestContext, t *testing.T) {
 	t.Run("Evaluator", func(t *testing.T) {
 
 		for _, lvl := range testLevels {
+			lvl := lvl
 			t.Run(name("Mul/Ct/Ct/Inplace", tc, lvl), func(t *testing.T) {
+				t.Parallel()
 				if lvl == 0 {
 					t.Skip("Skipping: Level = 0")
 				}
@@ -784,7 +846,9 @@ func testEvaluatorBfv(tc *TestContext, t *testing.T) {
 		}
 
 		for _, lvl := range testLevels {
+			lvl := lvl
 			t.Run(name("Mul/Ct/Pt/Inplace", tc, lvl), func(t *testing.T) {
+				t.Parallel()
 				if lvl == 0 {
 					t.Skip("Level = 0")
 				}
@@ -805,7 +869,9 @@ func testEvaluatorBfv(tc *TestContext, t *testing.T) {
 		}
 
 		for _, lvl := range testLevels {
+			lvl := lvl
 			t.Run(name("Mul/Ct/Scalar/Inplace", tc, lvl), func(t *testing.T) {
+				t.Parallel()
 				if lvl == 0 {
 					t.Skip("Level = 0")
 				}
@@ -824,7 +890,9 @@ func testEvaluatorBfv(tc *TestContext, t *testing.T) {
 		}
 
 		for _, lvl := range testLevels {
+			lvl := lvl
 			t.Run(name("Square/Ct/Ct/Inplace", tc, lvl), func(t *testing.T) {
+				t.Parallel()
 				if lvl == 0 {
 					t.Skip("Level = 0")
 				}
@@ -841,7 +909,9 @@ func testEvaluatorBfv(tc *TestContext, t *testing.T) {
 		}
 
 		for _, lvl := range testLevels {
+			lvl := lvl
 			t.Run(name("MulRelin/Ct/Ct/Inplace", tc, lvl), func(t *testing.T) {
+				t.Parallel()
 				if lvl == 0 {
 					t.Skip("Level = 0")
 				}
@@ -866,7 +936,9 @@ func testEvaluatorBfv(tc *TestContext, t *testing.T) {
 		}
 
 		for _, lvl := range testLevels {
+			lvl := lvl
 			t.Run(name("MulThenAdd/Ct/Ct/Inplace", tc, lvl), func(t *testing.T) {
+				t.Parallel()
 				if lvl == 0 {
 					t.Skip("Level = 0")
 				}
@@ -890,7 +962,9 @@ func testEvaluatorBfv(tc *TestContext, t *testing.T) {
 		}
 
 		for _, lvl := range testLevels {
+			lvl := lvl
 			t.Run(name("MulThenAdd/Ct/Pt/Inplace", tc, lvl), func(t *testing.T) {
+				t.Parallel()
 
 				if lvl == 0 {
 					t.Skip("Level = 0")
@@ -915,7 +989,9 @@ func testEvaluatorBfv(tc *TestContext, t *testing.T) {
 		}
 
 		for _, lvl := range testLevels {
+			lvl := lvl
 			t.Run(name("MulThenAdd/Ct/Scalar/Inplace", tc, lvl), func(t *testing.T) {
+				t.Parallel()
 				if lvl == 0 {
 					t.Skip("Level = 0")
 				}
@@ -938,7 +1014,9 @@ func testEvaluatorBfv(tc *TestContext, t *testing.T) {
 		}
 
 		for _, lvl := range testLevels {
+			lvl := lvl
 			t.Run(name("MulRelinThenAdd/Ct/Ct/Inplace", tc, lvl), func(t *testing.T) {
+				t.Parallel()
 				if lvl == 0 {
 					t.Skip("Level = 0")
 				}

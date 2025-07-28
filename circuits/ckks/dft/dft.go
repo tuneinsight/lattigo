@@ -144,6 +144,7 @@ type Evaluator struct {
 	*ckks.Evaluator
 	LTEvaluator *ltcommon.Evaluator
 	parameters  ckks.Parameters
+	pool        *rlwe.BufferPool
 }
 
 // NewEvaluator instantiates a new [Evaluator] from a [ckks.Evaluator].
@@ -152,6 +153,9 @@ func NewEvaluator(params ckks.Parameters, eval *ckks.Evaluator) *Evaluator {
 	dfteval.Evaluator = eval
 	dfteval.LTEvaluator = ltcommon.NewEvaluator(eval)
 	dfteval.parameters = params
+
+	dfteval.pool = rlwe.NewPool(params.RingQP())
+
 	return dfteval
 }
 
@@ -251,14 +255,8 @@ func (eval *Evaluator) CoeffsToSlots(ctIn *rlwe.Ciphertext, ctsMatrices Matrix, 
 		if ctImag != nil {
 			tmp = ctImag
 		} else {
-			tmp, err = rlwe.NewCiphertextAtLevelFromPoly(ctReal.Level(), eval.GetBuffCt().Value[:2])
-
-			// This error cannot happen unless the user improperly tempered the evaluators
-			// buffer. If it were to happen in that case, there is no way to recover from
-			// it, hence the panic.
-			if err != nil {
-				panic(err)
-			}
+			tmp = eval.pool.GetBuffCt(1, ctReal.Level())
+			defer eval.pool.RecycleBuffCt(tmp)
 
 			tmp.IsNTT = true
 		}

@@ -12,13 +12,6 @@ type RefreshProtocol struct {
 	MaskedTransformProtocol
 }
 
-// ShallowCopy creates a shallow copy of [RefreshProtocol] in which all the read-only data-structures are
-// shared with the receiver and the temporary buffers are reallocated. The receiver and the returned
-// [RefreshProtocol] can be used concurrently.
-func (rfp *RefreshProtocol) ShallowCopy() RefreshProtocol {
-	return RefreshProtocol{rfp.MaskedTransformProtocol.ShallowCopy()}
-}
-
 // NewRefreshProtocol creates a new Refresh protocol instance.
 func NewRefreshProtocol(params bgv.Parameters, noiseFlooding ring.DistributionParameters) (rfp RefreshProtocol, err error) {
 	rfp = RefreshProtocol{}

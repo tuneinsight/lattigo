@@ -297,7 +297,7 @@ func benchDivByLastModulus(tc *testParams, b *testing.B) {
 
 	b.Run(testString("DivByLastModulus/Round", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			tc.ringQ.DivRoundByLastModulus(p0, p1)
+			tc.ringQ.DivRoundByLastModulus(p0, buff, p1)
 		}
 	})
 

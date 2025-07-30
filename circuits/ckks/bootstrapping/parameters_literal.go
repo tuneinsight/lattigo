@@ -192,7 +192,7 @@ type IterationsParameters struct {
 	ReservedPrimeBitSize   int
 }
 
-// MarshalBinary returns a JSON representation of the the target ParametersLiteral struct on a slice of bytes.
+// MarshalBinary returns a JSON representation of the target ParametersLiteral struct on a slice of bytes.
 // See Marshal from the [encoding/json] package.
 func (p ParametersLiteral) MarshalBinary() (data []byte, err error) {
 	return json.Marshal(p)

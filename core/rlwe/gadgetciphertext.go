@@ -167,7 +167,7 @@ func (ct *GadgetCiphertext) UnmarshalBinary(p []byte) (err error) {
 }
 
 // AddPolyTimesGadgetVectorToGadgetCiphertext takes a plaintext polynomial and a list of [GadgetCiphertext] and adds the
-// plaintext times the RNS and BIT decomposition to the i-th element of the i-th ciphertexts. This method return
+// plaintext times the RNS and BIT decomposition to the i-th element of the i-th ciphertext. This method returns
 // an error if len(cts) > 2.
 func AddPolyTimesGadgetVectorToGadgetCiphertext(pt ring.Poly, cts []GadgetCiphertext, ringQP ringqp.Ring, buff ring.Poly) (err error) {
 

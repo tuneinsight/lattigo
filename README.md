@@ -21,7 +21,7 @@ is a common choice thanks to its natural concurrency model and portability.
 
 ## Library overview
 
-<p align="center" width="100%"">
+<p align="center" width="100%">
   <img width=500 height=350 alt="lattigo-hierarchy" src="./lattigo-hierarchy.svg">
 </p>
 
@@ -120,7 +120,7 @@ until its version 2.4.0.
 Starting with the release of version 3.0.0, Lattigo is maintained and supported by [Tune Insight
 SA](https://tuneinsight.com).
 
-Also starting with from version 3.0.0, the module name has changed to
+Also starting from version 3.0.0, the module name has changed to
 `github.com/tuneinsight/lattigo/v[X]`, and the official repository has been moved to
 https://github.com/tuneinsight/lattigo. This has the following implications for modules that depend
 on Lattigo:
@@ -129,18 +129,12 @@ on Lattigo:
   for example by changing the imports to `github.com/tuneinsight/lattigo/v[X]/[package]` and by
   running `go mod tidy`.
 
-The current version of Lattigo, (v6.x.x) is fast-evolving and in constant development. Consequently,
+The current version of Lattigo (v6.x.x) is fast-evolving and in constant development. Consequently,
 there will still be backward-incompatible changes within this major version, in addition to many bug
 fixes and new features. Hence, we encourage all Lattigo users to update to the latest Lattigo version.
 
 
 See CHANGELOG.md for the current and past versions.
-
-## Stability
-
-To keep a comprehensive history, we prioritize rebases over merges for branches other than `main`.
-Branches with the prefix `dev_` are branches in active development and will be frequently rebased.
-Hence, we don't recommend depending on them.
 
 ## Pull Requests
 

@@ -109,6 +109,8 @@ func (r Ring) ConjugateInvariantRing() (*Ring, error) {
 		factors[i] = s.Factors // Allocates factor for faster generation
 	}
 
+	cr.pool = NewPool(&cr)
+
 	return &cr, cr.generateNTTConstants(nil, factors)
 }
 
@@ -139,6 +141,8 @@ func (r Ring) StandardRing() (*Ring, error) {
 
 		factors[i] = s.Factors // Allocates factor for faster generation
 	}
+
+	sr.pool = NewPool(&sr)
 
 	return &sr, sr.generateNTTConstants(nil, factors)
 }
@@ -245,7 +249,6 @@ func (r Ring) BRedConstants() (BRC [][2]uint64) {
 
 // NewRing creates a new RNS Ring with degree N and coefficient moduli Moduli with Standard NTT. N must be a power of two larger than 8. Moduli should be
 // a non-empty []uint64 with distinct prime elements. All moduli must also be equal to 1 modulo 2*N.
-// A pool implementing BufferPool[*[]uint64] will be stored in the returned Ring and will be used to efficiently instantiate large objects.
 // An error is returned with a nil *Ring in the case of non NTT-enabling parameters.
 func NewRing(N int, Moduli []uint64) (r *Ring, err error) {
 	return NewRingWithCustomNTT(N, Moduli, NewNumberTheoreticTransformerStandard, 2*N)
@@ -312,6 +315,8 @@ func NewRingWithCustomNTT(N int, ModuliChain []uint64, ntt func(*SubRing, int) N
 	r.RescaleConstants = rewRescaleConstants(r.SubRings)
 
 	r.level = len(ModuliChain) - 1
+
+	r.pool = NewPool(r)
 
 	return r, r.generateNTTConstants(nil, nil)
 }
@@ -599,6 +604,8 @@ func newRingFromparametersLiteral(p ringParametersLiteral) (r *Ring, err error) 
 	}
 
 	r.RescaleConstants = rewRescaleConstants(r.SubRings)
+
+	r.pool = NewPool(r)
 
 	return
 }

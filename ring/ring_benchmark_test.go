@@ -281,8 +281,6 @@ func benchDivByLastModulus(tc *testParams, b *testing.B) {
 	p0 := tc.uniformSamplerQ.ReadNew()
 	p1 := tc.ringQ.AtLevel(p0.Level() - 1).NewPoly()
 
-	buff := tc.ringQ.NewPoly()
-
 	b.Run(testString("DivByLastModulus/Floor", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			tc.ringQ.DivFloorByLastModulus(p0, p1)
@@ -291,7 +289,7 @@ func benchDivByLastModulus(tc *testParams, b *testing.B) {
 
 	b.Run(testString("DivByLastModulus/FloorNTT", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			tc.ringQ.DivFloorByLastModulusNTT(p0, buff, p1)
+			tc.ringQ.DivFloorByLastModulusNTT(p0, p1)
 		}
 	})
 
@@ -303,7 +301,7 @@ func benchDivByLastModulus(tc *testParams, b *testing.B) {
 
 	b.Run(testString("DivByLastModulus/RoundNTT", tc.ringQ), func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			tc.ringQ.DivRoundByLastModulusNTT(p0, buff, p1)
+			tc.ringQ.DivRoundByLastModulusNTT(p0, p1)
 		}
 	})
 }

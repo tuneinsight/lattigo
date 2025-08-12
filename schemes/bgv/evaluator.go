@@ -1380,12 +1380,9 @@ func (eval Evaluator) Rescale(op0, opOut *rlwe.Ciphertext) (err error) {
 
 	level := op0.Level()
 	ringQ := eval.parameters.RingQ().AtLevel(level)
-	poolQ := eval.poolQ.AtLevel(level)
 
-	buffQ := poolQ.GetBuffPoly()
-	defer poolQ.RecycleBuffPoly(buffQ)
 	for i := range opOut.Value {
-		ringQ.DivRoundByLastModulusNTT(op0.Value[i], *buffQ, opOut.Value[i])
+		ringQ.DivRoundByLastModulusNTT(op0.Value[i], opOut.Value[i])
 	}
 
 	opOut.Resize(opOut.Degree(), level-1)

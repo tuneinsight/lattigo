@@ -181,6 +181,7 @@ var (
 	N15QP880H16384H32 = defaultParametersLiteral{
 		ckks.ParametersLiteral{
 			LogN:            15,
+			LogNthRoot:      17,
 			LogQ:            []int{40, 31, 31, 31, 31},
 			LogP:            []int{56, 56},
 			Xs:              ring.Ternary{H: 16384},

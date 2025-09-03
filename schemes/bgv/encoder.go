@@ -137,8 +137,9 @@ func (ecd Encoder) GetRLWEParameters() *rlwe.Parameters {
 	return &ecd.parameters.Parameters
 }
 
-// Encode encodes an [IntegerSlice] of size at most N, where N is the smallest value satisfying PlaintextModulus = 1 mod 2N,
-// on a pre-allocated plaintext.
+// Encode encodes an [IntegerSlice] of size at most n on a pre-allocated plaintext,
+// where n is the largest value satisfying PlaintextModulus = 1 mod 2n if pt.IsBatched=true,
+// or the value of N set in the parameters otherwise.
 func (ecd Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 
 	if pt.IsBatched {

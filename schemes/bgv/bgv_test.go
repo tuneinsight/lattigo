@@ -247,7 +247,7 @@ func testEvaluatorBvg(tc *TestContext, t *testing.T) {
 				require.NoError(t, err)
 				tc.Params.RingT().Add(p0, p1, p0)
 
-				VerifyTestVectors(tc.Params, tc.Ecd, tc.Dec, ciphertext2, p0.Coeffs[0], false, t)
+				VerifyTestVectors(tc.Params, tc.Ecd, tc.Dec, ciphertext2, p0.Coeffs[0], batched, t)
 			})
 		}
 	}

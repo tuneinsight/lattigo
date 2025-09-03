@@ -14,7 +14,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.23.10'
+        go-version: '1.25'
 
     - uses: actions/cache@v4
       with:
@@ -22,7 +22,7 @@ jobs:
         key: ${{ runner.os }}-go-tools-${{ hashFiles('**/go.sum') }}
         restore-keys: |
           ${{ runner.os }}-go-tools
-    
+
     - name: Setup tools
       run: make get_tools
 
@@ -34,11 +34,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: ['1.23.6', '1.22.11', '1.21.13']
+        go: ["1.25", "1.24", "1.23", "1.22"]
 
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Go
         uses: actions/setup-go@v5
         with:

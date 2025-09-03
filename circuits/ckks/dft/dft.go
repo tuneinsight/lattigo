@@ -347,7 +347,7 @@ func (eval *Evaluator) dft(ctIn *rlwe.Ciphertext, mat Matrix, opOut *rlwe.Cipher
 	matrixIdx := 0
 
 	for _, lvl := range mat.Levels {
-		for i := 0; i < lvl; i += 1 {
+		for range lvl {
 			if matrixIdx == 0 {
 				if err = eval.LTEvaluator.Evaluate(ctIn, mat.Matrices[matrixIdx], opOut); err != nil {
 					return

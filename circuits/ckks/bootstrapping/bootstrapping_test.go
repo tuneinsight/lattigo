@@ -3,6 +3,7 @@ package bootstrapping
 import (
 	"flag"
 	"math"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -15,6 +16,7 @@ import (
 )
 
 var flagLongTest = flag.Bool("long", false, "run the long test suite (all parameters + secure bootstrapping). Overrides -short and requires -timeout=0.")
+var flagTestAllParams = flag.Bool("allparams", false, "test the bootstrapping with all default parameters. Can be combined with -long.")
 var printPrecisionStats = flag.Bool("print-precision", false, "print precision stats")
 
 var testPrec45 = ckks.ParametersLiteral{
@@ -22,6 +24,72 @@ var testPrec45 = ckks.ParametersLiteral{
 	LogQ:            []int{60, 40},
 	LogP:            []int{61},
 	LogDefaultScale: 40,
+}
+
+func TestAllParameters(t *testing.T) {
+	if !*flagTestAllParams {
+		t.Skip("this test is ran only with -allparams flag")
+	}
+
+	for _, paramSet := range slices.Concat(DefaultParametersDense, DefaultParametersSparse) {
+
+		residualParams := paramSet.SchemeParams
+		btpParamsLit := paramSet.BootstrappingParams
+
+		if !*flagLongTest {
+			residualParams.LogN = 12
+			btpParamsLit.LogN = utils.Pointy(residualParams.LogN)
+		}
+
+		params, err := ckks.NewParametersFromLiteral(residualParams)
+		require.Nil(t, err)
+
+		btpParams, err := NewParametersFromLiteral(params, btpParamsLit)
+		require.Nil(t, err)
+
+		sk := rlwe.NewKeyGenerator(btpParams.BootstrappingParameters).GenSecretKeyNew()
+
+		btpKeys, _, err := btpParams.GenEvaluationKeys(sk)
+		require.NoError(t, err)
+
+		evaluator, err := NewEvaluator(btpParams, btpKeys)
+		require.NoError(t, err)
+
+		ecd := ckks.NewEncoder(params)
+		enc := rlwe.NewEncryptor(params, sk)
+		dec := rlwe.NewDecryptor(params, sk)
+
+		values := make([]complex128, params.MaxSlots())
+		for i := range values {
+			values[i] = sampling.RandComplex128(-1, 1)
+		}
+
+		values[0] = complex(0.9238795325112867, 0.3826834323650898)
+		values[1] = complex(0.9238795325112867, 0.3826834323650898)
+		if len(values) > 2 {
+			values[2] = complex(0.9238795325112867, 0.3826834323650898)
+			values[3] = complex(0.9238795325112867, 0.3826834323650898)
+		}
+
+		plaintext := ckks.NewPlaintext(params, 0)
+		ecd.Encode(values, plaintext)
+
+		ctQ0, err := enc.EncryptNew(plaintext)
+		require.NoError(t, err)
+
+		// Checks that the input ciphertext is at the level 0
+		require.True(t, ctQ0.Level() == 0)
+
+		// Bootstrapps the ciphertext
+		ctQL, err := evaluator.Bootstrap(ctQ0)
+		require.NoError(t, err)
+
+		// Checks that the output ciphertext is at the max level of paramsN1
+		require.True(t, ctQL.Level() == params.MaxLevel())
+		require.True(t, ctQL.Scale.Equal(params.DefaultScale()))
+
+		verifyTestVectorsBootstrapping(params, ecd, dec, values, ctQL, t)
+	}
 }
 
 func TestBootstrapping(t *testing.T) {

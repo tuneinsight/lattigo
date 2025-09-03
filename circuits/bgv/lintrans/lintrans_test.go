@@ -65,7 +65,7 @@ func run(tc *bgv.TestContext, t *testing.T) {
 
 	t.Run("Evaluator/LinearTransformationBSGS=true/"+tc.String(), func(t *testing.T) {
 
-		values, _, ciphertext := bgv.NewTestVector(params, tc.Ecd, tc.Enc, params.MaxLevel(), params.DefaultScale())
+		values, _, ciphertext := bgv.NewTestVector(params, tc.Ecd, tc.Enc, params.MaxLevel(), params.DefaultScale(), true)
 
 		slots := ciphertext.Slots()
 
@@ -103,12 +103,12 @@ func run(tc *bgv.TestContext, t *testing.T) {
 
 		values = diagonals.Evaluate(values, newVec, add, muladd)
 
-		bgv.VerifyTestVectors(params, tc.Ecd, tc.Dec, ciphertext, values, t)
+		bgv.VerifyTestVectors(params, tc.Ecd, tc.Dec, ciphertext, values, true, t)
 	})
 
 	t.Run("Evaluator/LinearTransformationBSGS=false"+tc.String(), func(t *testing.T) {
 
-		values, _, ciphertext := bgv.NewTestVector(params, tc.Ecd, tc.Enc, params.MaxLevel(), params.DefaultScale())
+		values, _, ciphertext := bgv.NewTestVector(params, tc.Ecd, tc.Enc, params.MaxLevel(), params.DefaultScale(), true)
 
 		slots := ciphertext.Slots()
 
@@ -146,7 +146,7 @@ func run(tc *bgv.TestContext, t *testing.T) {
 
 		values = diagonals.Evaluate(values, newVec, add, muladd)
 
-		bgv.VerifyTestVectors(params, tc.Ecd, tc.Dec, ciphertext, values, t)
+		bgv.VerifyTestVectors(params, tc.Ecd, tc.Dec, ciphertext, values, true, t)
 	})
 
 	t.Run("Evaluator/LinearTransformation/Permutation"+tc.String(), func(t *testing.T) {
@@ -194,7 +194,7 @@ func run(tc *bgv.TestContext, t *testing.T) {
 
 		diagonals := Permutation[uint64](permutation).GetDiagonals(params.LogMaxSlots())
 
-		values, _, ciphertext := bgv.NewTestVector(params, tc.Ecd, tc.Enc, params.MaxLevel(), params.DefaultScale())
+		values, _, ciphertext := bgv.NewTestVector(params, tc.Ecd, tc.Enc, params.MaxLevel(), params.DefaultScale(), true)
 
 		ltparams := Parameters{
 			DiagonalsIndexList:        diagonals.DiagonalsIndexList(),
@@ -221,7 +221,7 @@ func run(tc *bgv.TestContext, t *testing.T) {
 
 		values = diagonals.Evaluate(values, newVec, add, muladd)
 
-		bgv.VerifyTestVectors(params, tc.Ecd, tc.Dec, ciphertext, values, t)
+		bgv.VerifyTestVectors(params, tc.Ecd, tc.Dec, ciphertext, values, true, t)
 	})
 }
 

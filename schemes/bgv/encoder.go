@@ -146,13 +146,14 @@ func (ecd Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 	} else {
 
 		ringT := ecd.parameters.RingT()
-		N := ringT.N()
 		T := ringT.SubRings[0].Modulus
 		BRC := ringT.SubRings[0].BRedConstant
 
-		buffT := ecd.poolT.GetBuffPoly()
-		defer ecd.poolT.RecycleBuffPoly(buffT)
-		ptT := buffT.Coeffs[0]
+		// If IsBatched=false, the plaintext can have dimension N (dimension of the ciphertext ring)
+		N := ecd.parameters.N()
+		buff := ecd.poolQ.AtLevel(0).GetBuffPoly()
+		defer ecd.poolQ.RecycleBuffPoly(buff)
+		ptT := buff.Coeffs[0]
 
 		var valLen int
 		switch values := values.(type) {
@@ -186,8 +187,8 @@ func (ecd Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 			ptT[i] = 0
 		}
 
-		ringT.MulScalar(*buffT, pt.Scale.Uint64(), *buffT)
-		ecd.RingT2Q(pt.Level(), true, *buffT, pt.Value)
+		ringT.MulScalar(*buff, pt.Scale.Uint64(), *buff)
+		ecd.RingT2Q(pt.Level(), true, *buff, pt.Value)
 
 		if pt.IsNTT {
 			ecd.parameters.RingQ().AtLevel(pt.Level()).NTT(pt.Value, pt.Value)
@@ -467,8 +468,14 @@ func (ecd Encoder) RingQ2T(level int, scaleDown bool, pQ, pT ring.Poly) {
 // Decode decodes a plaintext on an IntegerSlice mod PlaintextModulus of size at most N, where N is the smallest value satisfying PlaintextModulus = 1 mod 2N.
 func (ecd Encoder) Decode(pt *rlwe.Plaintext, values interface{}) (err error) {
 
-	buffT := ecd.poolT.GetBuffPoly()
-	defer ecd.poolT.RecycleBuffPoly(buffT)
+	var buffT *ring.Poly
+	if pt.IsBatched {
+		buffT = ecd.poolT.GetBuffPoly()
+		defer ecd.poolT.RecycleBuffPoly(buffT)
+	} else {
+		buffT = ecd.poolQ.AtLevel(0).GetBuffPoly()
+		defer ecd.poolQ.RecycleBuffPoly(buffT)
+	}
 
 	if pt.IsNTT {
 		ringQ := ecd.parameters.RingQ().AtLevel(pt.Level())

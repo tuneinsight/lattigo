@@ -25,9 +25,9 @@ const (
 // the Q and P fields to the desired moduli chain, or by setting the LogQ and LogP fields to
 // the desired moduli sizes.
 //
-// Users must also specify the coefficient modulus in plaintext-space (T). This modulus must
-// be an NTT-friendly prime in the plaintext space: it must be equal to 1 modulo 2n where
-// n is the plaintext ring degree (i.e., the plaintext space has n slots).
+// Users must also specify the coefficient modulus in plaintext-space (T).
+// If slot encoding is used (default), the number of slots available in the plaintext will be equal to the largest n s.t. T = 1 mod 2n.
+// Otherwise, if coefficient encoding is used, the maximal number of slots available is equal to N.
 //
 // Optionally, users may specify the error variance (Sigma) and secrets' density (H). If left
 // unset, standard default values for these field are substituted at parameter creation (see

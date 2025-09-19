@@ -181,13 +181,13 @@ var (
 	N15QP880H16384H32 = defaultParametersLiteral{
 		ckks.ParametersLiteral{
 			LogN:            15,
-			LogNthRoot:      17,
 			LogQ:            []int{40, 31, 31, 31, 31},
 			LogP:            []int{56, 56},
 			Xs:              ring.Ternary{H: 16384},
 			LogDefaultScale: 31,
 		},
 		ParametersLiteral{
+			LogN: utils.Pointy(15),
 			SlotsToCoeffsFactorizationDepthAndLogScales: [][]int{{30, 30}},
 			CoeffsToSlotsFactorizationDepthAndLogScales: [][]int{{52}, {52}},
 			EvalModLogScale: utils.Pointy(55),

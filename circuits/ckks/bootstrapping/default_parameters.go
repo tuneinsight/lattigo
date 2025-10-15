@@ -187,6 +187,7 @@ var (
 			LogDefaultScale: 31,
 		},
 		ParametersLiteral{
+			LogN: utils.Pointy(15),
 			SlotsToCoeffsFactorizationDepthAndLogScales: [][]int{{30, 30}},
 			CoeffsToSlotsFactorizationDepthAndLogScales: [][]int{{52}, {52}},
 			EvalModLogScale: utils.Pointy(55),

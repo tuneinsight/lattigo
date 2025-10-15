@@ -70,8 +70,13 @@ func (tc TestContext) String() string {
 		tc.Params.PCount())
 }
 
-func VerifyTestVectors(params Parameters, encoder *Encoder, decryptor *rlwe.Decryptor, have interface{}, want []uint64, t *testing.T) {
-	values := make([]uint64, params.MaxSlots())
+func VerifyTestVectors(params Parameters, encoder *Encoder, decryptor *rlwe.Decryptor, have interface{}, want []uint64, isBatched bool, t *testing.T) {
+	var values []uint64
+	if isBatched {
+		values = make([]uint64, params.MaxSlots())
+	} else {
+		values = make([]uint64, params.N())
+	}
 
 	switch have := have.(type) {
 	case *rlwe.Plaintext:
@@ -82,16 +87,24 @@ func VerifyTestVectors(params Parameters, encoder *Encoder, decryptor *rlwe.Decr
 		t.Error("invalid unsupported test object type")
 	}
 
+	fmt.Println("have", values[:10])
+	fmt.Println("want", want[:10])
 	require.True(t, slices.Equal(values, want))
 }
 
-func NewTestVector(params Parameters, encoder *Encoder, encryptor *rlwe.Encryptor, level int, scale rlwe.Scale) (values []uint64, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
-	values = make([]uint64, params.MaxSlots())
+func NewTestVector(params Parameters, encoder *Encoder, encryptor *rlwe.Encryptor, level int, scale rlwe.Scale, batched bool) (values []uint64, pt *rlwe.Plaintext, ct *rlwe.Ciphertext) {
+	if batched {
+		values = make([]uint64, params.MaxSlots())
+	} else {
+		values = make([]uint64, params.N())
+	}
+
 	for i := range values {
 		values[i] = sampling.RandUint64() % params.PlaintextModulus()
 	}
 
 	pt = NewPlaintext(params, level)
+	pt.IsBatched = batched
 	pt.Scale = scale
 	if err := encoder.Encode(values, pt); err != nil {
 		panic(err)

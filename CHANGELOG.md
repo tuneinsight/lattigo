@@ -1,12 +1,30 @@
 # Changelog
 All notable changes to this library are documented in this file.
 
-## [Unreleased]
-- Thread-safety: methods of a given structure (e.g. an evaluator) can be called concurrently. `ShallowCopy` methods are not needed anymore and have been removed. 
-- Refactoring of the InnerSum methods: 
-  - `rlwe.Evaluator.InnerSum` has been replaced by `rlwe.Evaluator.PartialTracesSum`, which applies the automorphisms that correspond to rotations at the scheme level (and sum the results).
-  - Introduction of the `bgv.Evaluator.InnerSum` and `ckks.Evaluator.InnerSum` methods, which have the same behaviour as the old `InnerSum` method for parameters `n` and `batchSize` s.t. `0 < n*batchSize <= ctIn.Slots()` divides the number of slots. Parameters not satisfying these conditions are rejected.
-  - Introduction of the `bgv.Evaluator.RotateAndAdd` and `ckks.Evaluator.RotateAndAdd` methods, which have the same behaviour as the old `InnerSum` method for all parameters. 
+## [6.2.0]
+### Breaking Changes
+- `rlwe.Evaluator.InnerSum` does not exist anymore. It has been replaced by `rlwe.Evaluator.PartialTracesSum`, which applies the automorphisms that correspond to rotations at the scheme level (and sum the results).
+  **Migration**: At the scheme level, use the new `bgv.Evaluator.InnerSum`/`bgv.Evaluator.RotateAndAdd` or `ckks.Evaluator.InnerSum`/`ckks.Evaluator.RotateAndAdd` methods (see doc or below for more details). At the `rlwe` evaluator level, use `rlwe.Evaluator.PartialTracesSum`.
+- `ShallowCopy()` methods have been removed. 
+  **Migration**: These can safely be removed as the structures can be used concurrently. 
+
+### Added 
+- Thread-safety: methods of a given structure (e.g. an evaluator) can be called concurrently. 
+- Introduction of the `bgv.Evaluator.InnerSum` and `ckks.Evaluator.InnerSum` methods, which have the same behaviour as the old `InnerSum` method for parameters `n` and `batchSize` s.t. `0 < n*batchSize <= ctIn.Slots()` divides the number of slots. Parameters not satisfying these conditions are rejected.
+- Introduction of the `bgv.Evaluator.RotateAndAdd` and `ckks.Evaluator.RotateAndAdd` methods, which have the same behaviour as the old `InnerSum` method for all parameters. 
+- Allowing to encode N values in BGV when using coefficient encoding
+
+### Improved
+- Documentation and interface of t-out-of-N MHE 
+- `SECURITY.MD` more complete and precise
+
+### Fixed 
+- Ciphertext packing before bootstrapping
+- CKKS encoding respects the `NTT` flag of the plaintext 
+- `DivRoundByLastModulus` does not overwrite the input
+- Homomorphic DFT when decomposition level has multiple matrices
+- `encryptor.encryptZeroSk` returns a ciphertext in the Montgomery domain when appropriate
+
 
 ## [6.1.1] - 17.03.2025
 - Security fix: the evaluation key for switching from dense to sparse key must be generated at the lowest level.

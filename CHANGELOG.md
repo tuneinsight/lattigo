@@ -4,8 +4,10 @@ All notable changes to this library are documented in this file.
 ## [6.2.0]
 ### Breaking Changes
 - `rlwe.Evaluator.InnerSum` does not exist anymore. It has been replaced by `rlwe.Evaluator.PartialTracesSum`, which applies the automorphisms that correspond to rotations at the scheme level (and sum the results).
+
   **Migration**: At the scheme level, use the new `bgv.Evaluator.InnerSum`/`bgv.Evaluator.RotateAndAdd` or `ckks.Evaluator.InnerSum`/`ckks.Evaluator.RotateAndAdd` methods (see doc or below for more details). At the `rlwe` evaluator level, use `rlwe.Evaluator.PartialTracesSum`.
 - `ShallowCopy()` methods have been removed. 
+
   **Migration**: These can safely be removed as the structures can be used concurrently. 
 
 ### Added 

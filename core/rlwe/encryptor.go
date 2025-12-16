@@ -364,74 +364,48 @@ func (enc Encryptor) encryptZeroSk(sk *SecretKey, ct interface{}) (err error) {
 			enc.params.RingQ().AtLevel(ct.Level()).NTT(c1, c1)
 		}
 
-		return enc.encryptZeroSkFromC1(sk, ct.Element, c1)
+		return enc.encryptZeroSkFromC1(sk, ct.Element, c1, ct.Value[0])
 
 	case Element[ringqp.Poly]:
 
 		var c1 ringqp.Poly
+		levelQ, levelP := ct.LevelQ(), ct.LevelP()
 
 		if ct.Degree() == 1 {
 			c1 = ct.Value[1]
 		} else {
-			buffPolyQP := enc.pool.AtLevel(ct.LevelQ(), ct.LevelP()).GetBuffPolyQP()
+			buffPolyQP := enc.pool.AtLevel(levelQ, levelP).GetBuffPolyQP()
 			defer enc.pool.RecycleBuffPolyQP(buffPolyQP)
 			c1 = *buffPolyQP
 		}
 
 		// ct = (e, a)
-		enc.uniformSampler.AtLevel(ct.LevelQ(), ct.LevelP()).Read(c1)
+		enc.uniformSampler.AtLevel(levelQ, levelP).Read(c1)
 
 		if !ct.IsNTT {
-			enc.params.RingQP().AtLevel(ct.LevelQ(), ct.LevelP()).NTT(c1, c1)
+			enc.params.RingQP().AtLevel(levelQ, levelP).NTT(c1, c1)
 		}
 
-		return enc.encryptZeroSkFromC1QP(sk, ct, c1)
+		return enc.encryptZeroSkFromC1QP(sk, levelQ, levelP, &ct.CiphertextMetaData, c1, ct.Value[0])
 	default:
 		return fmt.Errorf("cannot EncryptZero: input ciphertext type %T is not supported", ct)
 	}
 }
 
-func (enc Encryptor) encryptZeroSkFromC1(sk *SecretKey, ct Element[ring.Poly], c1 ring.Poly) (err error) {
+// encryptZeroSkFromC1 computes c0 := c1 * sk + noise according to the ciphertext metadata
+func (enc Encryptor) encryptZeroSkFromC1(sk *SecretKey, ct Element[ring.Poly], c1, c0 ring.Poly) (err error) {
 
-	levelQ := ct.Level()
+	levelQ := ct.LevelQ()
+	c1QP := ringqp.Poly{Q: c1}
+	c0QP := ringqp.Poly{Q: c0}
 
-	ringQ := enc.params.RingQ().AtLevel(levelQ)
-
-	c0 := ct.Value[0]
-
-	ringQ.MulCoeffsMontgomery(c1, sk.Value.Q, c0)
-	ringQ.Neg(c0, c0)
-
-	if ct.IsNTT {
-		e := enc.pool.GetBuffPoly()
-		defer enc.pool.RecycleBuffPoly(e)
-		enc.xeSampler.AtLevel(levelQ).Read(*e)
-		ringQ.NTT(*e, *e)
-		ringQ.Add(c0, *e, c0)
-	} else {
-		ringQ.INTT(c0, c0)
-		if ct.Degree() == 1 {
-			ringQ.INTT(c1, c1)
-		}
-
-		enc.xeSampler.AtLevel(levelQ).ReadAndAdd(c0)
-	}
-
-	return
+	return enc.encryptZeroSkFromC1QP(sk, levelQ, -1, &ct.CiphertextMetaData, c1QP, c0QP)
 }
 
-// EncryptZeroSeeded generates en encryption of zero under sk.
-// levelQ : level of the modulus Q
-// levelP : level of the modulus P
-// sk     : secret key
-// sampler: uniform sampler; if `sampler` is nil, then the internal sampler will be used.
-// montgomery: returns the result in the Montgomery domain.
-func (enc Encryptor) encryptZeroSkFromC1QP(sk *SecretKey, ct Element[ringqp.Poly], c1 ringqp.Poly) (err error) {
+// encryptZeroSkFromC1QP computes c0 := c1 * sk + noise according to the provided levels and ciphertext metadata
+func (enc Encryptor) encryptZeroSkFromC1QP(sk *SecretKey, levelQ, levelP int, ctMetaData *CiphertextMetaData, c1, c0 ringqp.Poly) (err error) {
 
-	levelQ, levelP := ct.LevelQ(), ct.LevelP()
 	ringQP := enc.params.RingQP().AtLevel(levelQ, levelP)
-
-	c0 := ct.Value[0]
 
 	// ct = (e, 0)
 	enc.xeSampler.AtLevel(levelQ).Read(c0.Q)
@@ -440,15 +414,17 @@ func (enc Encryptor) encryptZeroSkFromC1QP(sk *SecretKey, ct Element[ringqp.Poly
 	}
 
 	ringQP.NTT(c0, c0)
-	// ct[1] is assumed to be sampled in of the Montgomery domain,
-	// thus -as will also be in the Montgomery domain (s is by default), therefore 'e'
-	// must be switched to the Montgomery domain.
-	ringQP.MForm(c0, c0)
+
+	// sk is in Montgomery form by default and c1 can be interpreted as being in the Montgomery domain or not (it is uniformly generated).
+	// Hence, the domain of the noise e determines whether c0 = c1*sk + e is in the Montgomery form or not.
+	if ctMetaData.IsMontgomery {
+		ringQP.MForm(c0, c0)
+	}
 
 	// (-a*sk + e, a)
 	ringQP.MulCoeffsMontgomeryThenSub(c1, sk.Value, c0)
 
-	if !ct.IsNTT {
+	if !ctMetaData.IsNTT {
 		ringQP.INTT(c0, c0)
 		ringQP.INTT(c1, c1)
 	}

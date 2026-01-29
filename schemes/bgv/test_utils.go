@@ -87,8 +87,8 @@ func VerifyTestVectors(params Parameters, encoder *Encoder, decryptor *rlwe.Decr
 		t.Error("invalid unsupported test object type")
 	}
 
-	fmt.Println("have", values[:10])
-	fmt.Println("want", want[:10])
+	// fmt.Println("have", values[:10])
+	// fmt.Println("want", want[:10])
 	require.True(t, slices.Equal(values, want))
 }
 

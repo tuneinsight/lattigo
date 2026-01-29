@@ -303,6 +303,18 @@ func testEncoder(tc *TestContext, t *testing.T) {
 
 		require.GreaterOrEqual(t, math.Log2(1/meanprec), minPrec)
 	})
+
+	t.Run(name("Encoder/UnsupportedType", tc), func(t *testing.T) {
+
+		pt := NewPlaintext(tc.Params, 0)
+		err := tc.Ecd.Encode("encoding some string", pt)
+		require.Error(t, err, "expected error when encoding unsupported type")
+
+		pt.IsBatched = false
+		err = tc.Ecd.Encode("encoding some string", pt)
+		require.Error(t, err, "expected error when encoding unsupported type")
+	})
+
 }
 
 func testEvaluatorAdd(tc *TestContext, t *testing.T) {

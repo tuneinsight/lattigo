@@ -9,6 +9,7 @@ All notable changes to this library are documented in this file.
 - `ShallowCopy()` methods have been removed. 
 
   **Migration**: These can safely be removed as the structures can be used concurrently. 
+- The minimum required Go version is now 1.24. 
 
 ### Added 
 - Thread-safety: methods of a given structure (e.g. an evaluator) can be called concurrently. 

@@ -225,6 +225,40 @@ func testEncoder(tc *TestContext, t *testing.T) {
 			require.True(t, slices.Equal(coeffs, have))
 		})
 	}
+
+	for _, lvl := range testLevel {
+		lvl := lvl
+		t.Run(name("Encoder/Poly", tc, lvl), func(t *testing.T) {
+			t.Parallel()
+
+			poly := tc.Sampler.ReadNew()
+			pt := NewPlaintext(tc.Params, lvl)
+			err := tc.Ecd.Encode(poly, pt)
+			require.NoError(t, err)
+			have := tc.Params.RingT().NewPoly()
+			err = tc.Ecd.Decode(pt, have)
+			require.NoError(t, err)
+			require.True(t, poly.Equal(&have))
+
+			// decoding into []uint64 should also work
+			coeffs := make([]uint64, tc.Params.RingT().N())
+			err = tc.Ecd.Decode(pt, coeffs)
+			require.NoError(t, err)
+			require.True(t, slices.Equal(poly.Coeffs[0], coeffs))
+		})
+	}
+
+	t.Run(name("Encoder/UnsupportedType", tc, 0), func(t *testing.T) {
+
+		pt := NewPlaintext(tc.Params, 0)
+		err := tc.Ecd.Encode("encoding some string", pt)
+		require.Error(t, err, "expected error when encoding unsupported type")
+
+		pt.IsBatched = false
+		err = tc.Ecd.Encode("encoding some string", pt)
+		require.Error(t, err, "expected error when encoding unsupported type")
+	})
+
 }
 
 func testEvaluatorBvg(tc *TestContext, t *testing.T) {

@@ -137,10 +137,21 @@ func (ecd Encoder) GetRLWEParameters() *rlwe.Parameters {
 	return &ecd.parameters.Parameters
 }
 
-// Encode encodes an [IntegerSlice] of size at most n on a pre-allocated plaintext,
-// where n is the largest value satisfying PlaintextModulus = 1 mod 2n if pt.IsBatched=true,
-// or the value of N set in the parameters otherwise.
+// Encode encodes values on a pre-allocated plaintext. The `values` must be of type [IntegerSlice] or be a [ring.Poly] from params.RingT.
+// If `values` is of type [ring.Poly], then pt.IsBatched is set to false and the polynomial is encoded directly (i.e., scaled).
+// If `values` is of type [IntegerSlice], then the encoding depends respects the pt.IsBatched flag:
+//   - If pt.IsBatched=false, then values are interpreted as the coefficients of a polynomial and encored as above.
+//   - If pt.IsBatched=true, then values are encoded in a SIMD fashion on n slots, where n is the largest value satisfying PlaintextModulus = 1 mod 2n.
 func (ecd Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
+
+	poly, isPoly := values.(ring.Poly)
+	if isPoly {
+		if poly.N() != ecd.parameters.RingT().N() {
+			return fmt.Errorf("cannot Encode: poly.N()=%d != RingT.N()=%d", poly.N(), ecd.parameters.RingT().N())
+		}
+		pt.IsBatched = false
+		values = poly.Coeffs[0]
+	}
 
 	if pt.IsBatched {
 		return ecd.EmbedScale(values, true, pt.MetaData, pt.Value)
@@ -182,6 +193,8 @@ func (ecd Encoder) Encode(values interface{}, pt *rlwe.Plaintext) (err error) {
 			}
 
 			valLen = len(values)
+		default:
+			return fmt.Errorf("cannot Encode: values.(type) must be either IntegerSlice or ring.Poly but is %T", values)
 		}
 
 		for i := valLen; i < N; i++ {
@@ -466,7 +479,9 @@ func (ecd Encoder) RingQ2T(level int, scaleDown bool, pQ, pT ring.Poly) {
 	}
 }
 
-// Decode decodes a plaintext on an IntegerSlice mod PlaintextModulus of size at most N, where N is the smallest value satisfying PlaintextModulus = 1 mod 2N.
+// Decode decodes a [Plaintext] into values of type [IntegerSlice] or [ring.Poly].
+// If pt.IsBatched=true, then values must be a [IntegerSlice] and the plaintext is decoded in a SIMD fashion from n slots, where n is the largest value satisfying PlaintextModulus = 1 mod 2n.
+// If pt.IsBatched=false, then values can be either a [ring.Poly] from Parameters.RingT or an [IntegerSlice] and the plaintext is decoded as the coefficients of a polynomial
 func (ecd Encoder) Decode(pt *rlwe.Plaintext, values interface{}) (err error) {
 
 	var buffT *ring.Poly
@@ -516,6 +531,8 @@ func (ecd Encoder) Decode(pt *rlwe.Plaintext, values interface{}) (err error) {
 					values[i] = value
 				}
 			}
+		case ring.Poly:
+			copy(values.Coeffs[0], buffT.Coeffs[0])
 
 		default:
 			return fmt.Errorf("cannot Decode: values must be either []uint64 or []int64 but is %T", values)

@@ -391,7 +391,7 @@ func SerializeCkksBtpContextAdvanced(context_handle uint64, raw_data **byte, len
 	paramsSparse, _ := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
 		LogN: context.parameter.Parameters.LogN(),
 		Q:    context.parameter.Parameters.Q()[:1],
-		P:    context.parameter.Parameters.P()[:1],
+		P:    context.parameter.Parameters.P(),
 	})
 
 	binary.Write(writer, binary.LittleEndian, context.evk.SwkDtS != nil)

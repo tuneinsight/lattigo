@@ -149,7 +149,10 @@ func (swk *SwitchingKey) Equals(other *SwitchingKey) bool {
 
 // CopyNew creates a deep copy of the target SwitchingKey and returns it.
 func (swk *SwitchingKey) CopyNew() *SwitchingKey {
-	return &SwitchingKey{GadgetCiphertext: *swk.GadgetCiphertext.CopyNew()}
+	return &SwitchingKey{
+		GadgetCiphertext: *swk.GadgetCiphertext.CopyNew(),
+		NMFormBits:       swk.NMFormBits,
+	}
 }
 
 // NewRelinKey creates a new EvaluationKey with zero values.
@@ -248,4 +251,5 @@ func (swk *SwitchingKey) Decompress(params *Parameters) {
 			swk.Value[i][j].Decompress(params)
 		}
 	}
+	swk.NMFormBits = 64
 }

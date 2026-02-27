@@ -357,6 +357,7 @@ func SwitchingKeyToBytes(src *SwitchingKey, param *Parameters, writer *bytes.Buf
 func BytesToSwitchingKey(reader *bytes.Reader) *SwitchingKey {
 	swk := new(SwitchingKey)
 	swk.GadgetCiphertext = BytesToGadgetCiphertext(reader)
+	swk.NMFormBits = 64
 	return swk
 }
 

@@ -178,7 +178,9 @@ func ShallowCopyCkksBtpContext(context_handle uint64) uint64 {
 		context_dest.encryptor_pk = nil
 	}
 
-	context_dest.evaluator = context_src.evaluator.ShallowCopy()
+	if context_src.evaluator != nil {
+		context_dest.evaluator = context_src.evaluator.ShallowCopy()
+	}
 
 	if context_src.sk != nil {
 		context_dest.encryptor_sk = context_src.encryptor_sk.ShallowCopy()
@@ -283,7 +285,7 @@ func CreateEmptyCkksBtpContext(parameter_handle uint64) uint64 {
 
 	context.encoder = ckks.NewEncoder(*context.parameter)
 
-	context.evk = new(bootstrapping.EvaluationKeys)
+	context.evk = nil
 
 	context.sk = nil
 	context.pk = nil
@@ -301,6 +303,9 @@ func CreateEmptyCkksBtpContext(parameter_handle uint64) uint64 {
 //export SetCkksBtpContextRelinKey
 func SetCkksBtpContextRelinKey(context_handle uint64, relin_key_handle uint64) {
 	context := get_object[CkksBtpContext](context_handle)
+	if context.evk == nil {
+		context.evk = new(bootstrapping.EvaluationKeys)
+	}
 	context.evk.Rlk = get_object[rlwe.RelinearizationKey](relin_key_handle)
 	context.rlk = context.evk.Rlk
 }
@@ -308,6 +313,9 @@ func SetCkksBtpContextRelinKey(context_handle uint64, relin_key_handle uint64) {
 //export SetCkksBtpContextGaloisKey
 func SetCkksBtpContextGaloisKey(context_handle uint64, galois_key_handle uint64) {
 	context := get_object[CkksBtpContext](context_handle)
+	if context.evk == nil {
+		context.evk = new(bootstrapping.EvaluationKeys)
+	}
 	context.evk.Rtks = get_object[rlwe.RotationKeySet](galois_key_handle)
 	context.gk = context.evk.Rtks
 }
@@ -315,12 +323,18 @@ func SetCkksBtpContextGaloisKey(context_handle uint64, galois_key_handle uint64)
 //export SetCkksBtpContextSwitchkeyDts
 func SetCkksBtpContextSwitchkeyDts(context_handle uint64, switch_key_handle uint64) {
 	context := get_object[CkksBtpContext](context_handle)
+	if context.evk == nil {
+		context.evk = new(bootstrapping.EvaluationKeys)
+	}
 	context.evk.SwkDtS = get_object[rlwe.SwitchingKey](switch_key_handle)
 }
 
 //export SetCkksBtpContextSwitchkeyStd
 func SetCkksBtpContextSwitchkeyStd(context_handle uint64, switch_key_handle uint64) {
 	context := get_object[CkksBtpContext](context_handle)
+	if context.evk == nil {
+		context.evk = new(bootstrapping.EvaluationKeys)
+	}
 	context.evk.SwkStD = get_object[rlwe.SwitchingKey](switch_key_handle)
 }
 

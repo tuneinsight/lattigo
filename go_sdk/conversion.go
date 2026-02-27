@@ -323,6 +323,14 @@ func SetBfvGlkNMFormBits(parameter_handle uint64, galois_key_handle uint64, n_mf
 	}
 }
 
+//export SetBfvGlkNMFormBitsForGaloisElement
+func SetBfvGlkNMFormBitsForGaloisElement(parameter_handle uint64, galois_key_handle uint64, galois_element uint64, n_mform_bits int) {
+	param := get_object[bfv.Parameters](parameter_handle)
+	galois_key_set := get_object[rlwe.RotationKeySet](galois_key_handle)
+
+	set_switching_key_n_mform_bits(&param.Parameters, galois_key_set.Keys[galois_element], n_mform_bits)
+}
+
 //export SetCkksSwkNMFormBits
 func SetCkksSwkNMFormBits(parameter_handle uint64, switching_key_handle uint64, n_mform_bits int) {
 	param := get_object[ckks.Parameters](parameter_handle)
@@ -338,4 +346,13 @@ func SetCkksGlkNMFormBits(parameter_handle uint64, galois_key_handle uint64, n_m
 	for _, swk := range galois_key_set.Keys {
 		set_switching_key_n_mform_bits(&param.Parameters, swk, n_mform_bits)
 	}
+}
+
+//export SetCkksGlkNMFormBitsForGaloisElement
+func SetCkksGlkNMFormBitsForGaloisElement(parameter_handle uint64, galois_key_handle uint64, galois_element uint64, n_mform_bits int) {
+	param := get_object[ckks.Parameters](parameter_handle)
+	galois_key_set := get_object[rlwe.RotationKeySet](galois_key_handle)
+
+	set_switching_key_n_mform_bits(&param.Parameters, galois_key_set.Keys[galois_element], n_mform_bits)
+
 }

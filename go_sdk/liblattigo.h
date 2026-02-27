@@ -340,8 +340,10 @@ extern void CkksGlkInvMFormAndMulByPow2(GoUint64 parameter_handle, GoUint64 galo
 extern void SetBfvRlkNMFormBits(GoUint64 parameter_handle, GoUint64 relin_key_handle, GoInt n_mform_bits);
 extern void SetCkksRlkNMFormBits(GoUint64 parameter_handle, GoUint64 relin_key_handle, GoInt n_mform_bits);
 extern void SetBfvGlkNMFormBits(GoUint64 parameter_handle, GoUint64 galois_key_handle, GoInt n_mform_bits);
+extern void SetBfvGlkNMFormBitsForGaloisElement(GoUint64 parameter_handle, GoUint64 galois_key_handle, GoUint64 galois_element, GoInt n_mform_bits);
 extern void SetCkksSwkNMFormBits(GoUint64 parameter_handle, GoUint64 switching_key_handle, GoInt n_mform_bits);
 extern void SetCkksGlkNMFormBits(GoUint64 parameter_handle, GoUint64 galois_key_handle, GoInt n_mform_bits);
+extern void SetCkksGlkNMFormBitsForGaloisElement(GoUint64 parameter_handle, GoUint64 galois_key_handle, GoUint64 galois_element, GoInt n_mform_bits);
 extern GoUint64 CreateRandomDBfvContext(GoUint64 context_handle, GoUint8* crs_seed, GoFloat64 sigma_smudging);
 extern GoUint64 GetDBfvBfvContext(GoUint64 context_handle);
 extern GoUint64 CreateCKGContext(GoUint64 context_handle);

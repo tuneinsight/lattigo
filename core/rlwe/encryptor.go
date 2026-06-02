@@ -146,7 +146,7 @@ func (enc Encryptor) EncryptSKWithPRNG(prng sampling.PRNG, pt *Plaintext, ct int
 			enc.addPtToCt(level, pt, ct)
 			return
 		default:
-			return fmt.Errorf("cannot Encrypt: input ciphertext type %s is not supported", reflect.TypeOf(ct))
+			return fmt.Errorf("cannot encrypt: input ciphertext type %s is not supported", reflect.TypeOf(ct))
 		}
 	}
 }
@@ -231,8 +231,7 @@ func (enc Encryptor) EncryptZero(ct interface{}) (err error) {
 
 // EncryptZeroSKWithPRNG generates an encryption of zero under the stored key and writes the result on ct.
 // The public element a (where a*sk + e is the encryption of zero) is sampled uniformly using the PRNG passed in the parameters.
-// The method returns an error if ct has an unsupported type or if no secret key is stored
-// in the [Encryptor].
+// The method returns an error if ct has an unsupported type or if no secret key is stored in the [Encryptor].
 //
 // The encryption procedure depends on the parameters: If the auxiliary modulus P is defined, the
 // encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
@@ -243,7 +242,7 @@ func (enc Encryptor) EncryptZeroSKWithPRNG(prng sampling.PRNG, ct interface{}) (
 		uniformSampler := ringqp.NewUniformSampler(prng, *enc.params.RingQP())
 		return enc.encryptZeroSKWithUniformSampler(uniformSampler, key, ct)
 	default:
-		return fmt.Errorf("cannot encrypt: Encryptor has no encryption key")
+		return fmt.Errorf("cannot encrypt: encryptor has no secret key")
 	}
 }
 

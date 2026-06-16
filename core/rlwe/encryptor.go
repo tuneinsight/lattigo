@@ -128,6 +128,9 @@ func newTestEncryptorWithKeyedPRNG(params ParameterProvider, key EncryptionKey, 
 // If a [Plaintext] is given, then the output [Ciphertext] [MetaData] will match the [Plaintext] [MetaData].
 // The method returns an error if the ct has an unsupported type or if no secret key is stored in the [Encryptor].
 //
+// WARNING: This method *MUST NOT* be called twice with the same PRNG and secret key.
+// Reusing the same PRNG/key pair would produce correlated RLWE samples of the form a*s+e, a*s+e', ... which completely breaks security.
+//
 // The encryption procedure masks the plaintext by adding a fresh encryption of zero.
 // The encryption procedure depends on the parameters: If the auxiliary modulus P is defined, the
 // encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
@@ -199,6 +202,9 @@ func (enc Encryptor) EncryptNew(pt *Plaintext) (ct *Ciphertext, err error) {
 // If a [Plaintext] is given, then the output [Ciphertext] [MetaData] will match the [Plaintext] [MetaData].
 // The method returns an error if no secret key is stored in the [Encryptor].
 //
+// WARNING: This method *MUST NOT* be called twice with the same PRNG and secret key.
+// Reusing the same PRNG/key pair would produce correlated RLWE samples of the form a*s+e, a*s+e', ... which completely breaks security.
+//
 // The encryption procedure masks the plaintext by adding a fresh encryption of zero.
 // The encryption procedure depends on the parameters: If the auxiliary modulus P is defined, the
 // encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
@@ -233,9 +239,11 @@ func (enc Encryptor) EncryptZero(ct interface{}) (err error) {
 // The public element a (where a*sk + e is the encryption of zero) is sampled uniformly using the PRNG passed in the parameters.
 // The method returns an error if ct has an unsupported type or if no secret key is stored in the [Encryptor].
 //
+// WARNING: This method *MUST NOT* be called twice with the same PRNG and secret key.
+// Reusing the same PRNG/key pair would produce correlated RLWE samples of the form a*s+e, a*s+e', ... which completely breaks security.
+//
 // The encryption procedure depends on the parameters: If the auxiliary modulus P is defined, the
 // encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
-// The zero encryption is generated according to the given [Ciphertext] [MetaData].
 func (enc Encryptor) EncryptZeroSKWithPRNG(prng sampling.PRNG, ct interface{}) (err error) {
 	switch key := enc.encKey.(type) {
 	case *SecretKey:

@@ -7,8 +7,8 @@ import (
 // MonomialEval evaluates y = sum x^i * poly[i].
 func MonomialEval(x *big.Float, poly []*big.Float) (y *big.Float) {
 	n := len(poly) - 1
-	y = new(big.Float).Set(poly[n-1])
-	for i := n - 2; i >= 0; i-- {
+	y = new(big.Float).Set(poly[n])
+	for i := n - 1; i >= 0; i-- {
 		y.Mul(y, x)
 		y.Add(y, poly[i])
 	}

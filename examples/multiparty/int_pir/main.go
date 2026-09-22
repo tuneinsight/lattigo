@@ -35,7 +35,7 @@ package main
 import (
 	"errors"
 	"log"
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"strconv"
 	"sync"

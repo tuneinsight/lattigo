@@ -35,7 +35,7 @@ package main
 import (
 	"errors"
 	"log"
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"strconv"
 	"sync"
@@ -71,6 +71,8 @@ func getOnlineParties(t int, parties []party) []party {
 	// randomizes a subset of t parties
 	onlineParties := make([]party, len(parties))
 	copy(onlineParties, parties)
+
+	// #nosec G404 -- just shuffling parties, no need to crypo randomness
 	rand.Shuffle(len(onlineParties), func(i, j int) { onlineParties[i], onlineParties[j] = onlineParties[j], onlineParties[i] })
 	return onlineParties[:t]
 }

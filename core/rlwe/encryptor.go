@@ -126,10 +126,11 @@ func newTestEncryptorWithKeyedPRNG(params ParameterProvider, key EncryptionKey, 
 // The public element a is sampled uniformly using the PRNG passed as input.
 // The method currently accepts only [*Ciphertext] as ct.
 // If a [Plaintext] is given, then the output [Ciphertext] [MetaData] will match the [Plaintext] [MetaData].
+// If a nil value is passed as [*Plaintext], the plaintext is assumed to be zero and the [Ciphertext] [MetaData] is not modified.
 // The method returns an error if the ct has an unsupported type or if no secret key is stored in the [Encryptor].
 //
 // WARNING: This method *MUST NOT* be called twice with the same PRNG and secret key.
-// Reusing the same PRNG/key pair would produce correlated RLWE samples of the form a*s+e, a*s+e', ... which completely breaks security.
+// Reusing the same PRNG/key pair would produce correlated RLWE samples of the form a*s+e, a*s+e', ... which breaks security.
 //
 // The encryption procedure masks the plaintext by adding a fresh encryption of zero.
 // The encryption procedure depends on the parameters: If the auxiliary modulus P is defined, the
@@ -157,6 +158,7 @@ func (enc Encryptor) EncryptSKWithPRNG(prng sampling.PRNG, pt *Plaintext, ct int
 // Encrypt encrypts the input plaintext using the stored encryption key and writes the result on ct.
 // The method currently accepts only *[Ciphertext] as ct.
 // If a [Plaintext] is given, then the output [Ciphertext] [MetaData] will match the [Plaintext] [MetaData].
+// If a nil value is passed as [*Plaintext], the plaintext is assumed to be zero and the [Ciphertext] [MetaData] is not modified.
 // The method returns an error if the ct has an unsupported type or if no encryption key is stored
 // in the [Encryptor].
 //
@@ -186,6 +188,7 @@ func (enc Encryptor) Encrypt(pt *Plaintext, ct interface{}) (err error) {
 // EncryptNew encrypts the input plaintext using the stored encryption key and returns a newly
 // allocated [Ciphertext] containing the result.
 // If a [Plaintext] is provided, then the output [Ciphertext] [MetaData] will match the [Plaintext] [MetaData].
+// If a nil value is passed as [*Plaintext], the plaintext is assumed to be zero and the [Ciphertext] [MetaData] will be set to default.
 // The method returns an error if the ct has an unsupported type or if no encryption key is stored
 // in the [Encryptor].
 //
@@ -200,6 +203,7 @@ func (enc Encryptor) EncryptNew(pt *Plaintext) (ct *Ciphertext, err error) {
 // EncryptSKWithPRNGNew encrypts the input plaintext using the stored encryption key and returns a newly allocated [Ciphertext] containing the result (a*sk + e + pt, a).
 // The public element a is sampled uniformly using the PRNG passed as input.
 // If a [Plaintext] is given, then the output [Ciphertext] [MetaData] will match the [Plaintext] [MetaData].
+// If a nil value is passed as [*Plaintext], an encryption of zero is produced and the [Ciphertext] [MetaData] will be set to default.
 // The method returns an error if no secret key is stored in the [Encryptor].
 //
 // WARNING: This method *MUST NOT* be called twice with the same PRNG and secret key.

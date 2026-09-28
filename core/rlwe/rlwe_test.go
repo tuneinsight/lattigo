@@ -623,6 +623,31 @@ func testEncryptor(tc *TestContext, level, bpw2 int, t *testing.T) {
 		require.GreaterOrEqual(t, math.Log2(params.NoiseFreshSK())+1, ringQ.Log2OfStandardDeviation(pt.Value))
 	})
 
+	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Encryptor/Encrypt/SkWithPRNG"), func(t *testing.T) {
+		ringQ := params.RingQ().AtLevel(level)
+		prng, err := sampling.NewKeyedPRNG([]byte{'a', 'b', 'c'})
+		require.NoError(t, err)
+
+		pt := NewPlaintext(params, level)
+		ct := NewCiphertext(params, 1, level)
+
+		enc.EncryptSKWithPRNG(prng, pt, ct)
+		dec.Decrypt(ct, pt)
+
+		if pt.IsNTT {
+			ringQ.INTT(pt.Value, pt.Value)
+		}
+		require.GreaterOrEqual(t, math.Log2(params.NoiseFreshSK())+1, ringQ.Log2OfStandardDeviation(pt.Value))
+
+		prng2, err := sampling.NewKeyedPRNG([]byte{'a', 'b', 'c'})
+		require.NoError(t, err)
+		pt = NewPlaintext(params, level)
+		ct2 := NewCiphertext(params, 1, level)
+
+		enc.EncryptSKWithPRNG(prng2, pt, ct2)
+		require.Equal(t, ct.Value[1], ct2.Value[1])
+	})
+
 	t.Run(testString(params, level, params.MaxLevelP(), bpw2, "Encryptor/Encrypt/Sk/PRNG"), func(t *testing.T) {
 		ringQ := params.RingQ().AtLevel(level)
 

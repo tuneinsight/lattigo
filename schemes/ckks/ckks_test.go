@@ -381,6 +381,34 @@ func testEvaluatorAdd(tc *TestContext, t *testing.T) {
 		VerifyTestVectors(tc.Params, tc.Ecd, tc.Dec, values, ciphertext, tc.Params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
+	t.Run(name("Evaluator/AddNew/Scalar", tc), func(t *testing.T) {
+		t.Parallel()
+
+		values, _, ciphertext := tc.NewTestVector(-1-1i, 1+1i)
+
+		// Non-integer Mul moves the scale off DefaultScale (see #581).
+		scalar := 0.5
+		mul := bignum.NewComplexMultiplier()
+		half := bignum.NewComplex().SetComplex128(complex(scalar, 0))
+		for i := range values {
+			mul.Mul(values[i], half, values[i])
+		}
+		require.NoError(t, tc.Evl.Mul(ciphertext, scalar, ciphertext))
+		require.NotEqual(t, 0, ciphertext.Scale.Cmp(tc.Params.DefaultScale()))
+
+		addend := 0.25
+		add := bignum.NewComplex().SetComplex128(complex(addend, 0))
+		for i := range values {
+			values[i].Add(values[i], add)
+		}
+
+		out, err := tc.Evl.AddNew(ciphertext, addend)
+		require.NoError(t, err)
+		require.Equal(t, 0, out.Scale.Cmp(ciphertext.Scale), "AddNew(ct, scalar) must keep ct.Scale, not DefaultScale")
+
+		VerifyTestVectors(tc.Params, tc.Ecd, tc.Dec, values, out, tc.Params.LogDefaultScale(), 0, *printPrecisionStats, t)
+	})
+
 	t.Run(name("Evaluator/Add/Vector", tc), func(t *testing.T) {
 		t.Parallel()
 
@@ -461,6 +489,33 @@ func testEvaluatorSub(tc *TestContext, t *testing.T) {
 		require.NoError(t, tc.Evl.Sub(ciphertext, constant, ciphertext))
 
 		VerifyTestVectors(tc.Params, tc.Ecd, tc.Dec, values, ciphertext, tc.Params.LogDefaultScale(), 0, *printPrecisionStats, t)
+	})
+
+	t.Run(name("Evaluator/SubNew/Scalar", tc), func(t *testing.T) {
+		t.Parallel()
+
+		values, _, ciphertext := tc.NewTestVector(-1-1i, 1+1i)
+
+		scalar := 0.5
+		mul := bignum.NewComplexMultiplier()
+		half := bignum.NewComplex().SetComplex128(complex(scalar, 0))
+		for i := range values {
+			mul.Mul(values[i], half, values[i])
+		}
+		require.NoError(t, tc.Evl.Mul(ciphertext, scalar, ciphertext))
+		require.NotEqual(t, 0, ciphertext.Scale.Cmp(tc.Params.DefaultScale()))
+
+		subtrahend := 0.25
+		sub := bignum.NewComplex().SetComplex128(complex(subtrahend, 0))
+		for i := range values {
+			values[i].Sub(values[i], sub)
+		}
+
+		out, err := tc.Evl.SubNew(ciphertext, subtrahend)
+		require.NoError(t, err)
+		require.Equal(t, 0, out.Scale.Cmp(ciphertext.Scale), "SubNew(ct, scalar) must keep ct.Scale, not DefaultScale")
+
+		VerifyTestVectors(tc.Params, tc.Ecd, tc.Dec, values, out, tc.Params.LogDefaultScale(), 0, *printPrecisionStats, t)
 	})
 
 	t.Run(name("Evaluator/Sub/Vector", tc), func(t *testing.T) {

@@ -11,6 +11,7 @@ import (
 
 	"github.com/tuneinsight/lattigo/v6/utils"
 	"github.com/tuneinsight/lattigo/v6/utils/bignum"
+	"github.com/tuneinsight/lattigo/v6/utils/parallel"
 )
 
 const (
@@ -651,4 +652,26 @@ func (r Ring) Log2OfStandardDeviation(poly Poly) (std float64) {
 	stdF64, _ := stdFloat.Float64()
 
 	return math.Log2(stdF64)
+}
+
+// parallelMinN is the smallest ring degree for which limb-wise operations
+// are distributed over goroutines; below it the per-limb work (a few
+// microseconds) does not amortize the scheduling overhead.
+const parallelMinN = 1 << 13
+
+// forEachLimb calls f for every RNS limb (sub-ring) of the ring at its
+// current level, in parallel when the ring is large enough. f must only
+// touch data belonging to limb i.
+func (r Ring) forEachLimb(f func(i int, s *SubRing)) {
+	subRings := r.SubRings[:r.level+1]
+	if r.N() < parallelMinN || len(subRings) < 2 || parallel.Parallelism() == 1 {
+		for i, s := range subRings {
+			f(i, s)
+		}
+		return
+	}
+	_ = parallel.For(len(subRings), func(i int) error {
+		f(i, subRings[i])
+		return nil
+	})
 }

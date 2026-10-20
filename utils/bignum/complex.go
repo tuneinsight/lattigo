@@ -197,8 +197,18 @@ func (cEval *ComplexMultiplier) Quo(a, b, c *Complex) {
 			c[0].Quo(a[0], b[0])
 			c[1].SetFloat64(0)
 		} else {
-			c[1].Quo(a[0], b[1])
-			c[0].Quo(a[0], b[0])
+			cEval.tmp0.Mul(a[0], b[0])
+			cEval.tmp1.Mul(a[0], b[1])
+			cEval.tmp2.Mul(b[0], b[0])
+			cEval.tmp3.Mul(b[1], b[1])
+
+			// denominator = Re(b)^2 + Img(b)^2
+			cEval.tmp2.Add(cEval.tmp2, cEval.tmp3)
+
+			// result = Re(a)*Re(b)/denominator - i*Re(a)*Im(b)/denominator
+			c[0].Quo(cEval.tmp0, cEval.tmp2)
+			c[1].Quo(cEval.tmp1, cEval.tmp2)
+			c[1].Neg(c[1])
 		}
 	} else {
 		if b.IsReal() {

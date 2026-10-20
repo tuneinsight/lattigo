@@ -122,9 +122,43 @@ func newTestEncryptorWithKeyedPRNG(params ParameterProvider, key EncryptionKey, 
 	return enc
 }
 
+// EncryptSKWithPRNG encrypts the input plaintext using the stored secret key and writes the result on ct = (a*sk + e + pt, a).
+// The public element a is sampled uniformly using the PRNG passed as input.
+// The method currently accepts only [*Ciphertext] as ct.
+// If a [Plaintext] is given, then the output [Ciphertext] [MetaData] will match the [Plaintext] [MetaData].
+// If a nil value is passed as [*Plaintext], the plaintext is assumed to be zero and the [Ciphertext] [MetaData] is not modified.
+// The method returns an error if the ct has an unsupported type or if no secret key is stored in the [Encryptor].
+//
+// WARNING: This method *MUST NOT* be called twice with the same PRNG and secret key.
+// Reusing the same PRNG/key pair would produce correlated RLWE samples of the form a*s+e, a*s+e', ... which breaks security.
+//
+// The encryption procedure masks the plaintext by adding a fresh encryption of zero.
+// The encryption procedure depends on the parameters: If the auxiliary modulus P is defined, the
+// encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
+func (enc Encryptor) EncryptSKWithPRNG(prng sampling.PRNG, pt *Plaintext, ct interface{}) (err error) {
+	if pt == nil {
+		return enc.EncryptZeroSKWithPRNG(prng, ct)
+	} else {
+		switch ct := ct.(type) {
+		case *Ciphertext:
+			*ct.MetaData = *pt.MetaData
+			level := utils.Min(pt.Level(), ct.Level())
+			ct.Resize(ct.Degree(), level)
+			if err = enc.EncryptZeroSKWithPRNG(prng, ct); err != nil {
+				return fmt.Errorf("cannot Encrypt: %w", err)
+			}
+			enc.addPtToCt(level, pt, ct)
+			return
+		default:
+			return fmt.Errorf("cannot encrypt: input ciphertext type %s is not supported", reflect.TypeOf(ct))
+		}
+	}
+}
+
 // Encrypt encrypts the input plaintext using the stored encryption key and writes the result on ct.
 // The method currently accepts only *[Ciphertext] as ct.
 // If a [Plaintext] is given, then the output [Ciphertext] [MetaData] will match the [Plaintext] [MetaData].
+// If a nil value is passed as [*Plaintext], the plaintext is assumed to be zero and the [Ciphertext] [MetaData] is not modified.
 // The method returns an error if the ct has an unsupported type or if no encryption key is stored
 // in the [Encryptor].
 //
@@ -154,6 +188,7 @@ func (enc Encryptor) Encrypt(pt *Plaintext, ct interface{}) (err error) {
 // EncryptNew encrypts the input plaintext using the stored encryption key and returns a newly
 // allocated [Ciphertext] containing the result.
 // If a [Plaintext] is provided, then the output [Ciphertext] [MetaData] will match the [Plaintext] [MetaData].
+// If a nil value is passed as [*Plaintext], the plaintext is assumed to be zero and the [Ciphertext] [MetaData] will be set to default.
 // The method returns an error if the ct has an unsupported type or if no encryption key is stored
 // in the [Encryptor].
 //
@@ -163,6 +198,23 @@ func (enc Encryptor) Encrypt(pt *Plaintext, ct interface{}) (err error) {
 func (enc Encryptor) EncryptNew(pt *Plaintext) (ct *Ciphertext, err error) {
 	ct = NewCiphertext(enc.params, 1, pt.Level())
 	return ct, enc.Encrypt(pt, ct)
+}
+
+// EncryptSKWithPRNGNew encrypts the input plaintext using the stored encryption key and returns a newly allocated [Ciphertext] containing the result (a*sk + e + pt, a).
+// The public element a is sampled uniformly using the PRNG passed as input.
+// If a [Plaintext] is given, then the output [Ciphertext] [MetaData] will match the [Plaintext] [MetaData].
+// If a nil value is passed as [*Plaintext], an encryption of zero is produced and the [Ciphertext] [MetaData] will be set to default.
+// The method returns an error if no secret key is stored in the [Encryptor].
+//
+// WARNING: This method *MUST NOT* be called twice with the same PRNG and secret key.
+// Reusing the same PRNG/key pair would produce correlated RLWE samples of the form a*s+e, a*s+e', ... which completely breaks security.
+//
+// The encryption procedure masks the plaintext by adding a fresh encryption of zero.
+// The encryption procedure depends on the parameters: If the auxiliary modulus P is defined, the
+// encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
+func (enc Encryptor) EncryptSKWithPRNGNew(prng sampling.PRNG, pt *Plaintext) (ct *Ciphertext, err error) {
+	ct = NewCiphertext(enc.params, 1, pt.Level())
+	return ct, enc.EncryptSKWithPRNG(prng, pt, ct)
 }
 
 // EncryptZero generates an encryption of zero under the stored encryption key and writes the result on ct.
@@ -176,7 +228,7 @@ func (enc Encryptor) EncryptNew(pt *Plaintext) (ct *Ciphertext, err error) {
 func (enc Encryptor) EncryptZero(ct interface{}) (err error) {
 	switch key := enc.encKey.(type) {
 	case *SecretKey:
-		return enc.encryptZeroSk(key, ct)
+		return enc.encryptZeroSKWithUniformSampler(enc.uniformSampler, key, ct)
 	case *PublicKey:
 		if cti, isCt := ct.(*Ciphertext); isCt && enc.params.PCount() == 0 {
 			return enc.encryptZeroPkNoP(key, cti.Element)
@@ -184,6 +236,25 @@ func (enc Encryptor) EncryptZero(ct interface{}) (err error) {
 		return enc.encryptZeroPk(key, ct)
 	default:
 		return fmt.Errorf("cannot encrypt: Encryptor has no encryption key")
+	}
+}
+
+// EncryptZeroSKWithPRNG generates an encryption of zero under the stored key and writes the result on ct.
+// The public element a (where a*sk + e is the encryption of zero) is sampled uniformly using the PRNG passed in the parameters.
+// The method returns an error if ct has an unsupported type or if no secret key is stored in the [Encryptor].
+//
+// WARNING: This method *MUST NOT* be called twice with the same PRNG and secret key.
+// Reusing the same PRNG/key pair would produce correlated RLWE samples of the form a*s+e, a*s+e', ... which completely breaks security.
+//
+// The encryption procedure depends on the parameters: If the auxiliary modulus P is defined, the
+// encryption of zero is sampled in QP before being rescaled by P; otherwise, it is directly sampled in Q.
+func (enc Encryptor) EncryptZeroSKWithPRNG(prng sampling.PRNG, ct interface{}) (err error) {
+	switch key := enc.encKey.(type) {
+	case *SecretKey:
+		uniformSampler := ringqp.NewUniformSampler(prng, *enc.params.RingQP())
+		return enc.encryptZeroSKWithUniformSampler(uniformSampler, key, ct)
+	default:
+		return fmt.Errorf("cannot encrypt: encryptor has no secret key")
 	}
 }
 
@@ -341,11 +412,11 @@ func (enc Encryptor) encryptZeroPkNoP(pk *PublicKey, ct Element[ring.Poly]) (err
 	return
 }
 
-// encryptZeroSk generates an encryption of zero using the stored secret-key and writes the result on ct.
-// The method accepts only *rlwe.Ciphertext or *rgsw.Ciphertext as input and will return an error otherwise.
+// encryptZeroSKWithUniformSampler generates an encryption of zero using the stored secret-key and writes the result on ct.
+// The method accepts only [*Ciphertext] or [Element[ringqp.Poly]] as input for ct and will return an error otherwise.
+// The public element a (where a*sk+e is the encryption of zero), is sampled uniformly using the PRNG passed as input.
 // The zero encryption is generated according to the given Ciphertext MetaData.
-func (enc Encryptor) encryptZeroSk(sk *SecretKey, ct interface{}) (err error) {
-
+func (enc Encryptor) encryptZeroSKWithUniformSampler(uniformSampler ringqp.UniformSampler, sk *SecretKey, ct any) error {
 	switch ct := ct.(type) {
 	case *Ciphertext:
 
@@ -358,7 +429,7 @@ func (enc Encryptor) encryptZeroSk(sk *SecretKey, ct interface{}) (err error) {
 			c1 = *buffPolyQ
 		}
 
-		enc.uniformSampler.AtLevel(ct.Level(), -1).Read(ringqp.Poly{Q: c1})
+		uniformSampler.AtLevel(ct.Level(), -1).Read(ringqp.Poly{Q: c1})
 
 		if !ct.IsNTT {
 			enc.params.RingQ().AtLevel(ct.Level()).NTT(c1, c1)
@@ -380,7 +451,7 @@ func (enc Encryptor) encryptZeroSk(sk *SecretKey, ct interface{}) (err error) {
 		}
 
 		// ct = (e, a)
-		enc.uniformSampler.AtLevel(levelQ, levelP).Read(c1)
+		uniformSampler.AtLevel(levelQ, levelP).Read(c1)
 
 		if !ct.IsNTT {
 			enc.params.RingQP().AtLevel(levelQ, levelP).NTT(c1, c1)

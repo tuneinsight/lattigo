@@ -125,30 +125,30 @@ func (rntt NumberTheoreticTransformerConjugateInvariant) BackwardLazy(p1, p2 []u
 
 // NTT evaluates p2 = NTT(P1).
 func (r Ring) NTT(p1, p2 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.NTT(p1.Coeffs[i], p2.Coeffs[i])
-	}
+	})
 }
 
 // NTTLazy evaluates p2 = NTT(p1) with p2 in [0, 6*modulus-2].
 func (r Ring) NTTLazy(p1, p2 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.NTTLazy(p1.Coeffs[i], p2.Coeffs[i])
-	}
+	})
 }
 
 // INTT evaluates p2 = INTT(p1).
 func (r Ring) INTT(p1, p2 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.INTT(p1.Coeffs[i], p2.Coeffs[i])
-	}
+	})
 }
 
 // INTTLazy evaluates p2 = INTT(p1) with p2 in [0, 2*modulus-1].
 func (r Ring) INTTLazy(p1, p2 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.INTTLazy(p1.Coeffs[i], p2.Coeffs[i])
-	}
+	})
 }
 
 // butterfly computes X, Y = U + V*Psi, U - V*Psi mod Q.

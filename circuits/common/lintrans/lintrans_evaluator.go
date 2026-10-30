@@ -4,9 +4,11 @@ import (
 	"fmt"
 
 	"github.com/tuneinsight/lattigo/v6/core/rlwe"
+	"github.com/tuneinsight/lattigo/v6/ring"
 	"github.com/tuneinsight/lattigo/v6/ring/ringqp"
 	"github.com/tuneinsight/lattigo/v6/schemes"
 	"github.com/tuneinsight/lattigo/v6/utils"
+	"github.com/tuneinsight/lattigo/v6/utils/parallel"
 )
 
 type Evaluator struct {
@@ -55,27 +57,31 @@ func (eval Evaluator) EvaluateMany(ctIn *rlwe.Ciphertext, linearTransformations 
 
 	ctPreRot := map[int]*rlwe.Element[ringqp.Poly]{}
 
-	for i, lt := range linearTransformations {
-
-		if lt.N1 == 0 {
-			if err = eval.MultiplyByDiagMatrix(ctIn, lt, buffDecompQP, opOut[i]); err != nil {
-				return
-			}
-		} else {
-
+	// The pre-rotated ciphertexts of all BSGS transformations
+	// are computed once (for the union of their rotations), and the
+	// transformations are then evaluated concurrently. They only read the
+	// decomposition and the pre-rotated ciphertexts and write to distinct
+	// outputs, so the results equal the sequential evaluation.
+	var rots []int
+	for _, lt := range linearTransformations {
+		if lt.N1 != 0 {
 			_, _, rotN2 := lt.BSGSIndex()
-
-			if err = eval.PreRotatedCiphertextForDiagonalMatrixMultiplication(levelQ, levelP, ctIn, buffDecompQP, rotN2, ctPreRot); err != nil {
-				return
-			}
-
-			if err = eval.MultiplyByDiagMatrixBSGS(ctIn, lt, ctPreRot, opOut[i]); err != nil {
-				return
-			}
+			rots = append(rots, rotN2...)
+		}
+	}
+	if len(rots) > 0 {
+		if err = eval.PreRotatedCiphertextForDiagonalMatrixMultiplication(levelQ, levelP, ctIn, buffDecompQP, utils.GetDistincts(rots), ctPreRot); err != nil {
+			return
 		}
 	}
 
-	return
+	return parallel.For(len(linearTransformations), func(i int) error {
+		lt := linearTransformations[i]
+		if lt.N1 == 0 {
+			return eval.MultiplyByDiagMatrix(ctIn, lt, buffDecompQP, opOut[i])
+		}
+		return eval.MultiplyByDiagMatrixBSGS(ctIn, lt, ctPreRot, opOut[i])
+	})
 }
 
 // PreRotatedCiphertextForDiagonalMatrixMultiplication populates ctPreRot with the pre-rotated ciphertext for the rotations rots and deletes rotated ciphertexts that are not in rots.
@@ -97,16 +103,23 @@ func (eval Evaluator) PreRotatedCiphertextForDiagonalMatrixMultiplication(levelQ
 	}
 
 	// Computes the rotation only for the ones that are not already present.
+	// The hoisted rotations are independent and run in parallel;
+	// map entries are allocated up front so goroutines never write the map.
+	todo := make([]int, 0, len(rots))
 	for _, i := range rots {
 		if _, ok := ctPreRot[i]; i != 0 && !ok {
 			ctPreRot[i] = rlwe.NewElementExtended(params, 1, levelQ, levelP)
-			if err = eval.AutomorphismHoistedLazy(levelQ, ctIn, BuffDecompQP, params.GaloisElement(i), ctPreRot[i]); err != nil {
-				return fmt.Errorf("eval.AutomorphismHoistedLazy: %w", err)
-			}
+			todo = append(todo, i)
 		}
 	}
 
-	return
+	return parallel.For(len(todo), func(k int) error {
+		i := todo[k]
+		if err := eval.AutomorphismHoistedLazy(levelQ, ctIn, BuffDecompQP, params.GaloisElement(i), ctPreRot[i]); err != nil {
+			return fmt.Errorf("eval.AutomorphismHoistedLazy: %w", err)
+		}
+		return nil
+	})
 }
 
 // EvaluateSequential takes as input a ciphertext ctIn and a list of linear transformations [M0, M1, M2, ...] and evaluates opOut:...M2(M1(M0(ctIn))
@@ -292,14 +305,6 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 	ringQ := ringQP.RingQ
 	ringP := ringQP.RingP
 
-	buffQP1 := poolQP.GetBuffPolyQP()
-	defer poolQP.RecycleBuffPolyQP(buffQP1)
-	buffQP2 := poolQP.GetBuffPolyQP()
-	defer poolQP.RecycleBuffPolyQP(buffQP2)
-	buffQP3 := poolQP.GetBuffPolyQP()
-	defer poolQP.RecycleBuffPolyQP(buffQP3)
-	buffQP4 := poolQP.GetBuffPolyQP()
-	defer poolQP.RecycleBuffPolyQP(buffQP4)
 	buffP1 := poolQP.PoolP.GetBuffPoly()
 	defer poolQP.PoolP.RecycleBuffPoly(buffP1)
 	buffP2 := poolQP.PoolP.GetBuffPoly()
@@ -309,9 +314,6 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 
 	opOut.Resize(opOut.Degree(), levelQ)
 
-	QiOverF := params.QiOverflowMargin(levelQ) >> 1
-	PiOverF := params.PiOverflowMargin(levelP) >> 1
-
 	// Computes the N2 rotations indexes of the non-zero rows of the diagonalized DFT matrix for the baby-step giant-step algorithm
 	index, _, _ := matrix.BSGSIndex()
 
@@ -319,6 +321,75 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 	buffCt.Value[1].CopyLvl(levelQ, ctIn.Value[1])
 
 	ctInTmp0, ctInTmp1 := buffCt.Value[0], buffCt.Value[1]
+
+	// Result in QP
+	c0OutQP := ringqp.Poly{Q: opOut.Value[0], P: *buffP1}
+	c1OutQP := ringqp.Poly{Q: opOut.Value[1], P: *buffP2}
+
+	ringQ.MulScalarBigint(ctInTmp0, ringP.ModulusAtLevel[levelP], ctInTmp0) // P*c0
+	ringQ.MulScalarBigint(ctInTmp1, ringP.ModulusAtLevel[levelP], ctInTmp1) // P*c1
+
+	keys := utils.GetSortedKeys(index)
+
+	// The giant steps are split into contiguous chunks that are
+	// evaluated concurrently, each accumulating into its own QP buffers. The
+	// (reduced) partial sums are then added before the final ModDown.
+	chunk := (len(keys) + parallel.Parallelism() - 1) / parallel.Parallelism()
+	chunk = max(chunk, 1)
+	workers := max((len(keys)+chunk-1)/chunk, 1)
+
+	accs := make([][2]ringqp.Poly, workers)
+	accs[0] = [2]ringqp.Poly{c0OutQP, c1OutQP}
+	for w := 1; w < workers; w++ {
+		acc0 := poolQP.GetBuffPolyQP()
+		defer poolQP.RecycleBuffPolyQP(acc0)
+		acc1 := poolQP.GetBuffPolyQP()
+		defer poolQP.RecycleBuffPolyQP(acc1)
+		accs[w] = [2]ringqp.Poly{*acc0, *acc1}
+	}
+
+	if err = parallel.For(workers, func(w int) error {
+		lo, hi := w*chunk, min((w+1)*chunk, len(keys))
+		return eval.accumulateGiantSteps(keys[lo:hi], index, matrix, ctInTmp0, ctInTmp1, ctInPreRot, levelQ, levelP, accs[w][0], accs[w][1])
+	}); err != nil {
+		return
+	}
+
+	for w := 1; w < workers; w++ {
+		ringQP.Add(c0OutQP, accs[w][0], c0OutQP)
+		ringQP.Add(c1OutQP, accs[w][1], c1OutQP)
+	}
+
+	eval.ModDownQPtoQNTT(levelQ, levelP, opOut.Value[0], c0OutQP.P, opOut.Value[0]) // sum(phi(c0 * P + d0_QP))/P
+	eval.ModDownQPtoQNTT(levelQ, levelP, opOut.Value[1], c1OutQP.P, opOut.Value[1]) // sum(phi(d1_QP))/P
+
+	return
+}
+
+// accumulateGiantSteps evaluates the giant steps in keys of the BSGS
+// algorithm and stores sum_j phi_j(sum_i pt_{j+i} * phi_i(ctIn)) in
+// (c0OutQP, c1OutQP), fully reduced. Disjoint sets of giant steps can be
+// evaluated concurrently.
+func (eval Evaluator) accumulateGiantSteps(keys []int, index map[int][]int, matrix LinearTransformation, ctInTmp0, ctInTmp1 ring.Poly, ctInPreRot map[int]*rlwe.Element[ringqp.Poly], levelQ, levelP int, c0OutQP, c1OutQP ringqp.Poly) (err error) {
+
+	params := eval.GetRLWEParameters()
+
+	ringQP := params.RingQP().AtLevel(levelQ, levelP)
+	poolQP := eval.pool.AtLevel(levelQ, levelP)
+	ringQ := ringQP.RingQ
+	ringP := ringQP.RingP
+
+	buffQP1 := poolQP.GetBuffPolyQP()
+	defer poolQP.RecycleBuffPolyQP(buffQP1)
+	buffQP2 := poolQP.GetBuffPolyQP()
+	defer poolQP.RecycleBuffPolyQP(buffQP2)
+	buffQP3 := poolQP.GetBuffPolyQP()
+	defer poolQP.RecycleBuffPolyQP(buffQP3)
+	buffQP4 := poolQP.GetBuffPolyQP()
+	defer poolQP.RecycleBuffPolyQP(buffQP4)
+
+	QiOverF := params.QiOverflowMargin(levelQ) >> 1
+	PiOverF := params.PiOverflowMargin(levelP) >> 1
 
 	// Accumulator inner loop
 	tmp0QP := (*buffQP1)
@@ -329,15 +400,6 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 	cQP.Value = []ringqp.Poly{*buffQP3, *buffQP4}
 	cQP.MetaData = &rlwe.MetaData{}
 	cQP.IsNTT = true
-
-	// Result in QP
-	c0OutQP := ringqp.Poly{Q: opOut.Value[0], P: *buffP1}
-	c1OutQP := ringqp.Poly{Q: opOut.Value[1], P: *buffP2}
-
-	ringQ.MulScalarBigint(ctInTmp0, ringP.ModulusAtLevel[levelP], ctInTmp0) // P*c0
-	ringQ.MulScalarBigint(ctInTmp1, ringP.ModulusAtLevel[levelP], ctInTmp1) // P*c1
-
-	keys := utils.GetSortedKeys(index)
 
 	// OUTER LOOP
 	var cnt0 int
@@ -441,8 +503,8 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 		}
 
 		if cnt0%QiOverF == QiOverF-1 {
-			ringQ.Reduce(opOut.Value[0], opOut.Value[0])
-			ringQ.Reduce(opOut.Value[1], opOut.Value[1])
+			ringQ.Reduce(c0OutQP.Q, c0OutQP.Q)
+			ringQ.Reduce(c1OutQP.Q, c1OutQP.Q)
 		}
 
 		if cnt0%PiOverF == PiOverF-1 {
@@ -454,17 +516,14 @@ func (eval Evaluator) MultiplyByDiagMatrixBSGS(ctIn *rlwe.Ciphertext, matrix Lin
 	}
 
 	if cnt0%QiOverF != 0 {
-		ringQ.Reduce(opOut.Value[0], opOut.Value[0])
-		ringQ.Reduce(opOut.Value[1], opOut.Value[1])
+		ringQ.Reduce(c0OutQP.Q, c0OutQP.Q)
+		ringQ.Reduce(c1OutQP.Q, c1OutQP.Q)
 	}
 
 	if cnt0%PiOverF != 0 {
 		ringP.Reduce(c0OutQP.P, c0OutQP.P)
 		ringP.Reduce(c1OutQP.P, c1OutQP.P)
 	}
-
-	eval.ModDownQPtoQNTT(levelQ, levelP, opOut.Value[0], c0OutQP.P, opOut.Value[0]) // sum(phi(c0 * P + d0_QP))/P
-	eval.ModDownQPtoQNTT(levelQ, levelP, opOut.Value[1], c1OutQP.P, opOut.Value[1]) // sum(phi(d1_QP))/P
 
 	return
 }

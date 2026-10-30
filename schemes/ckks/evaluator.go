@@ -85,6 +85,11 @@ func (eval Evaluator) Add(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 			}
 		}
 
+		// NewCiphertext (AddNew) starts at DefaultScale; the scalar is converted
+		// at op0.Scale, so the output must keep that scale. In-place Add is already
+		// correct because opOut is op0.
+		opOut.Scale = op0.Scale
+
 	case []complex128, []float64, []*big.Float, []*bignum.Complex:
 
 		_, level, err := eval.InitOutputUnaryOp(op0.El(), opOut.El())
@@ -175,6 +180,9 @@ func (eval Evaluator) Sub(op0 *rlwe.Ciphertext, op1 rlwe.Operand, opOut *rlwe.Ci
 				opOut.Value[i].CopyLvl(level, op0.Value[i]) // Resize step ensures identical size
 			}
 		}
+
+		// Same as Add: scalar conversion uses op0.Scale, so opOut must keep it.
+		opOut.Scale = op0.Scale
 
 	case []complex128, []float64, []*big.Float, []*bignum.Complex:
 

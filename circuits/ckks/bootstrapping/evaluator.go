@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/big"
 	"math/bits"
+	"sync"
 
 	"github.com/tuneinsight/lattigo/v6/circuits/ckks/dft"
 	"github.com/tuneinsight/lattigo/v6/circuits/ckks/mod1"
@@ -14,6 +15,7 @@ import (
 	"github.com/tuneinsight/lattigo/v6/schemes/ckks"
 	"github.com/tuneinsight/lattigo/v6/utils"
 	"github.com/tuneinsight/lattigo/v6/utils/bignum"
+	"github.com/tuneinsight/lattigo/v6/utils/parallel"
 )
 
 // Evaluator is a struct to store a memory buffer with the plaintext matrices,
@@ -537,14 +539,40 @@ func (eval Evaluator) bootstrap(ctIn *rlwe.Ciphertext) (ctOut *rlwe.Ciphertext, 
 	}
 
 	// Step 4 : EvalMod (Homomorphic modular reduction)
-	if ctReal, err = eval.EvalMod(ctReal); err != nil {
-		return
-	}
-
-	// Step 4 : EvalMod (Homomorphic modular reduction)
-	if ctImag != nil {
-		if ctImag, err = eval.EvalMod(ctImag); err != nil {
+	// The real and imaginary parts are independent and are
+	// reduced concurrently (the evaluator is thread-safe since v6.2.0).
+	if ctImag != nil && parallel.Parallelism() > 1 {
+		var errImag error
+		var panicImag any
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			// Re-raised in the calling goroutine below, where it can be
+			// recovered.
+			defer func() { panicImag = recover() }()
+			ctImag, errImag = eval.EvalMod(ctImag)
+		}()
+		ctReal, err = eval.EvalMod(ctReal)
+		wg.Wait()
+		if panicImag != nil {
+			panic(panicImag)
+		}
+		if err == nil {
+			err = errImag
+		}
+		if err != nil {
 			return
+		}
+	} else {
+		if ctReal, err = eval.EvalMod(ctReal); err != nil {
+			return
+		}
+
+		if ctImag != nil {
+			if ctImag, err = eval.EvalMod(ctImag); err != nil {
+				return
+			}
 		}
 	}
 

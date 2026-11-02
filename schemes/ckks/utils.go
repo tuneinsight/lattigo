@@ -129,15 +129,20 @@ func StandardDeviation(vec interface{}, scale rlwe.Scale) (std float64) {
 // The real part is put in a left N/2 coefficient and the imaginary in the right N/2 coefficients.
 func Complex128ToFixedPointCRT(r *ring.Ring, values []complex128, scale float64, coeffs [][]uint64) {
 
+	// The moduli, Barrett constants and big.Int scratch are taken once per
+	// polynomial instead of once per coefficient, so that encoding does not
+	// allocate for each of the N coefficients.
+	cst := newFixedPointConstants(r)
+
 	for i, v := range values {
-		SingleFloat64ToFixedPointCRT(r, i, real(v), scale, coeffs)
+		cst.single(i, real(v), scale, coeffs)
 	}
 
 	var start int
 	if r.Type() == ring.Standard {
 		slots := len(values)
 		for i, v := range values {
-			SingleFloat64ToFixedPointCRT(r, i+slots, imag(v), scale, coeffs)
+			cst.single(i+slots, imag(v), scale, coeffs)
 		}
 
 		start = 2 * len(values)
@@ -148,27 +153,51 @@ func Complex128ToFixedPointCRT(r *ring.Ring, values []complex128, scale float64,
 
 	end := len(coeffs[0])
 	for i := start; i < end; i++ {
-		SingleFloat64ToFixedPointCRT(r, i, 0, 0, coeffs)
+		cst.single(i, 0, 0, coeffs)
 	}
 }
 
 // Float64ToFixedPointCRT encodes a vector of floats on a CRT polynomial.
 func Float64ToFixedPointCRT(r *ring.Ring, values []float64, scale float64, coeffs [][]uint64) {
 
+	// Per-ring constants are taken once (see Complex128ToFixedPointCRT).
+	cst := newFixedPointConstants(r)
+
 	start := len(values)
 	end := len(coeffs[0])
 
 	for i := 0; i < start; i++ {
-		SingleFloat64ToFixedPointCRT(r, i, values[i], scale, coeffs)
+		cst.single(i, values[i], scale, coeffs)
 	}
 
 	for i := start; i < end; i++ {
-		SingleFloat64ToFixedPointCRT(r, i, 0, 0, coeffs)
+		cst.single(i, 0, 0, coeffs)
 	}
 }
 
 // SingleFloat64ToFixedPointCRT encodes a single float64 on a CRT polynomialon in the i-th coefficient.
 func SingleFloat64ToFixedPointCRT(r *ring.Ring, i int, value float64, scale float64, coeffs [][]uint64) {
+	newFixedPointConstants(r).single(i, value, scale, coeffs)
+}
+
+// fixedPointConstants holds what SingleFloat64ToFixedPointCRT needs from the
+// ring, so that encoding a polynomial takes it once.
+type fixedPointConstants struct {
+	moduli []uint64
+	brc    [][2]uint64
+	tmp    *big.Int
+}
+
+func newFixedPointConstants(r *ring.Ring) fixedPointConstants {
+	return fixedPointConstants{
+		moduli: r.ModuliChain()[:r.Level()+1],
+		brc:    r.BRedConstants(),
+		tmp:    new(big.Int),
+	}
+}
+
+// single encodes value in the i-th coefficient (see SingleFloat64ToFixedPointCRT).
+func (cst fixedPointConstants) single(i int, value float64, scale float64, coeffs [][]uint64) {
 
 	if value == 0 {
 		for j := range coeffs {
@@ -181,7 +210,7 @@ func SingleFloat64ToFixedPointCRT(r *ring.Ring, i int, value float64, scale floa
 	var isNegative bool
 	var xFlo *big.Float
 	var xInt *big.Int
-	tmp := new(big.Int)
+	tmp := cst.tmp
 	var c uint64
 
 	isNegative = false
@@ -193,7 +222,7 @@ func SingleFloat64ToFixedPointCRT(r *ring.Ring, i int, value float64, scale floa
 
 	value *= scale
 
-	moduli := r.ModuliChain()[:r.Level()+1]
+	moduli := cst.moduli
 
 	if value >= 1.8446744073709552e+19 {
 		xFlo = big.NewFloat(value)
@@ -210,7 +239,7 @@ func SingleFloat64ToFixedPointCRT(r *ring.Ring, i int, value float64, scale floa
 		}
 
 	} else {
-		brc := r.BRedConstants()
+		brc := cst.brc
 
 		c = uint64(value + 0.5)
 		if isNegative {

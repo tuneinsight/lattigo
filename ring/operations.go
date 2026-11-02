@@ -9,149 +9,149 @@ import (
 
 // Add evaluates p3 = p1 + p2 coefficient-wise in the ring.
 func (r Ring) Add(p1, p2, p3 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.Add(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i])
-	}
+	})
 }
 
 // AddLazy evaluates p3 = p1 + p2 coefficient-wise in the ring, with p3 in [0, 2*modulus-1].
 func (r Ring) AddLazy(p1, p2, p3 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.AddLazy(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i])
-	}
+	})
 }
 
 // Sub evaluates p3 = p1 - p2 coefficient-wise in the ring.
 func (r Ring) Sub(p1, p2, p3 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.Sub(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i])
-	}
+	})
 }
 
 // SubLazy evaluates p3 = p1 - p2 coefficient-wise in the ring, with p3 in [0, 2*modulus-1].
 func (r Ring) SubLazy(p1, p2, p3 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.SubLazy(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i])
-	}
+	})
 }
 
 // Neg evaluates p2 = -p1 coefficient-wise in the ring.
 func (r Ring) Neg(p1, p2 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.Neg(p1.Coeffs[i], p2.Coeffs[i])
-	}
+	})
 }
 
 // Reduce evaluates p2 = p1 coefficient-wise mod modulus in the ring.
 func (r Ring) Reduce(p1, p2 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.Reduce(p1.Coeffs[i], p2.Coeffs[i])
-	}
+	})
 }
 
 // ReduceLazy evaluates p2 = p1 coefficient-wise mod modulus in the ring, with p2 in [0, 2*modulus-1].
 func (r Ring) ReduceLazy(p1, p2 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.ReduceLazy(p1.Coeffs[i], p2.Coeffs[i])
-	}
+	})
 }
 
 // MulCoeffsBarrett evaluates p3 = p1 * p2 coefficient-wise in the ring, with Barrett reduction.
 func (r Ring) MulCoeffsBarrett(p1, p2, p3 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.MulCoeffsBarrett(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i])
-	}
+	})
 }
 
 // MulCoeffsBarrettLazy evaluates p3 = p1 * p2 coefficient-wise in the ring, with Barrett reduction, with p3 in [0, 2*modulus-1].
 func (r Ring) MulCoeffsBarrettLazy(p1, p2, p3 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.MulCoeffsBarrettLazy(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i])
-	}
+	})
 }
 
 // MulCoeffsBarrettThenAdd evaluates p3 = p3 + p1 * p2 coefficient-wise in the ring, with Barrett reduction.
 func (r Ring) MulCoeffsBarrettThenAdd(p1, p2, p3 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.MulCoeffsBarrettThenAdd(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i])
-	}
+	})
 }
 
 // MulCoeffsBarrettThenAddLazy evaluates p3 = p1 * p2 coefficient-wise in the ring, with Barrett reduction, with p3 in [0, 2*modulus-1].
 func (r Ring) MulCoeffsBarrettThenAddLazy(p1, p2, p3 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.MulCoeffsBarrettThenAddLazy(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i])
-	}
+	})
 }
 
 // MulCoeffsMontgomery evaluates p3 = p1 * p2 coefficient-wise in the ring, with Montgomery reduction.
 func (r Ring) MulCoeffsMontgomery(p1, p2, p3 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.MulCoeffsMontgomery(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i])
-	}
+	})
 }
 
 // MulCoeffsMontgomeryLazy evaluates p3 = p1 * p2 coefficient-wise in the ring, with Montgomery reduction, with p3 in [0, 2*modulus-1].
 func (r Ring) MulCoeffsMontgomeryLazy(p1, p2, p3 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.MulCoeffsMontgomeryLazy(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i])
-	}
+	})
 }
 
 // MulCoeffsMontgomeryLazyThenNeg evaluates p3 = -p1 * p2 coefficient-wise in the ring, with Montgomery reduction, with p3 in [0, 2*modulus-1].
 func (r Ring) MulCoeffsMontgomeryLazyThenNeg(p1, p2, p3 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.MulCoeffsMontgomeryLazyThenNeg(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i])
-	}
+	})
 }
 
 // MulCoeffsMontgomeryThenAdd evaluates p3 = p3 + p1 * p2 coefficient-wise in the ring, with Montgomery reduction, with p3 in [0, 2*modulus-1].
 func (r Ring) MulCoeffsMontgomeryThenAdd(p1, p2, p3 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.MulCoeffsMontgomeryThenAdd(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i])
-	}
+	})
 }
 
 // MulCoeffsMontgomeryThenAddLazy evaluates p3 = p3 + p1 * p2 coefficient-wise in the ring, with Montgomery reduction, with p3 in [0, 2*modulus-1].
 func (r Ring) MulCoeffsMontgomeryThenAddLazy(p1, p2, p3 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.MulCoeffsMontgomeryThenAddLazy(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i])
-	}
+	})
 }
 
 // MulCoeffsMontgomeryLazyThenAddLazy evaluates p3 = p3 + p1 * p2 coefficient-wise in the ring, with Montgomery reduction, with p3 in [0, 3*modulus-2].
 func (r Ring) MulCoeffsMontgomeryLazyThenAddLazy(p1, p2, p3 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.MulCoeffsMontgomeryLazyThenAddLazy(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i])
-	}
+	})
 }
 
 // MulCoeffsMontgomeryThenSub evaluates p3 = p3 - p1 * p2 coefficient-wise in the ring, with Montgomery reduction.
 func (r Ring) MulCoeffsMontgomeryThenSub(p1, p2, p3 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.MulCoeffsMontgomeryThenSub(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i])
-	}
+	})
 }
 
 // MulCoeffsMontgomeryThenSubLazy evaluates p3 = p3 - p1 * p2 coefficient-wise in the ring, with Montgomery reduction, with p3 in [0, 2*modulus-1].
 func (r Ring) MulCoeffsMontgomeryThenSubLazy(p1, p2, p3 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.MulCoeffsMontgomeryThenSubLazy(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i])
-	}
+	})
 }
 
 // MulCoeffsMontgomeryLazyThenSubLazy evaluates p3 = p3 - p1 * p2 coefficient-wise in the ring, with Montgomery reduction, with p3 in [0, 3*modulus-2].
 func (r Ring) MulCoeffsMontgomeryLazyThenSubLazy(p1, p2, p3 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.MulCoeffsMontgomeryLazyThenSubLazy(p1.Coeffs[i], p2.Coeffs[i], p3.Coeffs[i])
-	}
+	})
 }
 
 // AddScalar evaluates p2 = p1 + scalar coefficient-wise in the ring.
 func (r Ring) AddScalar(p1 Poly, scalar uint64, p2 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.AddScalar(p1.Coeffs[i], scalar, p2.Coeffs[i])
-	}
+	})
 }
 
 // AddScalarBigint evaluates p2 = p1 + scalar coefficient-wise in the ring.
@@ -184,9 +184,9 @@ func (r Ring) SubDoubleRNSScalar(p1 Poly, scalar0, scalar1 RNSScalar, p2 Poly) {
 
 // SubScalar evaluates p2 = p1 - scalar coefficient-wise in the ring.
 func (r Ring) SubScalar(p1 Poly, scalar uint64, p2 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.SubScalar(p1.Coeffs[i], scalar, p2.Coeffs[i])
-	}
+	})
 }
 
 // SubScalarBigint evaluates p2 = p1 - scalar coefficient-wise in the ring.
@@ -199,24 +199,24 @@ func (r Ring) SubScalarBigint(p1 Poly, scalar *big.Int, p2 Poly) {
 
 // MulScalar evaluates p2 = p1 * scalar coefficient-wise in the ring.
 func (r Ring) MulScalar(p1 Poly, scalar uint64, p2 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.MulScalarMontgomery(p1.Coeffs[i], MForm(scalar, s.Modulus, s.BRedConstant), p2.Coeffs[i])
-	}
+	})
 }
 
 // MulScalarThenAdd evaluates p2 = p2 + p1 * scalar coefficient-wise in the ring.
 func (r Ring) MulScalarThenAdd(p1 Poly, scalar uint64, p2 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.MulScalarMontgomeryThenAdd(p1.Coeffs[i], MForm(scalar, s.Modulus, s.BRedConstant), p2.Coeffs[i])
-	}
+	})
 }
 
 // MulRNSScalarMontgomery evaluates p2 = p1 * scalar coefficient-wise in the ring, with a scalar value expressed in the CRT decomposition at a given level.
 // It assumes the scalar decomposition to be in Montgomery form.
 func (r Ring) MulRNSScalarMontgomery(p1 Poly, scalar RNSScalar, p2 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.MulScalarMontgomery(p1.Coeffs[i], scalar[i], p2.Coeffs[i])
-	}
+	})
 }
 
 // MulScalarThenSub evaluates p2 = p2 - p1 * scalar coefficient-wise in the ring.
@@ -283,23 +283,23 @@ func (r Ring) Shift(p1 Poly, k int, p2 Poly) {
 
 // MForm evaluates p2 = p1 * (2^64)^-1 coefficient-wise in the ring.
 func (r Ring) MForm(p1, p2 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.MForm(p1.Coeffs[i], p2.Coeffs[i])
-	}
+	})
 }
 
 // MFormLazy evaluates p2 = p1 * (2^64)^-1 coefficient-wise in the ring with p2 in [0, 2*modulus-1].
 func (r Ring) MFormLazy(p1, p2 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.MFormLazy(p1.Coeffs[i], p2.Coeffs[i])
-	}
+	})
 }
 
 // IMForm evaluates p2 = p1 * 2^64 coefficient-wise in the ring.
 func (r Ring) IMForm(p1, p2 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.IMForm(p1.Coeffs[i], p2.Coeffs[i])
-	}
+	})
 }
 
 // MultByMonomial evaluates p2 = p1 * X^k coefficient-wise in the ring.
@@ -364,16 +364,16 @@ func (r Ring) MultByMonomial(p1 Poly, k int, p2 Poly) {
 
 // MulByVectorMontgomery evaluates p2 = p1 * vector coefficient-wise in the ring.
 func (r Ring) MulByVectorMontgomery(p1 Poly, vector []uint64, p2 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.MulCoeffsMontgomery(p1.Coeffs[i], vector, p2.Coeffs[i])
-	}
+	})
 }
 
 // MulByVectorMontgomeryThenAddLazy evaluates p2 = p2 + p1 * vector coefficient-wise in the ring.
 func (r Ring) MulByVectorMontgomeryThenAddLazy(p1 Poly, vector []uint64, p2 Poly) {
-	for i, s := range r.SubRings[:r.level+1] {
+	r.forEachLimb(func(i int, s *SubRing) {
 		s.MulCoeffsMontgomeryThenAddLazy(p1.Coeffs[i], vector, p2.Coeffs[i])
-	}
+	})
 }
 
 // MapSmallDimensionToLargerDimensionNTT maps Y = X^{N/n} -> X directly in the NTT domain

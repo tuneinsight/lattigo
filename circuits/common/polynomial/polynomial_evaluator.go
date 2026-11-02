@@ -8,6 +8,7 @@ import (
 	"github.com/tuneinsight/lattigo/v6/schemes"
 	"github.com/tuneinsight/lattigo/v6/utils"
 	"github.com/tuneinsight/lattigo/v6/utils/bignum"
+	"github.com/tuneinsight/lattigo/v6/utils/parallel"
 )
 
 // CoefficientGetter defines an interface to get the coefficients of a Polynomial.
@@ -104,13 +105,35 @@ func (eval Evaluator[T]) EvaluatePatersonStockmeyerPolynomialVector(poly Paterso
 
 	babySteps := make([]*BabyStep, split)
 
-	// Small steps
-	for i := range babySteps {
-
-		// eval & cg are not thread-safe
-		if babySteps[split-i-1], err = eval.EvaluateBabyStep(i, poly, pb); err != nil {
-			return nil, fmt.Errorf("cannot EvaluateBabyStep: %w", err)
+	// Baby steps and the giant steps of a round are independent
+	// and are evaluated concurrently. The evaluator is thread-safe since
+	// v6.2.0; the CoefficientGetter is only stateless for single polynomials
+	// (GetVectorCoefficient writes a shared buffer), so polynomial vectors
+	// with a slot mapping are still evaluated sequentially.
+	workers := parallel.Parallelism()
+	if poly.Mapping != nil {
+		workers = 1
+	}
+	forEach := func(n int, f func(i int) error) error {
+		if workers == 1 {
+			for i := 0; i < n; i++ {
+				if err := f(i); err != nil {
+					return err
+				}
+			}
+			return nil
 		}
+		return parallel.For(n, f)
+	}
+
+	// Small steps
+	if err = forEach(split, func(i int) (err error) {
+		if babySteps[split-i-1], err = eval.EvaluateBabyStep(i, poly, pb); err != nil {
+			return fmt.Errorf("cannot EvaluateBabyStep: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
 	// Loops as long as there is more than one sub-polynomial
@@ -127,11 +150,29 @@ func (eval Evaluator[T]) EvaluatePatersonStockmeyerPolynomialVector(poly Paterso
 			}
 		}
 
-		for i := 0; i < len(babySteps); i++ {
+		// Combinations (giantsteps[i] == 1) only touch babySteps[i] and
+		// babySteps[i+1] and are independent of each other. The final carry
+		// (giantsteps[i] == 2) reads the degree of babySteps[i-1], which a
+		// combination may update, so it runs afterwards. Other indices are
+		// no-ops.
+		var pairs []int
+		for i := range giantsteps {
+			if giantsteps[i] == 1 {
+				pairs = append(pairs, i)
+			}
+		}
 
-			// eval is not thread-safe
-			if err = eval.EvaluateGiantStep(i, giantsteps, babySteps, pb); err != nil {
-				return nil, err
+		if err = forEach(len(pairs), func(k int) error {
+			return eval.EvaluateGiantStep(pairs[k], giantsteps, babySteps, pb)
+		}); err != nil {
+			return nil, err
+		}
+
+		for i := range giantsteps {
+			if giantsteps[i] == 2 {
+				if err = eval.EvaluateGiantStep(i, giantsteps, babySteps, pb); err != nil {
+					return nil, err
+				}
 			}
 		}
 

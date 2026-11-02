@@ -6,6 +6,7 @@ import (
 	"unsafe"
 
 	"github.com/tuneinsight/lattigo/v6/utils/bignum"
+	"github.com/tuneinsight/lattigo/v6/utils/parallel"
 	"github.com/tuneinsight/lattigo/v6/utils/structs"
 )
 
@@ -281,9 +282,6 @@ func (be *BasisExtender) ModDownQPtoP(levelQ, levelP int, p1Q, p1P, p2P Poly) {
 // Caution: values are not centered and returned values are in [0, 2P-1].
 func ModUpExact(p1, p2 [][]uint64, ringQ, ringP *Ring, MUC ModUpConstants) {
 
-	var v, rlo, rhi [8]uint64
-	var y0, y1, y2, y3, y4, y5, y6, y7 [32]uint64
-
 	levelQ := len(p1) - 1
 	levelP := len(p2) - 1
 
@@ -297,15 +295,25 @@ func ModUpExact(p1, p2 [][]uint64, ringQ, ringP *Ring, MUC ModUpConstants) {
 	qoverqiinvqi := MUC.qoverqiinvqi
 	qoverqimodp := MUC.qoverqimodp
 
-	// We loop over each coefficient and apply the basis extension
-	for x := 0; x < len(p1[0]); x = x + 8 {
-		reconstructRNS(0, levelQ+1, x, p1, &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, Q, mredQ, qoverqiinvqi)
-		for j := 0; j < levelP+1; j++ {
-			/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2[j])%8 != 0*/
-			multSum(levelQ, (*[8]uint64)(unsafe.Pointer(&p2[j][x])), &rlo, &rhi, &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, P[j], mredP[j], vtimesqmodp[j], qoverqimodp[j])
+	// We loop over each coefficient and apply the basis extension.
+	// Blocks of coefficients are independent and are processed
+	// in parallel, each with its own scratch space.
+	parallel.ForRange(len(p1[0])/8, basisExtensionMinBlocks, func(start, end int) {
+		var v, rlo, rhi [8]uint64
+		var y0, y1, y2, y3, y4, y5, y6, y7 [32]uint64
+		for x := 8 * start; x < 8*end; x = x + 8 {
+			reconstructRNS(0, levelQ+1, x, p1, &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, Q, mredQ, qoverqiinvqi)
+			for j := 0; j < levelP+1; j++ {
+				/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p2[j])%8 != 0*/
+				multSum(levelQ, (*[8]uint64)(unsafe.Pointer(&p2[j][x])), &rlo, &rhi, &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, P[j], mredP[j], vtimesqmodp[j], qoverqimodp[j])
+			}
 		}
-	}
+	})
 }
+
+// basisExtensionMinBlocks is the minimum number of 8-coefficient blocks per
+// parallel chunk of a basis extension.
+const basisExtensionMinBlocks = 256
 
 // Decomposer is a structure that stores the parameters of the arbitrary decomposer.
 // This decomposer takes a p(x)_Q (in basis Q) and returns p(x) mod qi in basis QP, where
@@ -447,10 +455,6 @@ func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, BaseRNSDec
 
 		MUC := decomposer.ModUpConstants[nbPi-2][BaseRNSDecompositionVectorSize][decompLvl]
 
-		var v, rlo, rhi [8]uint64
-		var vi [8]float64
-		var y0, y1, y2, y3, y4, y5, y6, y7 [32]uint64
-
 		Q := ringQ.ModuliChain()
 		P := ringP.ModuliChain()
 		mredQ := ringQ.MRedConstants()
@@ -472,29 +476,36 @@ func (decomposer *Decomposer) DecomposeAndSplit(levelQ, levelP, nbPi, BaseRNSDec
 			QHalfModqi[i] = tmp.Mod(QHalf, bignum.NewInt(Q[j])).Uint64()
 		}
 
-		// We loop over each coefficient and apply the basis extension
-		for x := 0; x < N; x = x + 8 {
+		// We loop over each coefficient and apply the basis extension.
+		// Blocks of coefficients are processed in parallel,
+		// each with its own scratch space.
+		parallel.ForRange(N/8, basisExtensionMinBlocks, func(start, end int) {
+			var v, rlo, rhi [8]uint64
+			var vi [8]float64
+			var y0, y1, y2, y3, y4, y5, y6, y7 [32]uint64
+			for x := 8 * start; x < 8*end; x = x + 8 {
 
-			reconstructRNSCentered(p0idxst, p0idxed, x, p0Q.Coeffs, &v, &vi, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, QHalfModqi, Q, mredQ, qoverqiinvqi)
+				reconstructRNSCentered(p0idxst, p0idxed, x, p0Q.Coeffs, &v, &vi, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, QHalfModqi, Q, mredQ, qoverqiinvqi)
 
-			// Coefficients of index smaller than the ones to be decomposed
-			for j := 0; j < p0idxst; j++ {
-				/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1Q.Coeffs[j])%8 != 0 */
-				multSum(decompLvl+1, (*[8]uint64)(unsafe.Pointer(&p1Q.Coeffs[j][x])), &rlo, &rhi, &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, Q[j], mredQ[j], vtimesqmodp[j], qoverqimodp[j])
+				// Coefficients of index smaller than the ones to be decomposed
+				for j := 0; j < p0idxst; j++ {
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1Q.Coeffs[j])%8 != 0 */
+					multSum(decompLvl+1, (*[8]uint64)(unsafe.Pointer(&p1Q.Coeffs[j][x])), &rlo, &rhi, &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, Q[j], mredQ[j], vtimesqmodp[j], qoverqimodp[j])
+				}
+
+				// Coefficients of index greater than the ones to be decomposed
+				for j := p0idxed; j < levelQ+1; j++ {
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1Q.Coeffs[j])%8 != 0 */
+					multSum(decompLvl+1, (*[8]uint64)(unsafe.Pointer(&p1Q.Coeffs[j][x])), &rlo, &rhi, &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, Q[j], mredQ[j], vtimesqmodp[j], qoverqimodp[j])
+				}
+
+				// Coefficients of the special primes Pi
+				for j, u := 0, len(Q); j < levelP+1; j, u = j+1, u+1 {
+					/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1P.Coeffs[j])%8 != 0 */
+					multSum(decompLvl+1, (*[8]uint64)(unsafe.Pointer(&p1P.Coeffs[j][x])), &rlo, &rhi, &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, P[j], mredP[j], vtimesqmodp[u], qoverqimodp[u])
+				}
 			}
-
-			// Coefficients of index greater than the ones to be decomposed
-			for j := p0idxed; j < levelQ+1; j++ {
-				/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1Q.Coeffs[j])%8 != 0 */
-				multSum(decompLvl+1, (*[8]uint64)(unsafe.Pointer(&p1Q.Coeffs[j][x])), &rlo, &rhi, &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, Q[j], mredQ[j], vtimesqmodp[j], qoverqimodp[j])
-			}
-
-			// Coefficients of the special primes Pi
-			for j, u := 0, len(Q); j < levelP+1; j, u = j+1, u+1 {
-				/* #nosec G103 -- behavior and consequences well understood, possible buffer overflow if len(p1P.Coeffs[j])%8 != 0 */
-				multSum(decompLvl+1, (*[8]uint64)(unsafe.Pointer(&p1P.Coeffs[j][x])), &rlo, &rhi, &v, &y0, &y1, &y2, &y3, &y4, &y5, &y6, &y7, P[j], mredP[j], vtimesqmodp[u], qoverqimodp[u])
-			}
-		}
+		})
 
 		ringQ.SubScalarBigint(p1Q, QHalf, p1Q)
 		ringP.SubScalarBigint(p1P, QHalf, p1P)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"runtime"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -162,6 +163,71 @@ func testBlindRotation(t *testing.T) {
 			if values[i] != 0 {
 				fmt.Printf("%7.4f - %7.4f - %7.4f\n", math.Round(a*32)/32, math.Round(a*8)/8, values[i])
 				//require.Equal(t, sign(values[i]), math.Round(a*8)/8)
+			}
+		}
+	})
+}
+
+// TestBlindRotationConcurrent checks that concurrent calls to Evaluate on the
+// same evaluator return the same result as a serial call.
+func TestBlindRotationConcurrent(t *testing.T) {
+
+	paramsBR, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
+		LogN:    6,
+		Q:       []uint64{12289},
+		NTTFlag: NTTFlag,
+	})
+	require.NoError(t, err)
+
+	paramsLWE, err := rlwe.NewParametersFromLiteral(rlwe.ParametersLiteral{
+		LogN:    5,
+		Q:       []uint64{7681},
+		NTTFlag: NTTFlag,
+	})
+	require.NoError(t, err)
+
+	t.Run(testString(paramsBR, "BlindRotation/Concurrent/"), func(t *testing.T) {
+
+		skLWE := rlwe.NewKeyGenerator(paramsLWE).GenSecretKeyNew()
+		skBR := rlwe.NewKeyGenerator(paramsBR).GenSecretKeyNew()
+
+		ptLWE := rlwe.NewPlaintext(paramsLWE, paramsLWE.MaxLevel())
+		ptLWE.Value.Coeffs[0][0] = paramsLWE.Q()[0] / 4
+		if ptLWE.IsNTT {
+			paramsLWE.RingQ().NTT(ptLWE.Value, ptLWE.Value)
+		}
+
+		ctLWE, err := rlwe.NewEncryptor(paramsLWE, skLWE).EncryptNew(ptLWE)
+		require.NoError(t, err)
+
+		testPoly := InitTestPolynomial(sign, rlwe.NewScale(float64(paramsBR.Q()[0])/4), paramsBR.RingQ(), -1, 1)
+		testPolyMap := map[int]*ring.Poly{0: &testPoly, 1: &testPoly}
+
+		BRK := GenEvaluationKeyNew(paramsBR, skBR, paramsLWE, skLWE, rlwe.EvaluationKeyParameters{BaseTwoDecomposition: utils.Pointy(7)})
+
+		eval := NewEvaluator(paramsBR, paramsLWE)
+
+		want, err := eval.Evaluate(ctLWE, testPolyMap, BRK)
+		require.NoError(t, err)
+
+		nGoRoutines := 4
+		got := make([]map[int]*rlwe.Ciphertext, nGoRoutines)
+		errs := make([]error, nGoRoutines)
+
+		var wg sync.WaitGroup
+		for i := range got {
+			wg.Add(1)
+			go func(i int) {
+				defer wg.Done()
+				got[i], errs[i] = eval.Evaluate(ctLWE, testPolyMap, BRK)
+			}(i)
+		}
+		wg.Wait()
+
+		for i := range got {
+			require.NoError(t, errs[i])
+			for j := range want {
+				require.True(t, want[j].Equal(got[i][j]), "goroutine %d returned a different result for slot %d", i, j)
 			}
 		}
 	})

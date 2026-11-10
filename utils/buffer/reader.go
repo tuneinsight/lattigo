@@ -3,6 +3,7 @@ package buffer
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"unsafe"
 )
 
@@ -126,6 +127,12 @@ func ReadUint16Slice(r Reader, c []uint16) (n int64, err error) {
 		size = len(c) << 1
 	}
 
+	// If no data is left while c is not full, the input is truncated: return
+	// an error instead of recursing indefinitely on the remaining elements.
+	if size == 0 {
+		return 0, io.ErrUnexpectedEOF
+	}
+
 	// Then returns the written bytes
 	if slice, err = r.Peek(size); err != nil {
 		return int64(len(slice)), err
@@ -201,6 +208,12 @@ func ReadUint32Slice(r Reader, c []uint32) (n int64, err error) {
 		size = len(c) << 2
 	}
 
+	// If no data is left while c is not full, the input is truncated: return
+	// an error instead of recursing indefinitely on the remaining elements.
+	if size == 0 {
+		return 0, io.ErrUnexpectedEOF
+	}
+
 	// Then returns the written bytes
 	if slice, err = r.Peek(size); err != nil {
 		return int64(len(slice)), err
@@ -274,6 +287,12 @@ func ReadUint64Slice(r Reader, c []uint64) (n int64, err error) {
 	size := r.Size()
 	if len(c)<<3 < size {
 		size = len(c) << 3
+	}
+
+	// If no data is left while c is not full, the input is truncated: return
+	// an error instead of recursing indefinitely on the remaining elements.
+	if size == 0 {
+		return 0, io.ErrUnexpectedEOF
 	}
 
 	// Then returns the written bytes
